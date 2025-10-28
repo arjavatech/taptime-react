@@ -17,7 +17,7 @@ import Device from "./components/ui/Device";
 import Profile from "./components/ui/Profile";
 import ContactUs from "./components/ui/ContactUs";
 import ReportSummary from "./components/ui/ReportSummary";
-import DayWiseReport from "./components/ui/DaywiseReport";
+import DayWiseReport from "./components/ui/DayWiseReport";
 import SalariedReport from "./components/ui/SalariedReport";
 import ReportSetting from "./components/ui/ReportSetting";
 
