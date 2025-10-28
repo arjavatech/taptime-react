@@ -120,7 +120,7 @@ const Header2 = () => {
           {/* Logo */}
           <div className="flex items-center gap-2">
             <img
-              src="/src/Public/tap-time-logo.png"
+              src="/images/tap-time-logo.png"
               alt="icode-logo"
               className="w-20 cursor-pointer"
               onClick={HomePage}
@@ -290,7 +290,7 @@ const Header2 = () => {
                       toggleProfileSidebar();
                     }}
                   >
-                    <img src="/src/Public/logout.png" alt="logout" className="w-6 h-5" />
+                    <img src="/images/logout.png" alt="logout" className="w-6 h-5" />
                     <button className="cursor-pointer">Logout</button>
                   </div>
                 </div>

@@ -263,7 +263,7 @@ const HomePage = () => {
         className="flex flex-col lg:flex-row p-4 pt-10 gap-12 items-center"
       >
         <img
-          src="/src/Public/tap-time-logo.png"
+          src="/images/tap-time-logo.png"
           alt="Main Feature"
           className="w-full lg:w-1/2 shadow-md"
         />
@@ -272,7 +272,7 @@ const HomePage = () => {
           {features.map((feature, index) => (
             <div key={index} className="flex items-start gap-6 sm:gap-8">
               <img
-                src={`/src/Public/${feature.icon}`}
+                src={`/images/${feature.icon}`}
                 alt={feature.title}
                 className="w-14 h-14 sm:w-18 sm:h-18 object-contain"
               />

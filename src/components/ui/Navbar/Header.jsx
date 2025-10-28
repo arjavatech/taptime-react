@@ -109,7 +109,7 @@ const Header = () => {
             >
               <img
                 className="w-19"
-                src="/src/Public/tap-time-logo.png"
+                src="/images/tap-time-logo.png"
                 alt="app-logo"
               />
             </a>
@@ -177,7 +177,7 @@ const Header = () => {
           }`}
         >
           <div className="flex justify-between items-center p-4">
-            <img className="w-20 pt-2" src="/src/Public/logo.png" alt="logo" />
+            <img className="w-20 pt-2" src="/images/logo.png" alt="logo" />
             <button
               className="p-1 rounded-full hover:bg-gray-100 focus:outline-none"
               onClick={() => setMobileMenuOpen(false)}

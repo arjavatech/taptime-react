@@ -248,7 +248,7 @@ const Login = () => {
         <div className="hidden md:flex xl:w-1/2 md:w-1/2 bg-[#D9E9FB] flex-col justify-center items-center xl:p-6">
           <div className="w-full flex flex-col items-center text-center">
             <img
-              src="/src/Public/tap-time-logo.png"
+              src="/images/tap-time-logo.png"
               alt="icode-logo"
               className="w-44 xl:w-94 md:w-32 mb-12 pt-42"
             />

@@ -8,7 +8,7 @@ const Footer = () => {
         <div className="flex flex-col items-center md:items-start w-full md:w-auto">
           <div className="flex items-center justify-center md:justify-start">
             <img
-              src="/src/Public/icode logo white.png"
+              src="/images/icode-logo-white.png"
               alt="Tap Time Logo"
               className="w-24 sm:w-28 md:w-30 pb-2"
             />
@@ -22,28 +22,28 @@ const Footer = () => {
           <div className="flex mt-5 gap-6 items-center justify-center md:justify-start flex-wrap">
             <a href="https://www.facebook.com/profile.php?id=61565587366048">
               <img
-                src="/src/Public/facebook.png"
+                src="/images/facebook.png"
                 alt="Facebook"
                 className="w-5 sm:w-6 rounded-full inline-block transition-all duration-300 ease-in-out hover:shadow-[0_0_15px_white]"
               />
             </a>
             <a href="https://www.instagram.com/_tap_time">
               <img
-                src="/src/Public/instagram.png"
+                src="/images/instagram.png"
                 alt="Instagram"
                 className="w-5 sm:w-6 inline-block transition-all duration-300 ease-in-out hover:shadow-[0_0_15px_white]"
               />
             </a>
             <a href="https://www.linkedin.com/company/arjavatech/">
               <img
-                src="/src/Public/linkedin.png"
+                src="/images/linkedin.png"
                 alt="LinkedIn"
                 className="w-5 sm:w-6 inline-block transition-all duration-300 ease-in-out hover:shadow-[0_0_15px_white]"
               />
             </a>
             <a href="https://x.com/_Tap_Time">
               <img
-                src="/src/Public/twitter.png"
+                src="/images/twitter.png"
                 alt="X"
                 className="w-5 sm:w-6 inline-block transition-all duration-300 ease-in-out hover:shadow-[0_0_15px_white]"
               />
@@ -121,7 +121,7 @@ const Footer = () => {
           >
             <div className="flex flex-col sm:flex-row items-center justify-center md:justify-start mb-3 gap-2">
               <img
-                src="/src/Public/location-pin.png"
+                src="/images/location-pin.png"
                 alt="Location"
                 className="w-5 mt-1"
               />
@@ -138,7 +138,7 @@ const Footer = () => {
           <a href="tel:+14258181900" className="hover:underline text-white">
             <div className="flex flex-col sm:flex-row items-center justify-center md:justify-start mb-2 gap-2">
               <img
-                src="/src/Public/phone-call.png"
+                src="/images/phone-call.png"
                 alt="Phone"
                 className="w-4 h-4"
               />
@@ -152,7 +152,7 @@ const Footer = () => {
           >
             <div className="flex flex-col sm:flex-row items-center justify-center md:justify-start gap-2">
               <img
-                src="/src/Public/paper-plane.png"
+                src="/images/paper-plane.png"
                 alt="Email"
                 className="w-4 h-4"
               />

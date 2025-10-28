@@ -117,7 +117,7 @@ const Register = () => {
       <div className="flex flex-col md:flex-row min-h-screen">
         <div className="hidden md:flex md:w-1/2 bg-blue-100 flex-col justify-center items-center p-5">
           <img
-            src="/src/Public/tap-time-logo.png"
+            src="/images/tap-time-logo.png"
             alt="icode-logo"
             className="w-44 xl:w-94 md:w-32 md:pt-2 xl:pt-8"
           />
