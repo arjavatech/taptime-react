@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-import Header2 from "./Navbar/Header2";
-import Footer2 from "./Footer/Footer2";
+import Header2 from "./Navbar/Header";
+import Footer2 from "./Footer/Footer";
 
 const ContactUs = () => {
   // Form fields
@@ -182,7 +182,7 @@ const ContactUs = () => {
   };
 
   return (
-    <>
+    <div className="min-h-screen flex flex-col">
     <Header2/>
 
       {/* Loading Overlay */}
@@ -195,7 +195,7 @@ const ContactUs = () => {
         </div>
       )}
 
-      <section className="min-h-full bg-gray-100 px-6 pt-28 pb-12">
+      <section className="flex-grow bg-gray-100 px-6 pt-28 pb-12">
         <div className="max-w-md mx-auto bg-gray-50 rounded-lg shadow-xl overflow-hidden p-6 px-10">
           <h3 className="text-3xl font-bold text-center text-gray-800 mb-6">
             Contact Us
@@ -330,7 +330,7 @@ const ContactUs = () => {
       </section>
 
       <Footer2/>
-    </>
+    </div>
   );
 };
 

@@ -1,18 +1,42 @@
 import React, { useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
-import Header2 from "./Navbar/Header2";
-import Footer2 from "./Footer/Footer2";
+import Header2 from "./Navbar/Header";
+import Footer2 from "./Footer/Footer";
+import { API_URLS } from '../../utils/apiUtils';
 
 const Device = () => {
-  // Constants
-  const API_URL_BASE =
-    "https://9dq56iwo77.execute-api.ap-south-1.amazonaws.com/prod/device";
-  const LOCAL_STORAGE_KEYS = {
-    USERNAME: "username",
-    COMPANY_ID: "companyID",
-    CUSTOM_ID: "customId",
-    PASSWORD: "password",
+  // Device API functions
+  const deviceApi = {
+    getAll: async (companyId) => {
+      const response = await fetch(`${API_URLS.device}/getAll/${companyId}`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      return response.json();
+    },
+    create: async (deviceData) => {
+      const response = await fetch(`${API_URLS.device}/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(deviceData)
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    },
+    delete: async (accessKey, companyId) => {
+      const response = await fetch(`${API_URLS.device}/delete/${accessKey}/${companyId}/Admin`, {
+        method: "PUT",
+        headers: { Accept: "application/json" }
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    }
   };
+
 
   // UI States
   const [showTable, setShowTable] = useState(false);
@@ -32,16 +56,7 @@ const Device = () => {
   const [editingDevice, setEditingDevice] = useState("");
   const [centerNativeValues, setCenterNativeValues] = useState({});
 
-  // Type Definitions
-  const Device = {
-    TimeZone: "",
-    DeviceID: "",
-    CID: "",
-    DeviceName: "",
-    AccessKey: "",
-    AccessKeyGeneratedTime: "",
-    LastModifiedBy: "",
-  };
+
 
   // Initialize on component mount
   useEffect(() => {
@@ -49,11 +64,7 @@ const Device = () => {
     const limitStr = localStorage.getItem("NoOfDevices") || "";
     setMaxDevices(parseInt(limitStr, 10) || 0);
 
-    // Load center native values from localStorage
-    const savedValues = localStorage.getItem("centerNativeValues");
-    if (savedValues) {
-      setCenterNativeValues(JSON.parse(savedValues));
-    }
+
 
     // Handles clicks outside of modals or sidebars
     const handleOutsideClick = (event) => {
@@ -84,12 +95,7 @@ const Device = () => {
     return "*".repeat(input.length - visibleChars) + input.slice(-visibleChars);
   };
 
-  const saveCenterNativeValues = () => {
-    localStorage.setItem(
-      "centerNativeValues",
-      JSON.stringify(centerNativeValues)
-    );
-  };
+
 
   const handleCenterNativeEdit = (accessKey) => {
     setEditingDevice(accessKey);
@@ -98,13 +104,11 @@ const Device = () => {
   const handleCenterNativeKeydown = (event, accessKey) => {
     if (event.key === "Enter") {
       setEditingDevice("");
-      saveCenterNativeValues();
     }
   };
 
   const handleCenterNativeBlur = () => {
     setEditingDevice("");
-    saveCenterNativeValues();
   };
 
   const handleCenterNativeChange = (accessKey, value) => {
@@ -130,7 +134,7 @@ const Device = () => {
   const viewDevices = async () => {
     setIsLoading(true);
     setErrorMessage("");
-    const companyId = localStorage.getItem(LOCAL_STORAGE_KEYS.COMPANY_ID);
+    const companyId = localStorage.getItem("companyID");
 
     if (!companyId) {
       setErrorMessage("Company ID not found");
@@ -140,15 +144,9 @@ const Device = () => {
     }
 
     try {
-      const response = await fetch(`${API_URL_BASE}/getAll/${companyId}`);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await deviceApi.getAll(companyId);
       console.log("viewDevices API response:", data);
-      localStorage.setItem("deviceData", JSON.stringify(data));
+
 
       if (data.error || data.length === 0) {
         console.log("No devices found or error:", data.error);
@@ -190,7 +188,7 @@ const Device = () => {
     setShowNoDeviceMessage(false);
     setShowTable(true);
 
-    const companyId = localStorage.getItem(LOCAL_STORAGE_KEYS.COMPANY_ID);
+    const companyId = localStorage.getItem("companyID");
     if (!companyId) {
       setErrorMessage("Company ID not found");
       setIsLoading(false);
@@ -208,22 +206,7 @@ const Device = () => {
     };
 
     try {
-      const response = await fetch(`${API_URL_BASE}/create`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify(newDevice),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`
-        );
-      }
-
+      await deviceApi.create(newDevice);
       await viewDevices();
     } catch (error) {
       console.error("Error adding device:", error);
@@ -246,7 +229,7 @@ const Device = () => {
     setShowDeleteModal(false);
     setIsLoading(true);
     setErrorMessage("");
-    const companyId = localStorage.getItem(LOCAL_STORAGE_KEYS.COMPANY_ID);
+    const companyId = localStorage.getItem("companyID");
 
     if (!companyId) {
       setErrorMessage("Company ID not found");
@@ -256,29 +239,14 @@ const Device = () => {
 
     try {
       console.log("Deleting device with AccessKey:", deviceToDelete);
-      const response = await fetch(
-        `${API_URL_BASE}/delete/${deviceToDelete}/${companyId}/Admin`,
-        {
-          method: "PUT",
-          headers: {
-            Accept: "application/json",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`
-        );
-      }
+      await deviceApi.delete(deviceToDelete, companyId);
 
       // Update local state and cache
       const updatedDevices = devices.filter(
         (device) => device.AccessKey !== deviceToDelete
       );
       setDevices(updatedDevices);
-      localStorage.setItem("deviceData", JSON.stringify(updatedDevices));
+
 
       if (updatedDevices.length === 0) {
         setShowTable(false);
@@ -299,10 +267,10 @@ const Device = () => {
   };
 
   return (
-    <>
+    <div className="min-h-screen flex flex-col">
     <Header2/>
 
-      <div className="bg-gray-100 flex flex-col pt-28 pb-19">
+      <div className="bg-gray-100 flex-1 flex flex-col pt-28 pb-19">
         {/* Main Content */}
         <main className="flex-grow container mx-auto px-4 py-8">
           {/* Loading Overlay */}
@@ -535,7 +503,7 @@ const Device = () => {
       </div>
 
       <Footer2/>
-    </>
+    </div>
   );
 };
 

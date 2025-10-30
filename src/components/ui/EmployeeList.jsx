@@ -1,8 +1,13 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
-import Header2 from "./Navbar/Header2";
-import Footer2 from "./Footer/Footer2";
-
+import Header2 from "./Navbar/Header";
+import Footer2 from "./Footer/Footer";
+import { 
+  fetchEmployeeData, 
+  createEmployeeWithData, 
+  updateEmployeeWithData, 
+  deleteEmployeeById 
+} from "../../utils/apiUtils";
 
 const EmployeeList = () => {
   // Data state
@@ -10,13 +15,9 @@ const EmployeeList = () => {
   const [filteredEmployees, setFilteredEmployees] = useState([]);
   const [admins, setAdmins] = useState([]);
   const [superAdmins, setSuperAdmins] = useState([]);
-  const [devices, setDevices] = useState([]);
-  const [selectedDevice, setSelectedDevice] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [searchTerms, setSearchTerms] = useState("");
-  const [searchSuperAdminTerm, setSearchSuperAdminTerm] = useState("");
+
+  const [searchTerms, setSearchTerms] = useState({ employee: "", admin: "", superAdmin: "" });
   const [getEmail, setGetEmail] = useState("");
-  const [employeesCount, setEmployeesCount] = useState(0);
 
   // UI state
   const [showEmployeeModal, setShowEmployeeModal] = useState(false);
@@ -28,12 +29,6 @@ const EmployeeList = () => {
   const [loading, setLoading] = useState(true);
   const [adminCount, setAdminCount] = useState(0);
   const [superAdminCount, setSuperAdminCount] = useState(0);
-
-  // API config
-  const apiUrlBase =
-    "https://9dq56iwo77.execute-api.ap-south-1.amazonaws.com/prod/employee";
-  const deviceApiUrl =
-    "https://9dq56iwo77.execute-api.ap-south-1.amazonaws.com/prod/device";
 
   // Form data
   const [formData, setFormData] = useState({
@@ -70,303 +65,94 @@ const EmployeeList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSizeOptions = [10, 25, 50, 100];
   const [paginatedEmployees, setPaginatedEmployees] = useState([]);
-  const [userType, setUserType] = useState("");
-  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Get values from localStorage
   const limitEmployees = localStorage.getItem("NoOfEmployees") || "";
   const maxEmployees = parseInt(limitEmployees);
   const adminType = localStorage.getItem("adminType");
-  const deviceID = localStorage.getItem("DeviceID");
   const companyId = localStorage.getItem("companyID");
 
   // Initialize component
   useEffect(() => {
     const email = localStorage.getItem("adminMail") || "";
     setGetEmail(email);
-    fetchEmployeeData();
-    fetchDevices();
-
-    const userType = localStorage.getItem("adminType") || "";
-    setUserType(userType);
+    loadEmployeeData();
   }, []);
 
-  // Fetch all employee data
-  const fetchEmployeeData = useCallback(async () => {
+  // Fetch all employee data using centralized API
+  const loadEmployeeData = useCallback(async () => {
     try {
       setLoading(true);
-      console.log("Fetching employees for companyId:", companyId);
-      const response = await fetch(`${apiUrlBase}/getall/${companyId}`);
-
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
+      const data = await fetchEmployeeData();
+      if (data) {
+        const employeesArray = Array.isArray(data) ? data : [];
+        setEmployees(employeesArray);
+        filterEmployees(employeesArray);
       }
-
-      const data = await response.json();
-      console.log("Raw API response:", data);
-      const employeesArray = Array.isArray(data) ? data : [];
-      setEmployees(employeesArray);
-      console.log("Processed employees array:", employeesArray);
-      setEmployeesCount(employeesArray.length);
-      filterEmployees(employeesArray);
     } catch (error) {
-      console.error("Error fetching employee data:", error);
       setErrorMessage("Failed to load employee data");
       setTimeout(() => setErrorMessage(""), 3000);
     } finally {
       setLoading(false);
     }
-  }, [companyId]);
+  }, []);
 
-  // Fetch device data
-  const fetchDevices = useCallback(async () => {
-    try {
-      const response = await fetch(`${deviceApiUrl}/getAll/${companyId}`);
-
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      // Filter out devices with "Not Registered" names
-      const allDevices = Array.isArray(data) ? data : [data];
-      const filteredDevices = allDevices.filter(
-        (device) =>
-          device.DeviceName &&
-          device.DeviceName !== "Not Registered" &&
-          device.DeviceName.trim() !== ""
-      );
-      setDevices(filteredDevices);
-      console.log("Fetched devices (filtered):", filteredDevices);
-
-      // Set first valid device as default selection
-      if (filteredDevices.length > 0) {
-        setSelectedDevice(filteredDevices[0]);
-        console.log("Default selected device:", filteredDevices[0]);
-        console.log("Default Device ID:", filteredDevices[0].DeviceID);
-        // Filter employees after setting default device
-        filterEmployees(employees, filteredDevices[0]);
-      }
-    } catch (error) {
-      console.error("Error fetching devices:", error);
-      setErrorMessage("Failed to load devices");
-      setTimeout(() => setErrorMessage(""), 3000);
-    }
-  }, [companyId, employees]);
-
-  // Handle device selection
-  const handleDeviceSelection = useCallback(
-    (device) => {
-      setSelectedDevice(device);
-      console.log("Selected device:", device);
-      console.log("Device ID to pass:", device.DeviceID);
-      // Filter employees by selected device
-      filterEmployees(employees, device);
-    },
-    [employees]
-  );
-
-  // Filter employees by type and device
+  // Filter employees by type
   const filterEmployees = useCallback(
-    (employeesList = employees, device = selectedDevice) => {
+    (employeesList = employees) => {
       setLoading(true);
+      const allEmployees = Array.isArray(employeesList) ? employeesList : [];
 
-      // Base filter for device selection
-      let deviceFilteredEmployees = Array.isArray(employeesList)
-        ? employeesList
-        : [];
+      const filtered = allEmployees.filter((emp) => emp.IsAdmin === 0);
+      const adminList = allEmployees.filter((emp) => emp.IsAdmin === 1);
+      const superAdminList = allEmployees.filter((emp) => emp.IsAdmin === 2);
 
-      if (device && device.DeviceID) {
-        console.log(
-          "All employees before filtering:",
-          employeesList.map((emp) => ({
-            EmpID: emp.EmpID,
-            DeviceID: emp.DeviceID,
-            FName: emp.FName,
-            IsAdmin: emp.IsAdmin,
-          }))
-        );
-        console.log("Filtering by DeviceID:", device.DeviceID);
-        deviceFilteredEmployees = deviceFilteredEmployees.filter(
-          (emp) => emp.DeviceID === device.DeviceID
-        );
-        console.log(
-          `Filtered employees by DeviceID ${device.DeviceID}:`,
-          deviceFilteredEmployees.length
-        );
-        console.log(
-          "Filtered employees:",
-          deviceFilteredEmployees.map((emp) => ({
-            EmpID: emp.EmpID,
-            DeviceID: emp.DeviceID,
-            FName: emp.FName,
-            IsAdmin: emp.IsAdmin,
-          }))
-        );
-      }
-
-      // Filter by employee type from device-filtered employees
-      const filtered = deviceFilteredEmployees.filter(
-        (emp) => emp.IsAdmin === 0
-      );
       setFilteredEmployees(filtered);
-      console.log("employee data", filtered);
-
-      const adminList = deviceFilteredEmployees.filter(
-        (emp) => emp.IsAdmin === 1
-      );
       setAdmins(adminList);
-
-      const superAdminList = deviceFilteredEmployees.filter(
-        (emp) => emp.IsAdmin === 2
-      );
       setSuperAdmins(superAdminList);
-
-      console.log(
-        `Filtered employees: ${filtered.length}, Admins: ${adminList.length}, SuperAdmins: ${superAdminList.length}`
-      );
       setAdminCount(adminList.length);
       setSuperAdminCount(superAdminList.length);
-
-      // Force update pagination to reflect new data
-      setCurrentPage(1); // Reset to first page
-      updatePagination(filtered);
+      setCurrentPage(1);
       setLoading(false);
 
-      // Profile page Admin and Super Admin details storing
-      let matchedEmployee = null;
+      // Store matched admin for profile
       const cleanEmail = getEmail.trim().toLowerCase();
-
-      if (adminType === "Admin") {
-        for (const emp of adminList) {
-          const empEmail = (emp.Email || "").trim().toLowerCase();
-          console.log(`Comparing Admin Email: ${empEmail} === ${cleanEmail}`);
-          if (empEmail === cleanEmail) {
-            matchedEmployee = emp;
-            break;
-          }
-        }
-      } else if (adminType === "SuperAdmin") {
-        for (const emp of superAdminList) {
-          const empEmail = (emp.Email || "").trim().toLowerCase();
-          console.log(
-            `Comparing SuperAdmin Email: ${empEmail} === ${cleanEmail}`
-          );
-          if (empEmail === cleanEmail) {
-            matchedEmployee = emp;
-            break;
-          }
-        }
-      }
-
-      console.log("Matched Employee:", matchedEmployee);
-
+      const targetList = adminType === "Admin" ? adminList : adminType === "SuperAdmin" ? superAdminList : [];
+      const matchedEmployee = targetList.find(emp => (emp.Email || "").trim().toLowerCase() === cleanEmail);
+      
       if (matchedEmployee) {
         localStorage.setItem("loggedAdmin", JSON.stringify(matchedEmployee));
-      } else {
-        console.log("No matching employee found.");
       }
     },
-    [employees, selectedDevice, getEmail, adminType]
+    [employees, getEmail, adminType]
   );
 
-  // Search functions
-  const searchEmployees = useCallback(() => {
-    if (!searchTerms) {
+  // Unified search function
+  const searchByType = useCallback((type, term) => {
+    if (!term) {
       filterEmployees();
       return;
     }
 
-    // Base filter for device selection
-    let deviceFilteredEmployees = Array.isArray(employees) ? employees : [];
-    if (selectedDevice && selectedDevice.DeviceID) {
-      deviceFilteredEmployees = employees.filter(
-        (emp) =>
-          emp.DeviceID ===
-          (deviceID != undefined || deviceID == null
-            ? selectedDevice.DeviceID
-            : deviceID)
-      );
-    }
-
-    const term = searchTerms.toLowerCase();
-    const filtered = deviceFilteredEmployees.filter(
+    const lowerTerm = term.toLowerCase();
+    const adminLevel = type === 'employee' ? 0 : type === 'admin' ? 1 : 2;
+    const filtered = employees.filter(
       (emp) =>
-        emp.IsAdmin === 0 &&
-        (emp.FName.toLowerCase().includes(term) ||
-          emp.LName.toLowerCase().includes(term) ||
-          emp.Pin.includes(searchTerms) ||
-          emp.PhoneNumber.includes(searchTerms))
+        emp.IsAdmin === adminLevel &&
+        (emp.FName.toLowerCase().includes(lowerTerm) ||
+          emp.LName.toLowerCase().includes(lowerTerm) ||
+          emp.Pin.includes(term) ||
+          emp.PhoneNumber.includes(term))
     );
-    setFilteredEmployees(filtered);
-    updatePagination(filtered);
-  }, [searchTerms, employees, selectedDevice, deviceID, filterEmployees]);
 
-  const searchAdmins = useCallback(() => {
-    if (!searchTerm) {
-      filterEmployees();
-      return;
+    if (type === 'employee') {
+      setFilteredEmployees(filtered);
+    } else if (type === 'admin') {
+      setAdmins(filtered);
+    } else {
+      setSuperAdmins(filtered);
     }
-
-    // Base filter for device selection
-    let deviceFilteredEmployees = employees;
-    if (selectedDevice && selectedDevice.DeviceID) {
-      deviceFilteredEmployees = employees.filter(
-        (emp) =>
-          emp.DeviceID ===
-          (deviceID != undefined || deviceID == null
-            ? selectedDevice.DeviceID
-            : deviceID)
-      );
-    }
-
-    const term = searchTerm.toLowerCase();
-    const adminList = deviceFilteredEmployees.filter(
-      (emp) =>
-        emp.IsAdmin === 1 &&
-        (emp.FName.toLowerCase().includes(term) ||
-          emp.LName.toLowerCase().includes(term) ||
-          emp.Pin.includes(searchTerm) ||
-          emp.PhoneNumber.includes(searchTerm))
-    );
-    setAdmins(adminList);
-  }, [searchTerm, employees, selectedDevice, deviceID, filterEmployees]);
-
-  const searchSuperAdmins = useCallback(() => {
-    if (!searchSuperAdminTerm) {
-      filterEmployees();
-      return;
-    }
-
-    // Base filter for device selection
-    let deviceFilteredEmployees = employees;
-    if (selectedDevice && selectedDevice.DeviceID) {
-      deviceFilteredEmployees = employees.filter(
-        (emp) =>
-          emp.DeviceID ===
-          (deviceID != undefined || deviceID == null
-            ? selectedDevice.DeviceID
-            : deviceID)
-      );
-    }
-
-    const term = searchSuperAdminTerm.toLowerCase();
-    const superAdminList = deviceFilteredEmployees.filter(
-      (emp) =>
-        emp.IsAdmin === 2 &&
-        (emp.FName.toLowerCase().includes(term) ||
-          emp.LName.toLowerCase().includes(term) ||
-          emp.Pin.includes(searchSuperAdminTerm) ||
-          emp.PhoneNumber.includes(searchSuperAdminTerm))
-    );
-    setSuperAdmins(superAdminList);
-  }, [
-    searchSuperAdminTerm,
-    employees,
-    selectedDevice,
-    deviceID,
-    filterEmployees,
-  ]);
+  }, [employees, filterEmployees]);
 
   // Sorting function
   const requestSort = useCallback(
@@ -501,79 +287,29 @@ const EmployeeList = () => {
     return isValid;
   }, [formData]);
 
-  // Modal open functions
-  const openAddEmployee = useCallback(() => {
-    console.log("openAddEmployee called");
-    setFormData({
-      EmpID: "",
-      Pin: "",
-      FName: "",
-      LName: "",
-      PhoneNumber: "",
-      Email: "",
-      IsAdmin: 0,
-      IsActive: true,
-      LastModifiedBy: "Admin",
-    });
-    setErrors({ FName: "", LName: "", PhoneNumber: "", Email: "" });
-    setSuccessMessage("");
-    setErrorMessage("");
-    setIsEditing(false);
-    setShowEmployeeModal(true);
-    console.log("Employee modal opened, IsAdmin set to:", 0);
-    console.log("isEditing:", false);
-    console.log("showEmployeeModal:", true);
-    console.log("showAdminModal:", false);
-    console.log("showSuperAdminModal:", false);
-  }, []);
-
-  const openAddAdmin = useCallback(() => {
-    console.log("openAddAdmin called, adminCount:", adminCount);
-    if (adminCount >= 3) {
+  // Unified modal open function
+  const openAddModal = useCallback((adminLevel) => {
+    if (adminLevel === 1 && adminCount >= 3) {
       setErrorMessage("Maximum 3 admins allowed");
       setTimeout(() => setErrorMessage(""), 3000);
       return;
     }
 
-    setFormData({
-      EmpID: "",
-      Pin: "",
-      FName: "",
-      LName: "",
-      PhoneNumber: "",
-      Email: "",
-      IsAdmin: 1,
-      IsActive: true,
-      LastModifiedBy: "Admin",
-    });
+    const resetForm = {
+      EmpID: "", Pin: "", FName: "", LName: "", PhoneNumber: "", Email: "",
+      IsAdmin: adminLevel, IsActive: true, LastModifiedBy: "Admin"
+    };
+    
+    setFormData(resetForm);
     setErrors({ FName: "", LName: "", PhoneNumber: "", Email: "" });
     setSuccessMessage("");
     setErrorMessage("");
     setIsEditing(false);
-    setShowAdminModal(true);
-    console.log("Admin modal opened, isEditing:", false);
+    
+    if (adminLevel === 0) setShowEmployeeModal(true);
+    else if (adminLevel === 1) setShowAdminModal(true);
+    else setShowSuperAdminModal(true);
   }, [adminCount]);
-
-  const openAddSuperAdmin = useCallback(() => {
-    console.log("openAddSuperAdmin called");
-    setFormData({
-      EmpID: "",
-      Pin: "",
-      FName: "",
-      LName: "",
-      PhoneNumber: "",
-      Email: "",
-      IsAdmin: 2,
-      IsActive: true,
-      LastModifiedBy: "Admin",
-    });
-    setErrors({ FName: "", LName: "", PhoneNumber: "", Email: "" });
-    setSuccessMessage("");
-    setErrorMessage("");
-    setIsEditing(false);
-    setShowSuperAdminModal(true);
-    console.log("SuperAdmin modal opened, isEditing:", false);
-  }, []);
 
   const openEditEmployee = useCallback((employee) => {
     setCurrentEmployee(employee);
@@ -606,139 +342,39 @@ const EmployeeList = () => {
 
   // Form submission
   const submitForm = useCallback(async () => {
-    console.log("submitForm called, formData.IsAdmin:", formData.IsAdmin);
-
     if (!validateForm()) return;
-
-    // Validate device selection
-    if (!selectedDevice) {
-      setErrorMessage("Please select a device before adding employee");
-      setTimeout(() => setErrorMessage(""), 3000);
-      return;
-    }
 
     try {
       setLoading(true);
+      const employeeData = { ...formData, CID: companyId };
+      
+      if (!isEditing) employeeData.EmpID = uuidv4();
+      if (!employeeData.Email) employeeData.Email = "";
 
-      console.log(
-        "Before creating employeeData, formData.IsAdmin:",
-        formData.IsAdmin
-      );
-
-      const employeeData = {
-        ...formData,
-        CID: companyId,
-        DeviceID:
-          adminType != "Owner"
-            ? deviceID
-            : selectedDevice
-            ? selectedDevice.DeviceID
-            : null,
-      };
-
-      console.log(
-        "After creating employeeData, employeeData.IsAdmin:",
-        employeeData.IsAdmin
-      );
-
-      // Generate UUID for new employee creation
-      if (!isEditing) {
-        employeeData.EmpID = uuidv4();
-        console.log("Generated EmpID for new employee:", employeeData.EmpID);
-      }
-
-      // Convert empty email string to null for both create and update
-      if (employeeData.Email === "" || employeeData.Email === undefined) {
-        employeeData.Email = "";
-      }
-
-      console.log("Submitting employee data:", employeeData);
-      console.log("IsAdmin value being sent:", employeeData.IsAdmin);
-      console.log("Form data IsAdmin:", formData.IsAdmin);
-      console.log("adminType:", adminType);
-      console.log("deviceID from localStorage:", deviceID);
-      console.log("selectedDevice:", selectedDevice);
-      console.log("Final DeviceID being sent:", employeeData.DeviceID);
-
-      const apiUrl = isEditing
-        ? `${apiUrlBase}/update/${formData.EmpID}`
-        : `${apiUrlBase}/create`;
-      const method = isEditing ? "PUT" : "POST";
-
-      const response = await fetch(apiUrl, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(employeeData),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = isEditing
+        ? await updateEmployeeWithData(formData.EmpID, employeeData)
+        : await createEmployeeWithData(employeeData);
+        
       if (data.error) {
         setErrorMessage(data.error);
       } else {
-        setSuccessMessage(
-          isEditing
-            ? "Employee updated successfully"
-            : "Employee added successfully"
-        );
-        console.log("Success! Refreshing employee data...");
-        // Add delay to ensure database is updated
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-        await fetchEmployeeData();
-        // If still no data, try one more time after additional delay
-        if (employees.length === 0) {
-          console.log(
-            "No employees found, trying again after additional delay..."
-          );
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          await fetchEmployeeData();
-        }
+        setSuccessMessage(isEditing ? "Employee updated successfully" : "Employee added successfully");
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await loadEmployeeData();
       }
     } catch (error) {
-      console.error("Error submitting form:", error);
       setErrorMessage("An error occurred while saving the data");
     } finally {
       setLoading(false);
-      setTimeout(() => {
-        setSuccessMessage("");
-        setErrorMessage("");
-      }, 3000);
-
+      setTimeout(() => { setSuccessMessage(""); setErrorMessage(""); }, 3000);
+      
       if (!errorMessage) {
         setShowEmployeeModal(false);
         setShowAdminModal(false);
         setShowSuperAdminModal(false);
-        // Reset form data
-        setFormData({
-          EmpID: "",
-          Pin: "",
-          FName: "",
-          LName: "",
-          PhoneNumber: "",
-          Email: "",
-          IsAdmin: 0,
-          IsActive: true,
-          LastModifiedBy: "Admin",
-        });
       }
     }
-  }, [
-    validateForm,
-    selectedDevice,
-    formData,
-    companyId,
-    adminType,
-    deviceID,
-    isEditing,
-    errorMessage,
-    fetchEmployeeData,
-    employees.length,
-  ]);
+  }, [validateForm, formData, companyId, isEditing, errorMessage, loadEmployeeData]);
 
   // Delete employee
   const deleteEmployee = useCallback(async () => {
@@ -746,73 +382,24 @@ const EmployeeList = () => {
 
     try {
       setLoading(true);
-      // Regular delete for employees
-      const response = await fetch(
-        `${apiUrlBase}/delete/${currentEmployee.EmpID}/Admin`,
-        {
-          method: "PUT",
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await deleteEmployeeById(currentEmployee.EmpID);
 
       if (data.error) {
         setErrorMessage(data.error);
       } else {
         setSuccessMessage("Employee deleted successfully");
-        fetchEmployeeData();
+        loadEmployeeData();
       }
     } catch (error) {
-      console.error("Error deleting employee:", error);
       setErrorMessage("An error occurred while deleting the employee");
     } finally {
       setLoading(false);
-      setTimeout(() => {
-        setSuccessMessage("");
-        setErrorMessage("");
-      }, 3000);
+      setTimeout(() => { setSuccessMessage(""); setErrorMessage(""); }, 3000);
       setShowDeleteModal(false);
     }
-  }, [currentEmployee, fetchEmployeeData]);
+  }, [currentEmployee]);
 
-  // DROPDOWN DEVICE CLICK BODY ACTION
-  const toggleDropdown = useCallback(() => {
-    setDropdownOpen((prev) => !prev);
-  }, []);
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      const dropdown = document.getElementById("device-dropdown-summary");
-      const button = document.getElementById("device-menu-button-summary");
-
-      if (
-        dropdown &&
-        !dropdown.contains(event.target) &&
-        button &&
-        !button.contains(event.target)
-      ) {
-        setDropdownOpen(false);
-      }
-    };
-
-    window.addEventListener("click", handleClickOutside);
-    return () => {
-      window.removeEventListener("click", handleClickOutside);
-    };
-  }, []);
-
-  const selectDevice = useCallback(
-    (device) => {
-      handleDeviceSelection(device);
-      setDropdownOpen(false);
-    },
-    [handleDeviceSelection]
-  );
 
   // Update pagination when dependencies change
   useEffect(() => {
@@ -821,22 +408,22 @@ const EmployeeList = () => {
 
   // Search effects
   useEffect(() => {
-    searchEmployees();
-  }, [searchTerms, searchEmployees]);
+    searchByType('employee', searchTerms.employee);
+  }, [searchTerms.employee, searchByType]);
 
   useEffect(() => {
-    searchAdmins();
-  }, [searchTerm, searchAdmins]);
+    searchByType('admin', searchTerms.admin);
+  }, [searchTerms.admin, searchByType]);
 
   useEffect(() => {
-    searchSuperAdmins();
-  }, [searchSuperAdminTerm, searchSuperAdmins]);
+    searchByType('superAdmin', searchTerms.superAdmin);
+  }, [searchTerms.superAdmin, searchByType]);
 
   return (
-    <>
-    <Header2/>
-     
-      <div className="overflow-x-hidden min-h-screen bg-gray-100 pt-30 pb-10 px-4 sm:px-6">
+    <div className="min-h-screen flex flex-col">
+      <Header2 />
+
+      <div className="overflow-x-hidden flex-grow bg-gray-100 pt-30 pb-10 px-4 sm:px-6">
         {/* Loading Overlay */}
         {loading && (
           <div
@@ -860,67 +447,7 @@ const EmployeeList = () => {
           </div>
         )}
 
-        {/* Device Dropdown Section */}
-        <div className="max-w-5xl mx-auto mb-8 px-4">
-          <div className="flex justify-center">
-            <div className="relative inline-block text-left w-64">
-              {adminType === "Owner" && (
-                <button
-                  id="device-menu-button-summary"
-                  type="button"
-                  className="inline-flex w-full justify-between items-center rounded-lg bg-white px-4 py-3 text-sm font-semibold text-[#02066F] border border-[#02066F] shadow-sm hover:bg-[#02066F] hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#02066F] transition"
-                  onClick={toggleDropdown}
-                >
-                  <span>
-                    {selectedDevice
-                      ? selectedDevice.DeviceName
-                      : "Select Device Name"}
-                  </span>
-                  <svg
-                    className="h-5 w-5 text-gray-400 group-hover:text-white transition"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </button>
-              )}
 
-              {/* Dropdown */}
-              {dropdownOpen && (
-                <div
-                  id="device-dropdown-summary"
-                  className="absolute right-0 z-20 mt-2 w-full origin-top-right rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 animate-fadeIn"
-                >
-                  <div className="py-1">
-                    {devices.length > 0 ? (
-                      devices.map((device) => (
-                        <button
-                          key={device.DeviceID}
-                          type="button"
-                          className="text-gray-700 block w-full px-4 py-2 text-left text-sm hover:bg-[#02066F] hover:text-white transition"
-                          onClick={() => selectDevice(device)}
-                        >
-                          {device.DeviceName}
-                        </button>
-                      ))
-                    ) : (
-                      <div className="text-gray-500 block px-4 py-2 text-sm">
-                        No devices available
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-        {/* End Device Dropdown */}
 
         {/* Employee Section */}
         <div className="max-w-5xl mx-auto">
@@ -934,8 +461,8 @@ const EmployeeList = () => {
               <div className="relative group w-fit">
                 <button
                   className="px-2 py-1 md:px-2 md:py-1 w-24 h-10 md:w-26 text-center items-center bg-white text-base md:text-lg border border-[#02066F] text-[#02066F] rounded-md cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={openAddEmployee}
-                  disabled={employees.length >= maxEmployees || !selectedDevice}
+                  onClick={() => openAddModal(0)}
+                  disabled={employees.length >= maxEmployees}
                 >
                   Add Entry
                 </button>
@@ -989,8 +516,8 @@ const EmployeeList = () => {
                     </label>
                     <input
                       type="text"
-                      value={searchTerms}
-                      onChange={(e) => setSearchTerms(e.target.value)}
+                      value={searchTerms.employee}
+                      onChange={(e) => setSearchTerms(prev => ({...prev, employee: e.target.value}))}
                       className="w-full sm:w-64 px-2 py-1 border border-gray-500 rounded-md focus:outline-none focus:ring-1 focus:ring-[#02066F]"
                       placeholder=""
                     />
@@ -1154,11 +681,10 @@ const EmployeeList = () => {
                     <div className="relative group w-fit">
                       <button
                         className="px-2 py-1 md:px-2 md:py-1 w-24 h-10 md:w-26 text-center items-center bg-white text-base md:text-lg border border-[#02066F] text-[#02066F] rounded-md cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        onClick={openAddAdmin}
+                        onClick={() => openAddModal(1)}
                         disabled={
                           employees.length >= maxEmployees ||
-                          adminCount >= 3 ||
-                          !selectedDevice
+                          adminCount >= 3
                         }
                       >
                         Add Entry
@@ -1166,19 +692,19 @@ const EmployeeList = () => {
 
                       {(adminCount >= 3 ||
                         employees.length >= maxEmployees) && (
-                        <div className="absolute -top-16 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-sm rounded py-2 px-3 shadow-lg w-64 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20 pointer-events-none">
-                          <p>
-                            You have reached the Admin registration limit. If
-                            you need to add more Admins, please
-                            <a
-                              href="/contact"
-                              className="text-yellow-400 hover:underline"
-                            >
-                              contact!
-                            </a>
-                          </p>
-                        </div>
-                      )}
+                          <div className="absolute -top-16 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-sm rounded py-2 px-3 shadow-lg w-64 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20 pointer-events-none">
+                            <p>
+                              You have reached the Admin registration limit. If
+                              you need to add more Admins, please
+                              <a
+                                href="/contact"
+                                className="text-yellow-400 hover:underline"
+                              >
+                                contact!
+                              </a>
+                            </p>
+                          </div>
+                        )}
                     </div>
                   </div>
 
@@ -1190,8 +716,8 @@ const EmployeeList = () => {
                         </label>
                         <input
                           type="text"
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
+                          value={searchTerms.admin}
+                          onChange={(e) => setSearchTerms(prev => ({...prev, admin: e.target.value}))}
                           className="w-full sm:w-64 px-2 py-1 border border-gray-500 rounded-md focus:outline-none focus:ring-1 focus:ring-[#02066F]"
                           placeholder=""
                         />
@@ -1268,126 +794,65 @@ const EmployeeList = () => {
               )}
 
               {/* SuperAdmin Section */}
-
-              {adminType === "Owner" && (
+              {(adminType === "Owner" || adminType === "SuperAdmin" || adminType === "customer") && (
                 <div className="mb-8 pt-4">
-                  <div className="flex flex-row sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-                    <h2 className="text-2xl sm:text-3xl font-bold text-gray-800">
-                      SuperAdmin Details
-                    </h2>
-
-                    <div className="relative group w-fit">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-gray-800">SuperAdmin Details</h2>
+                    <div className="relative group">
                       <button
-                        className="px-2 py-1 md:px-2 md:py-1 w-26 h-10 md:w-26 text-center items-center bg-white text-base md:text-lg border border-[#02066F] text-[#02066F] rounded-md cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        onClick={openAddSuperAdmin}
-                        disabled={
-                          employees.length >= maxEmployees ||
-                          superAdminCount >= 1 ||
-                          !selectedDevice
-                        }
+                        className="px-2 py-1 w-24 h-10 bg-white text-base border border-[#02066F] text-[#02066F] rounded-md cursor-pointer transition-colors disabled:opacity-50"
+                        onClick={() => openAddModal(2)}
+                        disabled={employees.length >= maxEmployees || superAdminCount >= 1}
                       >
                         Add Entry
                       </button>
-
-                      {(superAdminCount >= 1 ||
-                        employees.length >= maxEmployees) && (
-                        <div className="absolute -top-16 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-sm rounded py-2 px-3 shadow-lg w-64 opacity-0 group-hover:opacity-100 transition-opacity duration-800 z-20 pointer-events-none">
-                          <p>
-                            You have reached the SuperAdmin registration limit.
-                            Please
-                            <a
-                              href="/contact"
-                              className="text-yellow-400 hover:underline"
-                            >
-                              contact!
-                            </a>
-                          </p>
+                      {(superAdminCount >= 1 || employees.length >= maxEmployees) && (
+                        <div className="absolute -top-16 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-sm rounded py-2 px-3 shadow-lg w-64 opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none">
+                          <p>You have reached the SuperAdmin registration limit. Please<a href="/contact" className="text-yellow-400 hover:underline pl-1">contact!</a></p>
                         </div>
                       )}
                     </div>
                   </div>
-
                   <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-300">
-                    <div className="p-4 sm:p-6 overflow-x-auto">
-                      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
-                        <label className="text-base font-semibold text-gray-800">
-                          Search:
-                        </label>
+                    <div className="p-4 sm:p-6">
+                      <div className="mb-4 flex justify-end gap-2">
+                        <label className="text-base font-semibold text-gray-800">Search:</label>
                         <input
                           type="text"
-                          value={searchSuperAdminTerm}
-                          onChange={(e) =>
-                            setSearchSuperAdminTerm(e.target.value)
-                          }
-                          className="w-full sm:w-64 px-2 py-1 border border-gray-500 rounded-md focus:outline-none focus:ring-1 focus:ring-[#02066F]"
-                          placeholder=""
+                          value={searchTerms.superAdmin}
+                          onChange={(e) => setSearchTerms(prev => ({...prev, superAdmin: e.target.value}))}
+                          className="w-64 px-2 py-1 border border-gray-500 rounded-md focus:outline-none focus:ring-1 focus:ring-[#02066F]"
                         />
                       </div>
-
                       <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                           <thead className="bg-[#02066F] text-white">
                             <tr>
-                              <th className="px-4 py-3 text-base font-bold tracking-wider">
-                                Pin
-                              </th>
-                              <th className="px-4 py-3 text-base font-bold tracking-wider">
-                                Name
-                              </th>
-                              <th className="px-4 py-3 text-base font-bold tracking-wider">
-                                Phone Number
-                              </th>
-                              <th className="px-4 py-3 text-base font-bold tracking-wider">
-                                Action
-                              </th>
+                              {["Pin", "Name", "Phone Number", "Action"].map(header => (
+                                <th key={header} className="px-4 py-3 text-base font-bold">{header}</th>
+                              ))}
                             </tr>
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-200">
-                            {superAdmins.length > 0 ? (
-                              superAdmins.map((superAdmin) => (
-                                <tr
-                                  key={superAdmin.EmpID}
-                                  className="hover:bg-gray-50"
-                                >
-                                  <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
-                                    {superAdmin.Pin}
-                                  </td>
-                                  <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
-                                    {superAdmin.FName} {superAdmin.LName}
-                                  </td>
-                                  <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
-                                    {formatPhoneNumber(superAdmin.PhoneNumber)}
-                                  </td>
-                                  <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
-                                    <div className="flex justify-center space-x-2">
-                                      <button
-                                        onClick={() =>
-                                          openEditEmployee(superAdmin)
-                                        }
-                                        className="text-[#02066F] p-1 cursor-pointer"
-                                      >
-                                        <i className="fas fa-pencil-alt"></i>
-                                      </button>
-                                      <button
-                                        onClick={() =>
-                                          openDeleteModal(superAdmin)
-                                        }
-                                        className="text-[#02066F] p-1 cursor-pointer"
-                                      >
-                                        <i className="fas fa-trash"></i>
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))
-                            ) : (
-                              <tr>
-                                <td
-                                  colSpan="4"
-                                  className="px-4 py-4 text-center text-sm text-gray-500"
-                                >
-                                  No SuperAdmins found
+                            {superAdmins.length > 0 ? superAdmins.map((superAdmin) => (
+                              <tr key={superAdmin.EmpID} className="hover:bg-gray-50">
+                                <td className="px-4 py-4 text-sm font-semibold text-gray-900 text-center">{superAdmin.Pin}</td>
+                                <td className="px-4 py-4 text-sm font-semibold text-gray-900 text-center">{superAdmin.FName} {superAdmin.LName}</td>
+                                <td className="px-4 py-4 text-sm font-semibold text-gray-900 text-center">{formatPhoneNumber(superAdmin.PhoneNumber)}</td>
+                                <td className="px-4 py-4 text-sm font-semibold text-gray-900 text-center">
+                                  <div className="flex justify-center space-x-2">
+                                    <button onClick={() => openEditEmployee(superAdmin)} className="text-[#02066F] p-1">
+                                      <i className="fas fa-pencil-alt"></i>
+                                    </button>
+                                    <button onClick={() => openDeleteModal(superAdmin)} className="text-[#02066F] p-1">
+                                      <i className="fas fa-trash"></i>
+                                    </button>
+                                  </div>
                                 </td>
+                              </tr>
+                            )) : (
+                              <tr>
+                                <td colSpan="4" className="px-4 py-4 text-center text-sm text-gray-500">No SuperAdmins found</td>
                               </tr>
                             )}
                           </tbody>
@@ -1424,16 +889,6 @@ const EmployeeList = () => {
                 </button>
               </div>
               <div className="p-6">
-                {/* Device Info Display */}
-                {selectedDevice && (
-                  <div className="mb-4 p-2 bg-blue-50 border border-blue-200 rounded-md">
-                    <p className="text-sm text-blue-800">
-                      <strong>Device:</strong>
-                      {selectedDevice.DeviceName}
-                    </p>
-                  </div>
-                )}
-
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -1451,9 +906,8 @@ const EmployeeList = () => {
                           FName: e.target.value,
                         }))
                       }
-                      className={`w-full px-3 py-2 font-bold border-2 ${
-                        errors.FName ? "border-red-500" : "border-[#02066F]"
-                      } rounded-lg focus:outline-none focus:ring-1 focus:ring-[#02066F]`}
+                      className={`w-full px-3 py-2 font-bold border-2 ${errors.FName ? "border-red-500" : "border-[#02066F]"
+                        } rounded-lg focus:outline-none focus:ring-1 focus:ring-[#02066F]`}
                       placeholder="First Name"
                     />
                     {errors.FName && (
@@ -1473,9 +927,8 @@ const EmployeeList = () => {
                           LName: e.target.value,
                         }))
                       }
-                      className={`w-full px-3 py-2 font-bold border-2 ${
-                        errors.LName ? "border-red-500" : "border-[#02066F]"
-                      } rounded-lg focus:outline-none focus:ring-1 focus:ring-[#02066F]`}
+                      className={`w-full px-3 py-2 font-bold border-2 ${errors.LName ? "border-red-500" : "border-[#02066F]"
+                        } rounded-lg focus:outline-none focus:ring-1 focus:ring-[#02066F]`}
                       placeholder="Last Name"
                     />
                     {errors.LName && (
@@ -1491,11 +944,10 @@ const EmployeeList = () => {
                       value={formData.PhoneNumber}
                       onChange={handlePhoneInput}
                       maxLength={14}
-                      className={`w-full px-3 py-2 border-2 ${
-                        errors.PhoneNumber
+                      className={`w-full px-3 py-2 border-2 ${errors.PhoneNumber
                           ? "border-red-500"
                           : "border-[#02066F]"
-                      } rounded-lg focus:outline-none focus:ring-1 focus:ring-[#02066F] font-bold`}
+                        } rounded-lg focus:outline-none focus:ring-1 focus:ring-[#02066F] font-bold`}
                       placeholder="Phone Number"
                     />
                     {errors.PhoneNumber && (
@@ -1550,16 +1002,6 @@ const EmployeeList = () => {
                 </button>
               </div>
               <div className="p-6">
-                {/* Device Info Display */}
-                {selectedDevice && (
-                  <div className="mb-4 p-2 bg-blue-50 border border-blue-200 rounded-md">
-                    <p className="text-sm text-blue-800">
-                      <strong>Device:</strong>
-                      {selectedDevice.DeviceName}
-                    </p>
-                  </div>
-                )}
-
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -1577,9 +1019,8 @@ const EmployeeList = () => {
                           FName: e.target.value,
                         }))
                       }
-                      className={`w-full px-3 py-2 font-bold border-2 ${
-                        errors.FName ? "border-red-500" : "border-[#02066F]"
-                      } rounded-lg focus:outline-none`}
+                      className={`w-full px-3 py-2 font-bold border-2 ${errors.FName ? "border-red-500" : "border-[#02066F]"
+                        } rounded-lg focus:outline-none`}
                       placeholder="First Name"
                     />
                     {errors.FName && (
@@ -1599,9 +1040,8 @@ const EmployeeList = () => {
                           LName: e.target.value,
                         }))
                       }
-                      className={`w-full px-3 py-2 font-bold border-2 ${
-                        errors.LName ? "border-red-500" : "border-[#02066F]"
-                      } rounded-lg focus:outline-none`}
+                      className={`w-full px-3 py-2 font-bold border-2 ${errors.LName ? "border-red-500" : "border-[#02066F]"
+                        } rounded-lg focus:outline-none`}
                       placeholder="Last Name"
                     />
                     {errors.LName && (
@@ -1617,11 +1057,10 @@ const EmployeeList = () => {
                       value={formData.PhoneNumber}
                       onChange={handlePhoneInput}
                       maxLength={14}
-                      className={`w-full px-3 py-2 font-bold border-2 ${
-                        errors.PhoneNumber
+                      className={`w-full px-3 py-2 font-bold border-2 ${errors.PhoneNumber
                           ? "border-red-500"
                           : "border-[#02066F]"
-                      } rounded-lg focus:outline-none`}
+                        } rounded-lg focus:outline-none`}
                       placeholder="Phone Number"
                     />
                     {errors.PhoneNumber && (
@@ -1652,9 +1091,8 @@ const EmployeeList = () => {
                           Email: e.target.value,
                         }))
                       }
-                      className={`w-full px-3 py-2 font-bold border-2 ${
-                        errors.Email ? "border-red-500" : "border-[#02066F]"
-                      } rounded-lg focus:outline-none`}
+                      className={`w-full px-3 py-2 font-bold border-2 ${errors.Email ? "border-red-500" : "border-[#02066F]"
+                        } rounded-lg focus:outline-none`}
                       placeholder="Email"
                     />
                     {errors.Email && (
@@ -1700,16 +1138,6 @@ const EmployeeList = () => {
                 </button>
               </div>
               <div className="p-6">
-                {/* Device Info Display */}
-                {selectedDevice && (
-                  <div className="mb-4 p-2 bg-blue-50 border border-blue-200 rounded-md">
-                    <p className="text-sm text-blue-800">
-                      <strong>Device:</strong>
-                      {selectedDevice.DeviceName}
-                    </p>
-                  </div>
-                )}
-
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -1728,9 +1156,8 @@ const EmployeeList = () => {
                           FName: e.target.value,
                         }))
                       }
-                      className={`w-full px-3 py-2 font-bold border-2 ${
-                        errors.FName ? "border-red-500" : "border-[#02066F]"
-                      } rounded-lg focus:outline-none`}
+                      className={`w-full px-3 py-2 font-bold border-2 ${errors.FName ? "border-red-500" : "border-[#02066F]"
+                        } rounded-lg focus:outline-none`}
                     />
                     {errors.FName && (
                       <p className="text-red-500 text-xs italic mt-1">
@@ -1750,9 +1177,8 @@ const EmployeeList = () => {
                           LName: e.target.value,
                         }))
                       }
-                      className={`w-full px-3 py-2 font-bold border-2 ${
-                        errors.LName ? "border-red-500" : "border-[#02066F]"
-                      } rounded-lg focus:outline-none`}
+                      className={`w-full px-3 py-2 font-bold border-2 ${errors.LName ? "border-red-500" : "border-[#02066F]"
+                        } rounded-lg focus:outline-none`}
                     />
                     {errors.LName && (
                       <p className="text-red-500 text-xs italic mt-1">
@@ -1767,11 +1193,10 @@ const EmployeeList = () => {
                       value={formData.PhoneNumber}
                       onChange={handlePhoneInput}
                       maxLength={14}
-                      className={`w-full px-3 py-2 font-bold border-2 ${
-                        errors.PhoneNumber
+                      className={`w-full px-3 py-2 font-bold border-2 ${errors.PhoneNumber
                           ? "border-red-500"
                           : "border-[#02066F]"
-                      } rounded-lg focus:outline-none`}
+                        } rounded-lg focus:outline-none`}
                       placeholder="Phone Number"
                     />
                     {errors.PhoneNumber && (
@@ -1803,9 +1228,8 @@ const EmployeeList = () => {
                           Email: e.target.value,
                         }))
                       }
-                      className={`w-full px-3 py-2 font-bold border-2 ${
-                        errors.Email ? "border-red-500" : "border-[#02066F]"
-                      } rounded-lg focus:outline-none`}
+                      className={`w-full px-3 py-2 font-bold border-2 ${errors.Email ? "border-red-500" : "border-[#02066F]"
+                        } rounded-lg focus:outline-none`}
                     />
                     {errors.Email && (
                       <p className="text-red-500 text-xs italic mt-1">
@@ -1862,8 +1286,8 @@ const EmployeeList = () => {
                     {currentEmployee.IsAdmin === 0
                       ? "employee"
                       : currentEmployee.IsAdmin === 1
-                      ? "Admin"
-                      : "SuperAdmin"}
+                        ? "Admin"
+                        : "SuperAdmin"}
                     ?
                   </p>
                 ) : (
@@ -1893,8 +1317,8 @@ const EmployeeList = () => {
         )}
       </div>
 
-      <Footer2/>
-    </>
+      <Footer2 />
+    </div>
   );
 };
 

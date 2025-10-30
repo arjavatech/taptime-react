@@ -16,9 +16,7 @@ import EmployeeList from "./components/ui/EmployeeList";
 import Device from "./components/ui/Device";
 import Profile from "./components/ui/Profile";
 import ContactUs from "./components/ui/ContactUs";
-import ReportSummary from "./components/ui/ReportSummary";
-import DayWiseReport from "./components/ui/DayWiseReport";
-import SalariedReport from "./components/ui/SalariedReport";
+import Reports from "./components/ui/Reportsummary.";
 import ReportSetting from "./components/ui/ReportSetting";
 
 
@@ -38,9 +36,10 @@ function App() {
           <Route path="/device" element={<Device/>}/>
           <Route path="/profile" element={<Profile/>} />
           <Route path="/contact" element={<ContactUs/>}/>
-          <Route path="reportsummary" element={<ReportSummary/>}/>
-          <Route path="/daywisereport" element={<DayWiseReport/>}/>
-          <Route path="/salariedreport" element={<SalariedReport/>}/>
+          <Route path="/reports" element={<Reports/>}/>
+          <Route path="reportsummary" element={<Reports/>}/>
+          <Route path="/daywisereport" element={<Reports/>}/>
+          <Route path="/salariedreport" element={<Reports/>}/>
           <Route path="/reportsetting" element={<ReportSetting/>}/>
           {/* Add other routes as needed */}
         </Routes>

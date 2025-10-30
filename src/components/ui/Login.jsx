@@ -1,243 +1,100 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "./Navbar/Header";
-import { Card } from "./card";
+import { loginCheck, googleSignInCheck, getTimeZone, getCustomerData } from "../../utils/apiUtils";
+import { decodeJwtResponse } from "../../utils/commonUtils";
 
 const Login = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
-  const [logoSrc, setLogoSrc] = useState("");
-  const [isFreeTrail, setIsFreeTrail] = useState("");
-  const [freeTrailEndDate, setFreeTrailEndDate] = useState("");
-
+  
   const googleSignInBtnRef = useRef(null);
   const navigate = useNavigate();
 
-  const key1 = new Uint8Array([
-    16, 147, 220, 113, 166, 142, 22, 93, 241, 91, 13, 252, 112, 122, 119, 95,
-  ]);
-
-  // Cache for timezone data
-  const timeZoneCache = new Map();
-
   useEffect(() => {
-    // Initialize localStorage-dependent variables first
-    setIsFreeTrail(localStorage.getItem("trial") || "");
-    setFreeTrailEndDate(localStorage.getItem("expiryDate") || "");
-
-    // Load company logo if exists
-    const storedLogo = localStorage.getItem("companyLogo");
-    if (storedLogo) {
-      setLogoSrc(storedLogo);
-    }
-
-    // Load Google Sign-In script after slight delay
-    setTimeout(loadGoogleSignIn, 50);
+    loadGoogleSignIn();
   }, []);
 
   const loadGoogleSignIn = () => {
-    try {
-      // Check if already loaded
-      if (typeof google !== "undefined" && google?.accounts?.id) {
-        initializeGoogleSignIn();
-        return;
-      }
-
-      const script = document.createElement("script");
-      script.src = "https://accounts.google.com/gsi/client";
-      script.async = true;
-      script.defer = true;
-      script.onload = () => {
-        // Small delay to ensure everything is ready
-        requestAnimationFrame(() => initializeGoogleSignIn());
-      };
-      script.onerror = () =>
-        console.error("Failed to load Google Sign-In script");
-      document.head.appendChild(script);
-    } catch (error) {
-      console.error("Error loading Google Sign-In:", error);
+    if (typeof google !== "undefined" && google?.accounts?.id) {
+      initializeGoogleSignIn();
+      return;
     }
+
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.onload = initializeGoogleSignIn;
+    document.head.appendChild(script);
   };
 
   const initializeGoogleSignIn = () => {
-    try {
-      google.accounts.id.initialize({
-        client_id:
-          "1070255023214-gc25jf1quuc0bgu7vut9e2g4nghlhtbs.apps.googleusercontent.com",
-        callback: handleCredentialResponse,
-        auto_select: false,
-        ux_mode: "popup", // Faster than redirect
-      });
+    google.accounts.id.initialize({
+      client_id: "1070255023214-gc25jf1quuc0bgu7vut9e2g4nghlhtbs.apps.googleusercontent.com",
+      callback: handleCredentialResponse
+    });
 
-      // Use requestAnimationFrame for smoother rendering
-      requestAnimationFrame(() => {
-        if (googleSignInBtnRef.current) {
-          google.accounts.id.renderButton(googleSignInBtnRef.current, {
-            theme: "outline",
-            size: "large",
-            shape: "rectangular",
-            logo_alignment: "left",
-          });
-        }
+    if (googleSignInBtnRef.current) {
+      google.accounts.id.renderButton(googleSignInBtnRef.current, {
+        theme: "outline",
+        size: "large"
       });
-    } catch (error) {
-      console.error("Google Sign-In initialization failed:", error);
     }
   };
 
   const handleCredentialResponse = async (response) => {
-    setErrorMsg("");
     setLoading(true);
+    setErrorMsg("");
 
     try {
       const userObject = decodeJwtResponse(response.credential);
-      const email = userObject.email;
-
-      // Check trial expiration first (fast path check)
-      if (freeTrailEndDate && new Date(freeTrailEndDate) <= new Date()) {
-        localStorage.removeItem("trial");
-        localStorage.removeItem("expiryDate");
-        setErrorMsg("Your free trial has expired. Please sign up to continue.");
-        setLoading(false);
+      const result = await googleSignInCheck(userObject.email);
+      
+      if (!result.success) {
+        setErrorMsg(result.error || "Invalid Gmail login");
         return;
       }
 
-      // Clear localStorage early
-      localStorage.clear();
-
-      const res = await fetch(
-        `https://9dq56iwo77.execute-api.ap-south-1.amazonaws.com/prod/login_check/${email}`
-      );
-      if (!res.ok) throw new Error("Network response was not ok");
-
-      const data = await res.json();
-
-      if ("error" in data) {
-        setErrorMsg("Invalid Gmail login");
-        setLoading(false);
-        return;
-      }
-
-      const isValidEmail =
-        data["Email"] === email || localStorage.getItem("email") === email;
-      if (!isValidEmail) {
-        setErrorMsg("Invalid email or user not found");
-        setLoading(false);
-        return;
-      }
-
-      if (["Admin", "SuperAdmin", "Owner"].includes(data["AdminType"])) {
-        const companyID = data["CID"];
-        // Batch localStorage operations
-        const storeData = {
-          companyID,
-          companyName: data["CName"],
-          companyLogo: data["CLogo"],
-          companyAddress: data["CAddress"],
-          NoOfDevices: data["NoOfDevices"],
-          NoOfEmployees: data["NoOfEmployees"],
-          reportType: data["ReportType"],
-          adminMail: data["Email"],
-          adminType: data["AdminType"],
-          userName: userObject.name,
-          userPicture: userObject.picture,
-        };
-
-        Object.entries(storeData).forEach(([key, value]) => {
-          if (value !== undefined) localStorage.setItem(key, value);
-        });
-
-        if (data["DeviceID"]) {
-          localStorage.setItem("DeviceID", data["DeviceID"]);
-        }
-
-        // Fire parallel requests without waiting
-        Promise.all([getTimeZone(companyID), getCustomerData(companyID)]).catch(
-          console.error
-        );
-      }
-
-      // Navigate immediately without waiting for parallel requests
+      localStorage.setItem("userName", userObject.name);
+      localStorage.setItem("userPicture", userObject.picture);
+      
+      getTimeZone(result.companyID);
+      getCustomerData(result.companyID);
       navigate("/employeelist");
     } catch (error) {
-      console.error("Google Sign-In error:", error);
-      setErrorMsg("An error occurred during Google Sign-In");
+      setErrorMsg("Google Sign-In failed");
+    } finally {
       setLoading(false);
     }
   };
 
-  const decodeJwtResponse = (token) => {
-    const base64Url = token.split(".")[1];
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split("")
-        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-        .join("")
-    );
-    return JSON.parse(jsonPayload);
-  };
 
-  const getCustomerData = async (cid) => {
-    try {
-      const response = await fetch(
-        `https://9dq56iwo77.execute-api.ap-south-1.amazonaws.com/prod/customer/getUsingCID/${cid}`
-      );
-      const data = await response.json();
 
-      // Batch localStorage operations
-      const customerData = {
-        customerID: data.CustomerID,
-        firstName: data.FName,
-        lastName: data.LName,
-        address: data.Address,
-        phone: data.PhoneNumber,
-        phoneNumber: data.PhoneNumber,
-        email: data.Email,
-      };
 
-      Object.entries(customerData).forEach(([key, value]) => {
-        if (value !== undefined) localStorage.setItem(key, value);
-      });
-    } catch (err) {
-      console.error("Error fetching customer data:", err);
-    }
-  };
 
-  const getTimeZone = async (cid) => {
-    // Check cache first
-    const cachedTZ =
-      timeZoneCache.get(cid) || localStorage.getItem(`timeZone_${cid}`);
-    if (cachedTZ) {
-      localStorage.setItem("TimeZone", cachedTZ);
+  const handleLogin = async () => {
+    if (!username || !password) {
+      setErrorMsg("Please enter both username and password");
       return;
     }
 
+    setLoading(true);
+    setErrorMsg("");
+
     try {
-      const res = await fetch(
-        `https://9dq56iwo77.execute-api.ap-south-1.amazonaws.com/prod/device/getAll/${cid}`
-      );
-      const data = await res.json();
-      const timeZone =
-        !data.length || data.error === "No devices found !"
-          ? "PST"
-          : data[0]?.TimeZone || "PST";
-
-      // Update cache and localStorage
-      timeZoneCache.set(cid, timeZone);
-      localStorage.setItem("TimeZone", timeZone);
-      localStorage.setItem(`timeZone_${cid}`, timeZone);
+      const isAuthenticated = await loginCheck(username, password);
+      if (isAuthenticated) {
+        getTimeZone(localStorage.getItem("companyID"));
+        navigate("/employeelist");
+      } else {
+        setErrorMsg("Invalid username or password");
+      }
     } catch (err) {
-      console.error("Error fetching timezone:", err);
-      localStorage.setItem("TimeZone", "PST");
+      setErrorMsg("Authentication failed");
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const startTrial = () => {
-    localStorage.setItem("trial", "true");
-    navigate("/register");
   };
 
   return (
@@ -269,86 +126,72 @@ const Login = () => {
               Login
             </h2>
 
-            <div className="w-full flex justify-center mb-">
-              <div
-                ref={googleSignInBtnRef}
-                className="google-signin-btn"
-                style={{ width: "300px", height: "44px" }}
-              ></div>
+            <div className="space-y-4 mb-6">
+              <input
+                type="text"
+                placeholder="Username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                onKeyPress={(e) => e.key === "Enter" && handleLogin()}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#02066F]"
+              />
+              <input
+                type="password"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyPress={(e) => e.key === "Enter" && handleLogin()}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#02066F]"
+              />
+              <div className="text-right mb-4">
+                <a href="/forget-password" className="text-[#02066F] text-sm font-bold hover:underline">
+                  Forgot password?
+                </a>
+              </div>
+              <button onClick={handleLogin} className="w-full bg-[#02066F] text-white py-3 rounded-lg font-semibold hover:bg-blue-800">
+                Login
+              </button>
             </div>
-            <div className="w-full flex flex-row justify-center pt-6">
-              <span className="text-xl sm:text-xl md:text-base xl:text-xl font-bold text-gray-800">
+
+            {/* Separator */}
+            <div className="flex items-center my-6">
+              <div className="flex-1 border-t border-gray-300"></div>
+              <span className="px-4 text-gray-500 text-sm">OR</span>
+              <div className="flex-1 border-t border-gray-300"></div>
+            </div>
+
+            <div className="flex justify-center mb-6">
+              <div ref={googleSignInBtnRef} style={{ width: "280px", height: "44px" }}></div>
+            </div>
+            
+            <div className="text-center pt-6">
+              <span className="text-lg font-bold text-gray-800">
                 Don't have an account?
-                <a
-                  href="/register"
-                  className="ml-2 text-[#02066F] text-xl sm:text-xl md:text-base xl:text-xl font-bold hover:underline"
-                >
+                <a href="/register" className="ml-2 text-[#02066F] hover:underline">
                   Signup
                 </a>
               </span>
             </div>
 
             {errorMsg && (
-              <div
-                className="fixed inset-0 flex items-center justify-center z-50"
-                style={{ background: "rgba(0, 0, 0, 0.5)" }}
-              >
-                <div
-                  className="bg-white rounded-lg w-full max-w-xs mx-4"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="flex w-full bg-[#02066F] justify-between p-3 pl-4 pr-4 items-center rounded-t-md text-center">
-                    <h3 className="text-xl font-bold text-white">{errorMsg}</h3>
-                    <button
-                      className="text-gray-400 hover:text-white cursor-pointer text-3xl"
-                      onClick={() => setErrorMsg("")}
-                    >
-                      &times;
-                    </button>
+              <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50" onClick={() => setErrorMsg("")}>
+                <div className="bg-white rounded-lg max-w-xs mx-4" onClick={(e) => e.stopPropagation()}>
+                  <div className="bg-[#02066F] text-white p-3 rounded-t-lg flex justify-between items-center">
+                    <h3 className="font-bold">{errorMsg}</h3>
+                    <button onClick={() => setErrorMsg("")} className="text-2xl">&times;</button>
                   </div>
-                  <div className="px-4 py-4 flex flex-col justify-center items-center gap-2">
-                    <img
-                      src="/image 4.png"
-                      alt="image 4"
-                      className="text-center items-center justify-center w-10"
-                    />
-                    <p className="text-gray-800 text-base font-semibold">
-                      You are currently not registered. Please sign up to
-                      continue.{" "}
-                      <a
-                        href="/register"
-                        className=" text-yellow-700 hover:underline"
-                      >
-                        register
-                      </a>
+                  <div className="p-4 text-center">
+                    <img src="/images/image-4.png" alt="Error" className="w-10 mx-auto mb-2" />
+                    <p className="text-sm">
+                      You are not registered. Please{" "}
+                      <a href="/register" className="text-yellow-700 hover:underline">register</a>
                     </p>
                   </div>
                 </div>
               </div>
             )}
 
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300"></div>
-              </div>
-              <div className="relative flex justify-center ">
-                <span className="px-2 bg-white font-bold text-gray-800">
-                  or
-                </span>
-              </div>
-            </div>
 
-            {/* {!isFreeTrail && ( */}
-            <div>
-              <button
-                type="button"
-                onClick={startTrial}
-                className="w-full bg-green-500 text-white text-lg font-bold cursor-pointer sm:text-xl py-4 rounded-lg transition duration-300 mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Start free trial now!
-              </button>
-            </div>
-            {/* )} */}
           </div>
         </div>
 

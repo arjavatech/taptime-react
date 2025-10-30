@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import Header2 from "./Navbar/Header2";
-import Footer2 from "./Footer/Footer2";
+import Header2 from "./Navbar/Header";
+import Footer2 from "./Footer/Footer";
+import { updateCompany, updateCustomer } from "../../utils/apiUtils";
 
 const Profile = () => {
   // State variables
@@ -8,15 +9,10 @@ const Profile = () => {
   const [companyEditMode, setCompanyEditMode] = useState(false);
   const [customerEditMode, setCustomerEditMode] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [phoneError, setPhoneError] = useState("");
   const [activeSection, setActiveSection] = useState("company");
   const [userType, setUserType] = useState("");
-  const [passwordEditable, setPasswordEditable] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
-  // API URLs
-  const customerAPIUrlBase = `https://9dq56iwo77.execute-api.ap-south-1.amazonaws.com/prod/customer`;
-  const companyAPIUrlBase = `https://9dq56iwo77.execute-api.ap-south-1.amazonaws.com/prod/company`;
+
 
   // Form data structure
   const [formData, setFormData] = useState({
@@ -57,26 +53,19 @@ const Profile = () => {
     EName: "",
   });
 
-  // Local storage data
   const [companyId, setCompanyId] = useState("");
   const [customerId, setCustomerId] = useState("");
-  const [adminEmail, setAdminEmail] = useState("");
   const [fileInput, setFileInput] = useState(null);
 
   useEffect(() => {
     const companyId = localStorage.getItem("companyID") || "";
     const customerId = localStorage.getItem("customerID") || "";
-    const adminEmail = localStorage.getItem("adminMail") || "";
     const userType = localStorage.getItem("adminType") || "";
 
     setCompanyId(companyId);
     setCustomerId(customerId);
-    setAdminEmail(adminEmail);
     setUserType(userType);
 
-    // First load from localStorage
-    const companyData = localStorage.getItem("companyProfileData");
-    const customerData = localStorage.getItem("customerProfileData");
     const storedAdmin = localStorage.getItem("loggedAdmin");
     const adminDetails = storedAdmin ? JSON.parse(storedAdmin) : null;
     const companyAddress = localStorage.getItem("companyAddress") || "";
@@ -227,31 +216,19 @@ const Profile = () => {
   // API functions
   const callCompanyAPI = async () => {
     if (!companyId) return;
-    const passwordEncryptVal = localStorage.getItem("password");
-    const unameLocalStorage = localStorage.getItem("username");
     const companyData = {
       CID: companyId,
-      UserName: unameLocalStorage,
+      UserName: localStorage.getItem("username"),
       CName: formData.companyName,
       CAddress: `${formData.companyStreet}--${formData.companyCity}--${formData.companyState}--${formData.companyZip}`,
       CLogo: formData.logo || localStorage.getItem("companyLogo"),
-      Password: passwordEncryptVal,
+      Password: localStorage.getItem("password"),
       ReportType: "Weekly",
       LastModifiedBy: "Admin",
     };
 
     try {
-      const response = await fetch(`${companyAPIUrlBase}/update/${companyId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(companyData),
-      });
-
-      if (!response.ok)
-        throw new Error(`Company update failed: ${response.status}`);
-
-      localStorage.setItem("companyProfileData", JSON.stringify(companyData));
-      console.log("Company data updated successfully:", companyData);
+      await updateCompany(companyId, companyData);
       setShowSuccessModal(true);
       setTimeout(() => setShowSuccessModal(false), 2000);
     } catch (error) {
@@ -274,19 +251,7 @@ const Profile = () => {
     };
 
     try {
-      const response = await fetch(
-        `${customerAPIUrlBase}/update/${customerId}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(customerData),
-        }
-      );
-
-      if (!response.ok)
-        throw new Error(`Customer update failed: ${response.status}`);
-
-      localStorage.setItem("customerProfileData", JSON.stringify(customerData));
+      await updateCustomer(customerId, customerData);
       setShowSuccessModal(true);
       setTimeout(() => setShowSuccessModal(false), 2000);
     } catch (error) {
@@ -294,17 +259,7 @@ const Profile = () => {
     }
   };
 
-  // Phone formatting & validation
-  const formatPhoneNumberForDisplay = (phoneNumber) => {
-    const cleaned = phoneNumber.replace(/\D/g, "");
-    if (cleaned.length !== 10) return phoneNumber;
 
-    const areaCode = cleaned.substring(0, 3);
-    const centralOfficeCode = cleaned.substring(3, 6);
-    const lineNumber = cleaned.substring(6);
-
-    return `(${areaCode}) ${centralOfficeCode}-${lineNumber}`;
-  };
 
   const formatPhoneNumberInput = (e) => {
     let value = e.target.value.replace(/\D/g, "");
@@ -321,23 +276,9 @@ const Profile = () => {
     }
 
     setFormData({ ...formData, phone: value });
-    validatePhoneNumber();
   };
 
-  const validatePhoneNumber = () => {
-    const phoneRegex = /^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/;
 
-    if (formData.phone === "") {
-      setPhoneError("");
-      return false;
-    } else if (!phoneRegex.test(formData.phone)) {
-      setPhoneError("Invalid phone number");
-      return false;
-    } else {
-      setPhoneError("");
-      return true;
-    }
-  };
 
   // Logo upload
   const handleLogoUpload = (event) => {
@@ -364,9 +305,6 @@ const Profile = () => {
       if (validateCompanyFields()) {
         callCompanyAPI();
         setCompanyEditMode(false);
-        setPasswordEditable(false);
-        setShowSuccessModal(true);
-        setTimeout(() => setShowSuccessModal(false), 2000);
       }
     } else {
       setCompanyEditMode(true);
@@ -379,8 +317,6 @@ const Profile = () => {
       if (validateCustomerFields()) {
         callCustomerAPI();
         setCustomerEditMode(false);
-        setShowSuccessModal(true);
-        setTimeout(() => setShowSuccessModal(false), 2000);
       }
     } else {
       setCustomerEditMode(true);
@@ -419,7 +355,6 @@ const Profile = () => {
     setActiveSection(section);
     setCompanyEditMode(false);
     setCustomerEditMode(false);
-    setPasswordEditable(false);
   };
 
   const handleInputChange = (field, value) => {
@@ -440,10 +375,10 @@ const Profile = () => {
   };
 
   return (
-    <>
+    <div className="min-h-screen flex flex-col">
     <Header2/>
       
-      <div className="min-h-screen bg-gray-100">
+      <div className="flex-grow bg-gray-100">
         {/* Loading Overlay */}
         {isLoading && (
           <div
@@ -777,7 +712,7 @@ const Profile = () => {
                           }`}
                           disabled={!customerEditMode}
                           required
-                          onBlur={validatePhoneNumber}
+                          onBlur={() => handleBlur("phone")}
                         />
                         {errors.phone && (
                           <p className="text-red-500 text-sm mt-1">
@@ -1007,7 +942,7 @@ const Profile = () => {
       </div>
 
     <Footer2/>      
-    </>
+    </div>
   );
 };
 

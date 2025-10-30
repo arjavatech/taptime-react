@@ -1,235 +1,90 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import Header from "./Navbar/Header";
 import Footer from "./Footer/Footer";
+import { submitContactForm } from "../../utils/apiUtils";
 
 const HomePage = () => {
-  // State variables
   const [phone, setPhone] = useState("");
-  const [zip, setZip] = useState("");
-  const [isValid, setIsValid] = useState(true);
   const [showOverlay, setShowOverlay] = useState(false);
-  const [show, setShow] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [errors, setErrors] = useState({});
 
-  // Error states
-  const [errorFName, setErrorFName] = useState("");
-  const [errorLName, setErrorLName] = useState("");
-  const [errorPhone, setErrorPhone] = useState("");
-  const [errorZip, setErrorZip] = useState("");
+  const formRef = useRef(null);
 
-  // Refs to access form input values
-  const firstNameInput = useRef(null);
-  const lastNameInput = useRef(null);
-  const emailInput = useRef(null);
-  const subjectInput = useRef(null);
-  const phoneInput = useRef(null);
-  const streetInput = useRef(null);
-  const cityInput = useRef(null);
-  const stateInput = useRef(null);
-  const zipInput = useRef(null);
-  const messageInput = useRef(null);
-
-  // Regular expressions
-  const isAlpha = /^[a-zA-Z\s]+$/;
-  const zipPattern = /^\d{5}(?:[-\s]\d{4})?$/;
   const phoneRegex = /^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/;
+  const zipRegex = /^\d{5}(-\d{4})?$/;
+  const nameRegex = /^[a-zA-Z\s]+$/;
 
-  // Features data
   const features = [
-    {
-      icon: "Mask group.png",
-      title: "Facial Recognition",
-      desc: "Snap photo to log hours instantly.",
-    },
-    {
-      icon: "Mask group-1.png",
-      title: "Clock In/Out",
-      desc: "Seamless one-tap login and logout solution with employee identifications.",
-    },
-    {
-      icon: "Mask group-2.png",
-      title: "Timesheet Reports",
-      desc: "Provides employee time reports at your preferred frequency.",
-    },
-    {
-      icon: "Mask group-3.png",
-      title: "Admin Dashboard",
-      desc: "Employee onboarding system for Admins.",
-    },
-    {
-      icon: "Mask group-4.png",
-      title: "Export Options",
-      desc: "Delivers time reports in multiple formats like CSV and PDF.",
-    },
-    {
-      icon: "Mask group-5.png",
-      title: "Validation",
-      desc: "Admin features to update time entries.",
-    },
+    { icon: "Mask-group.png", title: "Facial Recognition", desc: "Snap photo to log hours instantly." },
+    { icon: "Mask group-1.png", title: "Clock In/Out", desc: "Seamless one-tap login and logout solution with employee identifications." },
+    { icon: "Mask group-2.png", title: "Timesheet Reports", desc: "Provides employee time reports at your preferred frequency." },
+    { icon: "Mask group-3.png", title: "Admin Dashboard", desc: "Employee onboarding system for Admins." },
+    { icon: "Mask group-4.png", title: "Export Options", desc: "Delivers time reports in multiple formats like CSV and PDF." },
+    { icon: "Mask group-5.png", title: "Validation", desc: "Admin features to update time entries." }
   ];
 
-  // Validate names
-  const validateName = (value, isFirstName) => {
-    if (value.trim() === "") {
-      if (isFirstName) setErrorFName("");
-      else setErrorLName("");
-      return false;
-    } else if (!isAlpha.test(value)) {
-      if (isFirstName) setErrorFName("Only use letters, don't use digits");
-      else setErrorLName("Only use letters, don't use digits");
-      return false;
+  const formatPhoneNumber = (e) => {
+    const value = e.target.value.replace(/\D/g, "");
+    if (value.length <= 3) setPhone(value);
+    else if (value.length <= 6) setPhone(`(${value.slice(0, 3)}) ${value.slice(3)}`);
+    else setPhone(`(${value.slice(0, 3)}) ${value.slice(3, 6)}-${value.slice(6, 10)}`);
+  };
+
+  const validateField = (name, value) => {
+    const newErrors = { ...errors };
+    
+    if (!value.trim()) {
+      newErrors[name] = `${name.replace(/([A-Z])/g, ' $1').toLowerCase()} is required`;
+    } else if ((name === 'firstName' || name === 'lastName') && !nameRegex.test(value)) {
+      newErrors[name] = 'Only letters allowed';
+    } else if (name === 'phone' && !phoneRegex.test(value)) {
+      newErrors[name] = 'Invalid phone format';
+    } else if (name === 'zip' && !zipRegex.test(value)) {
+      newErrors[name] = 'Invalid ZIP code';
     } else {
-      if (isFirstName) setErrorFName("");
-      else setErrorLName("");
-      return true;
+      delete newErrors[name];
     }
+    
+    setErrors(newErrors);
+    return !newErrors[name];
   };
 
-  // Validate zip code
-  const validateZip = () => {
-    const regex = /^\d{5}(-\d{4})?$/;
-    const valid = regex.test(zip);
-    setIsValid(valid);
-    if (!valid && zip.trim() !== "") {
-      setErrorZip("Invalid ZIP Code");
-    } else {
-      setErrorZip("");
-    }
-  };
-
-  // Format and validate phone number
-  const formatPhoneNumber = (event) => {
-    const value = event.target.value.replace(/\D/g, "");
-    let formattedValue = value;
-
-    if (value.length > 3 && value.length <= 6) {
-      formattedValue = `(${value.slice(0, 3)}) ${value.slice(3)}`;
-    } else if (value.length > 6) {
-      formattedValue = `(${value.slice(0, 3)}) ${value.slice(
-        3,
-        6
-      )}-${value.slice(6, 10)}`;
-    } else if (value.length > 3) {
-      formattedValue = `(${value.slice(0, 3)}) ${value.slice(3)}`;
-    }
-
-    setPhone(formattedValue);
-    validatePhoneNumber(formattedValue);
-  };
-
-  // Validate phone number format
-  const validatePhoneNumber = (value = phone) => {
-    if (value === "") {
-      setErrorPhone("");
-      return false;
-    } else if (!phoneRegex.test(value)) {
-      setErrorPhone("Invalid phone number format");
-      return false;
-    } else {
-      setErrorPhone("");
-      return true;
-    }
-  };
-
-  const validateForm = async (event) => {
-    event.preventDefault();
-
-    // Validate all fields
-    const isFirstNameValid = validateName(firstNameInput.current.value, true);
-    const isLastNameValid = validateName(lastNameInput.current.value, false);
-    const isZipValid = isValid || zip.trim() === "";
-    const isPhoneValid = validatePhoneNumber();
-
-    // Check required fields
-    const isRequiredFieldsValid =
-      firstNameInput.current.value.trim() !== "" &&
-      lastNameInput.current.value.trim() !== "" &&
-      emailInput.current.value.trim() !== "" &&
-      phoneInput.current.value.trim() !== "" &&
-      streetInput.current.value.trim() !== "" &&
-      cityInput.current.value.trim() !== "" &&
-      stateInput.current.value.trim() !== "" &&
-      zipInput.current.value.trim() !== "" &&
-      messageInput.current.value.trim() !== "";
-
-    if (
-      isFirstNameValid &&
-      isLastNameValid &&
-      isZipValid &&
-      isPhoneValid &&
-      isRequiredFieldsValid
-    ) {
-      setShowOverlay(true);
-
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData);
+    
+    const fields = ['firstName', 'lastName', 'email', 'phone', 'street', 'city', 'state', 'zip', 'subject', 'message'];
+    const isValid = fields.every(field => validateField(field, data[field] || ''));
+    
+    if (!isValid) return;
+    
+    setShowOverlay(true);
+    try {
       const userData = {
-        FirstName: firstNameInput.current.value,
-        LastName: lastNameInput.current.value,
-        Email: emailInput.current.value,
+        FirstName: data.firstName,
+        LastName: data.lastName,
+        Email: data.email,
+        PhoneNumber: data.phone,
+        Subject: data.subject,
+        Address: `${data.street}--${data.city}--${data.state}--${data.zip}`,
+        Message: data.message,
         WhatsappNumber: null,
-        Subject: subjectInput.current.value,
-        PhoneNumber: phoneInput.current.value,
-        Address: `${streetInput.current.value}--${cityInput.current.value}--${stateInput.current.value}--${zipInput.current.value}`,
-        Message: messageInput.current.value,
-        LastModifiedBy: "Admin",
+        LastModifiedBy: "Admin"
       };
-
-      try {
-        const apiLink = `https://9dq56iwo77.execute-api.ap-south-1.amazonaws.com/prod/web_contact_us/create`;
-
-        const response = await fetch(apiLink, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(userData),
-        });
-
-        if (!response.ok) {
-          throw new Error(`Error: ${response.status}`);
-        }
-
-        const data = await response.json();
-        if (!data.error) {
-          setShow(true);
-          event.target.reset();
-          setPhone("");
-          setZip("");
-          setTimeout(() => {
-            setShow(false);
-          }, 5000);
-        }
-      } catch (error) {
-        event.target.reset();
-        alert("Something went wrong. Please try again.");
-        console.error(error);
-      } finally {
-        setShowOverlay(false);
-      }
-    } else {
-      // Show errors for required fields
-      if (firstNameInput.current.value.trim() === "")
-        setErrorFName("First name is required");
-      if (lastNameInput.current.value.trim() === "")
-        setErrorLName("Last name is required");
-      if (phoneInput.current.value.trim() === "")
-        setErrorPhone("Phone number is required");
-      if (zipInput.current.value.trim() === "")
-        setErrorZip("ZIP code is required");
+      
+      await submitContactForm(userData);
+      setShowModal(true);
+      formRef.current.reset();
+      setPhone('');
+      setTimeout(() => setShowModal(false), 5000);
+    } catch (error) {
+      alert('Something went wrong. Please try again.');
+    } finally {
+      setShowOverlay(false);
     }
   };
-
-  const onClose = () => {
-    setShow(false);
-  };
-
-  const handleBackgroundClick = (event) => {
-    const modalContent = document.getElementById("modal-content");
-    if (modalContent && !modalContent.contains(event.target)) {
-      onClose();
-    }
-  };
-
-  // Effect to validate zip when it changes
-  useEffect(() => {
-    validateZip();
-  }, [zip]);
 
   return (
     <>
@@ -263,7 +118,7 @@ const HomePage = () => {
         className="flex flex-col lg:flex-row p-4 pt-10 gap-12 items-center"
       >
         <img
-          src="/images/tap-time-logo.png"
+          src="/images/main-image.jpeg"
           alt="Main Feature"
           className="w-full lg:w-1/2 shadow-md"
         />
@@ -296,152 +151,51 @@ const HomePage = () => {
             Contact
           </h2>
 
-          <form
-            onSubmit={validateForm}
-            className="bg-white rounded-lg shadow-[0_0_20px_rgba(0,0,0,0.2)] p-6 sm:p-10 space-y-6"
-          >
+          <form ref={formRef} onSubmit={handleSubmit} className="bg-white rounded-lg shadow-[0_0_20px_rgba(0,0,0,0.2)] p-6 sm:p-10 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <input
-                  type="text"
-                  placeholder="First Name"
-                  ref={firstNameInput}
-                  className="border-2 border-[#02066F] rounded-[10px] w-full p-3 font-bold text-center focus:outline-none"
-                  required
-                />
-                {errorFName && (
-                  <p className="text-red-500 text-sm mt-1">{errorFName}</p>
-                )}
-              </div>
-
-              <div>
-                <input
-                  type="text"
-                  placeholder="Last Name"
-                  ref={lastNameInput}
-                  className="border-2 border-[#02066F] rounded-[10px] w-full p-3 font-bold text-center focus:outline-none"
-                  required
-                />
-                {errorLName && (
-                  <p className="text-red-500 text-sm mt-1">{errorLName}</p>
-                )}
-              </div>
-
-              <input
-                type="email"
-                placeholder="Email"
-                ref={emailInput}
-                className="border-2 border-[#02066F] rounded-[10px] w-full p-3 font-bold text-center focus:outline-none"
-                required
-              />
-
-              <div>
-                <input
-                  type="text"
-                  value={phone}
-                  placeholder="Phone"
-                  ref={phoneInput}
-                  onChange={formatPhoneNumber}
-                  className="border-2 border-[#02066F] rounded-[10px] w-full p-3 font-bold text-center focus:outline-none"
-                  required
-                />
-                {errorPhone && (
-                  <p className="text-red-500 text-sm mt-1">{errorPhone}</p>
-                )}
-              </div>
-
-              <input
-                type="text"
-                placeholder="Address Line 1"
-                ref={streetInput}
-                className="border-2 border-[#02066F] rounded-[10px] w-full p-3 font-bold text-center focus:outline-none"
-                required
-              />
-
-              <input
-                type="text"
-                placeholder="City"
-                ref={cityInput}
-                className="border-2 border-[#02066F] rounded-[10px] w-full p-3 font-bold text-center focus:outline-none"
-                required
-              />
-
-              <div>
-                <input
-                  type="text"
-                  placeholder="Zip"
-                  value={zip}
-                  ref={zipInput}
-                  onChange={(e) => setZip(e.target.value)}
-                  className="border-2 border-[#02066F] rounded-[10px] w-full p-3 font-bold text-center focus:outline-none"
-                  required
-                />
-                {errorZip && (
-                  <p className="text-red-500 text-sm mt-1">{errorZip}</p>
-                )}
-              </div>
-
-              <input
-                type="text"
-                placeholder="State"
-                ref={stateInput}
-                className="border-2 border-[#02066F] rounded-[10px] w-full p-3 font-bold text-center focus:outline-none"
-                required
-              />
+              {[
+                { name: 'firstName', placeholder: 'First Name', type: 'text' },
+                { name: 'lastName', placeholder: 'Last Name', type: 'text' },
+                { name: 'email', placeholder: 'Email', type: 'email' },
+                { name: 'phone', placeholder: 'Phone', type: 'text', value: phone, onChange: formatPhoneNumber },
+                { name: 'street', placeholder: 'Address Line 1', type: 'text' },
+                { name: 'city', placeholder: 'City', type: 'text' },
+                { name: 'zip', placeholder: 'Zip', type: 'text' },
+                { name: 'state', placeholder: 'State', type: 'text' }
+              ].map(field => (
+                <div key={field.name}>
+                  <input
+                    name={field.name}
+                    type={field.type}
+                    placeholder={field.placeholder}
+                    value={field.value}
+                    onChange={field.onChange}
+                    className="border-2 border-[#02066F] rounded-[10px] w-full p-3 font-bold focus:outline-none placeholder:text-[#02066F]"
+                    required
+                  />
+                  {errors[field.name] && <p className="text-red-500 text-sm mt-1">{errors[field.name]}</p>}
+                </div>
+              ))}
             </div>
-
-            <input
-              type="text"
-              placeholder="Subject"
-              ref={subjectInput}
-              className="border-2 border-[#02066F] rounded-[10px] w-full p-3 font-bold text-center focus:outline-none"
-              required
-            />
-
-            <textarea
-              placeholder="Message..."
-              rows="4"
-              ref={messageInput}
-              className="border-2 border-[#02066F] rounded-[10px] w-full p-3 font-bold resize-none text-center focus:outline-none"
-              required
-            ></textarea>
-
-            <button
-              type="submit"
-              className="w-full bg-[#02066F] text-lg cursor-pointer text-white font-semibold py-4 rounded-[10px] transition-colors"
-            >
+            
+            <input name="subject" placeholder="Subject" className="border-2 border-[#02066F] rounded-[10px] w-full p-3 font-bold focus:outline-none placeholder:text-[#02066F]" required />
+            <textarea name="message" placeholder="Message..." rows="4" className="border-2 border-[#02066F] rounded-[10px] w-full p-3 font-bold resize-none focus:outline-none placeholder:text-[#02066F]" required></textarea>
+            
+            <button type="submit" className="w-full bg-[#02066F] text-lg cursor-pointer text-white font-semibold py-4 rounded-[10px] transition-colors">
               Submit
             </button>
           </form>
 
-          {show && (
-            <div
-              className="fixed inset-0 flex items-center justify-center z-50"
-              style={{ background: "rgba(0, 0, 0, 0.5)" }}
-              onClick={handleBackgroundClick}
-            >
-              <div
-                id="modal-content"
-                className="bg-white rounded-sm shadow-xl w-full max-w-sm sm:max-w-lg mx-auto my-6 sm:my-12"
-              >
+          {showModal && (
+            <div className="fixed inset-0 flex items-center justify-center z-50" style={{ background: "rgba(0, 0, 0, 0.5)" }} onClick={() => setShowModal(false)}>
+              <div className="bg-white rounded-sm shadow-xl w-full max-w-sm sm:max-w-lg mx-auto my-6 sm:my-12">
                 <div className="bg-[#02066F] text-white py-4 px-4 sm:px-6 rounded-t-sm text-center">
-                  <h5 className="text-lg sm:text-xl font-semibold">
-                    Thank You for Contacting Us!
-                  </h5>
+                  <h5 className="text-lg sm:text-xl font-semibold">Thank You for Contacting Us!</h5>
                 </div>
                 <div className="p-4 sm:p-6 text-center">
-                  <p className="font-bold mb-4 text-base sm:text-xl">
-                    We have received your message and will get back to you
-                    shortly.
-                  </p>
-
-                  {/* Image */}
+                  <p className="font-bold mb-4 text-base sm:text-xl">We have received your message and will get back to you shortly.</p>
                   <div className="flex justify-center">
-                    <img
-                      src="https://www.shutterstock.com/image-vector/blue-check-mark-icon-tick-260nw-787016416.jpg"
-                      alt="Checkmark"
-                      className="w-20 h-20 sm:w-24 sm:h-24 object-contain"
-                    />
+                    <img src="https://www.shutterstock.com/image-vector/blue-check-mark-icon-tick-260nw-787016416.jpg" alt="Checkmark" className="w-20 h-20 sm:w-24 sm:h-24 object-contain" />
                   </div>
                 </div>
               </div>
