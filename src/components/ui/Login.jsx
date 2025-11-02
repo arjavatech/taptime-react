@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import Header from "./Navbar/Header";
+import Header1 from "./Navbar/Header1";
 import { loginCheck, googleSignInCheck, getTimeZone, getCustomerData } from "../../utils/apiUtils";
 import { decodeJwtResponse } from "../../utils/commonUtils";
 
@@ -99,7 +99,7 @@ const Login = () => {
 
   return (
     <>
-    <Header />
+    <Header1 />
       <div className="min-h-screen flex flex-col md:flex-row">
         {/* Left side image & intro */}
         <div className="hidden md:flex xl:w-1/2 md:w-1/2 bg-[#D9E9FB] flex-col justify-center items-center xl:p-6">

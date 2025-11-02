@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import Header from "./Navbar/Header";
+import Header1 from "./Navbar/Header1";
 import Footer from "./Footer/Footer";
 import { submitContactForm } from "../../utils/apiUtils";
 
@@ -88,7 +88,7 @@ const HomePage = () => {
 
   return (
     <>
-    <Header/>
+    <Header1/>
 
     
       {/* Loading Overlay */}

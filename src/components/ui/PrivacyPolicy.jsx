@@ -1,11 +1,11 @@
 import React from 'react'
-import Header from './Navbar/Header';
+import Header1 from './Navbar/Header1';
 import Footer from './Footer/Footer';
 
 const PrivacyPolicy = () => {
     return (
         <>
-            <Header />
+            <Header1 />
             <div id="privacyPolicy" className="mb-4 px-2 sm:px-6 md:px-12 lg:px-24 xl:px-56 pt-4">
                 <h1 className="text-4xl sm:text-4xl font-semibold text-center pt-16 pb-1">Privacy Policy</h1>
                 <div className="border-2 border-[#02066F] p-4 rounded-[20px] space-y-4 mt-2"><br />

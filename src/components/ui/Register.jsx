@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Header from './Navbar/Header';
+import Header1 from './Navbar/Header1';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -113,7 +113,7 @@ const Register = () => {
 
   return (
     <>
-    <Header/>
+    <Header1/>
       <div className="flex flex-col md:flex-row min-h-screen">
         <div className="hidden md:flex md:w-1/2 bg-blue-100 flex-col justify-center items-center p-5">
           <img
