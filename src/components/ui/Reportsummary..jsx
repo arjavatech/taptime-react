@@ -3,7 +3,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import Header2 from "./Navbar/Header";
 import Footer2 from "./Footer/Footer";
-import { fetchEmployeeData, fetchDevices, fetchDailyReport, fetchDateRangeReport, createDailyReportEntry } from "../../utils/apiUtils";
+import { fetchEmployeeData, fetchDevices, fetchDailyReport, fetchDateRangeReport, createDailyReportEntry, updateDailyReportEntry } from "../../utils/apiUtils";
 
 const Reports = () => {
   const [activeTab, setActiveTab] = useState("today");
@@ -45,6 +45,7 @@ const Reports = () => {
   // Today's report specific
   const [tableData, setTableData] = useState([]);
   const [currentDate, setCurrentDate] = useState("");
+  const [checkoutTimes, setCheckoutTimes] = useState({});
 
   // Day wise report specific
   const [selectedDate, setSelectedDate] = useState("");
@@ -75,7 +76,7 @@ const Reports = () => {
   const handleDeviceSelection = (device) => {
     setSelectedDevice(device);
     if (activeTab === "today") {
-      viewCurrentDateReport();
+      viewCurrentDateReport(currentDate);
     } else if (activeTab === "daywise" && selectedDate) {
       viewDatewiseReport(selectedDate);
     }
@@ -90,9 +91,9 @@ const Reports = () => {
     return `${h}:${String(m).padStart(2, "0")} ${ampm}`;
   };
 
-  const viewCurrentDateReport = async () => {
+  const viewCurrentDateReport = async (dateToUse = currentDate) => {
     try {
-      const arr = await fetchDailyReport(companyId, currentDate);
+      const arr = await fetchDailyReport(companyId, dateToUse);
 
       if (!arr.length) {
         setTableData([]);
@@ -106,15 +107,90 @@ const Reports = () => {
         checkoutTime: "",
       }));
 
-      if (adminType !== "Owner") {
-        processedData = processedData.filter(item => item.DeviceID === deviceID);
-      } else if (selectedDevice && selectedDevice.DeviceID) {
+      // Only apply device filter if a device is explicitly selected
+      if (selectedDevice && selectedDevice.DeviceID) {
         processedData = processedData.filter(item => item.DeviceID === selectedDevice.DeviceID);
       }
 
       setTableData(processedData);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  // Checkout functionality
+  const handleCheckoutTimeChange = (rowKey, value) => {
+    setCheckoutTimes(prev => ({
+      ...prev,
+      [rowKey]: value
+    }));
+  };
+
+  const handleCheckout = async (row) => {
+    const rowKey = `${row.Pin}-${row.CheckInTime}`;
+    const checkoutTime = checkoutTimes[rowKey];
+
+    if (!checkoutTime) {
+      alert("Please enter a checkout time");
+      return;
+    }
+
+    // Extract date from check-in time (not today's date)
+    const checkinDateObj = new Date(row.CheckInTime);
+    const checkInDateString = checkinDateObj.toISOString().split('T')[0];
+
+    // Use check-in date with checkout time (time input already includes seconds)
+    const checkoutDateTime = `${checkInDateString}T${checkoutTime}`;
+    const checkinDateTime = row.CheckInTime;
+
+    // Use check-in date for the Date field in updateData
+    const today = checkInDateString;
+
+    // Validate that checkout time is after checkin time
+    const checkinDate = new Date(checkinDateTime);
+    const checkoutDate = new Date(checkoutDateTime);
+
+    if (checkoutDate <= checkinDate) {
+      alert("Checkout time must be greater than check-in time");
+      return;
+    }
+
+    // Calculate time worked
+    const timeWorked = calculateTimeWorked(checkinDateTime, checkoutDateTime);
+
+    setLoading(true);
+    try {
+      const updateData = {
+        CID: companyId,
+        EmpID: row.EmpID,
+        Pin: row.Pin,
+        Name: row.Name,
+        Date: today,
+        TypeID: row.Type || row.TypeID,
+        CheckInSnap: row.CheckInSnap || null,
+        CheckInTime: checkinDateTime,
+        CheckOutSnap: row.CheckOutSnap || null,
+        CheckOutTime: checkoutDate.toISOString(),
+        TimeWorked: timeWorked,
+        LastModifiedBy: "Admin"
+      };
+
+      await updateDailyReportEntry(row.EmpID, companyId, row.CheckInTime, updateData);
+
+      // Clear the checkout time for this row
+      setCheckoutTimes(prev => {
+        const updated = { ...prev };
+        delete updated[rowKey];
+        return updated;
+      });
+
+      // Refresh the data
+      await viewCurrentDateReport(currentDate);
+    } catch (error) {
+      console.error("Error updating checkout:", error);
+      alert("Failed to update checkout time. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -156,15 +232,13 @@ const Reports = () => {
         ...item,
         formattedCheckIn: item.CheckInTime ? convertToAmPm(item.CheckInTime) : "--",
         formattedCheckOut: item.CheckOutTime ? convertToAmPm(item.CheckOutTime) : "--",
-        timeWorked: item.TimeWorked || (item.CheckInTime && item.CheckOutTime 
+        timeWorked: item.TimeWorked || (item.CheckInTime && item.CheckOutTime
           ? calculateTimeWorked(item.CheckInTime, item.CheckOutTime) : "--"),
       }));
 
-      // Apply device filtering only if needed
-      if (adminType !== "Owner" && deviceID) {
-        processedData = processedData.filter(item => item.DeviceID === deviceID);
-      } else if (adminType === "Owner" && selectedDevice && selectedDevice.deviceId) {
-        processedData = processedData.filter(item => item.DeviceID === selectedDevice.deviceId);
+      // Only apply device filter if a device is explicitly selected
+      if (selectedDevice && selectedDevice.DeviceID) {
+        processedData = processedData.filter(item => item.DeviceID === selectedDevice.DeviceID);
       }
 
       console.log('Processed data:', processedData);
@@ -454,7 +528,7 @@ const Reports = () => {
         Pin: newEntry.EmployeeID,
         EmpID: selectedEmployee?.EmpID || "",
         Name: selectedEmployee ? `${selectedEmployee.FName} ${selectedEmployee.LName}` : "",
-        Type: newEntry.Type,
+        TypeID: newEntry.Type,
         DeviceID: selectedDevice?.DeviceID || deviceID,
         CID: companyId,
         CheckInTime: new Date(checkinDateTime).toISOString(),
@@ -508,12 +582,14 @@ const Reports = () => {
       setSelectedDate(today);
 
       await loadDevices();
-      
-      // Load initial daywise report for today
+
+      // Load initial report data based on active tab
       if (activeTab === "daywise") {
         await viewDatewiseReport(today);
+      } else if (activeTab === "today") {
+        await viewCurrentDateReport(today);
       }
-      
+
       setLoading(false);
     };
 
@@ -564,12 +640,38 @@ const Reports = () => {
                   <td className="px-6 py-4 text-center">{row.Name?.split(" ")[0]}</td>
                   <td className="px-6 py-4 text-center">{row.checkInTimeFormatted}</td>
                   <td className="px-6 py-4 text-center">
-                    {row.CheckOutTime ? formatToAmPm(new Date(row.CheckOutTime)) : ""}
+                    {row.CheckOutTime ? (
+                      formatToAmPm(new Date(row.CheckOutTime))
+                    ) : (
+                      <div className="flex justify-center items-center">
+                        <input
+                          type="time"
+                          step="1"
+                          className="border border-[#02066F] rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#02066F]"
+                          value={checkoutTimes[`${row.Pin}-${row.CheckInTime}`] || ""}
+                          onChange={(e) => handleCheckoutTimeChange(`${row.Pin}-${row.CheckInTime}`, e.target.value)}
+                        />
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-center">
-                    <button className="bg-gray-300 text-gray-600 px-4 py-2 rounded cursor-not-allowed" disabled>
-                      Check-out
-                    </button>
+                    {row.CheckOutTime ? (
+                      <button className="bg-gray-300 text-gray-600 px-4 py-2 rounded cursor-not-allowed" disabled>
+                        Check-out
+                      </button>
+                    ) : (
+                      <button
+                        className={`px-4 py-2 rounded font-semibold ${
+                          checkoutTimes[`${row.Pin}-${row.CheckInTime}`]
+                            ? "bg-[#02066F] text-white cursor-pointer hover:bg-blue-800"
+                            : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                        }`}
+                        disabled={!checkoutTimes[`${row.Pin}-${row.CheckInTime}`]}
+                        onClick={() => handleCheckout(row)}
+                      >
+                        Check-out
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))
@@ -816,7 +918,9 @@ const Reports = () => {
                   <button
                     onClick={() => {
                       setActiveTab("today");
-                      viewCurrentDateReport();
+                      const today = new Date().toISOString().split("T")[0];
+                      setCurrentDate(today);
+                      viewCurrentDateReport(today);
                     }}
                     className={`px-4 py-2 font-semibold rounded-full ${
                       activeTab === "today" ? "bg-[#02066F] text-white" : "text-[#02066F]"

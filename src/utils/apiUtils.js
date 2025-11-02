@@ -358,6 +358,27 @@ export const createDailyReportEntry = async (entryData) => {
   }
 };
 
+export const updateDailyReportEntry = async (empId, cid, checkinTime, updateData) => {
+  const BASE = "https://postgresql-holy-firefly-3725.fly.dev";
+  const apiUrl = `${BASE}/dailyreport/update/${empId}/${cid}/${encodeURIComponent(checkinTime)}`;
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updateData)
+    });
+
+    if (!response.ok) throw new Error(`Error: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error("Error updating daily report entry:", error);
+    throw error;
+  }
+};
+
 export const fetchDateRangeReport = async (companyId, startDate, endDate) => {
   const BASE = "https://postgresql-holy-firefly-3725.fly.dev";
   const apiUrl = `${BASE}/report/dateRangeReportGet/${companyId}/${startDate}/${endDate}`;
