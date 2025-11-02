@@ -9,9 +9,9 @@ const Register2 = () => {
   // Constants
   const isAlpha = /^[a-zA-Z\s]+$/;
   const apiUrlBase =
-    "https://9dq56iwo77.execute-api.ap-south-1.amazonaws.com/prod/customer";
+    "https://postgresql-holy-firefly-3725.fly.dev/customer";
   const firstSignupPageapiUrlBase =
-    "https://9dq56iwo77.execute-api.ap-south-1.amazonaws.com/prod/company";
+    "https://postgresql-holy-firefly-3725.fly.dev/company";
   const cid = uuidv4();
   const key = new Uint8Array([
     16, 147, 220, 113, 166, 142, 22, 93, 241, 91, 13, 252, 112, 122, 119, 95,
@@ -205,7 +205,7 @@ const Register2 = () => {
       const link3 = "https://arunkavitha1982.github.io/icode";
 
       const response = await fetch(
-        "https://9dq56iwo77.execute-api.ap-south-1.amazonaws.com/prod/create-checkout-session",
+        "https://postgresql-holy-firefly-3725.fly.dev/create-checkout-session",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

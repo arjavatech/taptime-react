@@ -85,7 +85,9 @@ const Login = () => {
     try {
       const isAuthenticated = await loginCheck(username, password);
       if (isAuthenticated) {
-        getTimeZone(localStorage.getItem("companyID"));
+        const companyID = localStorage.getItem("companyID");
+        getTimeZone(companyID);
+        await getCustomerData(companyID);
         navigate("/employeelist");
       } else {
         setErrorMsg("Invalid username or password");

@@ -1,10 +1,10 @@
 // API Base URLs
 export const API_URLS = {
-  employee: 'https://9dq56iwo77.execute-api.ap-south-1.amazonaws.com/prod/employee',
-  company: 'https://9dq56iwo77.execute-api.ap-south-1.amazonaws.com/prod/company',
-  customer: 'https://9dq56iwo77.execute-api.ap-south-1.amazonaws.com/prod/customer',
-  device: 'https://9dq56iwo77.execute-api.ap-south-1.amazonaws.com/prod/device',
-  loginCheck: 'https://9dq56iwo77.execute-api.ap-south-1.amazonaws.com/prod/login_check'
+  employee: 'https://postgresql-holy-firefly-3725.fly.dev/employee',
+  company: 'https://postgresql-holy-firefly-3725.fly.dev/company',
+  customer: 'https://postgresql-holy-firefly-3725.fly.dev/customer',
+  device: 'https://postgresql-holy-firefly-3725.fly.dev/device',
+  loginCheck: 'https://postgresql-holy-firefly-3725.fly.dev/employee/login_check'
 };
 
 // Encryption key
@@ -173,7 +173,7 @@ export const getCustomerData = async (cid) => {
 
 export const fetchEmployeeData = async () => {
   const company_id = localStorage.getItem('companyID');
-  const apiUrl = `${API_URLS.employee}/getall/${company_id}`;
+  const apiUrl = `${API_URLS.employee}/by-company/${company_id}`;
 
   try {
     const response = await fetch(apiUrl);
@@ -324,9 +324,9 @@ export const fetchDevices = async (companyId) => {
 };
 
 export const fetchDailyReport = async (companyId, date) => {
-  const BASE = "https://9dq56iwo77.execute-api.ap-south-1.amazonaws.com/prod";
+  const BASE = "https://postgresql-holy-firefly-3725.fly.dev";
   const apiUrl = `${BASE}/dailyreport/getdatebasedata/${companyId}/${date}`;
-  
+
   try {
     const response = await fetch(apiUrl);
     if (!response.ok) throw new Error(`Error: ${response.status}`);
@@ -337,8 +337,29 @@ export const fetchDailyReport = async (companyId, date) => {
   }
 };
 
+export const createDailyReportEntry = async (entryData) => {
+  const BASE = "https://postgresql-holy-firefly-3725.fly.dev";
+  const apiUrl = `${BASE}/dailyreport/create`;
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(entryData)
+    });
+
+    if (!response.ok) throw new Error(`Error: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error("Error creating daily report entry:", error);
+    throw error;
+  }
+};
+
 export const fetchDateRangeReport = async (companyId, startDate, endDate) => {
-  const BASE = "https://9dq56iwo77.execute-api.ap-south-1.amazonaws.com/prod";
+  const BASE = "https://postgresql-holy-firefly-3725.fly.dev";
   const apiUrl = `${BASE}/report/dateRangeReportGet/${companyId}/${startDate}/${endDate}`;
   
   try {
@@ -352,7 +373,7 @@ export const fetchDateRangeReport = async (companyId, startDate, endDate) => {
 };
 
 // Report Settings API functions
-const REPORT_API_BASE = 'https://9dq56iwo77.execute-api.ap-south-1.amazonaws.com/prod';
+const REPORT_API_BASE = 'https://postgresql-holy-firefly-3725.fly.dev';
 const REPORT_TYPES = ['Daily', 'Weekly', 'Biweekly', 'Monthly', 'Bimonthly'];
 
 export const createReportObject = (email, companyId, deviceId, selectedValues) => {
@@ -499,7 +520,7 @@ export const deleteEmployeeById = async (empId) => {
 
 // Contact form API function
 export const submitContactForm = async (userData) => {
-  const apiUrl = 'https://9dq56iwo77.execute-api.ap-south-1.amazonaws.com/prod/web_contact_us/create';
+  const apiUrl = 'https://postgresql-holy-firefly-3725.fly.dev/web_contact_us/create';
   
   try {
     const response = await fetch(apiUrl, {

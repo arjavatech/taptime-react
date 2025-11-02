@@ -58,54 +58,83 @@ const Profile = () => {
   const [fileInput, setFileInput] = useState(null);
 
   useEffect(() => {
-    const companyId = localStorage.getItem("companyID") || "";
-    const customerId = localStorage.getItem("customerID") || "";
-    const userType = localStorage.getItem("adminType") || "";
+    const initializeProfile = async () => {
+      const companyId = localStorage.getItem("companyID") || "";
+      const customerId = localStorage.getItem("customerID") || "";
+      const userType = localStorage.getItem("adminType") || "";
 
-    setCompanyId(companyId);
-    setCustomerId(customerId);
-    setUserType(userType);
+      setCompanyId(companyId);
+      setCustomerId(customerId);
+      setUserType(userType);
 
-    const storedAdmin = localStorage.getItem("loggedAdmin");
-    const adminDetails = storedAdmin ? JSON.parse(storedAdmin) : null;
-    const companyAddress = localStorage.getItem("companyAddress") || "";
-    const customerAddress = localStorage.getItem("address") || "";
-    const [companyStreet, companyCity, companyState, companyZip] =
-      companyAddress.split("--");
-    const [customerStreet, customerCity, customerState, customerZip] =
-      customerAddress.split("--");
+      let adminDetails = null;
+      const storedAdmin = localStorage.getItem("loggedAdmin");
 
-    const newFormData = {
-      companyName: localStorage.getItem("companyName") || "",
-      companyStreet: companyStreet || "",
-      companyCity: companyCity || "",
-      companyState: companyState || "",
-      companyZip: companyZip || "",
-      logo: localStorage.getItem("companyLogo") || "",
-      firstName: localStorage.getItem("firstName") || "",
-      lastName: localStorage.getItem("lastName") || "",
-      customerStreet: customerStreet || "",
-      customerCity: customerCity || "",
-      customerState: customerState || "",
-      customerZip: customerZip || "",
-      email: localStorage.getItem("email") || "",
-      phone: localStorage.getItem("phone") || "",
-      EName: "",
-      adminPin: "",
-      decryptedPassword: "",
+      // If loggedAdmin doesn't exist and user is Admin/SuperAdmin, fetch it
+      if (!storedAdmin && (userType === "Admin" || userType === "SuperAdmin")) {
+        try {
+          const employeeData = await fetchEmployeeData();
+          const allEmployees = Array.isArray(employeeData) ? employeeData : [];
+          const adminLevel = userType === "Admin" ? 1 : 2;
+          const adminMail = localStorage.getItem("adminMail")?.toLowerCase();
+
+          const matchedAdmin = allEmployees.find(
+            emp => emp.IsAdmin === adminLevel &&
+                   emp.Email?.toLowerCase() === adminMail
+          );
+
+          if (matchedAdmin) {
+            localStorage.setItem("loggedAdmin", JSON.stringify(matchedAdmin));
+            adminDetails = matchedAdmin;
+          }
+        } catch (error) {
+          console.error("Error fetching admin details:", error);
+        }
+      } else if (storedAdmin) {
+        adminDetails = JSON.parse(storedAdmin);
+      }
+
+      const companyAddress = localStorage.getItem("companyAddress") || "";
+      const customerAddress = localStorage.getItem("address") || "";
+      const [companyStreet, companyCity, companyState, companyZip] =
+        companyAddress.split("--");
+      const [customerStreet, customerCity, customerState, customerZip] =
+        customerAddress.split("--");
+
+      const newFormData = {
+        companyName: localStorage.getItem("companyName") || "",
+        companyStreet: companyStreet || "",
+        companyCity: companyCity || "",
+        companyState: companyState || "",
+        companyZip: companyZip || "",
+        logo: localStorage.getItem("companyLogo") || "",
+        firstName: localStorage.getItem("firstName") || "",
+        lastName: localStorage.getItem("lastName") || "",
+        customerStreet: customerStreet || "",
+        customerCity: customerCity || "",
+        customerState: customerState || "",
+        customerZip: customerZip || "",
+        email: localStorage.getItem("email") || "",
+        phone: localStorage.getItem("phone") || "",
+        EName: "",
+        adminPin: "",
+        decryptedPassword: "",
+      };
+
+      if (adminDetails) {
+        newFormData.EName = `${adminDetails.FName || ""} ${
+          adminDetails.LName || ""
+        }`.trim();
+        newFormData.adminPin = adminDetails.Pin || "";
+        newFormData.email = adminDetails.Email || "";
+        newFormData.phone = adminDetails.PhoneNumber || "";
+      }
+
+      setFormData(newFormData);
+      setIsLoading(false);
     };
 
-    if (adminDetails) {
-      newFormData.EName = `${adminDetails.FName || ""} ${
-        adminDetails.LName || ""
-      }`.trim();
-      newFormData.adminPin = adminDetails.Pin || "";
-      newFormData.email = adminDetails.Email || "";
-      newFormData.phone = adminDetails.PhoneNumber || "";
-    }
-
-    setFormData(newFormData);
-    setIsLoading(false);
+    initializeProfile();
   }, []);
 
   // Company validation

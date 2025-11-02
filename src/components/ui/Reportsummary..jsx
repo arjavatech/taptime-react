@@ -3,7 +3,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import Header2 from "./Navbar/Header";
 import Footer2 from "./Footer/Footer";
-import { fetchEmployeeData, fetchDevices, fetchDailyReport, fetchDateRangeReport } from "../../utils/apiUtils";
+import { fetchEmployeeData, fetchDevices, fetchDailyReport, fetchDateRangeReport, createDailyReportEntry } from "../../utils/apiUtils";
 
 const Reports = () => {
   const [activeTab, setActiveTab] = useState("today");
@@ -22,6 +22,24 @@ const Reports = () => {
   const [deviceID, setDeviceID] = useState("");
   const [availableFrequencies, setAvailableFrequencies] = useState([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [newEntry, setNewEntry] = useState({
+    EmployeeID: "",
+    Type: "",
+    Date: "",
+    CheckInTime: "",
+    CheckOutTime: ""
+  });
+  const [employeeList, setEmployeeList] = useState([]);
+  const [checkoutDisabled, setCheckoutDisabled] = useState(true);
+  const [addButtonDisabled, setAddButtonDisabled] = useState(true);
+  const [formErrors, setFormErrors] = useState({
+    employee: "",
+    type: "",
+    date: "",
+    checkinTime: "",
+    checkoutTime: ""
+  });
   const companyId = localStorage.getItem("companyID");
 
   // Today's report specific
@@ -332,6 +350,145 @@ const Reports = () => {
       return Math.ceil(filteredEmployees.length / itemsPerPage);
     }
     return 0;
+  };
+
+  // Modal Handlers
+  const closeModal = () => {
+    setShowModal(false);
+    setNewEntry({
+      EmployeeID: "",
+      Type: "",
+      Date: "",
+      CheckInTime: "",
+      CheckOutTime: ""
+    });
+    setFormErrors({
+      employee: "",
+      type: "",
+      date: "",
+      checkinTime: "",
+      checkoutTime: ""
+    });
+    setCheckoutDisabled(true);
+    setAddButtonDisabled(true);
+  };
+
+  const validateForm = () => {
+    const errors = {
+      employee: "",
+      type: "",
+      date: "",
+      checkinTime: "",
+      checkoutTime: ""
+    };
+    let isValid = true;
+
+    if (!newEntry.EmployeeID) {
+      errors.employee = "Employee selection is required";
+      isValid = false;
+    }
+    if (!newEntry.Type) {
+      errors.type = "Type selection is required";
+      isValid = false;
+    }
+    if (!newEntry.Date) {
+      errors.date = "Date is required";
+      isValid = false;
+    }
+    if (!newEntry.CheckInTime) {
+      errors.checkinTime = "Check-in time is required";
+      isValid = false;
+    }
+
+    setFormErrors(errors);
+    return isValid;
+  };
+
+  const handleCheckinTimeChange = (value) => {
+    setNewEntry({ ...newEntry, CheckInTime: value });
+    // Enable checkout field and add button when check-in time is entered
+    if (value) {
+      setCheckoutDisabled(false);
+      setAddButtonDisabled(false);
+    } else {
+      setCheckoutDisabled(true);
+      setAddButtonDisabled(true);
+    }
+  };
+
+  const loadEmployeeList = async () => {
+    try {
+      const employeeData = await fetchEmployeeData(companyId);
+      setEmployeeList(employeeData || []);
+    } catch (error) {
+      console.error("Error loading employee list:", error);
+      setEmployeeList([]);
+    }
+  };
+
+  // Load employee list when modal opens
+  useEffect(() => {
+    if (showModal) {
+      loadEmployeeList();
+      // Set max date to today
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('datePicker')?.setAttribute('max', today);
+    }
+  }, [showModal]);
+
+  const handleSaveEntry = async () => {
+    if (!validateForm()) return;
+
+    setLoading(true);
+
+    try {
+      // Find selected employee
+      const selectedEmployee = employeeList.find(emp => emp.Pin === newEntry.EmployeeID);
+
+      // Combine date and time for check-in
+      const checkinDateTime = `${newEntry.Date}T${newEntry.CheckInTime}`;
+      const checkoutDateTime = newEntry.CheckOutTime ? `${newEntry.Date}T${newEntry.CheckOutTime}` : null;
+
+      // Prepare API payload
+      const entryData = {
+        Pin: newEntry.EmployeeID,
+        EmpID: selectedEmployee?.EmpID || "",
+        Name: selectedEmployee ? `${selectedEmployee.FName} ${selectedEmployee.LName}` : "",
+        Type: newEntry.Type,
+        DeviceID: selectedDevice?.DeviceID || deviceID,
+        CID: companyId,
+        CheckInTime: new Date(checkinDateTime).toISOString(),
+        CheckOutTime: checkoutDateTime ? new Date(checkoutDateTime).toISOString() : null,
+        TimeWorked: checkoutDateTime ? calculateTimeDifference(checkinDateTime, checkoutDateTime) : "0:00",
+        LastModifiedBy: "Admin"
+      };
+
+      // Call API to create entry
+      await createDailyReportEntry(entryData);
+
+      // Refresh report data after successful creation
+      if (activeTab === "today") {
+        await viewCurrentDateReport();
+      } else if (activeTab === "daywise" && selectedDate) {
+        await viewDatewiseReport(selectedDate);
+      }
+
+      closeModal();
+    } catch (error) {
+      console.error("Error saving entry:", error);
+      alert("Failed to save entry. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateTimeDifference = (checkIn, checkOut) => {
+    const start = new Date(checkIn);
+    const end = new Date(checkOut);
+    const diffInMinutes = Math.floor((end - start) / 1000 / 60);
+    const hours = Math.floor(diffInMinutes / 60);
+    const minutes = diffInMinutes % 60;
+    return `${hours}:${minutes.toString().padStart(2, '0')}`;
   };
 
   useEffect(() => {
@@ -751,6 +908,128 @@ const Reports = () => {
             {activeTab === "salaried" && renderSalariedReport()}
           </div>
         </div>
+
+        {/* Add Entry Modal */}
+        {showModal && (
+          <div style={{ zIndex: 4000 }} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-6">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-sm">
+              {/* Modal Header */}
+              <div className="bg-[#02066F] text-white p-4 flex justify-between items-center rounded-t-lg">
+                <h5 className="text-xl font-semibold w-full text-center">Add entry</h5>
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="text-gray-400 hover:text-white text-4xl cursor-pointer p-2 leading-none"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-4">
+                <form id="entryForm">
+                  {/* Employee Dropdown */}
+                  <select
+                    id="dynamicDropdown"
+                    value={newEntry.EmployeeID}
+                    onChange={(e) => setNewEntry({ ...newEntry, EmployeeID: e.target.value })}
+                    className="w-full p-2 mb-3 border border-[#02066F] rounded-lg text-[#02066F] font-bold focus:outline-none focus:ring-2 focus:ring-[#02066F]"
+                  >
+                    <option value="">Select Employee</option>
+                    {employeeList.map((employee) => (
+                      <option key={employee.Pin} value={employee.Pin}>
+                        {employee.FName} {employee.LName}
+                      </option>
+                    ))}
+                  </select>
+                  {formErrors.employee && (
+                    <div className="text-red-500 text-sm text-center mb-3">{formErrors.employee}</div>
+                  )}
+
+                  {/* Type Dropdown */}
+                  <select
+                    id="type"
+                    value={newEntry.Type}
+                    onChange={(e) => setNewEntry({ ...newEntry, Type: e.target.value })}
+                    className="w-full p-2 mb-3 border border-[#02066F] rounded-lg text-[#02066F] font-bold focus:outline-none focus:ring-2 focus:ring-[#02066F]"
+                  >
+                    <option value="">Select Type</option>
+                    <option value="Belt">Belt</option>
+                    <option value="Path">Path</option>
+                    <option value="Camp">Camp</option>
+                    <option value="External">Off site</option>
+                    <option value="Trial">Trial</option>
+                    <option value="Reception">Reception</option>
+                  </select>
+                  {formErrors.type && (
+                    <div className="text-red-500 text-sm text-center mb-3">{formErrors.type}</div>
+                  )}
+
+                  {/* Date Picker */}
+                  <input
+                    type="date"
+                    id="datePicker"
+                    value={newEntry.Date}
+                    onChange={(e) => setNewEntry({ ...newEntry, Date: e.target.value })}
+                    placeholder="Check-in Date (yyyy-mm-dd):"
+                    max=""
+                    className="w-full p-2 mb-3 border border-[#02066F] rounded-lg text-[#02066F] font-bold focus:outline-none focus:ring-2 focus:ring-[#02066F]"
+                    required
+                  />
+                  {formErrors.date && (
+                    <div className="text-red-500 text-sm text-center mb-3">{formErrors.date}</div>
+                  )}
+
+                  {/* Check-in Time */}
+                  <div className="relative mb-3">
+                    <input
+                      type="time"
+                      id="checkinTime"
+                      value={newEntry.CheckInTime}
+                      onChange={(e) => handleCheckinTimeChange(e.target.value)}
+                      className="w-full p-2 border border-[#02066F] rounded-lg text-[#02066F] font-bold focus:outline-none focus:ring-2 focus:ring-[#02066F]"
+                      placeholder="Check-in Time:"
+                      required
+                    />
+                    {formErrors.checkinTime && (
+                      <div className="text-red-500 text-sm text-center mt-1">{formErrors.checkinTime}</div>
+                    )}
+                  </div>
+
+                  {/* Check-out Time */}
+                  <div className="relative mb-3">
+                    <input
+                      type="time"
+                      id="checkoutTime"
+                      value={newEntry.CheckOutTime}
+                      onChange={(e) => setNewEntry({ ...newEntry, CheckOutTime: e.target.value })}
+                      disabled={checkoutDisabled}
+                      className="w-full p-2 border border-[#02066F] rounded-lg text-[#02066F] font-bold focus:outline-none focus:ring-2 focus:ring-[#02066F] disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      placeholder="Check-out Time:"
+                      required
+                    />
+                    {formErrors.checkoutTime && (
+                      <div className="text-red-500 text-sm text-center mt-1">{formErrors.checkoutTime}</div>
+                    )}
+                  </div>
+
+                  {/* Add Button */}
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={handleSaveEntry}
+                      disabled={addButtonDisabled}
+                      className="bg-[#02066F] text-white px-6 py-2 rounded-md font-semibold mt-2 hover:opacity-80 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
+                      id="AddEmployee"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       <Footer2 />
     </div>

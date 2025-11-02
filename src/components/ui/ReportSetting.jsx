@@ -2,12 +2,10 @@ import React, { useState, useEffect } from "react";
 import Header2 from "./Navbar/Header";
 import Footer2 from "./Footer/Footer";
 import {
-  fetchDevices,
   getAllReportEmails,
   createReportEmail,
   updateReportEmail,
   deleteReportEmail,
-  getReportEmail,
   createReportObject
 } from "../../utils/apiUtils";
 
@@ -27,21 +25,11 @@ const ReportSetting = () => {
   const [emailError, setEmailError] = useState("");
   const [frequencyError, setFrequencyError] = useState("");
   const [viewFrequencyError, setViewFrequencyError] = useState("");
-  const [devices, setDevices] = useState([]);
-  const [selectedDevice, setSelectedDevice] = useState(null);
-  const [showDeviceDropdown, setShowDeviceDropdown] = useState(false);
-  const [storedDeviceID, setStoredDeviceID] = useState(null);
-  const [adminType, setAdminType] = useState("");
   const [viewFrequencies, setViewFrequencies] = useState([]);
   const [showViewFrequencyDropdown, setShowViewFrequencyDropdown] = useState(false);
   const [maxViewSelections] = useState(2);
   const [showFrequencyDropdown, setShowFrequencyDropdown] = useState(false);
-  const [frequencies] = useState(["Daily", "Weekly", "Biweekly", "Monthly", "Bimonthly"]);
-  const [selectedFrequencies, setSelectedFrequencies] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-
-  const displayValue = selectedFrequencies.join(", ") || [...currentFrequencies];
 
   const loadReportSettings = async () => {
     setIsLoading(true);
@@ -61,44 +49,10 @@ const ReportSetting = () => {
     }
   };
 
-  const loadDevices = async () => {
-    try {
-      if (typeof window === "undefined") return;
-      const companyId = localStorage.getItem("companyID");
-      const filteredDevices = await fetchDevices(companyId);
-
-      setDevices(filteredDevices);
-
-      if (storedDeviceID) {
-        const storedDevice = filteredDevices.find(
-          (device) => device.deviceId === storedDeviceID
-        );
-        if (storedDevice) {
-          setSelectedDevice(storedDevice);
-          console.log("Using stored DeviceID:", storedDeviceID);
-        }
-      } else if (filteredDevices.length > 0) {
-        setSelectedDevice(filteredDevices[0]);
-      }
-
-      filterReportSettings();
-    } catch (error) {
-      console.error("Error fetching devices:", error);
-      setDevices([]);
-    }
-  };
-
   const filterReportSettings = () => {
     // Since the API data doesn't have DeviceID field, show all data
     setEmailSettings(Array.isArray(allEmailSettings) ? allEmailSettings : []);
     console.log('Report settings loaded:', allEmailSettings.length);
-  };
-
-  const handleDeviceSelection = (device) => {
-    setSelectedDevice(device);
-    console.log("Selected device:", device);
-    console.log("Device ID to pass:", device.deviceId);
-    filterReportSettings();
   };
 
   const loadViewSetting = () => {
@@ -141,10 +95,6 @@ const ReportSetting = () => {
   };
 
   const openAddModal = () => {
-    if (!storedDeviceID && !selectedDevice) {
-      alert("Please select a device first");
-      return;
-    }
     setNewEmail("");
     setNewFrequencies([]);
     setEmailError("");
@@ -220,7 +170,7 @@ const ReportSetting = () => {
       return;
     }
 
-    const deviceId = storedDeviceID || selectedDevice?.deviceId || "";
+    const deviceId = "";
     const reportData = createReportObject(newEmail, company_id, deviceId, newFrequencies);
 
     try {
@@ -237,7 +187,7 @@ const ReportSetting = () => {
     if (!validateFrequencies(currentFrequencies)) return;
 
     const company_id = localStorage.getItem("companyID") || "";
-    const deviceId = storedDeviceID || selectedDevice?.deviceId || "";
+    const deviceId = "";
     const reportData = createReportObject(currentEmail, company_id, deviceId, currentFrequencies);
 
     try {
@@ -261,24 +211,6 @@ const ReportSetting = () => {
     }
   };
 
-  const loadReportEmailForEdit = async (email) => {
-    const company_id = localStorage.getItem("companyID") || "";
-
-    try {
-      const data = await getReportEmail(email, company_id);
-      const frequencies = [];
-      if (data.IsDailyReportActive) frequencies.push('Daily');
-      if (data.IsWeeklyReportActive) frequencies.push('Weekly');
-      if (data.IsBiWeeklyReportActive) frequencies.push('Biweekly');
-      if (data.IsMonthlyReportActive) frequencies.push('Monthly');
-      if (data.IsBiMonthlyReportActive) frequencies.push('Bimonthly');
-      
-      setCurrentFrequencies(frequencies);
-    } catch (error) {
-      console.error("Error loading report email for edit:", error);
-    }
-  };
-
   const updateViewSetting = async () => {
     if (viewFrequencies.length === 0) {
       setViewFrequencyError("Please select at least one frequency");
@@ -290,11 +222,12 @@ const ReportSetting = () => {
     const setting = {
       CID: company_id,
       ReportType: viewFrequencies.join(","),
+      LastModifiedBy: localStorage.getItem("UserEmail") || localStorage.getItem("userName") || "unknown",
     };
 
     setIsLoading(true);
     try {
-      const response = await fetch(`https://9dq56iwo77.execute-api.ap-south-1.amazonaws.com/prod/admin-report-type/update/${company_id}`, {
+      const response = await fetch(`https://postgresql-holy-firefly-3725.fly.dev/admin-report-type/update/${company_id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(setting),
@@ -332,47 +265,8 @@ const ReportSetting = () => {
     setFrequencyError("");
   };
 
-  const toggleDropdown = () => {
-    setShowDropdown(!showDropdown);
-  };
-
-  const toggleFrequency = (freq) => {
-    if (selectedFrequencies.includes(freq)) {
-      setSelectedFrequencies(selectedFrequencies.filter((f) => f !== freq));
-    } else if (selectedFrequencies.length < 2) {
-      setSelectedFrequencies([...selectedFrequencies, freq]);
-      setFrequencyError("");
-    } else {
-      setFrequencyError("You can select up to 2 frequencies only.");
-    }
-  };
-
-  const deviceToggleDropdown = () => {
-    setDropdownOpen(!dropdownOpen);
-  };
-
-  const handleClickOutside = (event) => {
-    const dropdown = document.getElementById("device-dropdown-summary");
-    const button = document.getElementById("device-menu-button-summary");
-
-    if (dropdown && !dropdown.contains(event.target) && button && !button.contains(event.target)) {
-      setDropdownOpen(false);
-    }
-  };
-
-  const selectDevice = (device) => {
-    handleDeviceSelection(device);
-    setDropdownOpen(false);
-  };
-
   useEffect(() => {
     const initializeComponent = async () => {
-      const deviceID = localStorage.getItem("DeviceID");
-      const adminTypeValue = localStorage.getItem("adminType") || "";
-
-      setStoredDeviceID(deviceID);
-      setAdminType(adminTypeValue);
-
       const savedReportType = localStorage.getItem("reportType");
       if (savedReportType && savedReportType.toLowerCase().includes("basic")) {
         localStorage.removeItem("reportType");
@@ -381,21 +275,15 @@ const ReportSetting = () => {
       }
 
       await loadReportSettings();
-      await loadDevices();
       loadViewSetting();
     };
 
     initializeComponent();
-
-    window.addEventListener("click", handleClickOutside);
-    return () => {
-      window.removeEventListener("click", handleClickOutside);
-    };
   }, []);
 
   useEffect(() => {
     filterReportSettings();
-  }, [allEmailSettings, selectedDevice, storedDeviceID]);
+  }, [allEmailSettings]);
 
   useEffect(() => {
     console.log('showDeleteModal state changed:', showDeleteModal);
@@ -412,59 +300,13 @@ const ReportSetting = () => {
         )}
 
         <div className="max-w-5xl mx-auto pt-25">
-          {!storedDeviceID && adminType !== "Admin" && adminType !== "SuperAdmin" && (
-            <div className="max-w-5xl mx-auto mb-8 px-4">
-              <div className="flex justify-center">
-                <div className="relative inline-block text-left w-64">
-                  {adminType === "Owner" && (
-                    <button
-                      id="device-menu-button-summary"
-                      type="button"
-                      className="inline-flex w-full justify-between items-center rounded-lg bg-white px-4 py-3 text-sm font-semibold text-[#02066F] border border-[#02066F] shadow-sm hover:bg-[#02066F] hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#02066F] transition"
-                      onClick={deviceToggleDropdown}
-                    >
-                      <span>
-                        {selectedDevice ? selectedDevice.name : "Select Device Name"}
-                      </span>
-                      <svg className="h-5 w-5 text-gray-400 group-hover:text-white transition" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  )}
-
-                  {dropdownOpen && (
-                    <div id="device-dropdown-summary" className="absolute right-0 z-20 mt-2 w-full origin-top-right rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 animate-fadeIn">
-                      <div className="py-1">
-                        {devices.length > 0 ? (
-                          devices.map((device) => (
-                            <button
-                              key={device.id}
-                              type="button"
-                              className="text-gray-700 block w-full px-4 py-2 text-left text-sm hover:bg-[#02066F] hover:text-white transition"
-                              onClick={() => selectDevice(device)}
-                            >
-                              {device.name}
-                            </button>
-                          ))
-                        ) : (
-                          <div className="text-gray-500 block px-4 py-2 text-sm">No devices available</div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
           <div className="flex flex-row md:flex-row md:items-center items-center justify-between md:justify-between mb-6">
             <h2 className="text-xl md:text-2xl xl:text-3xl font-bold mb-4 md:mb-0 text-gray-800">Report Settings</h2>
             <button
               onClick={openAddModal}
               className="px-4 py-2 text-[#02066F] border-1 border-[#02066F] cursor-pointer rounded-lg transition-colors duration-200 bg-white"
-              disabled={!storedDeviceID && !selectedDevice}
             >
-              Add Entry
+              Add Setting
             </button>
           </div>
 

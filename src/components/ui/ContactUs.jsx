@@ -141,7 +141,7 @@ const ContactUs = () => {
 
   // API call
   const callContactUsCreateAPiData = async () => {
-    const apiLink = `https://9dq56iwo77.execute-api.ap-south-1.amazonaws.com/prod/contact-us/create`;
+    const apiLink = `https://postgresql-holy-firefly-3725.fly.dev/contact-us/create`;
     const requestID = uuidv4();
     const cid = localStorage.getItem("companyID") || "";
 
