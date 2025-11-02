@@ -4,6 +4,7 @@ import autoTable from "jspdf-autotable";
 import Header2 from "./Navbar/Header";
 import Footer2 from "./Footer/Footer";
 import { fetchEmployeeData, fetchDevices, fetchDailyReport, fetchDateRangeReport, createDailyReportEntry, updateDailyReportEntry } from "../../utils/apiUtils";
+import { getLocalDateString, getLocalDateTimeString } from "../../utils/commonUtils";
 
 const Reports = () => {
   const [activeTab, setActiveTab] = useState("today");
@@ -135,9 +136,9 @@ const Reports = () => {
       return;
     }
 
-    // Extract date from check-in time (not today's date)
+    // Extract date from check-in time (use local time, not UTC)
     const checkinDateObj = new Date(row.CheckInTime);
-    const checkInDateString = checkinDateObj.toISOString().split('T')[0];
+    const checkInDateString = getLocalDateString(checkinDateObj);
 
     // Use check-in date with checkout time (time input already includes seconds)
     const checkoutDateTime = `${checkInDateString}T${checkoutTime}`;
@@ -170,7 +171,7 @@ const Reports = () => {
         CheckInSnap: row.CheckInSnap || null,
         CheckInTime: checkinDateTime,
         CheckOutSnap: row.CheckOutSnap || null,
-        CheckOutTime: checkoutDate.toISOString(),
+        CheckOutTime: getLocalDateTimeString(checkoutDate),
         TimeWorked: timeWorked,
         LastModifiedBy: "Admin"
       };
@@ -504,8 +505,8 @@ const Reports = () => {
   useEffect(() => {
     if (showModal) {
       loadEmployeeList();
-      // Set max date to today
-      const today = new Date().toISOString().split('T')[0];
+      // Set max date to today (use local time, not UTC)
+      const today = getLocalDateString();
       document.getElementById('datePicker')?.setAttribute('max', today);
     }
   }, [showModal]);
@@ -531,8 +532,8 @@ const Reports = () => {
         TypeID: newEntry.Type,
         DeviceID: selectedDevice?.DeviceID || deviceID,
         CID: companyId,
-        CheckInTime: new Date(checkinDateTime).toISOString(),
-        CheckOutTime: checkoutDateTime ? new Date(checkoutDateTime).toISOString() : null,
+        CheckInTime: getLocalDateTimeString(new Date(checkinDateTime)),
+        CheckOutTime: checkoutDateTime ? getLocalDateTimeString(new Date(checkoutDateTime)) : null,
         TimeWorked: checkoutDateTime ? calculateTimeDifference(checkinDateTime, checkoutDateTime) : "0:00",
         LastModifiedBy: "Admin"
       };
@@ -577,7 +578,7 @@ const Reports = () => {
       setAvailableFrequencies(frequencies);
       setSelectedFrequency(frequencies[0] || "");
 
-      const today = new Date().toISOString().split("T")[0];
+      const today = getLocalDateString();
       setCurrentDate(today);
       setSelectedDate(today);
 
