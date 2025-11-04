@@ -73,7 +73,7 @@ export const AuthProvider = ({ children }) => {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/login`,
+          redirectTo: `${window.location.origin}/employee-management`,
           queryParams: {
             // Force Google to show account picker every time
             // This allows users to choose which Gmail account to use
@@ -92,6 +92,9 @@ export const AuthProvider = ({ children }) => {
   // Sign out
   const signOut = async () => {
     try {
+      // Clear sessionStorage first to remove cached OAuth state
+      sessionStorage.clear();
+
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
 

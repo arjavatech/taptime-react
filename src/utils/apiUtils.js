@@ -116,11 +116,33 @@ export const googleSignInCheck = async (email) => {
     const data = await res.json();
 
     if ("error" in data) {
-      throw new Error("Invalid Gmail login");
+      console.error("Backend API returned error:", data);
+      console.error("API endpoint:", `${API_URLS.loginCheck}/${email}`);
+      throw new Error(data.error || "Invalid Gmail login");
     }
 
-    if (["Admin", "SuperAdmin", "Owner"].includes(data["admin_type"])) {
+    // Case-insensitive admin type validation
+    const adminTypeValue = data["admin_type"];
+    console.log("Raw admin_type from API:", adminTypeValue);
+    console.log("Type of admin_type:", typeof adminTypeValue);
+
+    const normalizedAdminType = adminTypeValue?.toString().toLowerCase();
+    console.log("Normalized admin_type:", normalizedAdminType);
+
+    const allowedTypes = ['admin', 'superadmin', 'owner'];
+    const isValid = allowedTypes.includes(normalizedAdminType);
+    console.log("Is admin_type valid?", isValid);
+
+    if (isValid) {
       const companyID = data["cid"];
+
+      // Normalize admin_type to proper case for consistency
+      const adminTypeMap = {
+        'admin': 'Admin',
+        'superadmin': 'SuperAdmin',
+        'owner': 'Owner'
+      };
+      const properCaseAdminType = adminTypeMap[normalizedAdminType];
 
       // Combine customer address fields for backward compatibility
       const customerAddress = [
@@ -149,7 +171,7 @@ export const googleSignInCheck = async (email) => {
 
         // Admin data
         adminMail: data["email"],
-        adminType: data["admin_type"],
+        adminType: properCaseAdminType,  // Use normalized proper case
         authId: data["auth_id"],
 
         // Customer/admin personal data
@@ -178,7 +200,16 @@ export const googleSignInCheck = async (email) => {
       return { success: true, companyID };
     }
 
-    return { success: false, error: "Invalid admin type" };
+    // Login blocked - log detailed error information
+    console.error("Login blocked: Invalid admin type");
+    console.error("Received admin_type:", adminTypeValue);
+    console.error("Expected values: Admin, SuperAdmin, or Owner (case-insensitive)");
+    console.error("Full API response:", data);
+
+    return {
+      success: false,
+      error: `Access denied. Invalid admin type: "${adminTypeValue}". Expected: Admin, SuperAdmin, or Owner.`
+    };
   } catch (error) {
     console.error("Google Sign-In error:", error);
     return { success: false, error: error.message };
@@ -721,31 +752,6 @@ export const supabaseSignUp = async (email, password, metadata = {}) => {
     return { success: true, user: data.user, session: data.session };
   } catch (error) {
     console.error('Supabase sign up error:', error);
-    return { success: false, error: error.message };
-  }
-};
-
-/**
- * Sign in with Google OAuth using Supabase
- * @returns {Promise<Object>} - Returns result or error
- */
-export const supabaseGoogleSignIn = async () => {
-  try {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/employee-management`,
-      },
-    });
-
-    if (error) {
-      console.error('Supabase Google sign in error:', error);
-      return { success: false, error: error.message };
-    }
-
-    return { success: true, data };
-  } catch (error) {
-    console.error('Supabase Google sign in error:', error);
     return { success: false, error: error.message };
   }
 };
