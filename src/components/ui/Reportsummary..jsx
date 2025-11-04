@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import Header2 from "./Navbar/Header";
-import Footer2 from "./Footer/Footer";
+import Footer2 from "./Footer/Footer2";
 import { fetchEmployeeData, fetchDevices, fetchDailyReport, fetchDateRangeReport, createDailyReportEntry, updateDailyReportEntry } from "../../utils/apiUtils";
 import { getLocalDateString, getLocalDateTimeString } from "../../utils/commonUtils";
 
@@ -56,6 +56,10 @@ const Reports = () => {
   const [endDateHeader, setEndDateHeader] = useState("");
   const [selectedFrequency, setSelectedFrequency] = useState("");
   const [employees, setEmployees] = useState([]);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedWeek, setSelectedWeek] = useState(1);
+  const [selectedHalf, setSelectedHalf] = useState("first");
 
   const loadFrequenciesSync = () => {
     const savedFrequencies = localStorage.getItem("reportType");
@@ -83,7 +87,7 @@ const Reports = () => {
     }
   };
 
-  // Today's Report Functions
+  // Utility Functions
   const formatToAmPm = (date) => {
     let h = date.getHours();
     const m = date.getMinutes();
@@ -92,26 +96,46 @@ const Reports = () => {
     return `${h}:${String(m).padStart(2, "0")} ${ampm}`;
   };
 
+  const convertToAmPm = (dateString) => {
+    const date = new Date(dateString);
+    let hours = date.getHours();
+    const minutes = date.getMinutes();
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12 || 12;
+    const minutesStr = minutes < 10 ? "0" + minutes : minutes;
+    return `${hours}:${minutesStr} ${ampm}`;
+  };
+
+  const calculateTimeWorked = (checkIn, checkOut) => {
+    const inTime = new Date(checkIn);
+    const outTime = new Date(checkOut);
+    const diff = outTime.getTime() - inTime.getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}:${minutes.toString().padStart(2, "0")}`;
+  };
+
+  const applyDeviceFilter = (data) => {
+    if (selectedDevice && selectedDevice.DeviceID) {
+      return data.filter(item => item.DeviceID === selectedDevice.DeviceID);
+    }
+    return data;
+  };
+
   const viewCurrentDateReport = async (dateToUse = currentDate) => {
     try {
       const arr = await fetchDailyReport(companyId, dateToUse);
-
       if (!arr.length) {
         setTableData([]);
         return;
       }
 
-      let processedData = arr.map(row => ({
+      const processedData = applyDeviceFilter(arr.map(row => ({
         ...row,
         checkInTimeFormatted: formatToAmPm(new Date(row.CheckInTime)),
         needsCheckout: !row.CheckOutTime,
         checkoutTime: "",
-      }));
-
-      // Only apply device filter if a device is explicitly selected
-      if (selectedDevice && selectedDevice.DeviceID) {
-        processedData = processedData.filter(item => item.DeviceID === selectedDevice.DeviceID);
-      }
+      })));
 
       setTableData(processedData);
     } catch (err) {
@@ -195,26 +219,6 @@ const Reports = () => {
     }
   };
 
-  // Day Wise Report Functions
-  const convertToAmPm = (dateString) => {
-    const date = new Date(dateString);
-    let hours = date.getHours();
-    const minutes = date.getMinutes();
-    const ampm = hours >= 12 ? "PM" : "AM";
-    hours = hours % 12 || 12;
-    const minutesStr = minutes < 10 ? "0" + minutes : minutes;
-    return `${hours}:${minutesStr} ${ampm}`;
-  };
-
-  const calculateTimeWorked = (checkIn, checkOut) => {
-    const inTime = new Date(checkIn);
-    const outTime = new Date(checkOut);
-    const diff = outTime.getTime() - inTime.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    return `${hours}:${minutes.toString().padStart(2, "0")}`;
-  };
-
   const viewDatewiseReport = async (dateValue) => {
     if (!dateValue || !companyId) {
       setReportData([]);
@@ -224,25 +228,17 @@ const Reports = () => {
 
     setLoading(true);
     try {
-      console.log(`Fetching daily report for date: ${dateValue}, companyId: ${companyId}`);
       const data = await fetchDailyReport(companyId, dateValue);
-      console.log('API Response:', data);
-
       const records = Array.isArray(data) ? data : [];
-      let processedData = records.map(item => ({
+      
+      const processedData = applyDeviceFilter(records.map(item => ({
         ...item,
         formattedCheckIn: item.CheckInTime ? convertToAmPm(item.CheckInTime) : "--",
         formattedCheckOut: item.CheckOutTime ? convertToAmPm(item.CheckOutTime) : "--",
         timeWorked: item.TimeWorked || (item.CheckInTime && item.CheckOutTime
           ? calculateTimeWorked(item.CheckInTime, item.CheckOutTime) : "--"),
-      }));
+      })));
 
-      // Only apply device filter if a device is explicitly selected
-      if (selectedDevice && selectedDevice.DeviceID) {
-        processedData = processedData.filter(item => item.DeviceID === selectedDevice.DeviceID);
-      }
-
-      console.log('Processed data:', processedData);
       setReportData(processedData);
       setFilteredData([...processedData]);
       setCurrentPage(1);
@@ -280,6 +276,139 @@ const Reports = () => {
     return employeeTimes;
   };
 
+  const pad = (n) => n.toString().padStart(2, '0');
+
+  const formatDate = (date) => {
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  };
+
+  const getWeeklyDateRange = (year, month, weekNum) => {
+    const firstDay = new Date(year, month - 1, 1);
+    while (firstDay.getDay() !== 1) {
+      firstDay.setDate(firstDay.getDate() + 1);
+    }
+    
+    const startDate = new Date(firstDay);
+    startDate.setDate(firstDay.getDate() + (weekNum - 1) * 7);
+    
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6);
+    
+    const lastDayOfMonth = new Date(year, month, 0);
+    
+    return {
+      startRange: formatDate(startDate),
+      endRange: formatDate(endDate > lastDayOfMonth ? lastDayOfMonth : endDate)
+    };
+  };
+
+  const getWeekOptions = (year, month) => {
+    const weeks = [];
+    const firstDay = new Date(year, month - 1, 1);
+    while (firstDay.getDay() !== 1) {
+      firstDay.setDate(firstDay.getDate() + 1);
+    }
+    
+    const lastDayOfMonth = new Date(year, month, 0);
+    let weekNum = 1;
+    
+    while (firstDay <= lastDayOfMonth) {
+      const startDate = new Date(firstDay);
+      const endDate = new Date(firstDay);
+      endDate.setDate(startDate.getDate() + 6);
+      
+      const actualEndDate = endDate > lastDayOfMonth ? lastDayOfMonth : endDate;
+      
+      weeks.push({
+        value: weekNum,
+        label: `${formatDate(startDate)} to ${formatDate(actualEndDate)}`
+      });
+      
+      firstDay.setDate(firstDay.getDate() + 7);
+      weekNum++;
+    }
+    
+    return weeks;
+  };
+
+  const getBimonthlyDateRange = (year, month, half) => {
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const mid = Math.ceil(daysInMonth / 2);
+    
+    if (half === "first") {
+      return {
+        startRange: `${year}-${pad(month)}-01`,
+        endRange: `${year}-${pad(month)}-${pad(mid)}`
+      };
+    } else {
+      return {
+        startRange: `${year}-${pad(month)}-${pad(mid + 1)}`,
+        endRange: `${year}-${pad(month)}-${pad(daysInMonth)}`
+      };
+    }
+  };
+
+  const getMonthlyDateRange = (year, month) => {
+    const daysInMonth = new Date(year, month, 0).getDate();
+    return {
+      startRange: `${year}-${pad(month)}-01`,
+      endRange: `${year}-${pad(month)}-${pad(daysInMonth)}`
+    };
+  };
+
+  const getBiweeklyDateRange = () => {
+    const today = new Date();
+    const end = new Date(today);
+    const start = new Date(today);
+    start.setDate(end.getDate() - 13);
+    return {
+      startRange: formatDate(start),
+      endRange: formatDate(end)
+    };
+  };
+
+  const getDateRangeByFrequency = () => {
+    const ranges = {
+      "Weekly": () => getWeeklyDateRange(selectedYear, selectedMonth, selectedWeek),
+      "Bimonthly": () => getBimonthlyDateRange(selectedYear, selectedMonth, selectedHalf),
+      "Monthly": () => getMonthlyDateRange(selectedYear, selectedMonth),
+      "Biweekly": () => getBiweeklyDateRange()
+    };
+    return ranges[selectedFrequency] ? ranges[selectedFrequency]() : getMonthlyDateRange(selectedYear, selectedMonth);
+  };
+
+  const viewDateRangeReport = async () => {
+    setLoading(true);
+    const dateRange = getDateRangeByFrequency();
+    setStartDateHeader(dateRange.startRange);
+    setEndDateHeader(dateRange.endRange);
+
+    try {
+      const data = await fetchDateRangeReport(companyId, dateRange.startRange, dateRange.endRange);
+      setEmployees(Array.isArray(data) ? processDateRangeData(data) : []);
+    } catch (error) {
+      console.error("Error fetching report data", error);
+      setEmployees([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const processDateRangeData = (data) => {
+    let filteredData = data;
+    if (adminType !== "Owner") {
+      filteredData = data.filter(item => item.DeviceID === deviceID);
+    } else if (selectedDevice && selectedDevice.DeviceID) {
+      filteredData = data.filter(item => item.DeviceID === selectedDevice.DeviceID);
+    }
+
+    return Object.entries(calculateTotalTimeWorked(filteredData)).map(([pin, empData]) => ({
+      pin,
+      name: empData.name,
+      hoursWorked: empData.totalHoursWorked || "0:00",
+    }));
+  };
+
   const loadReportTable = async (startVal, endVal) => {
     setLoading(true);
     setStartDateHeader(startVal);
@@ -287,25 +416,7 @@ const Reports = () => {
 
     try {
       const data = await fetchDateRangeReport(companyId, startVal, endVal);
-
-      if (Array.isArray(data)) {
-        let filteredData = data;
-        if (adminType !== "Owner") {
-          filteredData = data.filter(item => item.DeviceID === deviceID);
-        } else if (selectedDevice && selectedDevice.DeviceID) {
-          filteredData = data.filter(item => item.DeviceID === selectedDevice.DeviceID);
-        }
-
-        const employeeData = Object.entries(calculateTotalTimeWorked(filteredData)).map(([pin, empData]) => ({
-          pin,
-          name: empData.name,
-          hoursWorked: empData.totalHoursWorked || "0:00",
-        }));
-
-        setEmployees(employeeData);
-      } else {
-        setEmployees([]);
-      }
+      setEmployees(Array.isArray(data) ? processDateRangeData(data) : []);
     } catch (error) {
       console.error("Error fetching report data", error);
       setEmployees([]);
@@ -354,62 +465,86 @@ const Reports = () => {
     }
   };
 
+  const getReportConfig = () => {
+    const configs = {
+      today: {
+        title: `Today's Report - ${currentDate}`,
+        columns: ["Employee ID", "Name", "Check-in Time", "Check-out Time"],
+        rows: tableData.map(item => [
+          item.Pin || "--",
+          item.Name?.split(" ")[0] || "--",
+          item.checkInTimeFormatted || "--",
+          item.CheckOutTime ? formatToAmPm(new Date(item.CheckOutTime)) : "--"
+        ])
+      },
+      daywise: {
+        title: `Day-Wise Report - ${selectedDate}`,
+        columns: ["Employee Name", "Employee ID", "Check-in Time", "Check-out Time", "Time Worked Hours(HH:MM)"],
+        rows: filteredData.map(item => [
+          item.Name?.split(" ")[0] || "",
+          item.Pin || "--",
+          item.formattedCheckIn || "--",
+          item.formattedCheckOut || "--",
+          item.timeWorked || "--",
+        ])
+      },
+      salaried: {
+        title: `${selectedFrequency} Report (${startDateHeader} to ${endDateHeader})`,
+        columns: ["Name", "Pin", "Time Worked Hours (HH:MM)"],
+        rows: employees.map(emp => [
+          emp.name || "--",
+          emp.pin || "--",
+          emp.hoursWorked || "--",
+        ])
+      }
+    };
+    return configs[activeTab] || configs.daywise;
+  };
+
   const downloadPDF = () => {
+    const config = getReportConfig();
     const doc = new jsPDF();
-    let tableColumn, tableRows, title;
-
-    if (activeTab === "") {
-      title = `Today's Report - ${currentDate}`;
-      tableColumn = ["Employee ID", "Name", "Check-in Time", "Check-out Time"];
-      tableRows = tableData.map(item => [
-        item.Pin || "--",
-        item.Name?.split(" ")[0] || "--",
-        item.checkInTimeFormatted || "--",
-        item.CheckOutTime ? formatToAmPm(new Date(item.CheckOutTime)) : "--"
-      ]);
-    } else if (activeTab === "daywise") {
-      title = `Day-Wise Report - ${selectedDate}`;
-      tableColumn = ["Employee Name", "Employee ID", "Check-in Time", "Check-out Time", "Time Worked Hours(HH:MM)"];
-      tableRows = filteredData.map(item => [
-        item.Name?.split(" ")[0] || "",
-        item.Pin || "--",
-        item.formattedCheckIn || "--",
-        item.formattedCheckOut || "--",
-        item.timeWorked || "--",
-      ]);
-    } else if (activeTab === "salaried") {
-      title = `${selectedFrequency} Report (${startDateHeader} to ${endDateHeader})`;
-      tableColumn = ["Name", "Pin", "Time Worked Hours (HH:MM)"];
-      tableRows = employees.map(emp => [
-        emp.name || "--",
-        emp.pin || "--",
-        emp.hoursWorked || "--",
-      ]);
-    }
-
-    doc.text(title, 14, 10);
+    
+    doc.text(config.title, 14, 10);
     autoTable(doc, {
-      head: [tableColumn],
-      body: tableRows,
+      head: [config.columns],
+      body: config.rows,
       startY: 20,
       headStyles: { fillColor: [2, 6, 111], textColor: 255, fontSize: 10, fontStyle: "bold" },
       styles: { fontSize: 10 },
       theme: "grid",
     });
 
-    doc.save(`${title.toLowerCase().replace(/\s+/g, "_")}.pdf`);
+    doc.save(`${config.title.toLowerCase().replace(/\s+/g, "_")}.pdf`);
   };
+
+  const downloadCSV = () => {
+    const config = getReportConfig();
+    const csvContent = [config.columns, ...config.rows].map(row => row.join(",")).join("\n");
+    const filename = `${config.title.toLowerCase().replace(/\s+/g, "_")}.csv`;
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const getFilteredEmployees = () => employees.filter(emp =>
+    emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    emp.pin.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const paginatedData = () => {
     const start = (currentPage - 1) * itemsPerPage;
     if (activeTab === "daywise") {
       return filteredData.slice(start, start + itemsPerPage);
     } else if (activeTab === "salaried") {
-      const filteredEmployees = employees.filter(emp =>
-        emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        emp.pin.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      return filteredEmployees.slice(start, start + itemsPerPage);
+      return getFilteredEmployees().slice(start, start + itemsPerPage);
     }
     return [];
   };
@@ -418,11 +553,7 @@ const Reports = () => {
     if (activeTab === "daywise") {
       return Math.ceil(filteredData.length / itemsPerPage);
     } else if (activeTab === "salaried") {
-      const filteredEmployees = employees.filter(emp =>
-        emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        emp.pin.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      return Math.ceil(filteredEmployees.length / itemsPerPage);
+      return Math.ceil(getFilteredEmployees().length / itemsPerPage);
     }
     return 0;
   };
@@ -566,6 +697,90 @@ const Reports = () => {
     return `${hours}:${minutes.toString().padStart(2, '0')}`;
   };
 
+  // Reusable Components
+  const SearchAndPagination = ({ showSearch = true, showPagination = true, totalItems = 0 }) => (
+    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
+      {showPagination && (
+        <div className="flex items-center gap-2">
+          <label className="text-base font-semibold text-gray-700">Show</label>
+          <select
+            value={itemsPerPage}
+            onChange={(e) => setItemsPerPage(Number(e.target.value))}
+            className="border border-gray-400 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[#02066F]"
+          >
+            <option value="10">10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+          <span className="text-base font-semibold text-gray-700">entries</span>
+        </div>
+      )}
+      {showSearch && (
+        <div className="flex items-center gap-2">
+          <label className="text-base font-semibold text-gray-800">Search:</label>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full sm:w-64 px-2 py-1 border border-gray-500 rounded-md focus:outline-none focus:ring-1 focus:ring-[#02066F]"
+          />
+        </div>
+      )}
+    </div>
+  );
+
+  const PaginationControls = ({ totalItems }) => (
+    <div className="flex justify-between items-center mt-4">
+      <div className="text-base font-semibold text-gray-700">
+        Showing {Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)} to {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} results
+      </div>
+      <div className="flex space-x-1">
+        <button
+          onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+          disabled={currentPage === 1}
+          className="px-3 py-1 rounded-md text-base font-semibold text-gray-500 disabled:opacity-50"
+        >
+          Previous
+        </button>
+        <button
+          onClick={() => setCurrentPage(Math.min(totalPages(), currentPage + 1))}
+          disabled={currentPage === totalPages()}
+          className="px-3 py-1 rounded-md text-base font-semibold text-gray-500 disabled:opacity-50"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+
+  const DownloadButtons = () => (
+    <div className="flex gap-3">
+      <button onClick={downloadPDF} className="text-[#02066F] hover:text-black px-4 py-2 rounded-lg transition-colors cursor-pointer border border-[#02066F]">
+        Download PDF
+      </button>
+      <button onClick={downloadCSV} className="text-[#02066F] hover:text-black px-4 py-2 rounded-lg transition-colors cursor-pointer border border-[#02066F]">
+        Download CSV
+      </button>
+    </div>
+  );
+
+  const TableHeader = ({ columns, sortable = [] }) => (
+    <thead className="bg-[#02066F] text-white">
+      <tr>
+        {columns.map((col, index) => (
+          <th 
+            key={col}
+            className={`px-6 py-3 text-center font-bold border-r ${sortable.includes(col) ? 'cursor-pointer' : ''}`}
+            onClick={sortable.includes(col) ? () => requestSort(col === "Employee Name" ? "Name" : "Pin") : undefined}
+          >
+            {col} {sortable.includes(col) && sortConfig.key === (col === "Employee Name" ? "Name" : "Pin") ? (sortConfig.direction === "asc" ? "↑" : "↓") : sortable.includes(col) ? "↑↓" : ""}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
+
   useEffect(() => {
     const initializeComponent = async () => {
       setLoading(true);
@@ -700,52 +915,16 @@ const Reports = () => {
             }}
             className="border bg-white border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 shadow"
           />
-          <button onClick={downloadPDF} className="text-[#02066F] hover:text-black px-4 py-2 rounded-lg transition-colors cursor-pointer border border-[#02066F]">
-            Download PDF
-          </button>
+          <DownloadButtons />
         </div>
 
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
-          <div className="flex items-center gap-2">
-            <label className="text-base font-semibold text-gray-700">Show</label>
-            <select
-              value={itemsPerPage}
-              onChange={(e) => setItemsPerPage(Number(e.target.value))}
-              className="border border-gray-400 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[#02066F]"
-            >
-              <option value="10">10</option>
-              <option value="25">25</option>
-              <option value="50">50</option>
-              <option value="100">100</option>
-            </select>
-            <span className="text-base font-semibold text-gray-700">entries</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <label className="text-base font-semibold text-gray-800">Search:</label>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full sm:w-64 px-2 py-1 border border-gray-500 rounded-md focus:outline-none focus:ring-1 focus:ring-[#02066F]"
-            />
-          </div>
-        </div>
+        <SearchAndPagination totalItems={filteredData.length} />
 
         <table className="min-w-full border border-gray-300 text-sm">
-          <thead className="bg-[#02066F] text-white">
-            <tr>
-              <th className="px-6 py-3 text-center font-bold border-r cursor-pointer" onClick={() => requestSort("Name")}>
-                Employee Name {sortConfig.key === "Name" ? (sortConfig.direction === "asc" ? "↑" : "↓") : "↑↓"}
-              </th>
-              <th className="px-6 py-3 text-center font-bold border-r cursor-pointer" onClick={() => requestSort("Pin")}>
-                Employee ID {sortConfig.key === "Pin" ? (sortConfig.direction === "asc" ? "↑" : "↓") : "↑↓"}
-              </th>
-              <th className="px-6 py-3 text-center font-bold border-r">Check-in Time</th>
-              <th className="px-6 py-3 text-center font-bold border-r">Check-out Time</th>
-              <th className="px-6 py-3 text-center font-bold border-r">Time Worked Hours (HH:MM)</th>
-            </tr>
-          </thead>
+          <TableHeader 
+            columns={["Employee Name", "Employee ID", "Check-in Time", "Check-out Time", "Time Worked Hours (HH:MM)"]} 
+            sortable={["Employee Name", "Employee ID"]} 
+          />
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredData.length === 0 ? (
               <tr>
@@ -767,42 +946,119 @@ const Reports = () => {
           </tbody>
         </table>
 
-        {/* Pagination */}
-        <div className="flex justify-between items-center mt-4">
-          <div className="text-base font-semibold text-gray-700">
-            Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredData.length)} to {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} results
-          </div>
-          <div className="flex space-x-1">
-            <button
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1 rounded-md text-base font-semibold text-gray-500 disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setCurrentPage(Math.min(totalPages(), currentPage + 1))}
-              disabled={currentPage === totalPages()}
-              className="px-3 py-1 rounded-md text-base font-semibold text-gray-500 disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-        </div>
+        <PaginationControls totalItems={filteredData.length} />
       </div>
     </div>
   );
 
   const renderSalariedReport = () => {
-    const filteredEmployees = employees.filter(emp =>
-      emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emp.pin.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredEmployees = getFilteredEmployees();
 
     return (
       <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-md overflow-hidden mb-8 border border-gray-300">
         <div className="p-4 sm:p-6 overflow-x-auto">
           <h1 className="text-2xl font-bold text-center mb-8">{selectedFrequency} Report</h1>
+          
+          <div className="text-center mb-3" id="add-entry-year-month">
+            <label htmlFor="yearInput" className="label-style" style={{ fontWeight: '600', marginRight: '10px' }}>Year:</label>
+            <select 
+              id="yearInput" 
+              className="dropdown-input" 
+              value={selectedYear}
+              onChange={(e) => {
+                setSelectedYear(parseInt(e.target.value));
+                viewDateRangeReport();
+              }}
+              style={{
+                border: '1px solid #02066F',
+                color: '#02066F',
+                fontWeight: '600',
+                padding: '6px 12px',
+                borderRadius: '5px',
+                margin: '0 10px'
+              }}>
+              <option value="2024">2024</option>
+              <option value="2025">2025</option>
+            </select>
+
+            <label htmlFor="monthInput" className="label-style" style={{ fontWeight: '600', marginRight: '10px' }}>Month:</label>
+            <select 
+              id="monthInput" 
+              className="dropdown-input" 
+              value={selectedMonth}
+              onChange={(e) => {
+                setSelectedMonth(parseInt(e.target.value));
+                viewDateRangeReport();
+              }}
+              style={{
+                border: '1px solid #02066F',
+                color: '#02066F',
+                fontWeight: '600',
+                padding: '6px 12px',
+                borderRadius: '5px',
+                margin: '0 10px'
+              }}>
+              <option value="1">January</option>
+              <option value="2">February</option>
+              <option value="3">March</option>
+              <option value="4">April</option>
+              <option value="5">May</option>
+              <option value="6">June</option>
+              <option value="7">July</option>
+              <option value="8">August</option>
+              <option value="9">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
+
+            <div id="weekInputWrapper" className="label-style" style={{ display: selectedFrequency === 'Weekly' ? 'inline-block' : 'none' }}>
+              <label htmlFor="weekInput" style={{ fontWeight: '600', marginRight: '10px' }}>Week:</label>
+              <select 
+                id="weekInput" 
+                className="dropdown-input" 
+                value={selectedWeek}
+                onChange={(e) => {
+                  setSelectedWeek(parseInt(e.target.value));
+                  viewDateRangeReport();
+                }}
+                style={{
+                  border: '1px solid #02066F',
+                  color: '#02066F',
+                  fontWeight: '600',
+                  padding: '6px 12px',
+                  borderRadius: '5px',
+                  margin: '0 10px'
+                }}>
+                {getWeekOptions(selectedYear, selectedMonth).map(week => (
+                  <option key={week.value} value={week.value}>{week.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div id="halfInputWrapper" className="label-style" style={{ display: selectedFrequency === 'Bimonthly' ? 'inline-block' : 'none' }}>
+              <label htmlFor="halfInput" style={{ fontWeight: '600', marginRight: '10px' }}>Half:</label>
+              <select 
+                id="halfInput" 
+                className="dropdown-input" 
+                value={selectedHalf}
+                onChange={(e) => {
+                  setSelectedHalf(e.target.value);
+                  viewDateRangeReport();
+                }}
+                style={{
+                  border: '1px solid #02066F',
+                  color: '#02066F',
+                  fontWeight: '600',
+                  padding: '6px 12px',
+                  borderRadius: '5px',
+                  margin: '0 10px'
+                }}>
+                <option value="first">First Half</option>
+                <option value="second">Second Half</option>
+              </select>
+            </div>
+          </div>
           
           <div className="flex justify-between mb-6 p-4 rounded-lg">
             <div>
@@ -815,38 +1071,11 @@ const Reports = () => {
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row justify-evenly items-center mb-6">
-            <button onClick={downloadPDF} className="text-[#02066F] hover:text-black px-4 py-2 rounded-lg transition-colors cursor-pointer border-1 border-[#02066F]">
-              Download PDF
-            </button>
+          <div className="flex justify-center mb-6">
+            <DownloadButtons />
           </div>
 
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
-            <div className="flex items-center gap-2">
-              <label className="text-base font-semibold text-gray-700">Show:</label>
-              <select
-                value={itemsPerPage}
-                onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                className="border border-gray-400 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[#02066F]"
-              >
-                <option value="10">10</option>
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
-              <span className="text-base font-semibold text-gray-700">entries</span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <label className="text-base font-semibold text-gray-800">Search:</label>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full sm:w-64 px-2 py-1 border border-gray-500 rounded-md focus:outline-none focus:ring-1 focus:ring-[#02066F]"
-              />
-            </div>
-          </div>
+          <SearchAndPagination totalItems={filteredEmployees.length} />
 
           <table className="min-w-full border border-gray-300 text-sm">
             <thead className="bg-[#02066F] text-white">
@@ -873,28 +1102,7 @@ const Reports = () => {
             </tbody>
           </table>
 
-          {/* Pagination */}
-          <div className="flex justify-between items-center mt-4">
-            <div className="text-base font-semibold text-gray-700">
-              Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredEmployees.length)} to {Math.min(currentPage * itemsPerPage, filteredEmployees.length)} of {filteredEmployees.length} results
-            </div>
-            <div className="flex space-x-1">
-              <button
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-1 rounded-md text-base font-semibold text-gray-500 disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setCurrentPage(Math.min(totalPages(), currentPage + 1))}
-                disabled={currentPage === totalPages()}
-                className="px-3 py-1 rounded-md text-base font-semibold text-gray-500 disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-          </div>
+          <PaginationControls totalItems={filteredEmployees.length} />
         </div>
       </div>
     );

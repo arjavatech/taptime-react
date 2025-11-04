@@ -7,110 +7,49 @@ const Header = () => {
   const [showModal, setShowModal] = useState(false);
   const [showHomeModal, setShowHomeModal] = useState(false);
   const [userType, setUserType] = useState("");
-  const [getEmail, setGetEmail] = useState("");
-  const [avatarDropdown, setAvatarDropdown] = useState(false);
   const [showProfileSidebar, setShowProfileSidebar] = useState(false);
+  const [userProfile, setUserProfile] = useState({ name: "", email: "", picture: "", fallback: "" });
 
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [userProfile, setUserProfile] = useState({ 
-    name: "",
-    email: "",
-    picture: "",
-    fallback: "",
-  });
+
+
+  const reportPaths = ["/reportsummary", "/daywisereport", "/salariedreport", "/reportsetting"];
+  const activeClass = "text-[#02066F] font-semibold underline decoration-2 underline-offset-12 underline-offset-4";
+  const inactiveClass = "text-gray-500 underline-offset-4 hover:underline hover:decoration-2 hover:underline-offset-12 focus:text-[#02066F] focus:underline focus:decoration-2 focus:underline-offset-12";
 
   useEffect(() => {
-    const currentPath = location.pathname;
     const adminType = localStorage.getItem("adminType") || "";
     const email = localStorage.getItem("adminMail") || "";
     const userName = localStorage.getItem("userName") || "";
     const userPictureUrl = localStorage.getItem("userPicture");
-
-    // Fix Google image URL if needed
-    const fixedPictureUrl =
-      userPictureUrl && !userPictureUrl.startsWith("http")
-        ? `https:${userPictureUrl}`
-        : userPictureUrl;
+    const fixedPictureUrl = userPictureUrl && !userPictureUrl.startsWith("http") ? `https:${userPictureUrl}` : userPictureUrl;
 
     setUserType(adminType);
-    setGetEmail(email);
     setUserProfile({
       name: userName,
       email: email,
       picture: fixedPictureUrl || "",
       fallback: email.charAt(0).toUpperCase(),
     });
-
-    console.log("User Profile:", userProfile);
   }, [location]);
 
-  const isActive = (path) => {
-    return location.pathname === path;
-  };
-
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
-
-  const toggleDropdown = () => {
-    setDropdownOpen(!dropdownOpen);
-  };
-
-  const logOutAction = () => {
-    setShowModal(true);
-    setSidebarOpen(false);
-  };
-
-  const closeModal = () => {
-    setShowModal(false);
-  };
-
-  const handleGoHome = () => {
-    navigate("/");
-    setShowHomeModal(false);
-  };
+  const isActive = (path) => location.pathname === path;
+  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+  const toggleDropdown = () => setDropdownOpen(!dropdownOpen);
+  const logOutAction = () => { setShowModal(true); setSidebarOpen(false); };
+  const closeModal = () => setShowModal(false);
+  const handleGoHome = () => { navigate("/"); setShowHomeModal(false); };
+  const toggleProfileSidebar = () => setShowProfileSidebar(!showProfileSidebar);
 
   const handleLogout = async () => {
-    localStorage.removeItem("username");
-    localStorage.removeItem("companyID");
-    localStorage.removeItem("customId");
-    localStorage.removeItem("password");
-    localStorage.removeItem("adminType");
     localStorage.clear();
-
     try {
       navigate("/login", { replace: true });
     } catch (error) {
-      console.error("Navigation error:", error);
-      try {
-        navigate("/", { replace: true });
-      } catch (fallbackError) {
-        console.error("Fallback navigation error:", fallbackError);
-        window.location.href = "/";
-      }
+      window.location.href = "/";
     }
-  };
-
-  const toggleAvatarDropdown = (event) => {
-    event.stopPropagation();
-    setAvatarDropdown(!avatarDropdown);
-  };
-
-  const closeAvatarDropdown = () => {
-    setAvatarDropdown(false);
-  };
-
-  useEffect(() => {
-    document.addEventListener("click", closeAvatarDropdown);
-    return () => {
-      document.removeEventListener("click", closeAvatarDropdown);
-    };
-  }, []);
-
-  const toggleProfileSidebar = () => {
-    setShowProfileSidebar(!showProfileSidebar);
   };
 
   return (
@@ -131,86 +70,32 @@ const Header = () => {
           {/* Desktop Nav */}
           <nav className="hidden lg:flex items-center gap-10 text-gray-500 text-lg">
             {userType !== "Admin" && (
-              <Link
-                to="/device"
-                className={
-                  isActive("/device")
-                    ? "text-[#02066F] font-semibold underline decoration-2 underline-offset-12 underline-offset-4"
-                    : "text-gray-500 underline-offset-4 hover:underline hover:decoration-2 hover:underline-offset-12 focus:text-[#02066F] focus:underline focus:decoration-2 focus:underline-offset-12"
-                }
-              >
+              <Link to="/device" className={isActive("/device") ? activeClass : inactiveClass}>
                 Device
               </Link>
             )}
 
-            <Link
-              to="/employeelist"
-              className={
-                isActive("/employeelist")
-                  ? "text-[#02066F] font-semibold underline decoration-2 underline-offset-12 underline-offset-4"
-                  : "text-gray-500 underline-offset-4 hover:underline hover:decoration-2 hover:underline-offset-12 focus:text-[#02066F] focus:underline focus:decoration-2 focus:underline-offset-12"
-              }
-            >
+            <Link to="/employeelist" className={isActive("/employeelist") ? activeClass : inactiveClass}>
               Employee Management
             </Link>
 
             {/* Dropdown */}
             <div className="relative">
-              <button
-                className={
-                  isActive("/reportsummary") ||
-                  isActive("/daywisereport") ||
-                  isActive("/salariedreport") ||
-                  isActive("/reportsetting")
-                    ? "text-[#02066F] font-semibold underline decoration-2 underline-offset-12 underline-offset-4 cursor-pointer"
-                    : "text-gray-500 underline-offset-4 hover:underline hover:decoration-2 hover:underline-offset-12 cursor-pointer focus:text-[#02066F] focus:underline focus:decoration-2 focus:underline-offset-12"
-                }
-                onClick={toggleDropdown}
-              >
+              <button className={`${reportPaths.some(path => isActive(path)) ? activeClass : inactiveClass} cursor-pointer`} onClick={toggleDropdown}>
                 Report
               </button>
               {dropdownOpen && (
                 <ul className="absolute mt-2 w-48 bg-white shadow-md border rounded z-10 text-[#02066F]">
-                  <li>
-                    <Link
-                      to="/reportsummary"
-                      className="block px-4 py-2 hover:bg-gray-100"
-                    >
-                      Report Summary
-                    </Link>
-                  </li>
-                  {userType !== "Admin" && (
-                    <li>
-                      <Link
-                        to="/reportsetting"
-                        className="block px-4 py-2 hover:bg-gray-100"
-                      >
-                        Report Settings
-                      </Link>
-                    </li>
-                  )}
+                  <li><Link to="/reportsummary" className="block px-4 py-2 hover:bg-gray-100">Report Summary</Link></li>
+                  {userType !== "Admin" && <li><Link to="/reportsetting" className="block px-4 py-2 hover:bg-gray-100">Report Settings</Link></li>}
                 </ul>
               )}
             </div>
 
-            <Link
-              to="/profile"
-              className={
-                isActive("/profile")
-                  ? "text-[#02066F] font-semibold underline decoration-2 underline-offset-12 underline-offset-4"
-                  : "text-gray-500 underline-offset-4 hover:underline hover:decoration-2 hover:underline-offset-12 focus:text-[#02066F] focus:underline focus:decoration-2 focus:underline-offset-12"
-              }
-            >
+            <Link to="/profile" className={isActive("/profile") ? activeClass : inactiveClass}>
               Profile
             </Link>
-            <Link
-              to="/contact"
-              className={
-                isActive("/contact")
-                  ? "text-[#02066F] font-semibold underline decoration-2 underline-offset-12 underline-offset-4"
-                  : "text-gray-500 underline-offset-4 hover:underline hover:decoration-2 hover:underline-offset-12 focus:text-[#02066F] focus:underline focus:decoration-2 focus:underline-offset-12"
-              }
-            >
+            <Link to="/contact" className={isActive("/contact") ? activeClass : inactiveClass}>
               Contact Us
             </Link>
 
@@ -291,7 +176,9 @@ const Header = () => {
                       toggleProfileSidebar();
                     }}
                   >
-                    <img src="/images/logout.png" alt="logout" className="w-6 h-5" />
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
+                    </svg>
                     <button className="cursor-pointer">Logout</button>
                   </div>
                 </div>
@@ -387,7 +274,11 @@ const Header = () => {
 
           <aside className="fixed top-0 left-0 h-full w-[250px] bg-[#02066F] z-50 shadow ">
             <div className="flex justify-between items-center p-2">
-              <img className="w-16 pt-2" src="/logo.png" alt="logo" />
+              <img 
+                className="w-16 pt-2" 
+                src="/images/tap-time-logo.png" 
+                alt="logo" 
+              />
               <button onClick={toggleSidebar}>
                 <svg
                   className="w-6 h-6 text-white"
@@ -406,97 +297,35 @@ const Header = () => {
             </div>
 
             <nav className="space-y-3 text-[#02066F] font-medium p-10 pt-0">
-              <Link
-                to="/device"
-                className={
-                  isActive("/device")
-                    ? "block px-2 py-1 text-white rounded text-sm underline decoration-white decoration-2 underline-offset-6 underline-offset-4"
-                    : "block px-2 py-1 text-white rounded text-sm hover:underline hover:decoration-white hover:underline-offset-4"
-                }
-                onClick={toggleSidebar}
-              >
+              <Link to="/device" className={isActive("/device") ? "block px-2 py-1 text-white rounded text-sm underline decoration-white decoration-2 underline-offset-6 underline-offset-4" : "block px-2 py-1 text-white rounded text-sm hover:underline hover:decoration-white hover:underline-offset-4"} onClick={toggleSidebar}>
                 Device
               </Link>
 
-              <Link
-                to="/employeelist"
-                className={
-                  isActive("/employeelist")
-                    ? "block px-2 py-1 text-white rounded text-sm underline decoration-white decoration-2 underline-offset-6 underline-offset-4"
-                    : "block px-2 py-1 text-white rounded text-sm hover:underline hover:decoration-white hover:underline-offset-4"
-                }
-                onClick={toggleSidebar}
-              >
+              <Link to="/employeelist" className={isActive("/employeelist") ? "block px-2 py-1 text-white rounded text-sm underline decoration-white decoration-2 underline-offset-6 underline-offset-4" : "block px-2 py-1 text-white rounded text-sm hover:underline hover:decoration-white hover:underline-offset-4"} onClick={toggleSidebar}>
                 Employee Management
               </Link>
 
-              {/* Report Dropdown Section */}
               <div className="relative">
-                <button
-                  className={
-                    isActive("/reportsummary") ||
-                    isActive("/daywisereport") ||
-                    isActive("/salariedreport") ||
-                    isActive("/reportsetting")
-                      ? "w-full text-left px-2 py-1 text-white rounded font-medium text-sm underline decoration-white decoration-2 underline-offset-6 underline-offset-4"
-                      : "w-full text-left px-2 py-1 text-white rounded font-medium text-sm hover:underline hover:decoration-white hover:underline-offset-4"
-                  }
-                  onClick={toggleDropdown}
-                >
+                <button className={`w-full text-left px-2 py-1 text-white rounded font-medium text-sm ${reportPaths.some(path => isActive(path)) ? "underline decoration-white decoration-2 underline-offset-6 underline-offset-4" : "hover:underline hover:decoration-white hover:underline-offset-4"}`} onClick={toggleDropdown}>
                   Report
                 </button>
-
                 {dropdownOpen && (
                   <div className="pl-4 space-y-1 mt-1">
-                    <Link
-                      to="/reportsummary"
-                      className={
-                        isActive("/reportsummary")
-                          ? "block px-2 py-1 text-white rounded text-sm underline decoration-white decoration-2 underline-offset-6 underline-offset-4"
-                          : "block px-2 py-1 text-white rounded text-sm hover:underline hover:decoration-white hover:underline-offset-4"
-                      }
-                      onClick={toggleSidebar}
-                    >
-                      Report Summary
-                    </Link>
-                    <Link
-                      to="/reportsetting"
-                      className={
-                        isActive("/reportsetting")
-                          ? "block px-2 py-1 text-white rounded text-sm underline decoration-white decoration-2 underline-offset-6 underline-offset-4"
-                          : "block px-2 py-1 text-white rounded text-sm hover:underline hover:decoration-white hover:underline-offset-4"
-                      }
-                      onClick={toggleSidebar}
-                    >
-                      Report Settings
-                    </Link>
+                    <Link to="/reportsummary" className={`block px-2 py-1 text-white rounded text-sm ${isActive("/reportsummary") ? "underline decoration-white decoration-2 underline-offset-6 underline-offset-4" : "hover:underline hover:decoration-white hover:underline-offset-4"}`} onClick={toggleSidebar}>Report Summary</Link>
+                    <Link to="/reportsetting" className={`block px-2 py-1 text-white rounded text-sm ${isActive("/reportsetting") ? "underline decoration-white decoration-2 underline-offset-6 underline-offset-4" : "hover:underline hover:decoration-white hover:underline-offset-4"}`} onClick={toggleSidebar}>Report Settings</Link>
                   </div>
                 )}
               </div>
 
-              <Link
-                to="/profile"
-                className={
-                  isActive("/profile")
-                    ? "block px-2 py-1 text-white rounded text-sm underline decoration-white decoration-2 underline-offset-6 underline-offset-4"
-                    : "block px-2 py-1 text-white rounded text-sm hover:underline hover:decoration-white hover:underline-offset-4"
-                }
-                onClick={toggleSidebar}
-              >
+              <Link to="/profile" className={isActive("/profile") ? "block px-2 py-1 text-white rounded text-sm underline decoration-white decoration-2 underline-offset-6 underline-offset-4" : "block px-2 py-1 text-white rounded text-sm hover:underline hover:decoration-white hover:underline-offset-4"} onClick={toggleSidebar}>
                 Profile
               </Link>
 
-              <Link
-                to="/contact"
-                className={
-                  isActive("/contact")
-                    ? "block px-2 py-1 text-white rounded text-sm underline decoration-white decoration-2 underline-offset-6 underline-offset-4"
-                    : "block px-2 py-1 text-white rounded text-sm hover:underline hover:decoration-white hover:underline-offset-4"
-                }
-                onClick={toggleSidebar}
-              >
+              <Link to="/contact" className={isActive("/contact") ? "block px-2 py-1 text-white rounded text-sm underline decoration-white decoration-2 underline-offset-6 underline-offset-4" : "block px-2 py-1 text-white rounded text-sm hover:underline hover:decoration-white hover:underline-offset-4"} onClick={toggleSidebar}>
                 Contact Us
               </Link>
+
+
 
               <button
                 className="w-25 mt-4 px-4 py-2 bg-white rounded text-center items-center justify-center"

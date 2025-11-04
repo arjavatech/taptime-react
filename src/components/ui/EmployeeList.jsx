@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
 import Header2 from "./Navbar/Header";
-import Footer2 from "./Footer/Footer";
+import Footer2 from "./Footer/Footer2";
 import { 
   fetchEmployeeData, 
-  createEmployeeWithData, 
-  updateEmployeeWithData, 
-  deleteEmployeeById 
+  createEmployee, 
+  updateEmployee, 
+  deleteEmployee 
 } from "../../utils/apiUtils";
 
 const EmployeeList = () => {
@@ -352,8 +352,8 @@ const EmployeeList = () => {
       if (!employeeData.Email) employeeData.Email = "";
 
       const data = isEditing
-        ? await updateEmployeeWithData(formData.EmpID, employeeData)
-        : await createEmployeeWithData(employeeData);
+        ? await updateEmployee(formData.EmpID, employeeData)
+        : await createEmployee(employeeData);
         
       if (data.error) {
         setErrorMessage(data.error);
@@ -377,12 +377,12 @@ const EmployeeList = () => {
   }, [validateForm, formData, companyId, isEditing, errorMessage, loadEmployeeData]);
 
   // Delete employee
-  const deleteEmployee = useCallback(async () => {
+  const deleteEmployeeHandler = useCallback(async () => {
     if (!currentEmployee) return;
 
     try {
       setLoading(true);
-      const data = await deleteEmployeeById(currentEmployee.EmpID);
+      const data = await deleteEmployee(currentEmployee.EmpID);
 
       if (data.error) {
         setErrorMessage(data.error);
@@ -397,7 +397,7 @@ const EmployeeList = () => {
       setTimeout(() => { setSuccessMessage(""); setErrorMessage(""); }, 3000);
       setShowDeleteModal(false);
     }
-  }, [currentEmployee]);
+  }, [currentEmployee, loadEmployeeData]);
 
 
 
@@ -419,837 +419,293 @@ const EmployeeList = () => {
     searchByType('superAdmin', searchTerms.superAdmin);
   }, [searchTerms.superAdmin, searchByType]);
 
+  const FormField = ({ type = "text", value, onChange, placeholder, error, disabled = false, maxLength }) => (
+    <div className="mb-4">
+      <input
+        type={type}
+        value={value}
+        onChange={onChange}
+        maxLength={maxLength}
+        className={`w-full px-3 py-2 font-bold border-2 ${error ? "border-red-500" : "border-[#02066F]"} rounded-lg ${disabled ? "bg-gray-200" : ""} focus:outline-none`}
+        placeholder={placeholder}
+        disabled={disabled}
+        readOnly={disabled}
+      />
+      {error && <p className="text-red-500 text-xs italic mt-1">{error}</p>}
+    </div>
+  );
+
+  const Modal = ({ show, onClose, title, children }) => show ? (
+    <div className="fixed inset-0 flex items-center justify-center z-50" style={{ background: "rgba(0, 0, 0, 0.5)" }} onClick={onClose}>
+      <div className="bg-white rounded-lg w-full max-w-xs mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="flex w-full bg-[#02066F] justify-between p-3 pl-4 pr-4 items-center rounded-t-md text-center">
+          <h3 className="text-xl font-bold text-white">{title}</h3>
+          <button className="text-gray-400 hover:text-white cursor-pointer text-5xl" onClick={onClose}>&times;</button>
+        </div>
+        <div className="p-6">{children}</div>
+      </div>
+    </div>
+  ) : null;
+
+  const TableHeader = ({ columns, sortConfig, requestSort }) => (
+    <thead className="bg-[#02066F] text-white">
+      <tr>
+        {columns.map(({ key, label, sortable = false }) => (
+          <th
+            key={key}
+            className={`px-6 py-3 text-center text-base font-bold tracking-wider ${sortable ? 'cursor-pointer' : ''}`}
+            onClick={sortable ? () => requestSort(key) : undefined}
+          >
+            {label}
+            {sortable && (
+              <span className="ml-6 text-lg">
+                {sortConfig.key === key ? (sortConfig.direction === "asc" ? "↑" : "↓") : "↑↓"}
+              </span>
+            )}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
+
+  const EmployeeRow = ({ employee, onEdit, onDelete }) => (
+    <tr key={employee.EmpID} className="hover:bg-gray-50">
+      <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">{employee.Pin}</td>
+      <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">{employee.FName} {employee.LName}</td>
+      <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">{formatPhoneNumber(employee.PhoneNumber)}</td>
+      <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
+        <div className="flex justify-center space-x-2">
+          <button onClick={() => onEdit(employee)} className="text-[#02066F] p-1 cursor-pointer">
+            <i className="fas fa-pencil-alt"></i>
+          </button>
+          <button onClick={() => onDelete(employee)} className="text-[#02066F] p-1 cursor-pointer">
+            <i className="fas fa-trash"></i>
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+
+  const EmployeeSection = ({ title, employees, searchTerm, onSearchChange, onAddClick, disabled, tooltipText, showPagination = false }) => (
+    <div className="mb-8 pt-4">
+      <div className="flex flex-row sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-800">{title}</h2>
+        <div className="relative group w-fit">
+          <button
+            className="px-2 py-1 md:px-2 md:py-1 w-24 h-10 md:w-26 text-center items-center bg-white text-base md:text-lg border border-[#02066F] text-[#02066F] rounded-md cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={onAddClick}
+            disabled={disabled}
+          >
+            Add Entry
+          </button>
+          {disabled && (
+            <div className="absolute -top-16 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-sm rounded py-2 px-3 shadow-lg w-64 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20 pointer-events-none">
+              <p>{tooltipText}</p>
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-300">
+        <div className="p-4 sm:p-6 overflow-x-auto">
+          {showPagination && (
+            <div className="flex flex-col sm:flex-row justify-between items-star sm:items-center mb-4 gap-4">
+              <div className="flex items-center space-x-2 md:mt-[-16px] text-center justify-center">
+                <span className="text-base font-semibold text-gray-700">Show</span>
+                <select
+                  className="border border-gray-400 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[#02066F]"
+                  value={pageSize}
+                  onChange={(e) => {
+                    handlePageSizeChange(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                >
+                  {pageSizeOptions.map((option) => (
+                    <option key={option} value={option}>{option}</option>
+                  ))}
+                </select>
+                <span className="text-base font-semibold text-gray-700">entries</span>
+              </div>
+              <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
+                <label className="text-base font-semibold text-gray-800">Search:</label>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={onSearchChange}
+                  className="w-full sm:w-64 px-2 py-1 border border-gray-500 rounded-md focus:outline-none focus:ring-1 focus:ring-[#02066F]"
+                  placeholder=""
+                />
+              </div>
+            </div>
+          )}
+          {!showPagination && (
+            <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
+              <label className="text-base font-semibold text-gray-800">Search:</label>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={onSearchChange}
+                className="w-full sm:w-64 px-2 py-1 border border-gray-500 rounded-md focus:outline-none focus:ring-1 focus:ring-[#02066F]"
+                placeholder=""
+              />
+            </div>
+          )}
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <TableHeader 
+                columns={[
+                  { key: "Pin", label: "Pin", sortable: showPagination },
+                  { key: "FName", label: "Name", sortable: showPagination },
+                  { key: "PhoneNumber", label: "Phone Number", sortable: showPagination },
+                  { key: "Action", label: "Action" }
+                ]}
+                sortConfig={sortConfig}
+                requestSort={requestSort}
+              />
+              <tbody className="bg-white divide-y divide-gray-200">
+                {employees.length > 0 ? (
+                  employees.map((employee) => (
+                    <EmployeeRow
+                      key={employee.EmpID}
+                      employee={employee}
+                      onEdit={openEditEmployee}
+                      onDelete={openDeleteModal}
+                    />
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="4" className="px-4 py-4 text-center text-sm text-gray-500">
+                      No {title.toLowerCase()} found
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          {showPagination && (
+            <div className="flex flex-col sm:flex-row items-center justify-between mt-4">
+              <div className="text-base font-semibold text-gray-700 mb-2 sm:mb-0">
+                Showing {Math.min((currentPage - 1) * pageSize + 1, filteredEmployees.length)} to
+                {Math.min(currentPage * pageSize, filteredEmployees.length)} of
+                {filteredEmployees.length} entries
+              </div>
+              <div className="flex space-x-1">
+                <button
+                  className="px-3 py-1 rounded-md text-base font-semibold text-gray-500 disabled:opacity-50"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((prev) => prev - 1)}
+                >
+                  Previous
+                </button>
+                <button
+                  className="px-3 py-1 rounded-md text-base font-semibold text-gray-500 disabled:opacity-50"
+                  disabled={currentPage * pageSize >= filteredEmployees.length}
+                  onClick={() => setCurrentPage((prev) => prev + 1)}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header2 />
-
       <div className="overflow-x-hidden flex-grow bg-gray-100 pt-30 pb-10 px-4 sm:px-6">
-        {/* Loading Overlay */}
         {loading && (
-          <div
-            className="fixed inset-0 flex items-center justify-center z-50"
-            style={{ background: "rgba(0, 0, 0, 0.5)" }}
-          >
+          <div className="fixed inset-0 flex items-center justify-center z-50" style={{ background: "rgba(0, 0, 0, 0.5)" }}>
             <div className="animate-spin w-12 h-12 border-t-4 border-b-4 border-[#02066F] rounded-full"></div>
           </div>
         )}
-
-        {/* Messages */}
-        {successMessage && (
-          <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg">
-            {successMessage}
-          </div>
-        )}
-
-        {errorMessage && (
-          <div className="fixed top-4 right-4 z-50 bg-red-500 text-white px-4 py-2 rounded-md shadow-lg">
-            {errorMessage}
-          </div>
-        )}
+        {successMessage && <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-4 py-2 rounded-md shadow-lg">{successMessage}</div>}
+        {errorMessage && <div className="fixed top-4 right-4 z-50 bg-red-500 text-white px-4 py-2 rounded-md shadow-lg">{errorMessage}</div>}
 
 
 
-        {/* Employee Section */}
         <div className="max-w-5xl mx-auto">
-          <div className="mb-8">
-            <div className="flex flex-row sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-              <h2 className="text-2xl sm:text-3xl font-bold text-gray-800">
-                Employee Details
-              </h2>
-
-              {/* Wrap the button in a group container */}
-              <div className="relative group w-fit">
-                <button
-                  className="px-2 py-1 md:px-2 md:py-1 w-24 h-10 md:w-26 text-center items-center bg-white text-base md:text-lg border border-[#02066F] text-[#02066F] rounded-md cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={() => openAddModal(0)}
-                  disabled={employees.length >= maxEmployees}
-                >
-                  Add Entry
-                </button>
-
-                {employees.length >= maxEmployees && (
-                  <div className="absolute -top-16 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-sm rounded py-2 px-3 shadow-lg w-64 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20 pointer-events-none">
-                    <p>
-                      You have reached the Employee registration limit. If you
-                      need to add more Employee, please
-                      <a
-                        href="/contact"
-                        className="text-yellow-400 hover:underline"
-                      >
-                        contact!
-                      </a>
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-300">
-              <div className="p-4 sm:p-6 overflow-x-auto">
-                <div className="flex flex-col sm:flex-row justify-between items-star sm:items-center mb-4 gap-4">
-                  <div className="flex items-center space-x-2 md:mt-[-16px] text-center justify-center">
-                    <span className="text-base font-semibold text-gray-700">
-                      Show
-                    </span>
-                    <select
-                      className="border border-gray-400 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[#02066F]"
-                      value={pageSize}
-                      onChange={(e) => {
-                        handlePageSizeChange(Number(e.target.value));
-                        setCurrentPage(1);
-                      }}
-                    >
-                      {pageSizeOptions.map((option) => (
-                        <option key={option} value={option}>
-                          {option}
-                        </option>
-                      ))}
-                    </select>
-                    <span className="text-base font-semibold text-gray-700">
-                      entries
-                    </span>
-                  </div>
-
-                  <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
-                    <label className="text-base font-semibold text-gray-800">
-                      Search:
-                    </label>
-                    <input
-                      type="text"
-                      value={searchTerms.employee}
-                      onChange={(e) => setSearchTerms(prev => ({...prev, employee: e.target.value}))}
-                      className="w-full sm:w-64 px-2 py-1 border border-gray-500 rounded-md focus:outline-none focus:ring-1 focus:ring-[#02066F]"
-                      placeholder=""
-                    />
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-[#02066F] text-white">
-                      <tr>
-                        <th
-                          className="px-6 py-3 text-center text-base font-bold tracking-wider cursor-pointer"
-                          onClick={() => requestSort("Pin")}
-                        >
-                          {/* <div className="flex items-center"> */}
-                          Pin
-                          {sortConfig.key === "Pin" ? (
-                            <span className="ml-6 text-lg">
-                              {sortConfig.direction === "asc" ? "↑" : "↓"}
-                            </span>
-                          ) : (
-                            <span className="ml-6 text-lg">↑↓</span>
-                          )}
-                          {/* </div> */}
-                        </th>
-                        <th
-                          className="px-6 py-3 text-center text-base font-bold tracking-wider cursor-pointer"
-                          onClick={() => requestSort("FName")}
-                        >
-                          {/* <div className="flex items-center"> */}
-                          Name
-                          {sortConfig.key === "FName" ? (
-                            <span className="ml-6 text-lg">
-                              {sortConfig.direction === "asc" ? "↑" : "↓"}
-                            </span>
-                          ) : (
-                            <span className="ml-6 text-lg">↑↓</span>
-                          )}
-                          {/* </div> */}
-                        </th>
-                        <th
-                          className="px-6 py-3 text-center text-base font-bold tracking-wider cursor-pointer"
-                          onClick={() => requestSort("PhoneNumber")}
-                        >
-                          {/* <div className="flex items-center"> */}
-                          Phone Number
-                          {sortConfig.key === "PhoneNumber" ? (
-                            <span className="ml-6 text-lg">
-                              {sortConfig.direction === "asc" ? "↑" : "↓"}
-                            </span>
-                          ) : (
-                            <span className="ml-6 text-lg">↑↓</span>
-                          )}
-                          {/* </div> */}
-                        </th>
-                        <th className="px-6 py-3 text-center text-base font-bold tracking-wider">
-                          Action
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {paginatedEmployees.length > 0 ? (
-                        paginatedEmployees.map((employee) => (
-                          <tr key={employee.EmpID} className="hover:bg-gray-50">
-                            <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
-                              {employee.Pin}
-                            </td>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
-                              {employee.FName} {employee.LName}
-                            </td>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
-                              {formatPhoneNumber(employee.PhoneNumber)}
-                            </td>
-                            <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
-                              <div className="flex justify-center space-x-2">
-                                <button
-                                  onClick={() => openEditEmployee(employee)}
-                                  className="text-[#02066F] p-1 cursor-pointer"
-                                >
-                                  <i className="fas fa-pencil-alt"></i>
-                                </button>
-                                <button
-                                  onClick={() => openDeleteModal(employee)}
-                                  className="text-[#02066F] p-1 cursor-pointer"
-                                >
-                                  <i className="fas fa-trash"></i>
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td
-                            colSpan="4"
-                            className="px-4 py-4 text-center text-sm text-gray-500"
-                          >
-                            No employees found
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Pagination controls */}
-                <div className="flex flex-col sm:flex-row items-center justify-between mt-4">
-                  <div className="text-base font-semibold text-gray-700 mb-2 sm:mb-0">
-                    Showing{" "}
-                    {Math.min(
-                      (currentPage - 1) * pageSize + 1,
-                      filteredEmployees.length
-                    )}{" "}
-                    to
-                    {Math.min(
-                      currentPage * pageSize,
-                      filteredEmployees.length
-                    )}{" "}
-                    of
-                    {filteredEmployees.length} entries
-                  </div>
-                  <div className="flex space-x-1">
-                    <button
-                      className="px-3 py-1 rounded-md text-base font-semibold text-gray-500 disabled:opacity-50"
-                      disabled={currentPage === 1}
-                      onClick={() => {
-                        setCurrentPage((prev) => prev - 1);
-                      }}
-                    >
-                      Previous
-                    </button>
-                    <button
-                      className="px-3 py-1 rounded-md text-base font-semibold text-gray-500 disabled:opacity-50"
-                      disabled={
-                        currentPage * pageSize >= filteredEmployees.length
-                      }
-                      onClick={() => {
-                        setCurrentPage((prev) => prev + 1);
-                      }}
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Admin Section (only for SuperAdmin) */}
+          <EmployeeSection
+            title="Employee Details"
+            employees={paginatedEmployees}
+            searchTerm={searchTerms.employee}
+            onSearchChange={(e) => setSearchTerms(prev => ({...prev, employee: e.target.value}))}
+            onAddClick={() => openAddModal(0)}
+            disabled={employees.length >= maxEmployees}
+            tooltipText={<>You have reached the Employee registration limit. If you need to add more Employee, please<a href="/contact" className="text-yellow-400 hover:underline">contact!</a></>}
+            showPagination={true}
+          />
 
           {adminType !== "Admin" && (
             <>
-              {/* {adminType === 'SuperAdmin'} */}
-              {adminType !== "Admin" && (
-                <div className="mb-8 pt-4">
-                  <div className="flex flex-row sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-                    <h2 className="text-2xl sm:text-3xl font-bold text-gray-800">
-                      Admin Details
-                    </h2>
-
-                    <div className="relative group w-fit">
-                      <button
-                        className="px-2 py-1 md:px-2 md:py-1 w-24 h-10 md:w-26 text-center items-center bg-white text-base md:text-lg border border-[#02066F] text-[#02066F] rounded-md cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        onClick={() => openAddModal(1)}
-                        disabled={
-                          employees.length >= maxEmployees ||
-                          adminCount >= 3
-                        }
-                      >
-                        Add Entry
-                      </button>
-
-                      {(adminCount >= 3 ||
-                        employees.length >= maxEmployees) && (
-                          <div className="absolute -top-16 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-sm rounded py-2 px-3 shadow-lg w-64 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20 pointer-events-none">
-                            <p>
-                              You have reached the Admin registration limit. If
-                              you need to add more Admins, please
-                              <a
-                                href="/contact"
-                                className="text-yellow-400 hover:underline"
-                              >
-                                contact!
-                              </a>
-                            </p>
-                          </div>
-                        )}
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-300">
-                    <div className="p-4 sm:p-6 overflow-x-auto">
-                      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
-                        <label className="text-base font-semibold text-gray-800">
-                          Search:
-                        </label>
-                        <input
-                          type="text"
-                          value={searchTerms.admin}
-                          onChange={(e) => setSearchTerms(prev => ({...prev, admin: e.target.value}))}
-                          className="w-full sm:w-64 px-2 py-1 border border-gray-500 rounded-md focus:outline-none focus:ring-1 focus:ring-[#02066F]"
-                          placeholder=""
-                        />
-                      </div>
-
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-[#02066F] text-white">
-                            <tr>
-                              <th className="px-4 py-3 text-base font-bold tracking-wider">
-                                Pin
-                              </th>
-                              <th className="px-4 py-3 text-base font-bold tracking-wider">
-                                Name
-                              </th>
-                              <th className="px-4 py-3 text-base font-bold tracking-wider">
-                                Phone Number
-                              </th>
-                              <th className="px-4 py-3 text-base font-bold tracking-wider">
-                                Action
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {admins.length > 0 ? (
-                              admins.map((admin) => (
-                                <tr
-                                  key={admin.EmpID}
-                                  className="hover:bg-gray-50"
-                                >
-                                  <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
-                                    {admin.Pin}
-                                  </td>
-                                  <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
-                                    {admin.FName} {admin.LName}
-                                  </td>
-                                  <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
-                                    {formatPhoneNumber(admin.PhoneNumber)}
-                                  </td>
-                                  <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
-                                    <div className="flex justify-center space-x-2">
-                                      <button
-                                        onClick={() => openEditEmployee(admin)}
-                                        className="text-[#02066F] p-1 cursor-pointer"
-                                      >
-                                        <i className="fas fa-pencil-alt"></i>
-                                      </button>
-                                      <button
-                                        onClick={() => openDeleteModal(admin)}
-                                        className="text-[#02066F] p-1 cursor-pointer"
-                                      >
-                                        <i className="fas fa-trash"></i>
-                                      </button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))
-                            ) : (
-                              <tr>
-                                <td
-                                  colSpan="4"
-                                  className="px-4 py-4 text-center text-sm text-gray-500"
-                                >
-                                  No admins found
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* SuperAdmin Section */}
+              <EmployeeSection
+                title="Admin Details"
+                employees={admins}
+                searchTerm={searchTerms.admin}
+                onSearchChange={(e) => setSearchTerms(prev => ({...prev, admin: e.target.value}))}
+                onAddClick={() => openAddModal(1)}
+                disabled={employees.length >= maxEmployees || adminCount >= 3}
+                tooltipText={<>You have reached the Admin registration limit. If you need to add more Admins, please<a href="/contact" className="text-yellow-400 hover:underline">contact!</a></>}
+              />
               {(adminType === "Owner" || adminType === "SuperAdmin" || adminType === "customer") && (
-                <div className="mb-8 pt-4">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl sm:text-3xl font-bold text-gray-800">SuperAdmin Details</h2>
-                    <div className="relative group">
-                      <button
-                        className="px-2 py-1 w-24 h-10 bg-white text-base border border-[#02066F] text-[#02066F] rounded-md cursor-pointer transition-colors disabled:opacity-50"
-                        onClick={() => openAddModal(2)}
-                        disabled={employees.length >= maxEmployees || superAdminCount >= 1}
-                      >
-                        Add Entry
-                      </button>
-                      {(superAdminCount >= 1 || employees.length >= maxEmployees) && (
-                        <div className="absolute -top-16 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-sm rounded py-2 px-3 shadow-lg w-64 opacity-0 group-hover:opacity-100 transition-opacity z-20 pointer-events-none">
-                          <p>You have reached the SuperAdmin registration limit. Please<a href="/contact" className="text-yellow-400 hover:underline pl-1">contact!</a></p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="bg-white rounded-xl shadow-md overflow-hidden border border-gray-300">
-                    <div className="p-4 sm:p-6">
-                      <div className="mb-4 flex justify-end gap-2">
-                        <label className="text-base font-semibold text-gray-800">Search:</label>
-                        <input
-                          type="text"
-                          value={searchTerms.superAdmin}
-                          onChange={(e) => setSearchTerms(prev => ({...prev, superAdmin: e.target.value}))}
-                          className="w-64 px-2 py-1 border border-gray-500 rounded-md focus:outline-none focus:ring-1 focus:ring-[#02066F]"
-                        />
-                      </div>
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-[#02066F] text-white">
-                            <tr>
-                              {["Pin", "Name", "Phone Number", "Action"].map(header => (
-                                <th key={header} className="px-4 py-3 text-base font-bold">{header}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
-                            {superAdmins.length > 0 ? superAdmins.map((superAdmin) => (
-                              <tr key={superAdmin.EmpID} className="hover:bg-gray-50">
-                                <td className="px-4 py-4 text-sm font-semibold text-gray-900 text-center">{superAdmin.Pin}</td>
-                                <td className="px-4 py-4 text-sm font-semibold text-gray-900 text-center">{superAdmin.FName} {superAdmin.LName}</td>
-                                <td className="px-4 py-4 text-sm font-semibold text-gray-900 text-center">{formatPhoneNumber(superAdmin.PhoneNumber)}</td>
-                                <td className="px-4 py-4 text-sm font-semibold text-gray-900 text-center">
-                                  <div className="flex justify-center space-x-2">
-                                    <button onClick={() => openEditEmployee(superAdmin)} className="text-[#02066F] p-1">
-                                      <i className="fas fa-pencil-alt"></i>
-                                    </button>
-                                    <button onClick={() => openDeleteModal(superAdmin)} className="text-[#02066F] p-1">
-                                      <i className="fas fa-trash"></i>
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            )) : (
-                              <tr>
-                                <td colSpan="4" className="px-4 py-4 text-center text-sm text-gray-500">No SuperAdmins found</td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <EmployeeSection
+                  title="SuperAdmin Details"
+                  employees={superAdmins}
+                  searchTerm={searchTerms.superAdmin}
+                  onSearchChange={(e) => setSearchTerms(prev => ({...prev, superAdmin: e.target.value}))}
+                  onAddClick={() => openAddModal(2)}
+                  disabled={employees.length >= maxEmployees || superAdminCount >= 1}
+                  tooltipText={<>You have reached the SuperAdmin registration limit. Please<a href="/contact" className="text-yellow-400 hover:underline pl-1">contact!</a></>}
+                />
               )}
             </>
           )}
         </div>
 
-        {/* Employee Modal */}
-        {showEmployeeModal && (
-          <div
-            className="fixed inset-0 flex items-center justify-center z-50"
-            style={{ background: "rgba(0, 0, 0, 0.5)" }}
-            onClick={() => setShowEmployeeModal(false)}
-          >
-            <div
-              className="bg-white rounded-lg w-full max-w-xs mx-4"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex w-full bg-[#02066F] justify-between p-3 pl-4 pr-4 items-center rounded-t-md text-center">
-                <h3 className="text-xl font-bold text-white">
-                  Employee Details
-                </h3>
-                <button
-                  className="text-gray-400 hover:text-white cursor-pointer text-5xl"
-                  onClick={() => setShowEmployeeModal(false)}
-                >
-                  &times;
-                </button>
-              </div>
-              <div className="p-6">
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    submitForm();
-                  }}
-                >
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1"></label>
-                    <input
-                      type="text"
-                      value={formData.FName}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          FName: e.target.value,
-                        }))
-                      }
-                      className={`w-full px-3 py-2 font-bold border-2 ${errors.FName ? "border-red-500" : "border-[#02066F]"
-                        } rounded-lg focus:outline-none focus:ring-1 focus:ring-[#02066F]`}
-                      placeholder="First Name"
-                    />
-                    {errors.FName && (
-                      <p className="mt-1 text-sm text-red-600">
-                        {errors.FName}
-                      </p>
-                    )}
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1"></label>
-                    <input
-                      type="text"
-                      value={formData.LName}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          LName: e.target.value,
-                        }))
-                      }
-                      className={`w-full px-3 py-2 font-bold border-2 ${errors.LName ? "border-red-500" : "border-[#02066F]"
-                        } rounded-lg focus:outline-none focus:ring-1 focus:ring-[#02066F]`}
-                      placeholder="Last Name"
-                    />
-                    {errors.LName && (
-                      <p className="mt-1 text-sm text-red-600">
-                        {errors.LName}
-                      </p>
-                    )}
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1"></label>
-                    <input
-                      type="text"
-                      value={formData.PhoneNumber}
-                      onChange={handlePhoneInput}
-                      maxLength={14}
-                      className={`w-full px-3 py-2 border-2 ${errors.PhoneNumber
-                          ? "border-red-500"
-                          : "border-[#02066F]"
-                        } rounded-lg focus:outline-none focus:ring-1 focus:ring-[#02066F] font-bold`}
-                      placeholder="Phone Number"
-                    />
-                    {errors.PhoneNumber && (
-                      <p className="mt-1 text-sm text-red-600">
-                        {errors.PhoneNumber}
-                      </p>
-                    )}
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1"></label>
-                    <input
-                      type="text"
-                      value={formData.Pin}
-                      className="w-full px-3 py-2 border-2 border-[#02066F] rounded-lg bg-gray-300 font-bold focus:outline-none"
-                      disabled
-                      placeholder="Instructor Pin"
-                      readOnly
-                    />
-                  </div>
-                  <div className="flex justify-center mt-6">
-                    <button
-                      type="submit"
-                      className="px-6 py-2 bg-[#02066F] text-white rounded-lg hover:bg-[#02066F]/80 transition-colors cursor-pointer"
-                    >
-                      {isEditing ? "Update" : "Submit"}
-                    </button>
-                  </div>
-                </form>
-              </div>
+        <Modal show={showEmployeeModal} onClose={() => setShowEmployeeModal(false)} title="Employee Details">
+          <form onSubmit={(e) => { e.preventDefault(); submitForm(); }}>
+            <FormField value={formData.FName} onChange={(e) => setFormData(prev => ({ ...prev, FName: e.target.value }))} placeholder="First Name" error={errors.FName} />
+            <FormField value={formData.LName} onChange={(e) => setFormData(prev => ({ ...prev, LName: e.target.value }))} placeholder="Last Name" error={errors.LName} />
+            <FormField value={formData.PhoneNumber} onChange={handlePhoneInput} placeholder="Phone Number" error={errors.PhoneNumber} maxLength={14} />
+            <FormField value={formData.Pin} placeholder="Instructor Pin" disabled />
+            <div className="flex justify-center mt-6">
+              <button type="submit" className="px-6 py-2 bg-[#02066F] text-white rounded-lg hover:bg-[#02066F]/80 transition-colors cursor-pointer">
+                {isEditing ? "Update" : "Submit"}
+              </button>
             </div>
-          </div>
-        )}
+          </form>
+        </Modal>
 
-        {/* Admin Modal */}
-        {showAdminModal && (
-          <div
-            className="fixed inset-0 flex items-center justify-center z-50"
-            style={{ background: "rgba(0, 0, 0, 0.5)" }}
-            onClick={() => setShowAdminModal(false)}
-          >
-            <div
-              className="bg-white rounded-lg w-full max-w-xs mx-4"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex w-full bg-[#02066F] justify-between p-3 pl-4 pr-4 items-center rounded-t-md text-center">
-                <h3 className="text-xl font-bold text-white">Admin Details</h3>
-                <button
-                  className="text-gray-400 hover:text-white cursor-pointer text-5xl"
-                  onClick={() => setShowAdminModal(false)}
-                >
-                  &times;
-                </button>
-              </div>
-              <div className="p-6">
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    submitForm();
-                  }}
-                >
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1"></label>
-                    <input
-                      type="text"
-                      value={formData.FName}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          FName: e.target.value,
-                        }))
-                      }
-                      className={`w-full px-3 py-2 font-bold border-2 ${errors.FName ? "border-red-500" : "border-[#02066F]"
-                        } rounded-lg focus:outline-none`}
-                      placeholder="First Name"
-                    />
-                    {errors.FName && (
-                      <p className="mt-1 text-sm text-red-600">
-                        {errors.FName}
-                      </p>
-                    )}
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1"></label>
-                    <input
-                      type="text"
-                      value={formData.LName}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          LName: e.target.value,
-                        }))
-                      }
-                      className={`w-full px-3 py-2 font-bold border-2 ${errors.LName ? "border-red-500" : "border-[#02066F]"
-                        } rounded-lg focus:outline-none`}
-                      placeholder="Last Name"
-                    />
-                    {errors.LName && (
-                      <p className="mt-1 text-sm text-red-600">
-                        {errors.LName}
-                      </p>
-                    )}
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1"></label>
-                    <input
-                      type="text"
-                      value={formData.PhoneNumber}
-                      onChange={handlePhoneInput}
-                      maxLength={14}
-                      className={`w-full px-3 py-2 font-bold border-2 ${errors.PhoneNumber
-                          ? "border-red-500"
-                          : "border-[#02066F]"
-                        } rounded-lg focus:outline-none`}
-                      placeholder="Phone Number"
-                    />
-                    {errors.PhoneNumber && (
-                      <p className="mt-1 text-sm text-red-600">
-                        {errors.PhoneNumber}
-                      </p>
-                    )}
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1"></label>
-                    <input
-                      type="text"
-                      value={formData.Pin}
-                      className="w-full px-3 py-2 font-bold border-2 border-[#02066F] rounded-lg bg-gray-200 focus:outline-none"
-                      disabled
-                      placeholder="Pin"
-                      readOnly
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1"></label>
-                    <input
-                      type="email"
-                      value={formData.Email}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          Email: e.target.value,
-                        }))
-                      }
-                      className={`w-full px-3 py-2 font-bold border-2 ${errors.Email ? "border-red-500" : "border-[#02066F]"
-                        } rounded-lg focus:outline-none`}
-                      placeholder="Email"
-                    />
-                    {errors.Email && (
-                      <p className="mt-1 text-sm text-red-600">
-                        {errors.Email}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex justify-center mt-6">
-                    <button
-                      type="submit"
-                      className="px-6 py-2 bg-[#02066F] text-white rounded-lg hover:bg-[#02066F]/90 transition-colors cursor-pointer"
-                    >
-                      {isEditing ? "Update" : "Submit"}
-                    </button>
-                  </div>
-                </form>
-              </div>
+        <Modal show={showAdminModal} onClose={() => setShowAdminModal(false)} title="Admin Details">
+          <form onSubmit={(e) => { e.preventDefault(); submitForm(); }}>
+            <FormField value={formData.FName} onChange={(e) => setFormData(prev => ({ ...prev, FName: e.target.value }))} placeholder="First Name" error={errors.FName} />
+            <FormField value={formData.LName} onChange={(e) => setFormData(prev => ({ ...prev, LName: e.target.value }))} placeholder="Last Name" error={errors.LName} />
+            <FormField value={formData.PhoneNumber} onChange={handlePhoneInput} placeholder="Phone Number" error={errors.PhoneNumber} maxLength={14} />
+            <FormField value={formData.Pin} placeholder="Pin" disabled />
+            <FormField type="email" value={formData.Email} onChange={(e) => setFormData(prev => ({ ...prev, Email: e.target.value }))} placeholder="Email" error={errors.Email} />
+            <div className="flex justify-center mt-6">
+              <button type="submit" className="px-6 py-2 bg-[#02066F] text-white rounded-lg hover:bg-[#02066F]/90 transition-colors cursor-pointer">
+                {isEditing ? "Update" : "Submit"}
+              </button>
             </div>
-          </div>
-        )}
+          </form>
+        </Modal>
 
-        {/* SuperAdmin Modal */}
-        {showSuperAdminModal && (
-          <div
-            className="fixed inset-0 flex items-center justify-center z-50"
-            style={{ background: "rgba(0, 0, 0, 0.5)" }}
-            onClick={() => setShowSuperAdminModal(false)}
-          >
-            <div
-              className="bg-white rounded-lg w-full max-w-xs mx-4"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex w-full bg-[#02066F] justify-between p-2 pl-4 pr-4 items-center rounded-t-md text-center">
-                <h3 className="text-xl font-bold p-2 text-white">
-                  SuperAdmin Details
-                </h3>
-                <button
-                  className="text-gray-400 hover:text-white cursor-pointer text-5xl"
-                  onClick={() => setShowSuperAdminModal(false)}
-                >
-                  &times;
-                </button>
-              </div>
-              <div className="p-6">
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    submitForm();
-                  }}
-                >
-                  <div className="mb-4">
-                    <input
-                      id="superAdminFirstName"
-                      type="text"
-                      placeholder="First Name"
-                      value={formData.FName}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          FName: e.target.value,
-                        }))
-                      }
-                      className={`w-full px-3 py-2 font-bold border-2 ${errors.FName ? "border-red-500" : "border-[#02066F]"
-                        } rounded-lg focus:outline-none`}
-                    />
-                    {errors.FName && (
-                      <p className="text-red-500 text-xs italic mt-1">
-                        {errors.FName}
-                      </p>
-                    )}
-                  </div>
-                  <div className="mb-4">
-                    <input
-                      id="superAdminLastName"
-                      type="text"
-                      placeholder="Last Name"
-                      value={formData.LName}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          LName: e.target.value,
-                        }))
-                      }
-                      className={`w-full px-3 py-2 font-bold border-2 ${errors.LName ? "border-red-500" : "border-[#02066F]"
-                        } rounded-lg focus:outline-none`}
-                    />
-                    {errors.LName && (
-                      <p className="text-red-500 text-xs italic mt-1">
-                        {errors.LName}
-                      </p>
-                    )}
-                  </div>
-                  <div className="mb-4">
-                    <input
-                      id="superAdminPhone"
-                      type="text"
-                      value={formData.PhoneNumber}
-                      onChange={handlePhoneInput}
-                      maxLength={14}
-                      className={`w-full px-3 py-2 font-bold border-2 ${errors.PhoneNumber
-                          ? "border-red-500"
-                          : "border-[#02066F]"
-                        } rounded-lg focus:outline-none`}
-                      placeholder="Phone Number"
-                    />
-                    {errors.PhoneNumber && (
-                      <p className="text-red-500 text-xs italic mt-1">
-                        {errors.PhoneNumber}
-                      </p>
-                    )}
-                  </div>
-                  <div className="mb-4">
-                    <input
-                      id="superAdminPin"
-                      type="text"
-                      placeholder="Pin"
-                      value={formData.Pin}
-                      className="w-full px-3 py-2 font-bold border-2 border-[#02066F] rounded-lg bg-gray-200 focus:outline-none"
-                      disabled
-                      readOnly
-                    />
-                  </div>
-                  <div className="mb-4">
-                    <input
-                      id="superAdminEmail"
-                      type="email"
-                      placeholder="Email"
-                      value={formData.Email}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          Email: e.target.value,
-                        }))
-                      }
-                      className={`w-full px-3 py-2 font-bold border-2 ${errors.Email ? "border-red-500" : "border-[#02066F]"
-                        } rounded-lg focus:outline-none`}
-                    />
-                    {errors.Email && (
-                      <p className="text-red-500 text-xs italic mt-1">
-                        {errors.Email}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex justify-center mt-6">
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-[#02066F] text-white rounded-md cursor-pointer hover:opacity-80"
-                    >
-                      {isEditing ? "Update" : "Submit"}
-                    </button>
-                  </div>
-                </form>
-              </div>
+        <Modal show={showSuperAdminModal} onClose={() => setShowSuperAdminModal(false)} title="SuperAdmin Details">
+          <form onSubmit={(e) => { e.preventDefault(); submitForm(); }}>
+            <FormField value={formData.FName} onChange={(e) => setFormData(prev => ({ ...prev, FName: e.target.value }))} placeholder="First Name" error={errors.FName} />
+            <FormField value={formData.LName} onChange={(e) => setFormData(prev => ({ ...prev, LName: e.target.value }))} placeholder="Last Name" error={errors.LName} />
+            <FormField value={formData.PhoneNumber} onChange={handlePhoneInput} placeholder="Phone Number" error={errors.PhoneNumber} maxLength={14} />
+            <FormField value={formData.Pin} placeholder="Pin" disabled />
+            <FormField type="email" value={formData.Email} onChange={(e) => setFormData(prev => ({ ...prev, Email: e.target.value }))} placeholder="Email" error={errors.Email} />
+            <div className="flex justify-center mt-6">
+              <button type="submit" className="px-4 py-2 bg-[#02066F] text-white rounded-md cursor-pointer hover:opacity-80">
+                {isEditing ? "Update" : "Submit"}
+              </button>
             </div>
-          </div>
-        )}
+          </form>
+        </Modal>
 
         {/* Delete Confirmation Modal */}
         {showDeleteModal && (
@@ -1298,7 +754,7 @@ const EmployeeList = () => {
                 <div className="flex justify-center space-x-4">
                   <button
                     type="button"
-                    onClick={deleteEmployee}
+                    onClick={deleteEmployeeHandler}
                     className="px-6 py-2 bg-[#02066F] opacity-80 hover:opacity-60 text-white rounded-md cursor-pointer"
                   >
                     Yes

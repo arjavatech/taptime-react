@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import Header2 from "./Navbar/Header";
-import Footer2 from "./Footer/Footer";
+import Footer2 from "./Footer/Footer2";
+import { submitContactUsForm } from "../../utils/apiUtils";
 
 const ContactUs = () => {
   // Form fields
@@ -139,13 +140,12 @@ const ContactUs = () => {
     }
   };
 
-  // API call
+  // API call using centralized function
   const callContactUsCreateAPiData = async () => {
-    const apiLink = `https://postgresql-holy-firefly-3725.fly.dev/contact-us/create`;
     const requestID = uuidv4();
     const cid = localStorage.getItem("companyID") || "";
 
-    const userData = {
+    const contactData = {
       RequestID: requestID,
       CID: cid,
       Name: cname,
@@ -156,23 +156,7 @@ const ContactUs = () => {
       LastModifiedBy: "Admin",
     };
 
-    const response = await fetch(apiLink, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(userData),
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-
-    if (data.error) {
-      throw new Error(data.error);
-    }
+    await submitContactUsForm(contactData);
 
     // Reset form only after successful submission
     setCname("");

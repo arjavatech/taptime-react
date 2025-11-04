@@ -1,16 +1,25 @@
-// API Base URLs
+// API Base URL and endpoints
+const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 export const API_URLS = {
-  employee: 'https://postgresql-holy-firefly-3725.fly.dev/employee',
-  company: 'https://postgresql-holy-firefly-3725.fly.dev/company',
-  customer: 'https://postgresql-holy-firefly-3725.fly.dev/customer',
-  device: 'https://postgresql-holy-firefly-3725.fly.dev/device',
-  loginCheck: 'https://postgresql-holy-firefly-3725.fly.dev/employee/login_check'
+  employee: `${BASE_URL}/employee`,
+  company: `${BASE_URL}/company`,
+  customer: `${BASE_URL}/customer`,
+  device: `${BASE_URL}/device`,
+  dailyReport: `${BASE_URL}/dailyreport`,
+  report: `${BASE_URL}/report`,
+  companyReportType: `${BASE_URL}/company-report-type`,
+  adminReportType: `${BASE_URL}/admin-report-type`,
+  contact: `${BASE_URL}/web_contact_us`,
+  contactUs: `${BASE_URL}/contact-us`,
+  payment: `${BASE_URL}/create-checkout-session`,
+  loginCheck: `${BASE_URL}/employee/login_check`
 };
 
-// Encryption key
-export const ENCRYPTION_KEY = new Uint8Array([
-  16, 147, 220, 113, 166, 142, 22, 93, 241, 91, 13, 252, 112, 122, 119, 95
-]);
+// Encryption key from environment variables
+export const ENCRYPTION_KEY = new Uint8Array(
+  import.meta.env.VITE_ENCRYPTION_KEY.split(',').map(num => parseInt(num.trim()))
+);
 
 // Encryption/Decryption functions
 export const generateRandomBytes = (length) => {
@@ -67,14 +76,14 @@ export const loginCheck = async (username, password) => {
     const decryptPassword = await decrypt(data["Password"], ENCRYPTION_KEY);
     const companyID = data["CID"];
     
-    localStorage.setItem("companyID", companyID);
-    localStorage.setItem("companyName", data["CName"]);
-    localStorage.setItem("companyLogo", data["CLogo"]);
-    localStorage.setItem("companyAddress", data["CAddress"]);
-    localStorage.setItem("username", data["UserName"]);
-    localStorage.setItem("password", data["Password"]);
-    localStorage.setItem("reportType", data["ReportType"]);
-    localStorage.setItem("adminType", "customer");
+    localStorage.setItem(import.meta.env.VITE_COMPANY_ID_KEY, companyID);
+    localStorage.setItem(import.meta.env.VITE_COMPANY_NAME_KEY, data["CName"]);
+    localStorage.setItem(import.meta.env.VITE_COMPANY_LOGO_KEY, data["CLogo"]);
+    localStorage.setItem(import.meta.env.VITE_COMPANY_ADDRESS_KEY, data["CAddress"]);
+    localStorage.setItem(import.meta.env.VITE_USERNAME_KEY, data["UserName"]);
+    localStorage.setItem(import.meta.env.VITE_PASSWORD_KEY, data["Password"]);
+    localStorage.setItem(import.meta.env.VITE_REPORT_TYPE_KEY, data["ReportType"]);
+    localStorage.setItem(import.meta.env.VITE_ADMIN_TYPE_KEY, "customer");
     localStorage.setItem("passwordDecryptedValue", decryptPassword);
     
     return data["UserName"] === username && decryptPassword === password;
@@ -324,8 +333,7 @@ export const fetchDevices = async (companyId) => {
 };
 
 export const fetchDailyReport = async (companyId, date) => {
-  const BASE = "https://postgresql-holy-firefly-3725.fly.dev";
-  const apiUrl = `${BASE}/dailyreport/getdatebasedata/${companyId}/${date}`;
+  const apiUrl = `${API_URLS.dailyReport}/getdatebasedata/${companyId}/${date}`;
 
   try {
     const response = await fetch(apiUrl);
@@ -338,15 +346,12 @@ export const fetchDailyReport = async (companyId, date) => {
 };
 
 export const createDailyReportEntry = async (entryData) => {
-  const BASE = "https://postgresql-holy-firefly-3725.fly.dev";
-  const apiUrl = `${BASE}/dailyreport/create`;
+  const apiUrl = `${API_URLS.dailyReport}/create`;
 
   try {
     const response = await fetch(apiUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(entryData)
     });
 
@@ -359,15 +364,12 @@ export const createDailyReportEntry = async (entryData) => {
 };
 
 export const updateDailyReportEntry = async (empId, cid, checkinTime, updateData) => {
-  const BASE = "https://postgresql-holy-firefly-3725.fly.dev";
-  const apiUrl = `${BASE}/dailyreport/update/${empId}/${cid}/${encodeURIComponent(checkinTime)}`;
+  const apiUrl = `${API_URLS.dailyReport}/update/${empId}/${cid}/${encodeURIComponent(checkinTime)}`;
 
   try {
     const response = await fetch(apiUrl, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updateData)
     });
 
@@ -380,8 +382,7 @@ export const updateDailyReportEntry = async (empId, cid, checkinTime, updateData
 };
 
 export const fetchDateRangeReport = async (companyId, startDate, endDate) => {
-  const BASE = "https://postgresql-holy-firefly-3725.fly.dev";
-  const apiUrl = `${BASE}/report/dateRangeReportGet/${companyId}/${startDate}/${endDate}`;
+  const apiUrl = `${API_URLS.report}/dateRangeReportGet/${companyId}/${startDate}/${endDate}`;
   
   try {
     const response = await fetch(apiUrl);
@@ -394,8 +395,7 @@ export const fetchDateRangeReport = async (companyId, startDate, endDate) => {
 };
 
 // Report Settings API functions
-const REPORT_API_BASE = 'https://postgresql-holy-firefly-3725.fly.dev';
-const REPORT_TYPES = ['Daily', 'Weekly', 'Biweekly', 'Monthly', 'Bimonthly'];
+const REPORT_TYPES = import.meta.env.VITE_AVAILABLE_REPORT_TYPES.split(',');
 
 export const createReportObject = (email, companyId, deviceId, selectedValues) => {
   const reportFlags = REPORT_TYPES.reduce((acc, type) => {
@@ -413,7 +413,7 @@ export const createReportObject = (email, companyId, deviceId, selectedValues) =
 };
 
 export const getAllReportEmails = async (companyId) => {
-  const apiUrl = `${REPORT_API_BASE}/company-report-type/getAllReportEmail/${companyId}`;
+  const apiUrl = `${API_URLS.companyReportType}/getAllReportEmail/${companyId}`;
   
   try {
     const response = await fetch(apiUrl);
@@ -426,7 +426,7 @@ export const getAllReportEmails = async (companyId) => {
 };
 
 export const createReportEmail = async (reportData) => {
-  const apiUrl = `${REPORT_API_BASE}/company-report-type/create`;
+  const apiUrl = `${API_URLS.companyReportType}/create`;
   
   try {
     const response = await fetch(apiUrl, {
@@ -444,7 +444,7 @@ export const createReportEmail = async (reportData) => {
 };
 
 export const updateReportEmail = async (email, companyId, reportData) => {
-  const apiUrl = `${REPORT_API_BASE}/company-report-type/update/${email}/${companyId}`;
+  const apiUrl = `${API_URLS.companyReportType}/update/${email}/${companyId}`;
   
   try {
     const response = await fetch(apiUrl, {
@@ -462,7 +462,7 @@ export const updateReportEmail = async (email, companyId, reportData) => {
 };
 
 export const deleteReportEmail = async (email, companyId) => {
-  const apiUrl = `${REPORT_API_BASE}/company-report-type/delete/${email}/${companyId}/Admin`;
+  const apiUrl = `${API_URLS.companyReportType}/delete/${email}/${companyId}/Admin`;
   
   try {
     const response = await fetch(apiUrl, { method: 'PUT' });
@@ -475,7 +475,7 @@ export const deleteReportEmail = async (email, companyId) => {
 };
 
 export const getReportEmail = async (email, companyId) => {
-  const apiUrl = `${REPORT_API_BASE}/company-report-type/get/${email}/${companyId}`;
+  const apiUrl = `${API_URLS.companyReportType}/get/${email}/${companyId}`;
   
   try {
     const response = await fetch(apiUrl);
@@ -487,61 +487,8 @@ export const getReportEmail = async (email, companyId) => {
   }
 };
 
-
-
-// Additional Employee API functions for EmployeeList component
-export const createEmployeeWithData = async (employeeData) => {
-  const apiUrl = `${API_URLS.employee}/create`;
-  
-  try {
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(employeeData)
-    });
-    
-    if (!response.ok) throw new Error(`Error: ${response.status}`);
-    return await response.json();
-  } catch (error) {
-    console.error("Create employee error:", error);
-    throw error;
-  }
-};
-
-export const updateEmployeeWithData = async (empId, employeeData) => {
-  const apiUrl = `${API_URLS.employee}/update/${empId}`;
-  
-  try {
-    const response = await fetch(apiUrl, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(employeeData)
-    });
-    
-    if (!response.ok) throw new Error(`Error: ${response.status}`);
-    return await response.json();
-  } catch (error) {
-    console.error("Update employee error:", error);
-    throw error;
-  }
-};
-
-export const deleteEmployeeById = async (empId) => {
-  const apiUrl = `${API_URLS.employee}/delete/${empId}/Admin`;
-  
-  try {
-    const response = await fetch(apiUrl, { method: 'PUT' });
-    if (!response.ok) throw new Error(`Error: ${response.status}`);
-    return await response.json();
-  } catch (error) {
-    console.error("Delete employee error:", error);
-    throw error;
-  }
-};
-
-// Contact form API function
 export const submitContactForm = async (userData) => {
-  const apiUrl = 'https://postgresql-holy-firefly-3725.fly.dev/web_contact_us/create';
+  const apiUrl = `${API_URLS.contact}/create`;
   
   try {
     const response = await fetch(apiUrl, {
@@ -558,7 +505,96 @@ export const submitContactForm = async (userData) => {
   }
 };
 
-// Logout function
+export const updateAdminReportType = async (companyId, reportData) => {
+  const apiUrl = `${API_URLS.adminReportType}/update/${companyId}`;
+  
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(reportData)
+    });
+    
+    if (!response.ok) throw new Error(`Error: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error('Error updating admin report type:', error);
+    throw error;
+  }
+};
+
+export const submitContactUsForm = async (contactData) => {
+  const apiUrl = `${API_URLS.contactUs}/create`;
+  
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(contactData)
+    });
+    
+    if (!response.ok) throw new Error(`Error: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error('Error submitting contact-us form:', error);
+    throw error;
+  }
+};
+
+export const createCheckoutSession = async (paymentData) => {
+  const apiUrl = `${API_URLS.payment}`;
+  
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(paymentData)
+    });
+    
+    if (!response.ok) throw new Error(`Error: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error('Error creating checkout session:', error);
+    throw error;
+  }
+};
+
+export const createCompany = async (companyData) => {
+  const apiUrl = `${API_URLS.company}/create`;
+  
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(companyData)
+    });
+    
+    if (!response.ok) throw new Error(`Error: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error('Error creating company:', error);
+    throw error;
+  }
+};
+
+export const createCustomer = async (customerData) => {
+  const apiUrl = `${API_URLS.customer}/create`;
+  
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(customerData)
+    });
+    
+    if (!response.ok) throw new Error(`Error: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error('Error creating customer:', error);
+    throw error;
+  }
+};
+
 export const logout = () => {
   const keysToRemove = [
     "username", "companyID", "customId", "password", "adminMail", 

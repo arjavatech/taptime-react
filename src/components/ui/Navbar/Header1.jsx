@@ -6,29 +6,17 @@ const Header1 = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const isActive = (path) => {
-    return location.pathname === path;
-  };
-
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
+  const isActive = (path) => location.pathname === path;
+  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   const handleContactClick = (e) => {
     e.preventDefault();
-
-    // Close mobile sidebar if open
     setSidebarOpen(false);
-
-    // If not on homepage, navigate to it first
+    
     if (location.pathname !== "/") {
       navigate("/");
-      // Wait for navigation to complete, then scroll
-      setTimeout(() => {
-        scrollToContact();
-      }, 100);
+      setTimeout(scrollToContact, 100);
     } else {
-      // Already on homepage, just scroll
       scrollToContact();
     }
   };
@@ -36,16 +24,39 @@ const Header1 = () => {
   const scrollToContact = () => {
     const contactSection = document.getElementById("contact");
     if (contactSection) {
-      const headerOffset = 70; // Fixed header height
+      const headerOffset = 70;
       const elementPosition = contactSection.getBoundingClientRect().top;
       const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-
-      window.scrollTo({
-        top: offsetPosition,
-        behavior: "smooth"
-      });
+      window.scrollTo({ top: offsetPosition, behavior: "smooth" });
     }
   };
+
+  // Navigation data
+  const navItems = [
+    { to: "/", label: "Home" },
+    { to: "/login", label: "Login" },
+    { to: "/register", label: "Register" },
+    { to: "/privacypolicy", label: "Privacy Policy" }
+  ];
+
+  // CSS classes
+  const desktopActiveClass = "text-[#02066F] font-semibold underline decoration-2 underline-offset-12 underline-offset-4";
+  const desktopInactiveClass = "text-gray-500 underline-offset-4 hover:underline hover:decoration-2 hover:underline-offset-12 focus:text-[#02066F] focus:underline focus:decoration-2 focus:underline-offset-12";
+  const mobileActiveClass = "block px-2 py-1 text-white rounded text-sm underline decoration-white decoration-2 underline-offset-6 underline-offset-4";
+  const mobileInactiveClass = "block px-2 py-1 text-white rounded text-sm hover:underline hover:decoration-white hover:underline-offset-4";
+
+  // Reusable Components
+  const NavLink = ({ to, label, className, onClick }) => (
+    <Link to={to} className={className} onClick={onClick}>
+      {label}
+    </Link>
+  );
+
+  const ContactLink = ({ className, onClick }) => (
+    <a href="#contact" onClick={onClick} className={`${className} cursor-pointer`}>
+      Contact Us
+    </a>
+  );
 
   return (
     <>
@@ -63,59 +74,19 @@ const Header1 = () => {
             </Link>
           </div>
 
-          {/* Desktop Nav */}
           <nav className="hidden lg:flex items-center gap-10 text-gray-500 text-lg">
-            <Link
-              to="/"
-              className={
-                isActive("/")
-                  ? "text-[#02066F] font-semibold underline decoration-2 underline-offset-12 underline-offset-4"
-                  : "text-gray-500 underline-offset-4 hover:underline hover:decoration-2 hover:underline-offset-12 focus:text-[#02066F] focus:underline focus:decoration-2 focus:underline-offset-12"
-              }
-            >
-              Home
-            </Link>
-
-            <Link
-              to="/login"
-              className={
-                isActive("/login")
-                  ? "text-[#02066F] font-semibold underline decoration-2 underline-offset-12 underline-offset-4"
-                  : "text-gray-500 underline-offset-4 hover:underline hover:decoration-2 hover:underline-offset-12 focus:text-[#02066F] focus:underline focus:decoration-2 focus:underline-offset-12"
-              }
-            >
-              Login
-            </Link>
-
-            <Link
-              to="/register"
-              className={
-                isActive("/register")
-                  ? "text-[#02066F] font-semibold underline decoration-2 underline-offset-12 underline-offset-4"
-                  : "text-gray-500 underline-offset-4 hover:underline hover:decoration-2 hover:underline-offset-12 focus:text-[#02066F] focus:underline focus:decoration-2 focus:underline-offset-12"
-              }
-            >
-              Register
-            </Link>
-
-            <a
-              href="#contact"
+            {navItems.map(({ to, label }) => (
+              <NavLink
+                key={to}
+                to={to}
+                label={label}
+                className={isActive(to) ? desktopActiveClass : desktopInactiveClass}
+              />
+            ))}
+            <ContactLink
+              className={desktopInactiveClass}
               onClick={handleContactClick}
-              className="text-gray-500 underline-offset-4 hover:underline hover:decoration-2 hover:underline-offset-12 focus:text-[#02066F] focus:underline focus:decoration-2 focus:underline-offset-12 cursor-pointer"
-            >
-              Contact Us
-            </a>
-
-            <Link
-              to="/privacypolicy"
-              className={
-                isActive("/privacypolicy")
-                  ? "text-[#02066F] font-semibold underline decoration-2 underline-offset-12 underline-offset-4"
-                  : "text-gray-500 underline-offset-4 hover:underline hover:decoration-2 hover:underline-offset-12 focus:text-[#02066F] focus:underline focus:decoration-2 focus:underline-offset-12"
-              }
-            >
-              Privacy Policy
-            </Link>
+            />
           </nav>
 
           {/* Mobile Menu Button */}
@@ -171,61 +142,19 @@ const Header1 = () => {
             </div>
 
             <nav className="space-y-3 text-[#02066F] font-medium p-10 pt-0">
-              <Link
-                to="/"
-                className={
-                  isActive("/")
-                    ? "block px-2 py-1 text-white rounded text-sm underline decoration-white decoration-2 underline-offset-6 underline-offset-4"
-                    : "block px-2 py-1 text-white rounded text-sm hover:underline hover:decoration-white hover:underline-offset-4"
-                }
-                onClick={toggleSidebar}
-              >
-                Home
-              </Link>
-
-              <Link
-                to="/login"
-                className={
-                  isActive("/login")
-                    ? "block px-2 py-1 text-white rounded text-sm underline decoration-white decoration-2 underline-offset-6 underline-offset-4"
-                    : "block px-2 py-1 text-white rounded text-sm hover:underline hover:decoration-white hover:underline-offset-4"
-                }
-                onClick={toggleSidebar}
-              >
-                Login
-              </Link>
-
-              <Link
-                to="/register"
-                className={
-                  isActive("/register")
-                    ? "block px-2 py-1 text-white rounded text-sm underline decoration-white decoration-2 underline-offset-6 underline-offset-4"
-                    : "block px-2 py-1 text-white rounded text-sm hover:underline hover:decoration-white hover:underline-offset-4"
-                }
-                onClick={toggleSidebar}
-              >
-                Register
-              </Link>
-
-              <a
-                href="#contact"
+              {navItems.map(({ to, label }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  label={label}
+                  className={isActive(to) ? mobileActiveClass : mobileInactiveClass}
+                  onClick={toggleSidebar}
+                />
+              ))}
+              <ContactLink
+                className={mobileInactiveClass}
                 onClick={handleContactClick}
-                className="block px-2 py-1 text-white rounded text-sm hover:underline hover:decoration-white hover:underline-offset-4 cursor-pointer"
-              >
-                Contact Us
-              </a>
-
-              <Link
-                to="/privacypolicy"
-                className={
-                  isActive("/privacypolicy")
-                    ? "block px-2 py-1 text-white rounded text-sm underline decoration-white decoration-2 underline-offset-6 underline-offset-4"
-                    : "block px-2 py-1 text-white rounded text-sm hover:underline hover:decoration-white hover:underline-offset-4"
-                }
-                onClick={toggleSidebar}
-              >
-                Privacy Policy
-              </Link>
+              />
             </nav>
           </aside>
         </>

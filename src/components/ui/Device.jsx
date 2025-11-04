@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import Header2 from "./Navbar/Header";
-import Footer2 from "./Footer/Footer";
+import Footer2 from "./Footer/Footer2";
 import { API_URLS } from '../../utils/apiUtils';
 
 const Device = () => {

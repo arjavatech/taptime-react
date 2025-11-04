@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Header2 from "./Navbar/Header";
-import Footer2 from "./Footer/Footer";
+import Footer2 from "./Footer/Footer2";
 import {
   getAllReportEmails,
   createReportEmail,
@@ -39,7 +39,7 @@ const ReportSetting = () => {
     try {
       const data = await getAllReportEmails(company_id);
       setAllEmailSettings(data);
-      filterReportSettings();
+      setEmailSettings(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error("Failed to load report settings:", error);
       setAllEmailSettings([]);
@@ -47,12 +47,6 @@ const ReportSetting = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const filterReportSettings = () => {
-    // Since the API data doesn't have DeviceID field, show all data
-    setEmailSettings(Array.isArray(allEmailSettings) ? allEmailSettings : []);
-    console.log('Report settings loaded:', allEmailSettings.length);
   };
 
   const loadViewSetting = () => {
@@ -245,13 +239,14 @@ const ReportSetting = () => {
   };
 
   const formatFrequencies = (setting) => {
-    const frequencies = [];
-    if (setting.IsDailyReportActive) frequencies.push("Daily");
-    if (setting.IsWeeklyReportActive) frequencies.push("Weekly");
-    if (setting.IsBiWeeklyReportActive) frequencies.push("Biweekly");
-    if (setting.IsMonthlyReportActive) frequencies.push("Monthly");
-    if (setting.IsBiMonthlyReportActive) frequencies.push("Bimonthly");
-    return frequencies.join(", ");
+    const freqMap = {
+      IsDailyReportActive: "Daily",
+      IsWeeklyReportActive: "Weekly", 
+      IsBiWeeklyReportActive: "Biweekly",
+      IsMonthlyReportActive: "Monthly",
+      IsBiMonthlyReportActive: "Bimonthly"
+    };
+    return Object.entries(freqMap).filter(([key]) => setting[key]).map(([, value]) => value).join(", ");
   };
 
   const selectFrequency = (freq) => {
@@ -264,6 +259,101 @@ const ReportSetting = () => {
     }
     setFrequencyError("");
   };
+
+  const Modal = ({ show, onClose, title, children, maxWidth = "max-w-sm" }) => show ? (
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: "rgba(0, 0, 0, 0.5)" }}>
+      <div className={`bg-white rounded-lg w-full ${maxWidth} mx-4 shadow-xl`}>
+        <div className="flex w-full bg-[#02066F] justify-between p-2 pl-4 pr-4 items-center rounded-t-md text-center">
+          <h3 className="text-xl font-bold text-white">{title}</h3>
+          <button className="text-gray-400 hover:text-white text-4xl cursor-pointer p-2" onClick={onClose}>×</button>
+        </div>
+        <div className="p-6">{children}</div>
+      </div>
+    </div>
+  ) : null;
+
+  const FrequencyDropdown = ({ frequencies, setFrequencies, showDropdown, setShowDropdown, error, placeholder = "Select Frequency", options = ["Daily", "Weekly", "Biweekly", "Monthly", "Bimonthly"] }) => (
+    <div className="mb-6">
+      <div className="relative">
+        <div className="w-full px-4 py-3 border-2 border-[#02066F] rounded-lg cursor-pointer flex justify-between items-center" onClick={() => setShowDropdown(!showDropdown)}>
+          <span className={frequencies.length === 0 ? "text-gray-500" : "text-[#02066F] text-base"}>
+            {frequencies.length === 0 ? placeholder : frequencies.join(", ")}
+          </span>
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+          </svg>
+        </div>
+        {showDropdown && (
+          <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-lg border border-gray-200">
+            {options.map((freq) => (
+              <div key={freq} className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center" onClick={() => {
+                if (frequencies.includes(freq)) {
+                  setFrequencies(frequencies.filter((f) => f !== freq));
+                } else if (frequencies.length < 2) {
+                  setFrequencies([...frequencies, freq]);
+                  if (error) setFrequencyError("");
+                }
+              }}>
+                <span className="text-[#02066F] text-base">{freq}</span>
+                {frequencies.includes(freq) && <span className="text-xl font-bold text-[#02066F]">✓</span>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+    </div>
+  );
+
+  const EmailInput = ({ value, onChange, error, placeholder = "Email" }) => (
+    <div className="mb-4">
+      <input
+        type="email"
+        value={value}
+        onChange={onChange}
+        className="w-full px-4 py-3 border-2 border-[#02066F] rounded-lg focus:outline-none font-bold"
+        placeholder={placeholder}
+      />
+      {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+    </div>
+  );
+
+  const ActionButton = ({ onClick, disabled, children }) => (
+    <div className="flex justify-center">
+      <button onClick={onClick} className="px-6 py-2 bg-[#02066F] text-white rounded-lg hover:bg-[#02066F]/80 transition-colors cursor-pointer" disabled={disabled}>
+        {children}
+      </button>
+    </div>
+  );
+
+  const TableSection = ({ title, headers, children, showAddButton = false, onAddClick }) => (
+    <>
+      <div className="flex flex-row md:flex-row md:items-center items-center justify-between md:justify-between mb-6">
+        <h2 className="text-xl md:text-2xl xl:text-3xl font-bold mb-4 md:mb-0 text-gray-800">{title}</h2>
+        {showAddButton && (
+          <button onClick={onAddClick} className="px-4 py-2 text-[#02066F] border-1 border-[#02066F] cursor-pointer rounded-lg transition-colors duration-200 bg-white">
+            Add Setting
+          </button>
+        )}
+      </div>
+      <div className="bg-white rounded-xl shadow-md p-6 mb-8">
+        <div className="overflow-x-auto">
+          <table className="w-full divide-y divide-gray-200">
+            <thead>
+              <tr>
+                {headers.map(header => (
+                  <th key={header} className="px-6 py-3 text-center text-base font-bold tracking-wider">{header}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {children}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
 
   useEffect(() => {
     const initializeComponent = async () => {
@@ -281,9 +371,7 @@ const ReportSetting = () => {
     initializeComponent();
   }, []);
 
-  useEffect(() => {
-    filterReportSettings();
-  }, [allEmailSettings]);
+
 
   useEffect(() => {
     console.log('showDeleteModal state changed:', showDeleteModal);
@@ -300,268 +388,121 @@ const ReportSetting = () => {
         )}
 
         <div className="max-w-5xl mx-auto pt-25">
-          <div className="flex flex-row md:flex-row md:items-center items-center justify-between md:justify-between mb-6">
-            <h2 className="text-xl md:text-2xl xl:text-3xl font-bold mb-4 md:mb-0 text-gray-800">Report Settings</h2>
-            <button
-              onClick={openAddModal}
-              className="px-4 py-2 text-[#02066F] border-1 border-[#02066F] cursor-pointer rounded-lg transition-colors duration-200 bg-white"
-            >
-              Add Setting
-            </button>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-md p-6 mb-8">
-            <div className="overflow-x-auto">
-              <table className="w-full divide-y divide-gray-200">
-                <thead>
-                  <tr>
-                    <th className="px-6 py-3 text-center text-base font-bold tracking-wider">Email</th>
-                    <th className="px-6 py-3 text-center text-base font-bold tracking-wider">Frequency</th>
-                    <th className="px-6 py-3 text-center text-base font-bold tracking-wider">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {emailSettings.length === 0 ? (
-                    <tr>
-                      <td colSpan="3" className="px-6 py-4 text-center text-gray-500">
-                        {isLoading ? "Loading..." : "No report settings found"}
-                      </td>
-                    </tr>
-                  ) : (
-                    Array.isArray(emailSettings) &&
-                    emailSettings.map((setting, index) => (
-                      <tr key={index} className="text-center">
-                        <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
-                          {setting.CompanyReporterEmail}
-                        </td>
-                        <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
-                          {formatFrequencies(setting)}
-                        </td>
-                        <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
-                          <div className="flex justify-center space-x-6">
-                            <button
-                              onClick={() => openEditModal(setting.CompanyReporterEmail, formatFrequencies(setting).split(", "))}
-                              className="text-[#02066F]"
-                            >
-                              <i className="fas fa-pencil-alt cursor-pointer"></i>
-                            </button>
-                            <button
-                              onClick={() => openDeleteModal(setting.CompanyReporterEmail)}
-                              className="text-[#02066F]"
-                            >
-                              <i className="fas fa-trash cursor-pointer"></i>
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="flex flex-col md:flex-row md:items-center justify-between md:justify-between mb-6">
-            <h2 className="text-xl md:text-2xl xl:text-3xl font-bold mb-4 md:mb-0 text-gray-800">Report View Settings</h2>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-md p-6 mb-0">
-            <div className="overflow-x-auto items-center justify-center">
-              <table className="w-full divide-y divide-gray-200">
-                <thead>
-                  <tr>
-                    <th className="px-6 py-3 text-center text-base font-bold tracking-wider">Frequency</th>
-                    <th className="px-6 py-3 text-center text-base font-bold tracking-wider">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  <tr className="text-center">
-                    <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
-                      {viewFrequencies.length > 0 ? viewFrequencies.join(", ") : viewSetting || "No frequency selected"}
-                    </td>
-                    <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
-                      <button onClick={openViewEditModal} className="text-[#02066F] hover:text-[#02066F]">
+          <TableSection title="Report Settings" headers={["Email", "Frequency", "Action"]} showAddButton onAddClick={openAddModal}>
+            {emailSettings.length === 0 ? (
+              <tr>
+                <td colSpan="3" className="px-6 py-4 text-center text-gray-500">
+                  {isLoading ? "Loading..." : "No report settings found"}
+                </td>
+              </tr>
+            ) : (
+              emailSettings.map((setting, index) => (
+                <tr key={index} className="text-center">
+                  <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
+                    {setting.CompanyReporterEmail}
+                  </td>
+                  <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
+                    {formatFrequencies(setting)}
+                  </td>
+                  <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
+                    <div className="flex justify-center space-x-6">
+                      <button onClick={() => openEditModal(setting.CompanyReporterEmail, formatFrequencies(setting).split(", "))} className="text-[#02066F]">
                         <i className="fas fa-pencil-alt cursor-pointer"></i>
                       </button>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+                      <button onClick={() => openDeleteModal(setting.CompanyReporterEmail)} className="text-[#02066F]">
+                        <i className="fas fa-trash cursor-pointer"></i>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </TableSection>
+
+          <TableSection title="Report View Settings" headers={["Frequency", "Action"]}>
+            <tr className="text-center">
+              <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
+                {viewFrequencies.length > 0 ? viewFrequencies.join(", ") : viewSetting || "No frequency selected"}
+              </td>
+              <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
+                <button onClick={openViewEditModal} className="text-[#02066F] hover:text-[#02066F]">
+                  <i className="fas fa-pencil-alt cursor-pointer"></i>
+                </button>
+              </td>
+            </tr>
+          </TableSection>
         </div>
 
-        {showAddModal && (
-          <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: "rgba(0, 0, 0, 0.5)" }}>
-            <div className="bg-white rounded-lg w-full max-w-sm mx-4 shadow-xl">
-              <div className="flex w-full bg-[#02066F] justify-between p-2 pl-4 pr-4 items-center rounded-t-md text-center">
-                <h3 className="text-xl font-bold text-white">Report Details</h3>
-                <button className="text-gray-400 hover:text-white text-4xl cursor-pointer p-2" onClick={closeAddModal}>×</button>
-              </div>
-              <div className="p-6">
-                <div className="mb-4">
-                  <input
-                    type="email"
-                    value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-[#02066F] rounded-lg focus:outline-none font-bold"
-                    placeholder="Email"
-                  />
-                  {emailError && <p className="mt-1 text-sm text-red-600">{emailError}</p>}
-                </div>
-                <div className="mb-6">
-                  <div className="relative">
-                    <div className="w-full px-4 py-3 border-2 border-[#02066F] rounded-lg cursor-pointer flex justify-between items-center" onClick={() => setShowFrequencyDropdown(!showFrequencyDropdown)}>
-                      <span className={newFrequencies.length === 0 ? "text-gray-500" : "text-[#02066F] text-base"}>
-                        {newFrequencies.length === 0 ? "Select Frequency" : newFrequencies.join(", ")}
-                      </span>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    {showFrequencyDropdown && (
-                      <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-lg border border-gray-200">
-                        {["Daily", "Weekly", "Biweekly", "Monthly", "Bimonthly"].map((freq) => (
-                          <div key={freq} className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center" onClick={() => selectFrequency(freq)}>
-                            <span className="text-[#02066F] text-base">{freq}</span>
-                            {newFrequencies.includes(freq) && <span className="text-xl font-bold text-[#02066F]">✓</span>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {frequencyError && <p className="mt-1 text-sm text-red-600">{frequencyError}</p>}
-                </div>
-                <div className="flex justify-center">
-                  <button onClick={saveReportSettings} className="px-6 py-2 bg-[#02066F] text-white rounded-lg hover:bg-[#02066F]/80 transition-colors cursor-pointer" disabled={!newEmail || newFrequencies.length === 0}>
-                    Save
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <Modal show={showAddModal} onClose={closeAddModal} title="Report Details">
+          <EmailInput value={newEmail} onChange={(e) => setNewEmail(e.target.value)} error={emailError} />
+          <FrequencyDropdown 
+            frequencies={newFrequencies} 
+            setFrequencies={setNewFrequencies} 
+            showDropdown={showFrequencyDropdown} 
+            setShowDropdown={setShowFrequencyDropdown} 
+            error={frequencyError} 
+          />
+          <ActionButton onClick={saveReportSettings} disabled={!newEmail || newFrequencies.length === 0}>
+            Save
+          </ActionButton>
+        </Modal>
 
-        {showViewEditModal && (
-          <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: "rgba(0, 0, 0, 0.5)" }}>
-            <div className="bg-white rounded-lg w-full max-w-sm mx-4 shadow-xl">
-              <div className="flex w-full bg-[#02066F] justify-between p-2 pl-4 pr-4 items-center rounded-t-md text-center">
-                <h3 className="text-2xl font-semibold p-2 text-white">Report View Settings</h3>
-                <button className="text-gray-400 hover:text-white text-4xl cursor-pointer p-2" onClick={() => setShowViewEditModal(false)}>×</button>
+        <Modal show={showViewEditModal} onClose={() => setShowViewEditModal(false)} title="Report View Settings">
+          <div className="mb-6">
+            <div className="relative">
+              <div className="w-full px-4 py-3 border-2 border-[#02066F] rounded-lg cursor-pointer flex justify-between items-center" onClick={() => setShowViewFrequencyDropdown(!showViewFrequencyDropdown)}>
+                <span className={viewFrequencies.length === 0 ? "text-gray-500" : "text-[#02066F] text-base"}>
+                  {viewFrequencies.length === 0 ? "Select frequencies" : viewFrequencies.join(", ")}
+                </span>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
               </div>
-              <div className="p-6">
-                <div className="mb-6">
-                  <div className="relative">
-                    <div className="w-full px-4 py-3 border-2 border-[#02066F] rounded-lg cursor-pointer flex justify-between items-center" onClick={() => setShowViewFrequencyDropdown(!showViewFrequencyDropdown)}>
-                      <span className={viewFrequencies.length === 0 ? "text-gray-500" : "text-[#02066F] text-base"}>
-                        {viewFrequencies.length === 0 ? "Select frequencies" : viewFrequencies.join(", ")}
-                      </span>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
+              {showViewFrequencyDropdown && (
+                <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-lg border border-gray-200">
+                  {["Weekly", "Biweekly", "Monthly", "Bimonthly"].map((freq) => (
+                    <div key={freq} className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex items-center" onClick={() => toggleViewFrequency(freq)}>
+                      <span className="text-[#02066F] text-base">{freq}</span>
+                      {viewFrequencies.includes(freq) && <span className="text-xl font-bold text-[#02066F] ml-2">✓</span>}
                     </div>
-                    {showViewFrequencyDropdown && (
-                      <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-lg border border-gray-200">
-                        {["Weekly", "Biweekly", "Monthly", "Bimonthly"].map((freq) => (
-                          <div key={freq} className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex items-center" onClick={() => toggleViewFrequency(freq)}>
-                            <span className="text-[#02066F] text-base">{freq}</span>
-                            {viewFrequencies.includes(freq) && <span className="text-xl font-bold text-[#02066F] ml-2">✓</span>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {viewFrequencyError && <p className="mt-1 text-sm text-red-600">{viewFrequencyError}</p>}
+                  ))}
                 </div>
-                <div className="flex justify-center">
-                  <button onClick={updateViewSetting} className="px-6 py-2 bg-[#02066F] text-white rounded-lg hover:bg-[#02066F]/80 transition-colors cursor-pointer" disabled={viewFrequencies.length === 0}>
-                    Update
-                  </button>
-                </div>
-              </div>
+              )}
             </div>
+            {viewFrequencyError && <p className="mt-1 text-sm text-red-600">{viewFrequencyError}</p>}
           </div>
-        )}
+          <ActionButton onClick={updateViewSetting} disabled={viewFrequencies.length === 0}>
+            Update
+          </ActionButton>
+        </Modal>
 
-        {showEditModal && (
-          <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: "rgba(0, 0, 0, 0.5)" }}>
-            <div className="bg-white rounded-lg w-full max-w-sm mx-4 shadow-xl">
-              <div className="flex w-full bg-[#02066F] justify-between p-2 pl-4 pr-4 items-center rounded-t-md text-center">
-                <h3 className="text-xl font-bold text-white">Edit Report Details</h3>
-                <button className="text-gray-400 hover:text-white text-4xl cursor-pointer p-2" onClick={() => setShowEditModal(false)}>×</button>
-              </div>
-              <div className="p-6">
-                <div className="mb-4">
-                  <input
-                    type="email"
-                    value={currentEmail}
-                    onChange={(e) => setCurrentEmail(e.target.value)}
-                    className="w-full px-4 py-3 border-2 border-[#02066F] rounded-lg focus:outline-none font-bold"
-                    placeholder="Email"
-                  />
-                  {emailError && <p className="mt-1 text-sm text-red-600">{emailError}</p>}
-                </div>
-                <div className="mb-6">
-                  <div className="relative">
-                    <div className="w-full px-4 py-3 border-2 border-[#02066F] rounded-lg cursor-pointer flex justify-between items-center" onClick={() => setShowDropdown(!showDropdown)}>
-                      <span className={currentFrequencies.length === 0 ? "text-gray-500" : "text-[#02066F] text-base"}>
-                        {currentFrequencies.length === 0 ? "Select Frequency" : currentFrequencies.join(", ")}
-                      </span>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </div>
-                    {showDropdown && (
-                      <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-lg border border-gray-200">
-                        {["Daily", "Weekly", "Biweekly", "Monthly", "Bimonthly"].map((freq) => (
-                          <div key={freq} className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex justify-between items-center" onClick={() => {
-                            if (currentFrequencies.includes(freq)) {
-                              setCurrentFrequencies(currentFrequencies.filter((f) => f !== freq));
-                            } else if (currentFrequencies.length < 2) {
-                              setCurrentFrequencies([...currentFrequencies, freq]);
-                              setFrequencyError("");
-                            }
-                          }}>
-                            <span className="text-[#02066F] text-base">{freq}</span>
-                            {currentFrequencies.includes(freq) && <span className="text-xl font-bold text-[#02066F]">✓</span>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {frequencyError && <p className="mt-1 text-sm text-red-600">{frequencyError}</p>}
-                </div>
-                <div className="flex justify-center">
-                  <button onClick={updateReportSettings} className="px-6 py-2 bg-[#02066F] text-white rounded-lg hover:bg-[#02066F]/80 transition-colors cursor-pointer" disabled={!currentEmail || currentFrequencies.length === 0}>
-                    Update
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <Modal show={showEditModal} onClose={() => setShowEditModal(false)} title="Edit Report Details">
+          <EmailInput value={currentEmail} onChange={(e) => setCurrentEmail(e.target.value)} error={emailError} />
+          <FrequencyDropdown 
+            frequencies={currentFrequencies} 
+            setFrequencies={setCurrentFrequencies} 
+            showDropdown={showDropdown} 
+            setShowDropdown={setShowDropdown} 
+            error={frequencyError} 
+          />
+          <ActionButton onClick={updateReportSettings} disabled={!currentEmail || currentFrequencies.length === 0}>
+            Update
+          </ActionButton>
+        </Modal>
 
-        {showDeleteModal && (
-          <div className="fixed inset-0 flex items-center justify-center z-[9999] p-4" style={{ background: "rgba(0, 0, 0, 0.5)" }}>
-            <div className="bg-white rounded-lg w-full max-w-md mx-4 shadow-2xl border border-gray-300">
-              <div className="flex w-full bg-[#02066F] justify-between p-2 pl-4 pr-4 items-center rounded-t-md text-center">
-                <h3 className="text-xl font-bold text-center text-white p-2 justify-center">Delete</h3>
-                <button className="text-gray-400 hover:text-white text-4xl cursor-pointer p-2" onClick={() => setShowDeleteModal(false)}>×</button>
-              </div>
-              <div className="p-4">
-                <p className="text-center text-gray-800 font-bold text-lg mb-6">Are you sure, you want to remove the employee?</p>
-                <div className="flex justify-center space-x-4">
-                  <button onClick={deleteReportSettings} className="px-6 py-2 bg-[#02066F] opacity-80 hover:opacity-60 text-white rounded-md cursor-pointer" disabled={isLoading}>
-                    Yes
-                  </button>
-                  <button onClick={() => setShowDeleteModal(false)} className="px-6 py-2 border border-[#02066F] text-[#02066F] rounded-md cursor-pointer">
-                    No
-                  </button>
-                </div>
-              </div>
+        <Modal show={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete" maxWidth="max-w-md">
+          <div className="p-0">
+            <p className="text-center text-gray-800 font-bold text-lg mb-6">Are you sure, you want to remove the employee?</p>
+            <div className="flex justify-center space-x-4">
+              <button onClick={deleteReportSettings} className="px-6 py-2 bg-[#02066F] opacity-80 hover:opacity-60 text-white rounded-md cursor-pointer" disabled={isLoading}>
+                Yes
+              </button>
+              <button onClick={() => setShowDeleteModal(false)} className="px-6 py-2 border border-[#02066F] text-[#02066F] rounded-md cursor-pointer">
+                No
+              </button>
             </div>
           </div>
-        )}
+        </Modal>
       </div>
       <Footer2 />
     </>
