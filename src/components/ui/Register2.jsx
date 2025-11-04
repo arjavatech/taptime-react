@@ -1,24 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
-import { v4 as uuidv4 } from "uuid";
 import intlTelInput from "intl-tel-input";
 import "intl-tel-input/build/css/intlTelInput.css";
-import { loadStripe } from "@stripe/stripe-js";
+import { registerUser } from "../../utils/apiUtils";
 import Header from "./Navbar/Header";
 
 const Register2 = () => {
   // Constants
   const isAlpha = /^[a-zA-Z\s]+$/;
-  const apiUrlBase =
-    "https://postgresql-holy-firefly-3725.fly.dev/customer";
-  const firstSignupPageapiUrlBase =
-    "https://postgresql-holy-firefly-3725.fly.dev/company";
-  const cid = uuidv4();
   const key = new Uint8Array([
     16, 147, 220, 113, 166, 142, 22, 93, 241, 91, 13, 252, 112, 122, 119, 95,
   ]);
-  const stripePromise = loadStripe(
-    "pk_test_51OB8JlIPoM7JHRT2DlaE8KmPRFkgeSXkqf4eQZxEahu0Lbno3vHzCTH5J4rDAfw53PjdWlLteNJNzPVdahkzTb8100DA6sqAp4"
-  );
 
   // Form fields
   const [firstName, setFirstName] = useState("");
@@ -194,59 +185,7 @@ const Register2 = () => {
     setPhoneNumber(digits);
   };
 
-  // API functions
-  const createCheckoutSession = async () => {
-    setShowOverlay(true);
-    setTotalError("");
-
-    try {
-      const link2 = "http://localhost:5173";
-      const link = "https://tap-time.com";
-      const link3 = "https://arunkavitha1982.github.io/icode";
-
-      const response = await fetch(
-        "https://postgresql-holy-firefly-3725.fly.dev/create-checkout-session",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            url: link2,
-            productName: "EMS Product",
-            amount: 2000,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorDetails = await response.json();
-        throw new Error(errorDetails.error);
-      }
-
-      const session = await response.json();
-
-      // Initialize Stripe
-      const stripe = await stripePromise;
-      if (!stripe) {
-        throw new Error("Stripe failed to initialize");
-      }
-
-      const { error } = await stripe.redirectToCheckout({
-        sessionId: session.id,
-      });
-      if (error) {
-        throw error;
-      }
-    } catch (error) {
-      console.error("Checkout error:", error);
-      setTotalError(
-        error instanceof Error ? error.message : "Payment processing failed"
-      );
-    } finally {
-      setShowOverlay(false);
-    }
-  };
-
-  // Form validation
+  // Form validation and registration
   const validateForm = async (event) => {
     event.preventDefault();
     setShowOverlay(true);
@@ -265,29 +204,82 @@ const Register2 = () => {
       isAddressValid &&
       isEmailValid
     ) {
-      const companyStreet = localStorage.getItem("companyStreet");
-      const companyCity = localStorage.getItem("companyCity");
-      const companyState = localStorage.getItem("companyState");
-      const companyZip = localStorage.getItem("companyZip");
+      try {
+        // Get company data from localStorage (from Register.jsx - Step 1)
+        const companyName = localStorage.getItem("companyName") || "";
+        const companyLogo = localStorage.getItem("companyLogo") || "";
+        const companyStreet = localStorage.getItem("companyStreet") || "";
+        const companyCity = localStorage.getItem("companyCity") || "";
+        const companyState = localStorage.getItem("companyState") || "";
+        const companyZip = localStorage.getItem("companyZip") || "";
 
-      localStorage.setItem("firstName", firstName);
-      localStorage.setItem("lastName", lastName);
-      localStorage.setItem(
-        "address",
-        `${companyStreet}--${companyCity}--${companyState}--${companyZip}`
-      );
-      localStorage.setItem("phone", phoneNumber);
-      localStorage.setItem("email", email);
-      let isFreeTrail = localStorage.getItem("trial") === "true";
+        // Get phone number with country code
+        let formattedPhone = phoneNumber;
+        if (itiRef.current) {
+          const countryData = itiRef.current.getSelectedCountryData();
+          formattedPhone = `+${countryData.dialCode}${phoneNumber.replace(/\D/g, '')}`;
+        }
 
-      if (isFreeTrail) {
-        window.location.href = "/login";
-        localStorage.setItem(
-          "expiryDate",
-          new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-        );
-      } else {
-        await createCheckoutSession();
+        // Build registration payload in flat structure
+        const registrationData = {
+          // Company information
+          company_name: companyName,
+          company_logo: companyLogo,
+          report_type: localStorage.getItem("reportType") || "standard",
+          company_address_line1: companyStreet,
+          company_address_line2: "",
+          company_city: companyCity,
+          company_state: companyState,
+          company_zip_code: companyZip,
+
+          // Customer information
+          first_name: firstName,
+          last_name: lastName,
+          email: email,
+          phone_number: formattedPhone,
+          customer_address_line1: customerStreet,
+          customer_address_line2: "",
+          customer_city: customerCity,
+          customer_state: customerState,
+          customer_zip_code: customerZip,
+
+          // Metadata
+          is_verified: false,
+          last_modified_by: email,
+          created_date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+        };
+
+        // Call the registration API
+        const result = await registerUser(registrationData);
+
+        if (result.success) {
+          // Store user data in localStorage for future use
+          localStorage.setItem("firstName", firstName);
+          localStorage.setItem("lastName", lastName);
+          localStorage.setItem("email", email);
+          localStorage.setItem("phone", formattedPhone);
+
+          // Clear registration data
+          localStorage.removeItem("companyName");
+          localStorage.removeItem("companyLogo");
+          localStorage.removeItem("companyStreet");
+          localStorage.removeItem("companyCity");
+          localStorage.removeItem("companyState");
+          localStorage.removeItem("companyZip");
+          localStorage.removeItem("noOfDevices");
+          localStorage.removeItem("noOfEmployees");
+          localStorage.removeItem("trial");
+
+          // Redirect to login page
+          window.location.href = "/login";
+        } else {
+          setTotalError(result.error || "Registration failed. Please try again.");
+          setShowOverlay(false);
+        }
+      } catch (error) {
+        console.error("Registration error:", error);
+        setTotalError("An error occurred during registration. Please try again.");
+        setShowOverlay(false);
       }
     } else {
       setTotalError("Please fix the errors");
@@ -515,7 +507,7 @@ const Register2 = () => {
               type="submit"
               className="w-full bg-[#02066F] text-white py-3 rounded-lg text-lg mt-4 cursor-pointer"
             >
-              Pay
+              Register
             </button>
           </form>
 

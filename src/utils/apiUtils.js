@@ -1,10 +1,13 @@
+import { supabase } from '../config/supabase';
+
 // API Base URLs
 export const API_URLS = {
-  employee: 'https://postgresql-holy-firefly-3725.fly.dev/employee',
-  company: 'https://postgresql-holy-firefly-3725.fly.dev/company',
-  customer: 'https://postgresql-holy-firefly-3725.fly.dev/customer',
-  device: 'https://postgresql-holy-firefly-3725.fly.dev/device',
-  loginCheck: 'https://postgresql-holy-firefly-3725.fly.dev/employee/login_check'
+  employee: 'https://postgresql-restless-waterfall-2105.fly.dev/employee',
+  company: 'https://postgresql-restless-waterfall-2105.fly.dev/company',
+  customer: 'https://postgresql-restless-waterfall-2105.fly.dev/customer',
+  device: 'https://postgresql-restless-waterfall-2105.fly.dev/device',
+  loginCheck: 'https://postgresql-restless-waterfall-2105.fly.dev/employee/login_check',
+  signUp: 'https://postgresql-restless-waterfall-2105.fly.dev/auth/sign_up'
 };
 
 // Encryption key
@@ -84,45 +87,130 @@ export const loginCheck = async (username, password) => {
   }
 };
 
+/**
+ * Validate employee email and fetch company/admin data
+ *
+ * NOTE: Despite the name "googleSignInCheck", this function validates ANY email
+ * against the backend employee database.
+ *
+ * Purpose:
+ * - Validates that the email exists in the employee database
+ * - Checks admin role requirements (Admin, SuperAdmin, or Owner only)
+ * - Fetches and stores company, device, and employee data
+ *
+ * Used by:
+ * - Supabase Google OAuth login (Login_new.jsx) - Required for fetching company data
+ * - Legacy Google Sign-In (Login.jsx - old implementation)
+ *
+ * NOT used by:
+ * - Supabase email/password login - Skips backend validation, uses only Supabase data
+ *
+ * @param {string} email - The authenticated user's email
+ * @returns {Promise<Object>} - { success: boolean, companyID?: string, error?: string }
+ */
 export const googleSignInCheck = async (email) => {
   try {
     const res = await fetch(`${API_URLS.loginCheck}/${email}`);
     if (!res.ok) throw new Error('Network response was not ok');
-    
+
     const data = await res.json();
-    
+
     if ("error" in data) {
       throw new Error("Invalid Gmail login");
     }
 
-    if (["Admin", "SuperAdmin", "Owner"].includes(data["AdminType"])) {
-      const companyID = data["CID"];
+    if (["Admin", "SuperAdmin", "Owner"].includes(data["admin_type"])) {
+      const companyID = data["cid"];
+
+      // Combine customer address fields for backward compatibility
+      const customerAddress = [
+        data["customer_address_line1"],
+        data["customer_address_line2"],
+        data["customer_city"],
+        data["customer_state"],
+        data["customer_zip_code"]
+      ].filter(Boolean).join(", ");
+
+      // Combine first and last name to create userName
+      const userName = `${data["first_name"] || ""} ${data["last_name"] || ""}`.trim();
+
       const storeData = {
+        // Core company data
         companyID,
-        companyName: data["CName"],
-        companyLogo: data["CLogo"],
-        companyAddress: data["CAddress"],
-        NoOfDevices: data["NoOfDevices"],
-        NoOfEmployees: data["NoOfEmployees"],
-        reportType: data["ReportType"],
-        adminMail: data["Email"],
-        adminType: data["AdminType"]
+        companyName: data["company_name"],
+        companyLogo: data["company_logo"],
+        reportType: data["report_type"],
+
+        // Split company address fields
+        companyStreet: data["company_address_line1"],
+        companyCity: data["company_city"],
+        companyState: data["company_state"],
+        companyZip: data["company_zip_code"],
+
+        // Admin data
+        adminMail: data["email"],
+        adminType: data["admin_type"],
+        authId: data["auth_id"],
+
+        // Customer/admin personal data
+        firstName: data["first_name"],
+        lastName: data["last_name"],
+        userName: userName,
+        phone: data["phone_number"],
+        phoneNumber: data["phone_number"],
+        address: customerAddress,
+
+        // Additional metadata
+        isVerified: data["is_verified"],
+        createdDate: data["created_date"],
+
+        // Default values for missing fields
+        NoOfDevices: "1",
+        NoOfEmployees: "50"
       };
 
       Object.entries(storeData).forEach(([key, value]) => {
-        if (value !== undefined) localStorage.setItem(key, value);
+        if (value !== undefined && value !== null) {
+          localStorage.setItem(key, value);
+        }
       });
-
-      if (data["DeviceID"]) {
-        localStorage.setItem("DeviceID", data["DeviceID"]);
-      }
 
       return { success: true, companyID };
     }
-    
+
     return { success: false, error: "Invalid admin type" };
   } catch (error) {
     console.error("Google Sign-In error:", error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Register a new user with company and customer information
+ * This function calls the /auth/sign_up endpoint which creates both company and customer records
+ *
+ * @param {Object} registrationData - Registration data with flat structure
+ * @returns {Promise<Object>} - { success: boolean, data?: object, error?: string }
+ */
+export const registerUser = async (registrationData) => {
+  try {
+    const response = await fetch(API_URLS.signUp, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(registrationData)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || errorData.message || `Registration failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    return { success: true, data };
+  } catch (error) {
+    console.error('Registration error:', error);
     return { success: false, error: error.message };
   }
 };
@@ -324,7 +412,7 @@ export const fetchDevices = async (companyId) => {
 };
 
 export const fetchDailyReport = async (companyId, date) => {
-  const BASE = "https://postgresql-holy-firefly-3725.fly.dev";
+  const BASE = "https://postgresql-restless-waterfall-2105.fly.dev";
   const apiUrl = `${BASE}/dailyreport/getdatebasedata/${companyId}/${date}`;
 
   try {
@@ -338,7 +426,7 @@ export const fetchDailyReport = async (companyId, date) => {
 };
 
 export const createDailyReportEntry = async (entryData) => {
-  const BASE = "https://postgresql-holy-firefly-3725.fly.dev";
+  const BASE = "https://postgresql-restless-waterfall-2105.fly.dev";
   const apiUrl = `${BASE}/dailyreport/create`;
 
   try {
@@ -359,7 +447,7 @@ export const createDailyReportEntry = async (entryData) => {
 };
 
 export const updateDailyReportEntry = async (empId, cid, checkinTime, updateData) => {
-  const BASE = "https://postgresql-holy-firefly-3725.fly.dev";
+  const BASE = "https://postgresql-restless-waterfall-2105.fly.dev";
   const apiUrl = `${BASE}/dailyreport/update/${empId}/${cid}/${encodeURIComponent(checkinTime)}`;
 
   try {
@@ -380,7 +468,7 @@ export const updateDailyReportEntry = async (empId, cid, checkinTime, updateData
 };
 
 export const fetchDateRangeReport = async (companyId, startDate, endDate) => {
-  const BASE = "https://postgresql-holy-firefly-3725.fly.dev";
+  const BASE = "https://postgresql-restless-waterfall-2105.fly.dev";
   const apiUrl = `${BASE}/report/dateRangeReportGet/${companyId}/${startDate}/${endDate}`;
   
   try {
@@ -394,7 +482,7 @@ export const fetchDateRangeReport = async (companyId, startDate, endDate) => {
 };
 
 // Report Settings API functions
-const REPORT_API_BASE = 'https://postgresql-holy-firefly-3725.fly.dev';
+const REPORT_API_BASE = 'https://postgresql-restless-waterfall-2105.fly.dev';
 const REPORT_TYPES = ['Daily', 'Weekly', 'Biweekly', 'Monthly', 'Bimonthly'];
 
 export const createReportObject = (email, companyId, deviceId, selectedValues) => {
@@ -541,7 +629,7 @@ export const deleteEmployeeById = async (empId) => {
 
 // Contact form API function
 export const submitContactForm = async (userData) => {
-  const apiUrl = 'https://postgresql-holy-firefly-3725.fly.dev/web_contact_us/create';
+  const apiUrl = 'https://postgresql-restless-waterfall-2105.fly.dev/web_contact_us/create';
   
   try {
     const response = await fetch(apiUrl, {
@@ -561,11 +649,212 @@ export const submitContactForm = async (userData) => {
 // Logout function
 export const logout = () => {
   const keysToRemove = [
-    "username", "companyID", "customId", "password", "adminMail", 
+    "username", "companyID", "customId", "password", "adminMail",
     "adminType", "companyName", "companyLogo", "companyAddress",
-    "customerID", "firstName", "lastName", "address", "phone", 
+    "customerID", "firstName", "lastName", "address", "phone",
     "phoneNumber", "email", "TimeZone", "allAdminDetails"
   ];
-  
+
   keysToRemove.forEach(key => localStorage.removeItem(key));
+};
+
+// ============================================
+// SUPABASE AUTHENTICATION FUNCTIONS
+// ============================================
+
+/**
+ * Sign in with email and password using Supabase
+ * @param {string} email - User email
+ * @param {string} password - User password
+ * @returns {Promise<Object>} - Returns user data or error
+ */
+export const supabaseSignIn = async (email, password) => {
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      console.error('Supabase sign in error:', error);
+      return { success: false, error: error.message };
+    }
+
+    if (data?.user) {
+      // Store user info in localStorage
+      localStorage.setItem('userEmail', data.user.email);
+      localStorage.setItem('userId', data.user.id);
+      localStorage.setItem('authMethod', 'supabase');
+
+      return { success: true, user: data.user, session: data.session };
+    }
+
+    return { success: false, error: 'No user data returned' };
+  } catch (error) {
+    console.error('Supabase sign in error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Sign up with email and password using Supabase
+ * @param {string} email - User email
+ * @param {string} password - User password
+ * @param {Object} metadata - Optional user metadata
+ * @returns {Promise<Object>} - Returns user data or error
+ */
+export const supabaseSignUp = async (email, password, metadata = {}) => {
+  try {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: metadata
+      }
+    });
+
+    if (error) {
+      console.error('Supabase sign up error:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, user: data.user, session: data.session };
+  } catch (error) {
+    console.error('Supabase sign up error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Sign in with Google OAuth using Supabase
+ * @returns {Promise<Object>} - Returns result or error
+ */
+export const supabaseGoogleSignIn = async () => {
+  try {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/employeelist`,
+      },
+    });
+
+    if (error) {
+      console.error('Supabase Google sign in error:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('Supabase Google sign in error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Sign out from Supabase
+ * @returns {Promise<Object>} - Returns success or error
+ */
+export const supabaseSignOut = async () => {
+  try {
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      console.error('Supabase sign out error:', error);
+      return { success: false, error: error.message };
+    }
+
+    // Clear localStorage
+    localStorage.clear();
+
+    return { success: true };
+  } catch (error) {
+    console.error('Supabase sign out error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Get current Supabase session
+ * @returns {Promise<Object>} - Returns session data or null
+ */
+export const getSupabaseSession = async () => {
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+
+    if (error) {
+      console.error('Get session error:', error);
+      return null;
+    }
+
+    return session;
+  } catch (error) {
+    console.error('Get session error:', error);
+    return null;
+  }
+};
+
+/**
+ * Get current Supabase user
+ * @returns {Promise<Object>} - Returns user data or null
+ */
+export const getSupabaseUser = async () => {
+  try {
+    const { data: { user }, error } = await supabase.auth.getUser();
+
+    if (error) {
+      console.error('Get user error:', error);
+      return null;
+    }
+
+    return user;
+  } catch (error) {
+    console.error('Get user error:', error);
+    return null;
+  }
+};
+
+/**
+ * Reset password using Supabase
+ * @param {string} email - User email
+ * @returns {Promise<Object>} - Returns success or error
+ */
+export const supabaseResetPassword = async (email) => {
+  try {
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+
+    if (error) {
+      console.error('Password reset error:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('Password reset error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Update user password using Supabase
+ * @param {string} newPassword - New password
+ * @returns {Promise<Object>} - Returns success or error
+ */
+export const supabaseUpdatePassword = async (newPassword) => {
+  try {
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+
+    if (error) {
+      console.error('Password update error:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('Password update error:', error);
+    return { success: false, error: error.message };
+  }
 };
