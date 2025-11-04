@@ -32,23 +32,24 @@ const EmployeeList = () => {
 
   // Form data
   const [formData, setFormData] = useState({
-    EmpID: "",
-    Pin: "",
-    FName: "",
-    LName: "",
-    PhoneNumber: "",
-    Email: "",
-    IsAdmin: 0,
-    IsActive: true,
-    LastModifiedBy: "Admin",
+    emp_id: "",
+    pin: "",
+    first_name: "",
+    last_name: "",
+    phone_number: "",
+    email: "",
+    is_admin: 0,
+    is_active: true,
+    last_modified_by: "Admin",
+    c_id: "",
   });
 
   // Validation errors
   const [errors, setErrors] = useState({
-    FName: "",
-    LName: "",
-    PhoneNumber: "",
-    Email: "",
+    first_name: "",
+    last_name: "",
+    phone_number: "",
+    email: "",
   });
 
   // Success/error messages
@@ -57,7 +58,7 @@ const EmployeeList = () => {
 
   // Sorting and pagination state
   const [sortConfig, setSortConfig] = useState({
-    key: "Pin",
+    key: "pin",
     direction: "asc",
   });
 
@@ -103,9 +104,9 @@ const EmployeeList = () => {
       setLoading(true);
       const allEmployees = Array.isArray(employeesList) ? employeesList : [];
 
-      const filtered = allEmployees.filter((emp) => emp.IsAdmin === 0);
-      const adminList = allEmployees.filter((emp) => emp.IsAdmin === 1);
-      const superAdminList = allEmployees.filter((emp) => emp.IsAdmin === 2);
+      const filtered = allEmployees.filter((emp) => emp.is_admin === 0);
+      const adminList = allEmployees.filter((emp) => emp.is_admin === 1);
+      const superAdminList = allEmployees.filter((emp) => emp.is_admin === 2);
 
       setFilteredEmployees(filtered);
       setAdmins(adminList);
@@ -118,8 +119,8 @@ const EmployeeList = () => {
       // Store matched admin for profile
       const cleanEmail = getEmail.trim().toLowerCase();
       const targetList = adminType === "Admin" ? adminList : adminType === "SuperAdmin" ? superAdminList : [];
-      const matchedEmployee = targetList.find(emp => (emp.Email || "").trim().toLowerCase() === cleanEmail);
-      
+      const matchedEmployee = targetList.find(emp => (emp.email || "").trim().toLowerCase() === cleanEmail);
+
       if (matchedEmployee) {
         localStorage.setItem("loggedAdmin", JSON.stringify(matchedEmployee));
       }
@@ -138,11 +139,11 @@ const EmployeeList = () => {
     const adminLevel = type === 'employee' ? 0 : type === 'admin' ? 1 : 2;
     const filtered = employees.filter(
       (emp) =>
-        emp.IsAdmin === adminLevel &&
-        (emp.FName.toLowerCase().includes(lowerTerm) ||
-          emp.LName.toLowerCase().includes(lowerTerm) ||
-          emp.Pin.includes(term) ||
-          emp.PhoneNumber.includes(term))
+        emp.is_admin === adminLevel &&
+        (emp.first_name.toLowerCase().includes(lowerTerm) ||
+          emp.last_name.toLowerCase().includes(lowerTerm) ||
+          emp.pin.includes(term) ||
+          emp.phone_number.includes(term))
     );
 
     if (type === 'employee') {
@@ -182,8 +183,8 @@ const EmployeeList = () => {
       const paginated = employeesList.slice(start, end);
       setPaginatedEmployees(paginated);
       const employeeData = paginated.map((emp) => ({
-        id: emp.EmpID,
-        name: `${emp.FName} ${emp.LName}`,
+        id: emp.emp_id,
+        name: `${emp.first_name} ${emp.last_name}`,
       }));
 
       localStorage.setItem("employeeData", JSON.stringify(employeeData));
@@ -230,55 +231,55 @@ const EmployeeList = () => {
       value = `(${value}`;
     }
 
-    setFormData((prev) => ({ ...prev, PhoneNumber: value }));
+    setFormData((prev) => ({ ...prev, phone_number: value }));
 
     // Auto-generate PIN from last 4 digits
     if (value.length >= 4) {
-      setFormData((prev) => ({ ...prev, Pin: value.slice(-4) }));
+      setFormData((prev) => ({ ...prev, pin: value.slice(-4) }));
     }
   }, []);
 
   // Form validation
   const validateForm = useCallback(() => {
     let isValid = true;
-    const newErrors = { FName: "", LName: "", PhoneNumber: "", Email: "" };
+    const newErrors = { first_name: "", last_name: "", phone_number: "", email: "" };
 
     // First name validation
-    if (!formData.FName.trim()) {
-      newErrors.FName = "First name is required";
+    if (!formData.first_name.trim()) {
+      newErrors.first_name = "First name is required";
       isValid = false;
-    } else if (!/^[a-zA-Z\s]+$/.test(formData.FName)) {
-      newErrors.FName = "Only letters allowed";
+    } else if (!/^[a-zA-Z\s]+$/.test(formData.first_name)) {
+      newErrors.first_name = "Only letters allowed";
       isValid = false;
     }
 
     // Last name validation
-    if (!formData.LName.trim()) {
-      newErrors.LName = "Last name is required";
+    if (!formData.last_name.trim()) {
+      newErrors.last_name = "Last name is required";
       isValid = false;
-    } else if (!/^[a-zA-Z\s]+$/.test(formData.LName)) {
-      newErrors.LName = "Only letters allowed";
+    } else if (!/^[a-zA-Z\s]+$/.test(formData.last_name)) {
+      newErrors.last_name = "Only letters allowed";
       isValid = false;
     }
 
     // Phone validation
     const phoneRegex = /^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/;
-    if (!formData.PhoneNumber) {
-      newErrors.PhoneNumber = "Phone number is required";
+    if (!formData.phone_number) {
+      newErrors.phone_number = "Phone number is required";
       isValid = false;
-    } else if (!phoneRegex.test(formData.PhoneNumber)) {
-      newErrors.PhoneNumber = "Invalid phone number format";
+    } else if (!phoneRegex.test(formData.phone_number)) {
+      newErrors.phone_number = "Invalid phone number format";
       isValid = false;
     }
 
     // Email validation for admins/superadmins
-    if (formData.IsAdmin > 0) {
+    if (formData.is_admin > 0) {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!formData.Email) {
-        newErrors.Email = "Email is required for admin";
+      if (!formData.email) {
+        newErrors.email = "Email is required for admin";
         isValid = false;
-      } else if (!emailRegex.test(formData.Email)) {
-        newErrors.Email = "Invalid email format";
+      } else if (!emailRegex.test(formData.email)) {
+        newErrors.email = "Invalid email format";
         isValid = false;
       }
     }
@@ -296,12 +297,12 @@ const EmployeeList = () => {
     }
 
     const resetForm = {
-      EmpID: "", Pin: "", FName: "", LName: "", PhoneNumber: "", Email: "",
-      IsAdmin: adminLevel, IsActive: true, LastModifiedBy: "Admin"
+      emp_id: "", pin: "", first_name: "", last_name: "", phone_number: "", email: "",
+      is_admin: adminLevel, is_active: true, last_modified_by: "Admin", c_id: ""
     };
-    
+
     setFormData(resetForm);
-    setErrors({ FName: "", LName: "", PhoneNumber: "", Email: "" });
+    setErrors({ first_name: "", last_name: "", phone_number: "", email: "" });
     setSuccessMessage("");
     setErrorMessage("");
     setIsEditing(false);
@@ -314,21 +315,22 @@ const EmployeeList = () => {
   const openEditEmployee = useCallback((employee) => {
     setCurrentEmployee(employee);
     setFormData({
-      EmpID: employee.EmpID,
-      Pin: employee.Pin,
-      FName: employee.FName,
-      LName: employee.LName,
-      PhoneNumber: employee.PhoneNumber,
-      Email: employee.Email || "",
-      IsAdmin: employee.IsAdmin,
-      IsActive: employee.IsActive,
-      LastModifiedBy: "Admin",
+      emp_id: employee.emp_id,
+      pin: employee.pin.trim(),
+      first_name: employee.first_name,
+      last_name: employee.last_name,
+      phone_number: employee.phone_number,
+      email: employee.email || "",
+      is_admin: employee.is_admin,
+      is_active: employee.is_active,
+      last_modified_by: "Admin",
+      c_id: employee.c_id,
     });
     setIsEditing(true);
 
-    if (employee.IsAdmin === 0) {
+    if (employee.is_admin === 0) {
       setShowEmployeeModal(true);
-    } else if (employee.IsAdmin === 1) {
+    } else if (employee.is_admin === 1) {
       setShowAdminModal(true);
     } else {
       setShowSuperAdminModal(true);
@@ -346,13 +348,20 @@ const EmployeeList = () => {
 
     try {
       setLoading(true);
-      const employeeData = { ...formData, CID: companyId };
-      
-      if (!isEditing) employeeData.EmpID = uuidv4();
-      if (!employeeData.Email) employeeData.Email = "";
+      // Strip phone number formatting for API
+      const phoneDigits = formData.phone_number.replace(/\D/g, '');
+
+      const employeeData = {
+        ...formData,
+        c_id: companyId,
+        phone_number: phoneDigits  // Send unformatted phone
+      };
+
+      if (!isEditing) employeeData.emp_id = uuidv4();
+      if (!employeeData.email) employeeData.email = "";
 
       const data = isEditing
-        ? await updateEmployeeWithData(formData.EmpID, employeeData)
+        ? await updateEmployeeWithData(formData.emp_id, employeeData)
         : await createEmployeeWithData(employeeData);
         
       if (data.error) {
@@ -382,7 +391,7 @@ const EmployeeList = () => {
 
     try {
       setLoading(true);
-      const data = await deleteEmployeeById(currentEmployee.EmpID);
+      const data = await deleteEmployeeById(currentEmployee.emp_id);
 
       if (data.error) {
         setErrorMessage(data.error);
@@ -581,15 +590,15 @@ const EmployeeList = () => {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {paginatedEmployees.length > 0 ? (
                         paginatedEmployees.map((employee) => (
-                          <tr key={employee.EmpID} className="hover:bg-gray-50">
+                          <tr key={employee.emp_id} className="hover:bg-gray-50">
                             <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
-                              {employee.Pin}
+                              {employee.pin}
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
-                              {employee.FName} {employee.LName}
+                              {employee.first_name} {employee.last_name}
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
-                              {formatPhoneNumber(employee.PhoneNumber)}
+                              {formatPhoneNumber(employee.phone_number)}
                             </td>
                             <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
                               <div className="flex justify-center space-x-2">
@@ -745,17 +754,17 @@ const EmployeeList = () => {
                             {admins.length > 0 ? (
                               admins.map((admin) => (
                                 <tr
-                                  key={admin.EmpID}
+                                  key={admin.emp_id}
                                   className="hover:bg-gray-50"
                                 >
                                   <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
-                                    {admin.Pin}
+                                    {admin.pin}
                                   </td>
                                   <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
-                                    {admin.FName} {admin.LName}
+                                    {admin.first_name} {admin.last_name}
                                   </td>
                                   <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
-                                    {formatPhoneNumber(admin.PhoneNumber)}
+                                    {formatPhoneNumber(admin.phone_number)}
                                   </td>
                                   <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
                                     <div className="flex justify-center space-x-2">
@@ -835,10 +844,10 @@ const EmployeeList = () => {
                           </thead>
                           <tbody className="bg-white divide-y divide-gray-200">
                             {superAdmins.length > 0 ? superAdmins.map((superAdmin) => (
-                              <tr key={superAdmin.EmpID} className="hover:bg-gray-50">
-                                <td className="px-4 py-4 text-sm font-semibold text-gray-900 text-center">{superAdmin.Pin}</td>
-                                <td className="px-4 py-4 text-sm font-semibold text-gray-900 text-center">{superAdmin.FName} {superAdmin.LName}</td>
-                                <td className="px-4 py-4 text-sm font-semibold text-gray-900 text-center">{formatPhoneNumber(superAdmin.PhoneNumber)}</td>
+                              <tr key={superAdmin.emp_id} className="hover:bg-gray-50">
+                                <td className="px-4 py-4 text-sm font-semibold text-gray-900 text-center">{superAdmin.pin}</td>
+                                <td className="px-4 py-4 text-sm font-semibold text-gray-900 text-center">{superAdmin.first_name} {superAdmin.last_name}</td>
+                                <td className="px-4 py-4 text-sm font-semibold text-gray-900 text-center">{formatPhoneNumber(superAdmin.phone_number)}</td>
                                 <td className="px-4 py-4 text-sm font-semibold text-gray-900 text-center">
                                   <div className="flex justify-center space-x-2">
                                     <button onClick={() => openEditEmployee(superAdmin)} className="text-[#02066F] p-1">
@@ -899,20 +908,20 @@ const EmployeeList = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1"></label>
                     <input
                       type="text"
-                      value={formData.FName}
+                      value={formData.first_name}
                       onChange={(e) =>
                         setFormData((prev) => ({
                           ...prev,
-                          FName: e.target.value,
+                          first_name: e.target.value,
                         }))
                       }
-                      className={`w-full px-3 py-2 font-bold border-2 ${errors.FName ? "border-red-500" : "border-[#02066F]"
+                      className={`w-full px-3 py-2 font-bold border-2 ${errors.first_name ? "border-red-500" : "border-[#02066F]"
                         } rounded-lg focus:outline-none focus:ring-1 focus:ring-[#02066F]`}
                       placeholder="First Name"
                     />
-                    {errors.FName && (
+                    {errors.first_name && (
                       <p className="mt-1 text-sm text-red-600">
-                        {errors.FName}
+                        {errors.first_name}
                       </p>
                     )}
                   </div>
@@ -920,20 +929,20 @@ const EmployeeList = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1"></label>
                     <input
                       type="text"
-                      value={formData.LName}
+                      value={formData.last_name}
                       onChange={(e) =>
                         setFormData((prev) => ({
                           ...prev,
-                          LName: e.target.value,
+                          last_name: e.target.value,
                         }))
                       }
-                      className={`w-full px-3 py-2 font-bold border-2 ${errors.LName ? "border-red-500" : "border-[#02066F]"
+                      className={`w-full px-3 py-2 font-bold border-2 ${errors.last_name ? "border-red-500" : "border-[#02066F]"
                         } rounded-lg focus:outline-none focus:ring-1 focus:ring-[#02066F]`}
                       placeholder="Last Name"
                     />
-                    {errors.LName && (
+                    {errors.last_name && (
                       <p className="mt-1 text-sm text-red-600">
-                        {errors.LName}
+                        {errors.last_name}
                       </p>
                     )}
                   </div>
@@ -941,18 +950,18 @@ const EmployeeList = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1"></label>
                     <input
                       type="text"
-                      value={formData.PhoneNumber}
+                      value={formData.phone_number}
                       onChange={handlePhoneInput}
                       maxLength={14}
-                      className={`w-full px-3 py-2 border-2 ${errors.PhoneNumber
+                      className={`w-full px-3 py-2 border-2 ${errors.phone_number
                           ? "border-red-500"
                           : "border-[#02066F]"
                         } rounded-lg focus:outline-none focus:ring-1 focus:ring-[#02066F] font-bold`}
                       placeholder="Phone Number"
                     />
-                    {errors.PhoneNumber && (
+                    {errors.phone_number && (
                       <p className="mt-1 text-sm text-red-600">
-                        {errors.PhoneNumber}
+                        {errors.phone_number}
                       </p>
                     )}
                   </div>
@@ -960,7 +969,7 @@ const EmployeeList = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1"></label>
                     <input
                       type="text"
-                      value={formData.Pin}
+                      value={formData.pin}
                       className="w-full px-3 py-2 border-2 border-[#02066F] rounded-lg bg-gray-300 font-bold focus:outline-none"
                       disabled
                       placeholder="Instructor Pin"
@@ -1012,20 +1021,20 @@ const EmployeeList = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1"></label>
                     <input
                       type="text"
-                      value={formData.FName}
+                      value={formData.first_name}
                       onChange={(e) =>
                         setFormData((prev) => ({
                           ...prev,
-                          FName: e.target.value,
+                          first_name: e.target.value,
                         }))
                       }
-                      className={`w-full px-3 py-2 font-bold border-2 ${errors.FName ? "border-red-500" : "border-[#02066F]"
+                      className={`w-full px-3 py-2 font-bold border-2 ${errors.first_name ? "border-red-500" : "border-[#02066F]"
                         } rounded-lg focus:outline-none`}
                       placeholder="First Name"
                     />
-                    {errors.FName && (
+                    {errors.first_name && (
                       <p className="mt-1 text-sm text-red-600">
-                        {errors.FName}
+                        {errors.first_name}
                       </p>
                     )}
                   </div>
@@ -1033,20 +1042,20 @@ const EmployeeList = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1"></label>
                     <input
                       type="text"
-                      value={formData.LName}
+                      value={formData.last_name}
                       onChange={(e) =>
                         setFormData((prev) => ({
                           ...prev,
-                          LName: e.target.value,
+                          last_name: e.target.value,
                         }))
                       }
-                      className={`w-full px-3 py-2 font-bold border-2 ${errors.LName ? "border-red-500" : "border-[#02066F]"
+                      className={`w-full px-3 py-2 font-bold border-2 ${errors.last_name ? "border-red-500" : "border-[#02066F]"
                         } rounded-lg focus:outline-none`}
                       placeholder="Last Name"
                     />
-                    {errors.LName && (
+                    {errors.last_name && (
                       <p className="mt-1 text-sm text-red-600">
-                        {errors.LName}
+                        {errors.last_name}
                       </p>
                     )}
                   </div>
@@ -1054,18 +1063,18 @@ const EmployeeList = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1"></label>
                     <input
                       type="text"
-                      value={formData.PhoneNumber}
+                      value={formData.phone_number}
                       onChange={handlePhoneInput}
                       maxLength={14}
-                      className={`w-full px-3 py-2 font-bold border-2 ${errors.PhoneNumber
+                      className={`w-full px-3 py-2 font-bold border-2 ${errors.phone_number
                           ? "border-red-500"
                           : "border-[#02066F]"
                         } rounded-lg focus:outline-none`}
                       placeholder="Phone Number"
                     />
-                    {errors.PhoneNumber && (
+                    {errors.phone_number && (
                       <p className="mt-1 text-sm text-red-600">
-                        {errors.PhoneNumber}
+                        {errors.phone_number}
                       </p>
                     )}
                   </div>
@@ -1073,7 +1082,7 @@ const EmployeeList = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1"></label>
                     <input
                       type="text"
-                      value={formData.Pin}
+                      value={formData.pin}
                       className="w-full px-3 py-2 font-bold border-2 border-[#02066F] rounded-lg bg-gray-200 focus:outline-none"
                       disabled
                       placeholder="Pin"
@@ -1084,20 +1093,20 @@ const EmployeeList = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1"></label>
                     <input
                       type="email"
-                      value={formData.Email}
+                      value={formData.email}
                       onChange={(e) =>
                         setFormData((prev) => ({
                           ...prev,
-                          Email: e.target.value,
+                          email: e.target.value,
                         }))
                       }
-                      className={`w-full px-3 py-2 font-bold border-2 ${errors.Email ? "border-red-500" : "border-[#02066F]"
+                      className={`w-full px-3 py-2 font-bold border-2 ${errors.email ? "border-red-500" : "border-[#02066F]"
                         } rounded-lg focus:outline-none`}
                       placeholder="Email"
                     />
-                    {errors.Email && (
+                    {errors.email && (
                       <p className="mt-1 text-sm text-red-600">
-                        {errors.Email}
+                        {errors.email}
                       </p>
                     )}
                   </div>
@@ -1149,19 +1158,19 @@ const EmployeeList = () => {
                       id="superAdminFirstName"
                       type="text"
                       placeholder="First Name"
-                      value={formData.FName}
+                      value={formData.first_name}
                       onChange={(e) =>
                         setFormData((prev) => ({
                           ...prev,
-                          FName: e.target.value,
+                          first_name: e.target.value,
                         }))
                       }
-                      className={`w-full px-3 py-2 font-bold border-2 ${errors.FName ? "border-red-500" : "border-[#02066F]"
+                      className={`w-full px-3 py-2 font-bold border-2 ${errors.first_name ? "border-red-500" : "border-[#02066F]"
                         } rounded-lg focus:outline-none`}
                     />
-                    {errors.FName && (
+                    {errors.first_name && (
                       <p className="text-red-500 text-xs italic mt-1">
-                        {errors.FName}
+                        {errors.first_name}
                       </p>
                     )}
                   </div>
@@ -1170,19 +1179,19 @@ const EmployeeList = () => {
                       id="superAdminLastName"
                       type="text"
                       placeholder="Last Name"
-                      value={formData.LName}
+                      value={formData.last_name}
                       onChange={(e) =>
                         setFormData((prev) => ({
                           ...prev,
-                          LName: e.target.value,
+                          last_name: e.target.value,
                         }))
                       }
-                      className={`w-full px-3 py-2 font-bold border-2 ${errors.LName ? "border-red-500" : "border-[#02066F]"
+                      className={`w-full px-3 py-2 font-bold border-2 ${errors.last_name ? "border-red-500" : "border-[#02066F]"
                         } rounded-lg focus:outline-none`}
                     />
-                    {errors.LName && (
+                    {errors.last_name && (
                       <p className="text-red-500 text-xs italic mt-1">
-                        {errors.LName}
+                        {errors.last_name}
                       </p>
                     )}
                   </div>
@@ -1190,18 +1199,18 @@ const EmployeeList = () => {
                     <input
                       id="superAdminPhone"
                       type="text"
-                      value={formData.PhoneNumber}
+                      value={formData.phone_number}
                       onChange={handlePhoneInput}
                       maxLength={14}
-                      className={`w-full px-3 py-2 font-bold border-2 ${errors.PhoneNumber
+                      className={`w-full px-3 py-2 font-bold border-2 ${errors.phone_number
                           ? "border-red-500"
                           : "border-[#02066F]"
                         } rounded-lg focus:outline-none`}
                       placeholder="Phone Number"
                     />
-                    {errors.PhoneNumber && (
+                    {errors.phone_number && (
                       <p className="text-red-500 text-xs italic mt-1">
-                        {errors.PhoneNumber}
+                        {errors.phone_number}
                       </p>
                     )}
                   </div>
@@ -1210,7 +1219,7 @@ const EmployeeList = () => {
                       id="superAdminPin"
                       type="text"
                       placeholder="Pin"
-                      value={formData.Pin}
+                      value={formData.pin}
                       className="w-full px-3 py-2 font-bold border-2 border-[#02066F] rounded-lg bg-gray-200 focus:outline-none"
                       disabled
                       readOnly
@@ -1221,19 +1230,19 @@ const EmployeeList = () => {
                       id="superAdminEmail"
                       type="email"
                       placeholder="Email"
-                      value={formData.Email}
+                      value={formData.email}
                       onChange={(e) =>
                         setFormData((prev) => ({
                           ...prev,
-                          Email: e.target.value,
+                          email: e.target.value,
                         }))
                       }
-                      className={`w-full px-3 py-2 font-bold border-2 ${errors.Email ? "border-red-500" : "border-[#02066F]"
+                      className={`w-full px-3 py-2 font-bold border-2 ${errors.email ? "border-red-500" : "border-[#02066F]"
                         } rounded-lg focus:outline-none`}
                     />
-                    {errors.Email && (
+                    {errors.email && (
                       <p className="text-red-500 text-xs italic mt-1">
-                        {errors.Email}
+                        {errors.email}
                       </p>
                     )}
                   </div>

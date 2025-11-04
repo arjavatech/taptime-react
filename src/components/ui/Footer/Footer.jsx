@@ -74,7 +74,7 @@ const Footer = () => {
             </li>
             <li>
               <a
-                href="/employeelist"
+                href="/employee-management"
                 className="text-gray-400 hover:text-white transition-colors duration-200"
               >
                 Employee Management

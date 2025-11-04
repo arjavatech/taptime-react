@@ -144,9 +144,9 @@ const Header = () => {
             )}
 
             <Link
-              to="/employeelist"
+              to="/employee-management"
               className={
-                isActive("/employeelist")
+                isActive("/employee-management")
                   ? "text-[#02066F] font-semibold underline decoration-2 underline-offset-12 underline-offset-4"
                   : "text-gray-500 underline-offset-4 hover:underline hover:decoration-2 hover:underline-offset-12 focus:text-[#02066F] focus:underline focus:decoration-2 focus:underline-offset-12"
               }
@@ -419,9 +419,9 @@ const Header = () => {
               </Link>
 
               <Link
-                to="/employeelist"
+                to="/employee-management"
                 className={
-                  isActive("/employeelist")
+                  isActive("/employee-management")
                     ? "block px-2 py-1 text-white rounded text-sm underline decoration-white decoration-2 underline-offset-6 underline-offset-4"
                     : "block px-2 py-1 text-white rounded text-sm hover:underline hover:decoration-white hover:underline-offset-4"
                 }

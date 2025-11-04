@@ -36,7 +36,7 @@ function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/privacypolicy" element={<PrivacyPolicy />} />
             <Route path="/register2" element={<Register2 />} />
-            <Route path="/employeelist" element={<EmployeeList/>} />
+            <Route path="/employee-management" element={<EmployeeList/>} />
             <Route path="/device" element={<Device/>}/>
             <Route path="/profile" element={<Profile/>} />
             <Route path="/contact" element={<ContactUs/>}/>

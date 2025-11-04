@@ -73,7 +73,7 @@ export const AuthProvider = ({ children }) => {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/login_new`,
+          redirectTo: `${window.location.origin}/login`,
           queryParams: {
             // Force Google to show account picker every time
             // This allows users to choose which Gmail account to use

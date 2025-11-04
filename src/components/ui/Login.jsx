@@ -41,7 +41,7 @@ const Login_new = () => {
 
           if (result.success) {
             // Redirect to employee list after successful data fetch
-            navigate('/employeelist');
+            navigate('/employee-management');
           } else {
             // If backend validation fails, sign out from Supabase and show error
             await signOut();
@@ -56,7 +56,7 @@ const Login_new = () => {
         }
       } else if (user && localStorage.getItem('companyID')) {
         // User already has data, redirect directly
-        navigate('/employeelist');
+        navigate('/employee-management');
       }
     };
 
@@ -117,7 +117,7 @@ const Login_new = () => {
         }
 
         // Step 4: Navigate to employee list after successful backend validation
-        navigate("/employeelist");
+        navigate("/employee-management");
       }
     } catch (err) {
       setErrorMsg("Authentication failed. Please try again.");

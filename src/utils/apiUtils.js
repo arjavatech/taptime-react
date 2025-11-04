@@ -2,12 +2,12 @@ import { supabase } from '../config/supabase';
 
 // API Base URLs
 export const API_URLS = {
-  employee: 'https://postgresql-restless-waterfall-2105.fly.dev/employee',
-  company: 'https://postgresql-restless-waterfall-2105.fly.dev/company',
-  customer: 'https://postgresql-restless-waterfall-2105.fly.dev/customer',
-  device: 'https://postgresql-restless-waterfall-2105.fly.dev/device',
-  loginCheck: 'https://postgresql-restless-waterfall-2105.fly.dev/employee/login_check',
-  signUp: 'https://postgresql-restless-waterfall-2105.fly.dev/auth/sign_up'
+  employee: 'http://0.0.0.0:8000/employee',
+  company: 'http://0.0.0.0:8000/company',
+  customer: 'http://0.0.0.0:8000/customer',
+  device: 'http://0.0.0.0:8000/device',
+  loginCheck: 'http://0.0.0.0:8000/employee/login_check',
+  signUp: 'http://0.0.0.0:8000/auth/sign_up'
 };
 
 // Encryption key
@@ -412,7 +412,7 @@ export const fetchDevices = async (companyId) => {
 };
 
 export const fetchDailyReport = async (companyId, date) => {
-  const BASE = "https://postgresql-restless-waterfall-2105.fly.dev";
+  const BASE = "http://0.0.0.0:8000";
   const apiUrl = `${BASE}/dailyreport/getdatebasedata/${companyId}/${date}`;
 
   try {
@@ -426,7 +426,7 @@ export const fetchDailyReport = async (companyId, date) => {
 };
 
 export const createDailyReportEntry = async (entryData) => {
-  const BASE = "https://postgresql-restless-waterfall-2105.fly.dev";
+  const BASE = "http://0.0.0.0:8000";
   const apiUrl = `${BASE}/dailyreport/create`;
 
   try {
@@ -447,7 +447,7 @@ export const createDailyReportEntry = async (entryData) => {
 };
 
 export const updateDailyReportEntry = async (empId, cid, checkinTime, updateData) => {
-  const BASE = "https://postgresql-restless-waterfall-2105.fly.dev";
+  const BASE = "http://0.0.0.0:8000";
   const apiUrl = `${BASE}/dailyreport/update/${empId}/${cid}/${encodeURIComponent(checkinTime)}`;
 
   try {
@@ -468,7 +468,7 @@ export const updateDailyReportEntry = async (empId, cid, checkinTime, updateData
 };
 
 export const fetchDateRangeReport = async (companyId, startDate, endDate) => {
-  const BASE = "https://postgresql-restless-waterfall-2105.fly.dev";
+  const BASE = "http://0.0.0.0:8000";
   const apiUrl = `${BASE}/report/dateRangeReportGet/${companyId}/${startDate}/${endDate}`;
   
   try {
@@ -482,7 +482,7 @@ export const fetchDateRangeReport = async (companyId, startDate, endDate) => {
 };
 
 // Report Settings API functions
-const REPORT_API_BASE = 'https://postgresql-restless-waterfall-2105.fly.dev';
+const REPORT_API_BASE = 'http://0.0.0.0:8000';
 const REPORT_TYPES = ['Daily', 'Weekly', 'Biweekly', 'Monthly', 'Bimonthly'];
 
 export const createReportObject = (email, companyId, deviceId, selectedValues) => {
@@ -629,7 +629,7 @@ export const deleteEmployeeById = async (empId) => {
 
 // Contact form API function
 export const submitContactForm = async (userData) => {
-  const apiUrl = 'https://postgresql-restless-waterfall-2105.fly.dev/web_contact_us/create';
+  const apiUrl = 'http://0.0.0.0:8000/web_contact_us/create';
   
   try {
     const response = await fetch(apiUrl, {
@@ -734,7 +734,7 @@ export const supabaseGoogleSignIn = async () => {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/employeelist`,
+        redirectTo: `${window.location.origin}/employee-management`,
       },
     });
 
