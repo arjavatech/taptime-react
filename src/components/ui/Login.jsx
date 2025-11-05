@@ -16,17 +16,39 @@ const Login_new = () => {
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
-  const { signInWithEmail, signInWithGoogle, signOut, user, session, fetchBackendUserData } = useAuth();
+  const { signInWithEmail, signInWithGoogle, signOut, user, session, loading: authLoading, fetchBackendUserData } = useAuth();
   const [isProcessingOAuth, setIsProcessingOAuth] = useState(false);
 
   // Handle OAuth callback - fetch backend data after Google login redirect
   useEffect(() => {
     const handleOAuthCallback = async () => {
-      // Only run if this is a redirect from Google OAuth (has code in URL)
-      const isOAuthRedirect = window.location.search.includes('code');
+      // Check if this is an OAuth callback using sessionStorage flag (not URL)
+      // URL parameter 'code' gets cleaned by Supabase before we can check it
+      const isOAuthFlow = sessionStorage.getItem('pending_oauth_callback') === 'true';
+
+      // Debug: Log all condition values and full diagnostic info
+      console.log('=== OAUTH CALLBACK DIAGNOSTIC ===');
+      console.log('Full URL:', window.location.href);
+      console.log('Search params:', window.location.search);
+      console.log('Has code in URL:', window.location.search.includes('code'));
+      console.log('OAuth flag in sessionStorage:', isOAuthFlow);
+      console.log('Condition values:', {
+        isOAuthFlow,
+        authLoading,
+        hasSession: !!session,
+        hasUser: !!user,
+        userEmail: user?.email,
+        isProcessingOAuth,
+        hasCompanyID: !!localStorage.getItem('companyID'),
+        companyID: localStorage.getItem('companyID')
+      });
+      console.log('================================');
 
       // Check if we have a session and user, but haven't processed backend data yet
-      if (isOAuthRedirect && session && user && !isProcessingOAuth && !localStorage.getItem('companyID')) {
+      // Wait for authLoading to complete before checking session/user
+      if (isOAuthFlow && !authLoading && session && user && !isProcessingOAuth && !localStorage.getItem('companyID')) {
+        console.log('✅ Google OAuth callback triggered - all conditions met!');
+        console.log('Will call login_check API for:', user.email);
         setIsProcessingOAuth(true);
         setLoading(true);
 
@@ -36,20 +58,30 @@ const Login_new = () => {
           const userName = user.user_metadata?.full_name || user.user_metadata?.name || user.email.split('@')[0];
           const userPicture = user.user_metadata?.avatar_url || user.user_metadata?.picture || '';
 
+          console.log('Calling custom login_check API for Google user:', userEmail);
+
           // Validate email with backend and fetch company/timezone/customer data
           const result = await fetchBackendUserData(userEmail, userName, userPicture);
 
+          console.log('Custom API response:', result.success ? 'Success' : 'Failed', result);
+
           if (result.success) {
+            // Clear OAuth flag after successful processing
+            sessionStorage.removeItem('pending_oauth_callback');
+            console.log('✅ OAuth callback completed successfully, flag cleared');
+
             // Redirect to employee list after successful data fetch
             navigate('/employee-management');
           } else {
             // If backend validation fails, sign out from Supabase and show error
+            sessionStorage.removeItem('pending_oauth_callback');
             await signOut();
             setErrorMsg(result.error || 'Failed to validate user. Please contact your administrator.');
             setLoading(false);
           }
         } catch (error) {
           // Sign out on error and show error message
+          sessionStorage.removeItem('pending_oauth_callback');
           await signOut();
           setErrorMsg('Failed to complete authentication');
           setLoading(false);
@@ -61,7 +93,7 @@ const Login_new = () => {
     };
 
     handleOAuthCallback();
-  }, [session, user, navigate, isProcessingOAuth]); // Removed fetchBackendUserData (now memoized)
+  }, [session, user, authLoading, navigate, isProcessingOAuth, fetchBackendUserData, signOut]); // Added authLoading to re-run when loading completes
 
   const handleEmailLogin = async (e) => {
     e?.preventDefault();
@@ -130,16 +162,24 @@ const Login_new = () => {
     setLoading(true);
     setErrorMsg("");
 
+    // Set flag to track OAuth flow - this survives the redirect
+    sessionStorage.setItem('pending_oauth_callback', 'true');
+    console.log('Setting pending_oauth_callback flag before OAuth redirect');
+
     try {
       const { error } = await signInWithGoogle();
 
       if (error) {
+        // Clear flag on error
+        sessionStorage.removeItem('pending_oauth_callback');
         setErrorMsg(error.message || "Google Sign-In failed");
         setLoading(false);
       }
       // Note: After successful Google login, the user will be redirected
       // by Supabase, so we don't need to navigate manually here
     } catch (err) {
+      // Clear flag on error
+      sessionStorage.removeItem('pending_oauth_callback');
       setErrorMsg("Google Sign-In failed. Please try again.");
       setLoading(false);
     }

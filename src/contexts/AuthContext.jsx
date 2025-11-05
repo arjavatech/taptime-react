@@ -73,7 +73,7 @@ export const AuthProvider = ({ children }) => {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/employee-management`,
+          redirectTo: `${window.location.origin}/login`,
           queryParams: {
             // Force Google to show account picker every time
             // This allows users to choose which Gmail account to use
@@ -122,16 +122,21 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Fetch backend user data after Supabase authentication
-  // Called ONLY for Google OAuth logins (email/password login skips this)
+  // Called for BOTH email/password and Google OAuth logins
   // Wrapped in useCallback to prevent unnecessary re-renders
   const fetchBackendUserData = useCallback(async (email, userName = null, userPicture = null) => {
     try {
+      console.log(`fetchBackendUserData called with email: ${email}`);
+
       // Step 1: Validate email with backend and get companyID
-      // Note: This fetches company, timezone, and customer data from backend
-      // Email/password logins skip this step and use only Supabase data
+      // This validates the email exists in the backend employee database
+      // and fetches company, timezone, and customer data
       const result = await googleSignInCheck(email);
 
+      console.log('googleSignInCheck API result:', result);
+
       if (!result.success) {
+        console.error('Backend validation failed:', result.error);
         return {
           success: false,
           error: result.error || 'Failed to validate user with backend'

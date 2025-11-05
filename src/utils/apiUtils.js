@@ -110,7 +110,9 @@ export const loginCheck = async (username, password) => {
  */
 export const googleSignInCheck = async (email) => {
   try {
+    console.log(`Making API call to: ${API_URLS.loginCheck}/${email}`);
     const res = await fetch(`${API_URLS.loginCheck}/${email}`);
+    console.log('API response status:', res.status, res.statusText);
     if (!res.ok) throw new Error('Network response was not ok');
 
     const data = await res.json();
@@ -649,7 +651,7 @@ export const deleteEmployeeById = async (empId) => {
   const apiUrl = `${API_URLS.employee}/delete/${empId}/Admin`;
   
   try {
-    const response = await fetch(apiUrl, { method: 'PUT' });
+    const response = await fetch(apiUrl, { method: 'DELETE' });
     if (!response.ok) throw new Error(`Error: ${response.status}`);
     return await response.json();
   } catch (error) {
