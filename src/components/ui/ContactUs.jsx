@@ -146,14 +146,16 @@ const ContactUs = () => {
     const cid = localStorage.getItem("companyID") || "";
 
     const userData = {
-      RequestID: requestID,
-      CID: cid,
-      Name: cname,
-      RequestorEmail: cemail,
-      ConcernsQuestions: question,
-      PhoneNumber: phoneNumber,
-      Status: "pending",
-      LastModifiedBy: "Admin",
+
+      request_id: requestID,
+      c_id: cid,
+      name: cname,
+      requestor_email: cemail,
+      concerns_questions: question,
+      phone_number: phoneNumber,
+      status: "pending",
+      last_modified_by: "Admin",
+      is_active: true
     };
 
     const response = await fetch(apiLink, {
