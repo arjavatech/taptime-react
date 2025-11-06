@@ -614,23 +614,23 @@ export const getReportEmail = async (email, companyId) => {
   }
 };
 
-export const submitContactForm = async (userData) => {
-  const apiUrl = `${API_URLS.contact}/create`;
+// export const submitContactForm = async (userData) => {
+//   const apiUrl = `${API_URLS.contact}/create`;
   
-  try {
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(userData)
-    });
+//   try {
+//     const response = await fetch(apiUrl, {
+//       method: 'POST',
+//       headers: { 'Content-Type': 'application/json' },
+//       body: JSON.stringify(userData)
+//     });
     
-    if (!response.ok) throw new Error(`Error: ${response.status}`);
-    return await response.json();
-  } catch (error) {
-    console.error('Contact form submission error:', error);
-    throw error;
-  }
-};
+//     if (!response.ok) throw new Error(`Error: ${response.status}`);
+//     return await response.json();
+//   } catch (error) {
+//     console.error('Contact form submission error:', error);
+//     throw error;
+//   }
+// };
 
 export const updateAdminReportType = async (companyId, reportData) => {
   const apiUrl = `${API_URLS.adminReportType}/update/${companyId}`;
