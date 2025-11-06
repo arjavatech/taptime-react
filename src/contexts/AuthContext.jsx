@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import { supabase } from '../config/supabase';
-import { googleSignInCheck, getTimeZone, getCustomerData } from '../utils/apiUtils';
+import { googleSignInCheck, getTimeZone, getCustomerData } from '../api.js';
 
 const AuthContext = createContext({});
 
