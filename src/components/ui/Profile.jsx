@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Header2 from "./Navbar/Header";
 import Footer2 from "./Footer/Footer";
-import { updateCompany, updateCustomer } from "../../utils/apiUtils";
+import { updateCompany, updateCustomer, updateCompanyAndCustomer, fetchEmployeeData } from "../../utils/apiUtils";
 
 const Profile = () => {
   // State variables
@@ -18,6 +18,7 @@ const Profile = () => {
   const [formData, setFormData] = useState({
     companyName: "",
     companyStreet: "",
+    companyStreet2: "",
     companyCity: "",
     companyState: "",
     companyZip: "",
@@ -25,6 +26,7 @@ const Profile = () => {
     lastName: "",
     EName: "",
     customerStreet: "",
+    customerStreet2: "",
     customerCity: "",
     customerState: "",
     customerZip: "",
@@ -94,28 +96,31 @@ const Profile = () => {
         adminDetails = JSON.parse(storedAdmin);
       }
 
-      const companyAddress = localStorage.getItem("companyAddress") || "";
-      const customerAddress = localStorage.getItem("address") || "";
-      const [companyStreet, companyCity, companyState, companyZip] =
-        companyAddress.split("--");
-      const [customerStreet, customerCity, customerState, customerZip] =
-        customerAddress.split("--");
-
+      // Read directly from separate localStorage fields (new structure)
       const newFormData = {
+        // Company info
         companyName: localStorage.getItem("companyName") || "",
-        companyStreet: companyStreet || "",
-        companyCity: companyCity || "",
-        companyState: companyState || "",
-        companyZip: companyZip || "",
+        companyStreet: localStorage.getItem("companyStreet") || "",
+        companyStreet2: localStorage.getItem("companyStreet2") || "",
+        companyCity: localStorage.getItem("companyCity") || "",
+        companyState: localStorage.getItem("companyState") || "",
+        companyZip: localStorage.getItem("companyZip") || "",
         logo: localStorage.getItem("companyLogo") || "",
+
+        // Customer/Admin personal info
         firstName: localStorage.getItem("firstName") || "",
         lastName: localStorage.getItem("lastName") || "",
-        customerStreet: customerStreet || "",
-        customerCity: customerCity || "",
-        customerState: customerState || "",
-        customerZip: customerZip || "",
-        email: localStorage.getItem("email") || "",
-        phone: localStorage.getItem("phone") || "",
+        email: localStorage.getItem("adminMail") || "",
+        phone: localStorage.getItem("phone") || localStorage.getItem("phoneNumber") || "",
+
+        // Customer address info (separate fields)
+        customerStreet: localStorage.getItem("customerStreet") || "",
+        customerStreet2: localStorage.getItem("customerStreet2") || "",
+        customerCity: localStorage.getItem("customerCity") || "",
+        customerState: localStorage.getItem("customerState") || "",
+        customerZip: localStorage.getItem("customerZip") || "",
+
+        // Admin fields (populated later if admin)
         EName: "",
         adminPin: "",
         decryptedPassword: "",
@@ -242,49 +247,180 @@ const Profile = () => {
     return isValid;
   };
 
+  // Combined validation for Owner admin type
+  const validateAllFields = () => {
+    const companyValid = validateCompanyFields();
+    const customerValid = validateCustomerFields();
+    return companyValid && customerValid;
+  };
+
   // API functions
   const callCompanyAPI = async () => {
-    if (!companyId) return;
+    console.log("=== callCompanyAPI entered ===");
+    console.log("companyId:", companyId);
+
+    if (!companyId) {
+      console.error("❌ Exiting early: No companyId found");
+      return;
+    }
+
     const companyData = {
       CID: companyId,
       UserName: localStorage.getItem("username"),
       CName: formData.companyName,
-      CAddress: `${formData.companyStreet}--${formData.companyCity}--${formData.companyState}--${formData.companyZip}`,
+      CAddress: `${formData.companyStreet}--${formData.companyStreet2 || ""}--${formData.companyCity}--${formData.companyState}--${formData.companyZip}`,
       CLogo: formData.logo || localStorage.getItem("companyLogo"),
       Password: localStorage.getItem("password"),
       ReportType: "Weekly",
       LastModifiedBy: "Admin",
     };
 
+    console.log("Company data to send:", companyData);
+
     try {
+      console.log("🚀 Calling updateCompany API...");
       await updateCompany(companyId, companyData);
+      console.log("✅ updateCompany API call completed successfully");
+
+      // Update localStorage with new values
+      localStorage.setItem("companyName", formData.companyName);
+      localStorage.setItem("companyStreet", formData.companyStreet);
+      localStorage.setItem("companyStreet2", formData.companyStreet2 || "");
+      localStorage.setItem("companyCity", formData.companyCity);
+      localStorage.setItem("companyState", formData.companyState);
+      localStorage.setItem("companyZip", formData.companyZip);
+      if (formData.logo) {
+        localStorage.setItem("companyLogo", formData.logo);
+      }
+
       setShowSuccessModal(true);
       setTimeout(() => setShowSuccessModal(false), 2000);
     } catch (error) {
-      console.error("Company API Error:", error);
+      console.error("❌ Company API Error:", error);
     }
   };
 
   const callCustomerAPI = async () => {
-    if (!companyId || !customerId) return;
+    console.log("=== callCustomerAPI entered ===");
+    console.log("companyId:", companyId, "customerId:", customerId);
+
+    if (!companyId || !customerId) {
+      console.error("❌ Exiting early: Missing IDs - companyId:", companyId, "customerId:", customerId);
+      return;
+    }
+
     const customerData = {
       CustomerID: customerId,
       CID: companyId,
       FName: formData.firstName,
       LName: formData.lastName,
-      Address: `${formData.customerStreet}--${formData.customerCity}--${formData.customerState}--${formData.customerZip}`,
+      Address: `${formData.customerStreet}--${formData.customerStreet2 || ""}--${formData.customerCity}--${formData.customerState}--${formData.customerZip}`,
       PhoneNumber: formData.phone,
       Email: formData.email,
       IsActive: true,
       LastModifiedBy: "Admin",
     };
 
+    console.log("Customer data to send:", customerData);
+
     try {
+      console.log("🚀 Calling updateCustomer API...");
       await updateCustomer(customerId, customerData);
+      console.log("✅ updateCustomer API call completed successfully");
+
+      // Update localStorage with new values
+      localStorage.setItem("firstName", formData.firstName);
+      localStorage.setItem("lastName", formData.lastName);
+      localStorage.setItem("userName", `${formData.firstName} ${formData.lastName}`.trim());
+      localStorage.setItem("adminMail", formData.email);
+      localStorage.setItem("phone", formData.phone);
+      localStorage.setItem("phoneNumber", formData.phone);
+      localStorage.setItem("customerStreet", formData.customerStreet);
+      localStorage.setItem("customerStreet2", formData.customerStreet2 || "");
+      localStorage.setItem("customerCity", formData.customerCity);
+      localStorage.setItem("customerState", formData.customerState);
+      localStorage.setItem("customerZip", formData.customerZip);
+
       setShowSuccessModal(true);
       setTimeout(() => setShowSuccessModal(false), 2000);
     } catch (error) {
-      console.error("Customer API Error:", error);
+      console.error("❌ Customer API Error:", error);
+    }
+  };
+
+  // Combined API call for Owner admin type - updates both company and customer in one call
+  const callCombinedOwnerAPI = async () => {
+    console.log("=== callCombinedOwnerAPI entered ===");
+    console.log("companyId:", companyId);
+
+    if (!companyId) {
+      console.error("❌ Exiting early: No companyId found");
+      return;
+    }
+
+    const combinedData = {
+      // Company fields (snake_case)
+      company_name: formData.companyName,
+      company_logo: formData.logo || localStorage.getItem("companyLogo") || "",
+      report_type: localStorage.getItem("reportType") || "Weekly",
+      company_address_line1: formData.companyStreet,
+      company_address_line2: formData.companyStreet2 || "",
+      company_city: formData.companyCity,
+      company_state: formData.companyState,
+      company_zip_code: formData.companyZip,
+
+      // Customer fields (snake_case)
+      first_name: formData.firstName,
+      last_name: formData.lastName,
+      email: formData.email,
+      phone_number: formData.phone,
+      customer_address_line1: formData.customerStreet,
+      customer_address_line2: formData.customerStreet2 || "",
+      customer_city: formData.customerCity,
+      customer_state: formData.customerState,
+      customer_zip_code: formData.customerZip,
+
+      // Additional metadata
+      is_verified: localStorage.getItem("isVerified") === "true" || true,
+      device_count: parseInt(localStorage.getItem("NoOfDevices") || "1"),
+      employee_count: parseInt(localStorage.getItem("NoOfEmployees") || "30"),
+      last_modified_by: localStorage.getItem("adminMail") || "Admin"
+    };
+
+    console.log("Combined data to send:", combinedData);
+
+    try {
+      console.log("🚀 Calling updateCompanyAndCustomer API...");
+      await updateCompanyAndCustomer(companyId, combinedData);
+      console.log("✅ updateCompanyAndCustomer API call completed successfully");
+
+      // Update ALL localStorage values (company + customer)
+      localStorage.setItem("companyName", formData.companyName);
+      localStorage.setItem("companyStreet", formData.companyStreet);
+      localStorage.setItem("companyStreet2", formData.companyStreet2 || "");
+      localStorage.setItem("companyCity", formData.companyCity);
+      localStorage.setItem("companyState", formData.companyState);
+      localStorage.setItem("companyZip", formData.companyZip);
+      if (formData.logo) {
+        localStorage.setItem("companyLogo", formData.logo);
+      }
+
+      localStorage.setItem("firstName", formData.firstName);
+      localStorage.setItem("lastName", formData.lastName);
+      localStorage.setItem("userName", `${formData.firstName} ${formData.lastName}`.trim());
+      localStorage.setItem("adminMail", formData.email);
+      localStorage.setItem("phone", formData.phone);
+      localStorage.setItem("phoneNumber", formData.phone);
+      localStorage.setItem("customerStreet", formData.customerStreet);
+      localStorage.setItem("customerStreet2", formData.customerStreet2 || "");
+      localStorage.setItem("customerCity", formData.customerCity);
+      localStorage.setItem("customerState", formData.customerState);
+      localStorage.setItem("customerZip", formData.customerZip);
+
+      setShowSuccessModal(true);
+      setTimeout(() => setShowSuccessModal(false), 2000);
+    } catch (error) {
+      console.error("❌ Combined Owner API Error:", error);
     }
   };
 
@@ -330,12 +466,37 @@ const Profile = () => {
   };
 
   const toggleCompanyEditMode = () => {
-    if (userType === "Owner" && companyEditMode) {
-      if (validateCompanyFields()) {
-        callCompanyAPI();
-        setCompanyEditMode(false);
+    console.log("toggleCompanyEditMode called, userType:", userType, "companyEditMode:", companyEditMode);
+
+    if (companyEditMode) {
+      // Save mode - user clicked "Save"
+      if (userType === "Owner") {
+        console.log("Owner: Validating all fields and calling combined API");
+        const isValid = validateAllFields();
+        console.log("Validation result (validateAllFields):", isValid);
+        if (isValid) {
+          console.log("✅ Validation passed - calling callCombinedOwnerAPI");
+          callCombinedOwnerAPI();
+          setCompanyEditMode(false);
+        } else {
+          console.log("❌ Validation failed - API will not be called");
+        }
+      } else {
+        // Admin or SuperAdmin
+        console.log("Admin/SuperAdmin: Validating company fields and calling company API");
+        const isValid = validateCompanyFields();
+        console.log("Validation result (validateCompanyFields):", isValid);
+        if (isValid) {
+          console.log("✅ Validation passed - calling callCompanyAPI");
+          callCompanyAPI();
+          setCompanyEditMode(false);
+        } else {
+          console.log("❌ Validation failed - API will not be called");
+        }
       }
     } else {
+      // Edit mode - user clicked "Edit"
+      console.log("Entering edit mode");
       setCompanyEditMode(true);
       setCustomerEditMode(false);
     }
@@ -343,9 +504,16 @@ const Profile = () => {
 
   const toggleCustomerEditMode = () => {
     if (customerEditMode) {
-      if (validateCustomerFields()) {
-        callCustomerAPI();
-        setCustomerEditMode(false);
+      if (userType === "Owner") {
+        if (validateAllFields()) {
+          callCombinedOwnerAPI();
+          setCustomerEditMode(false);
+        }
+      } else {
+        if (validateCustomerFields()) {
+          callCustomerAPI();
+          setCustomerEditMode(false);
+        }
       }
     } else {
       setCustomerEditMode(true);

@@ -146,15 +146,6 @@ export const googleSignInCheck = async (email) => {
       };
       const properCaseAdminType = adminTypeMap[normalizedAdminType];
 
-      // Combine customer address fields for backward compatibility
-      const customerAddress = [
-        data["customer_address_line1"],
-        data["customer_address_line2"],
-        data["customer_city"],
-        data["customer_state"],
-        data["customer_zip_code"]
-      ].filter(Boolean).join(", ");
-
       // Combine first and last name to create userName
       const userName = `${data["first_name"] || ""} ${data["last_name"] || ""}`.trim();
 
@@ -165,11 +156,19 @@ export const googleSignInCheck = async (email) => {
         companyLogo: data["company_logo"],
         reportType: data["report_type"],
 
-        // Split company address fields
+        // Company address fields (separate, not combined)
         companyStreet: data["company_address_line1"],
+        companyStreet2: data["company_address_line2"],
         companyCity: data["company_city"],
         companyState: data["company_state"],
         companyZip: data["company_zip_code"],
+
+        // Customer address fields (separate, not combined)
+        customerStreet: data["customer_address_line1"],
+        customerStreet2: data["customer_address_line2"],
+        customerCity: data["customer_city"],
+        customerState: data["customer_state"],
+        customerZip: data["customer_zip_code"],
 
         // Admin data
         adminMail: data["email"],
@@ -182,15 +181,14 @@ export const googleSignInCheck = async (email) => {
         userName: userName,
         phone: data["phone_number"],
         phoneNumber: data["phone_number"],
-        address: customerAddress,
 
         // Additional metadata
         isVerified: data["is_verified"],
         createdDate: data["created_date"],
 
-        // Default values for missing fields
-        NoOfDevices: "1",
-        NoOfEmployees: "50"
+        // Actual counts from API (not hardcoded)
+        NoOfDevices: data["device_count"]?.toString() || "1",
+        NoOfEmployees: data["employee_count"]?.toString() || "30"
       };
 
       Object.entries(storeData).forEach(([key, value]) => {
@@ -392,18 +390,37 @@ export const updateCompany = async (cid, companyData) => {
 
 export const updateCustomer = async (customerId, customerData) => {
   const apiUrl = `${API_URLS.customer}/update/${customerId}`;
-  
+
   try {
     const response = await fetch(apiUrl, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(customerData)
     });
-    
+
     if (!response.ok) throw new Error(`Error: ${response.status}`);
     return await response.json();
   } catch (error) {
     console.error("Update customer error:", error);
+    throw error;
+  }
+};
+
+// Combined update for Owner admin type - updates both company and customer in one call
+export const updateCompanyAndCustomer = async (cid, combinedData) => {
+  const apiUrl = `${API_URLS.company}/update/${cid}`;
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(combinedData)
+    });
+
+    if (!response.ok) throw new Error(`Error: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error("Update company and customer error:", error);
     throw error;
   }
 };
@@ -437,7 +454,7 @@ export const fetchDevices = async (companyId) => {
       id: device.device_id,
       name: device.device_name,
       deviceId: device.device_id
-      
+
     }));
   } catch (error) {
     console.error("Error fetching devices:", error);
