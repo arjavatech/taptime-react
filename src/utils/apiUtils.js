@@ -437,6 +437,7 @@ export const fetchDevices = async (companyId) => {
       id: device.device_id,
       name: device.device_name,
       deviceId: device.device_id
+      
     }));
   } catch (error) {
     console.error("Error fetching devices:", error);

@@ -61,7 +61,7 @@ const Device = () => {
   // Initialize on component mount
   useEffect(() => {
     // Initialize maxDevices from localStorage
-    const limitStr = localStorage.getItem("NoOfDevices") || "";
+    const limitStr = localStorage.getItem("device_count") || "";
     setMaxDevices(parseInt(limitStr, 10) || 0);
 
 
@@ -329,7 +329,7 @@ const Device = () => {
                           scope="col"
                           className="px-6 py-3 text-center text-base font-bold tracking-wider"
                         >
-                          Center Native
+                          Branch
                         </th>
                         <th
                           scope="col"
@@ -343,20 +343,20 @@ const Device = () => {
                       {devices.map((device) => (
                         <tr key={device.AccessKey}>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
-                            {device.TimeZone}
+                            {device.time_zone || "Not Registered"}
                           </td>
                           <td className="relative px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
-                            {maskString(device.AccessKey, 4)}
+                            {maskString(device.access_key, 4)}
 
                             <button
                               className="ml-2 text-[#02066F] hover:text-black cursor-pointer relative"
-                              onClick={() => copyAccessKey(device.AccessKey)}
+                              onClick={() => copyAccessKey(device.access_key)}
                             >
                               <i className="far fa-copy"></i>
                             </button>
 
                             {showCopyTooltip &&
-                              copiedAccessKey === device.AccessKey && (
+                              copiedAccessKey === device.access_key && (
                                 <span
                                   className="absolute -top-3 left-32 transform -translate-x-1/2 
                               bg-gray-300 text-black text-xs font-bold px-2 py-1 rounded shadow-md whitespace-nowrap"
@@ -367,31 +367,34 @@ const Device = () => {
                           </td>
 
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
-                            {device.DeviceID}
+                            {device.device_id}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
-                            {device.DeviceName}
+                            {device.device_name}
                           </td>
-                          <td
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
+                            {device.branch_name || "Not Registered"}
+                          </td>
+                          {/* <td
                             className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center"
                             onClick={() =>
-                              handleCenterNativeEdit(device.AccessKey)
+                              handleCenterNativeEdit(device.access_key)
                             }
                           >
-                            {editingDevice === device.AccessKey ? (
+                            {editingDevice === device.access_key ? (
                               <input
                                 type="text"
                                 value={
-                                  centerNativeValues[device.AccessKey] || ""
+                                  centerNativeValues[device.access_key] || ""
                                 }
                                 onChange={(e) =>
                                   handleCenterNativeChange(
-                                    device.AccessKey,
+                                    device.access_key,
                                     e.target.value
                                   )
                                 }
                                 onKeyDown={(e) =>
-                                  handleCenterNativeKeydown(e, device.AccessKey)
+                                  handleCenterNativeKeydown(e, device.access_key)
                                 }
                                 onBlur={handleCenterNativeBlur}
                                 className="w-full text-center border-1 border-gray-400 focus:outline-none"
@@ -399,18 +402,18 @@ const Device = () => {
                               />
                             ) : (
                               <span className="cursor-pointer">
-                                {centerNativeValues[device.AccessKey] ? (
-                                  centerNativeValues[device.AccessKey]
+                                {centerNativeValues[device.access_key] ? (
+                                  centerNativeValues[device.access_key]
                                 ) : (
                                   <i className="fas fa-pencil-alt"></i>
                                 )}
                               </span>
                             )}
-                          </td>
+                          </td> */}
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 text-center">
                             <button
                               className="text-[#02066F] p-1 cursor-pointer"
-                              onClick={() => confirmDelete(device.AccessKey)}
+                              onClick={() => confirmDelete(device.access_key)}
                             >
                               <i className="fas fa-trash"></i>
                             </button>
