@@ -142,18 +142,21 @@ const ContactUs = () => {
 
   // API call using centralized function
   const callContactUsCreateAPiData = async () => {
+    const apiLink = `http://0.0.0.0:8000/contact-us/create`;
     const requestID = uuidv4();
     const cid = localStorage.getItem("companyID") || "";
 
-    const contactData = {
-      RequestID: requestID,
-      CID: cid,
-      Name: cname,
-      RequestorEmail: cemail,
-      ConcernsQuestions: question,
-      PhoneNumber: phoneNumber,
-      Status: "pending",
-      LastModifiedBy: "Admin",
+    const userData = {
+
+      request_id: requestID,
+      c_id: cid,
+      name: cname,
+      requestor_email: cemail,
+      concerns_questions: question,
+      phone_number: phoneNumber,
+      status: "pending",
+      last_modified_by: "Admin",
+      is_active: true
     };
 
     await submitContactUsForm(contactData);

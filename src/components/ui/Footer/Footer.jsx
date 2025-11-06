@@ -44,11 +44,54 @@ const Footer = () => {
         <div className="quick-links w-50 md:w-auto text-left" style={{ alignSelf: "center", justifySelf: "center", paddingLeft: "25px" }}>
           <h4 className="text-lg sm:text-[16px] font-bold mb-6">QUICK EXPLORE</h4>
           <ul className="list-none space-y-2 text-sm sm:text-base">
-            {quickLinks.map((link, i) => (
-              <li key={i}>
-                <a href={link.href} className="hover:text-blue-400 transition-colors duration-200">{link.text}</a>
-              </li>
-            ))}
+            <li>
+              <a
+                href="/device"
+                className="text-gray-400 hover:text-white transition-colors duration-200"
+              >
+                Device
+              </a>
+            </li>
+            <li>
+              <a
+                href="/employee-management"
+                className="text-gray-400 hover:text-white transition-colors duration-200"
+              >
+                Employee Management
+              </a>
+            </li>
+            <li>
+              <a
+                href="/reportsummary"
+                className="text-gray-400 hover:text-white transition-colors duration-200"
+              >
+                Report Summary
+              </a>
+            </li>
+            <li>
+              <a
+                href="/reportsetting"
+                className="text-gray-400 hover:text-white transition-colors duration-200"
+              >
+                Report Settings
+              </a>
+            </li>
+            <li>
+              <a
+                href="/profile"
+                className="text-gray-400 hover:text-white transition-colors duration-200"
+              >
+                Profile
+              </a>
+            </li>
+            <li>
+              <a
+                href="/contact"
+                className="text-gray-400 hover:text-white transition-colors duration-200"
+              >
+                Contact Us
+              </a>
+            </li>
           </ul>
         </div>
 

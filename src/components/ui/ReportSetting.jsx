@@ -98,7 +98,7 @@ const ReportSetting = () => {
   };
 
   const openEditModal = (email, frequencies) => {
-    setCurrentEmail(email);
+    setCurrentEmail(email.trim());
     setCurrentFrequencies([...frequencies]);
     setEmailError("");
     setFrequencyError("");
@@ -131,7 +131,7 @@ const ReportSetting = () => {
     if (!email.trim()) {
       setEmailError("Email is required");
       return false;
-    } else if (!isEmail.test(email)) {
+    } else if (!isEmail.test(email.trim())) {
       setEmailError("Email pattern is invalid");
       return false;
     }
@@ -214,14 +214,15 @@ const ReportSetting = () => {
     if (typeof window === "undefined") return;
     const company_id = localStorage.getItem("companyID") || "";
     const setting = {
-      CID: company_id,
-      ReportType: viewFrequencies.join(","),
-      LastModifiedBy: localStorage.getItem("UserEmail") || localStorage.getItem("userName") || "unknown",
+      c_id: company_id,
+      report_type: viewFrequencies.join(","),
+      last_modified_date_time: new Date().toISOString(),
+      last_modified_by: localStorage.getItem("UserEmail") || localStorage.getItem("userName") || "unknown",
     };
 
     setIsLoading(true);
     try {
-      const response = await fetch(`https://postgresql-holy-firefly-3725.fly.dev/admin-report-type/update/${company_id}`, {
+      const response = await fetch(`http://0.0.0.0:8000/admin-report-type/update/${company_id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(setting),
@@ -239,14 +240,13 @@ const ReportSetting = () => {
   };
 
   const formatFrequencies = (setting) => {
-    const freqMap = {
-      IsDailyReportActive: "Daily",
-      IsWeeklyReportActive: "Weekly", 
-      IsBiWeeklyReportActive: "Biweekly",
-      IsMonthlyReportActive: "Monthly",
-      IsBiMonthlyReportActive: "Bimonthly"
-    };
-    return Object.entries(freqMap).filter(([key]) => setting[key]).map(([, value]) => value).join(", ");
+    const frequencies = [];
+    if (setting.is_daily_report_active) frequencies.push("Daily");
+    if (setting.is_weekly_report_active) frequencies.push("Weekly");
+    if (setting.is_bi_weekly_report_active) frequencies.push("Biweekly");
+    if (setting.is_monthly_report_active) frequencies.push("Monthly");
+    if (setting.is_bi_monthly_report_active) frequencies.push("Bimonthly");
+    return frequencies.join(", ");
   };
 
   const selectFrequency = (freq) => {
@@ -388,36 +388,66 @@ const ReportSetting = () => {
         )}
 
         <div className="max-w-5xl mx-auto pt-25">
-          <TableSection title="Report Settings" headers={["Email", "Frequency", "Action"]} showAddButton onAddClick={openAddModal}>
-            {emailSettings.length === 0 ? (
-              <tr>
-                <td colSpan="3" className="px-6 py-4 text-center text-gray-500">
-                  {isLoading ? "Loading..." : "No report settings found"}
-                </td>
-              </tr>
-            ) : (
-              emailSettings.map((setting, index) => (
-                <tr key={index} className="text-center">
-                  <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
-                    {setting.CompanyReporterEmail}
-                  </td>
-                  <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
-                    {formatFrequencies(setting)}
-                  </td>
-                  <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
-                    <div className="flex justify-center space-x-6">
-                      <button onClick={() => openEditModal(setting.CompanyReporterEmail, formatFrequencies(setting).split(", "))} className="text-[#02066F]">
-                        <i className="fas fa-pencil-alt cursor-pointer"></i>
-                      </button>
-                      <button onClick={() => openDeleteModal(setting.CompanyReporterEmail)} className="text-[#02066F]">
-                        <i className="fas fa-trash cursor-pointer"></i>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </TableSection>
+          <div className="flex flex-row md:flex-row md:items-center items-center justify-between md:justify-between mb-6">
+            <h2 className="text-xl md:text-2xl xl:text-3xl font-bold mb-4 md:mb-0 text-gray-800">Report Settings</h2>
+            <button
+              onClick={openAddModal}
+              className="px-4 py-2 text-[#02066F] border-1 border-[#02066F] cursor-pointer rounded-lg transition-colors duration-200 bg-white"
+            >
+              Add Setting
+            </button>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md p-6 mb-8">
+            <div className="overflow-x-auto">
+              <table className="w-full divide-y divide-gray-200">
+                <thead>
+                  <tr>
+                    <th className="px-6 py-3 text-center text-base font-bold tracking-wider">Email</th>
+                    <th className="px-6 py-3 text-center text-base font-bold tracking-wider">Frequency</th>
+                    <th className="px-6 py-3 text-center text-base font-bold tracking-wider">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {emailSettings.length === 0 ? (
+                    <tr>
+                      <td colSpan="3" className="px-6 py-4 text-center text-gray-500">
+                        {isLoading ? "Loading..." : "No report settings found"}
+                      </td>
+                    </tr>
+                  ) : (
+                    Array.isArray(emailSettings) &&
+                    emailSettings.map((setting, index) => (
+                      <tr key={index} className="text-center">
+                        <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
+                          {setting.company_reporter_email?.trim()}
+                        </td>
+                        <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
+                          {formatFrequencies(setting)}
+                        </td>
+                        <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
+                          <div className="flex justify-center space-x-6">
+                            <button
+                              onClick={() => openEditModal(setting.company_reporter_email?.trim() || '', formatFrequencies(setting).split(", "))}
+                              className="text-[#02066F]"
+                            >
+                              <i className="fas fa-pencil-alt cursor-pointer"></i>
+                            </button>
+                            <button
+                              onClick={() => openDeleteModal(setting.company_reporter_email?.trim() || '')}
+                              className="text-[#02066F]"
+                            >
+                              <i className="fas fa-trash cursor-pointer"></i>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
 
           <TableSection title="Report View Settings" headers={["Frequency", "Action"]}>
             <tr className="text-center">
