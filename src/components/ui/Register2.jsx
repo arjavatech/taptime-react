@@ -212,6 +212,8 @@ const Register2 = () => {
         const companyCity = localStorage.getItem("companyCity") || "";
         const companyState = localStorage.getItem("companyState") || "";
         const companyZip = localStorage.getItem("companyZip") || "";
+        const device_count = localStorage.getItem("device_count") || 1;
+        const employee_count = localStorage.getItem("employee_count") || 20;
 
         // Get phone number with country code
         let formattedPhone = phoneNumber;
@@ -242,6 +244,8 @@ const Register2 = () => {
           customer_city: customerCity,
           customer_state: customerState,
           customer_zip_code: customerZip,
+          device_count: device_count,
+          employee_count: employee_count,
 
           // Metadata
           is_verified: false,

@@ -251,7 +251,7 @@ export const registerUser = async (registrationData) => {
 // Data fetching functions
 export const getTimeZone = async (cid) => {
   try {
-    const res = await fetch(`${API_URLS.device}/getAll/${cid}`);
+    const res = await fetch(`${API_URLS.device}/get_all/${cid}`);
     const data = await res.json();
     const timeZone = !data.length || data.error === "No devices found !" 
       ? "PST" 
@@ -423,7 +423,7 @@ export const getCompanyProfile = async (cid) => {
 
 // Report API functions
 export const fetchDevices = async (companyId) => {
-  const apiUrl = `${API_URLS.device}/getAll/${companyId}`;
+  const apiUrl = `${API_URLS.device}/get_all/${companyId}`;
   
   try {
     const response = await fetch(apiUrl);
@@ -432,11 +432,11 @@ export const fetchDevices = async (companyId) => {
     const data = await response.json();
     const allDevices = Array.isArray(data) ? data : [data];
     return allDevices.filter(
-      device => device.DeviceName && device.DeviceName !== "Not Registered" && device.DeviceName.trim() !== ""
+      device => device.device_name && device.device_name !== "Not Registered" && device.device_name.trim() !== ""
     ).map(device => ({
-      id: device.DeviceID,
-      name: device.DeviceName,
-      deviceId: device.DeviceID
+      id: device.device_id,
+      name: device.device_name,
+      deviceId: device.device_id
     }));
   } catch (error) {
     console.error("Error fetching devices:", error);
@@ -519,22 +519,31 @@ const REPORT_API_BASE = 'http://0.0.0.0:8000';
 const REPORT_TYPES = ['Daily', 'Weekly', 'Biweekly', 'Monthly', 'Bimonthly'];
 
 export const createReportObject = (email, companyId, deviceId, selectedValues) => {
-  const reportFlags = REPORT_TYPES.reduce((acc, type) => {
-    acc[`Is${type}ReportActive`] = selectedValues.includes(type);
-    return acc;
-  }, {});
-  
+  // Create report flags with snake_case naming and proper bi-weekly/bi-monthly formatting
+  const reportFlags = {
+    is_daily_report_active: selectedValues.includes('Daily'),
+    is_weekly_report_active: selectedValues.includes('Weekly'),
+    is_bi_weekly_report_active: selectedValues.includes('Biweekly'),
+    is_monthly_report_active: selectedValues.includes('Monthly'),
+    is_bi_monthly_report_active: selectedValues.includes('Bimonthly')
+  };
+
+  // Get last modified by from localStorage (adminMail is set during login)
+  const lastModifiedBy = localStorage.getItem("adminMail") ||
+                         localStorage.getItem("userName") ||
+                         "unknown";
+
   return {
-    CompanyReporterEmail: email,
-    CID: companyId,
-    DeviceID: deviceId,
+    company_reporter_email: email,
+    c_id: companyId,
     ...reportFlags,
-    LastModifiedBy: 'Admin'
+    is_active: true,  // Default to true for new report settings
+    last_modified_by: lastModifiedBy
   };
 };
 
 export const getAllReportEmails = async (companyId) => {
-  const apiUrl = `${REPORT_API_BASE}/company-report-type/getAllReportEmail/${companyId}`;
+  const apiUrl = `${REPORT_API_BASE}/company-report-type/get_all_report_email/${companyId}`;
   
   try {
     const response = await fetch(apiUrl);

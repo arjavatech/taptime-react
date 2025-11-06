@@ -86,8 +86,8 @@ const Register = () => {
       localStorage.setItem('companyCity', companyCity);
       localStorage.setItem('companyState', companyState);
       localStorage.setItem('companyZip', companyZip);
-      localStorage.setItem('noOfDevices', NoOfDevices);
-      localStorage.setItem('noOfEmployees', NoOfEmployees);
+      localStorage.setItem('employee_count', NoOfEmployees);
+      localStorage.setItem('device_count', NoOfDevices);
   
       if (fileInput) {
         const reader = new FileReader();

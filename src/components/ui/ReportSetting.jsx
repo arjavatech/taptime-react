@@ -104,7 +104,7 @@ const ReportSetting = () => {
   };
 
   const openEditModal = (email, frequencies) => {
-    setCurrentEmail(email);
+    setCurrentEmail(email.trim());
     setCurrentFrequencies([...frequencies]);
     setEmailError("");
     setFrequencyError("");
@@ -137,7 +137,7 @@ const ReportSetting = () => {
     if (!email.trim()) {
       setEmailError("Email is required");
       return false;
-    } else if (!isEmail.test(email)) {
+    } else if (!isEmail.test(email.trim())) {
       setEmailError("Email pattern is invalid");
       return false;
     }
@@ -220,9 +220,10 @@ const ReportSetting = () => {
     if (typeof window === "undefined") return;
     const company_id = localStorage.getItem("companyID") || "";
     const setting = {
-      CID: company_id,
-      ReportType: viewFrequencies.join(","),
-      LastModifiedBy: localStorage.getItem("UserEmail") || localStorage.getItem("userName") || "unknown",
+      c_id: company_id,
+      report_type: viewFrequencies.join(","),
+      last_modified_date_time: new Date().toISOString(),
+      last_modified_by: localStorage.getItem("UserEmail") || localStorage.getItem("userName") || "unknown",
     };
 
     setIsLoading(true);
@@ -246,11 +247,11 @@ const ReportSetting = () => {
 
   const formatFrequencies = (setting) => {
     const frequencies = [];
-    if (setting.IsDailyReportActive) frequencies.push("Daily");
-    if (setting.IsWeeklyReportActive) frequencies.push("Weekly");
-    if (setting.IsBiWeeklyReportActive) frequencies.push("Biweekly");
-    if (setting.IsMonthlyReportActive) frequencies.push("Monthly");
-    if (setting.IsBiMonthlyReportActive) frequencies.push("Bimonthly");
+    if (setting.is_daily_report_active) frequencies.push("Daily");
+    if (setting.is_weekly_report_active) frequencies.push("Weekly");
+    if (setting.is_bi_weekly_report_active) frequencies.push("Biweekly");
+    if (setting.is_monthly_report_active) frequencies.push("Monthly");
+    if (setting.is_bi_monthly_report_active) frequencies.push("Bimonthly");
     return frequencies.join(", ");
   };
 
@@ -332,7 +333,7 @@ const ReportSetting = () => {
                     emailSettings.map((setting, index) => (
                       <tr key={index} className="text-center">
                         <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
-                          {setting.CompanyReporterEmail}
+                          {setting.company_reporter_email?.trim()}
                         </td>
                         <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
                           {formatFrequencies(setting)}
@@ -340,13 +341,13 @@ const ReportSetting = () => {
                         <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-900">
                           <div className="flex justify-center space-x-6">
                             <button
-                              onClick={() => openEditModal(setting.CompanyReporterEmail, formatFrequencies(setting).split(", "))}
+                              onClick={() => openEditModal(setting.company_reporter_email?.trim() || '', formatFrequencies(setting).split(", "))}
                               className="text-[#02066F]"
                             >
                               <i className="fas fa-pencil-alt cursor-pointer"></i>
                             </button>
                             <button
-                              onClick={() => openDeleteModal(setting.CompanyReporterEmail)}
+                              onClick={() => openDeleteModal(setting.company_reporter_email?.trim() || '')}
                               className="text-[#02066F]"
                             >
                               <i className="fas fa-trash cursor-pointer"></i>

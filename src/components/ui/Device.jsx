@@ -8,7 +8,7 @@ const Device = () => {
   // Device API functions
   const deviceApi = {
     getAll: async (companyId) => {
-      const response = await fetch(`${API_URLS.device}/getAll/${companyId}`);
+      const response = await fetch(`${API_URLS.device}/get_all/${companyId}`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       return response.json();
     },
@@ -196,13 +196,13 @@ const Device = () => {
     }
 
     const newDevice = {
-      TimeZone: "Not Registered",
-      DeviceID: "Not Registered",
-      CID: companyId,
-      DeviceName: "Not Registered",
-      AccessKey: createAccessKey(),
-      AccessKeyGeneratedTime: new Date().toISOString(),
-      LastModifiedBy: "Admin",
+      time_zone: "Not Registered",
+      device_id: "Not Registered",
+      c_id: companyId,
+      device_name: "Not Registered",
+      access_key: createAccessKey(),
+      access_key_generated_time: new Date().toISOString(),
+      last_modified_by: "Admin"
     };
 
     try {
