@@ -7,7 +7,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { Loader2, Eye, EyeOff } from "lucide-react";
+import { Loader2, Eye, EyeOff, CheckCircle, XCircle } from "lucide-react";
 
 const Login_new = () => {
   const [email, setEmail] = useState("");
@@ -15,10 +15,16 @@ const Login_new = () => {
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: '', type: '' });
 
   const navigate = useNavigate();
   const { signInWithEmail, signInWithGoogle, signOut, user, session, loading: authLoading, fetchBackendUserData } = useAuth();
   const [isProcessingOAuth, setIsProcessingOAuth] = useState(false);
+
+  const showToast = (message, type) => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: '' }), 4000);
+  };
 
   // Handle OAuth callback - fetch backend data after Google login redirect
   useEffect(() => {
@@ -70,21 +76,22 @@ const Login_new = () => {
             // Clear OAuth flag after successful processing
             sessionStorage.removeItem('pending_oauth_callback');
             console.log('✅ OAuth callback completed successfully, flag cleared');
+            showToast('Login successful! Welcome back.', 'success');
 
             // Redirect to employee list after successful data fetch
-            navigate('/employee-management');
+            setTimeout(() => navigate('/employee-management'), 1500);
           } else {
             // If backend validation fails, sign out from Supabase and show error
             sessionStorage.removeItem('pending_oauth_callback');
             await signOut();
-            setErrorMsg(result.error || 'Failed to validate user. Please contact your administrator.');
+            showToast(result.error || 'Failed to validate user. Please contact your administrator.', 'error');
             setLoading(false);
           }
         } catch (error) {
           // Sign out on error and show error message
           sessionStorage.removeItem('pending_oauth_callback');
           await signOut();
-          setErrorMsg('Failed to complete authentication');
+          showToast('Failed to complete authentication', 'error');
           setLoading(false);
         }
       } else if (user && localStorage.getItem('companyID')) {
@@ -100,14 +107,14 @@ const Login_new = () => {
     e?.preventDefault();
 
     if (!email || !password) {
-      setErrorMsg("Please enter both email and password");
+      showToast("Please enter both email and password", 'error');
       return;
     }
 
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      setErrorMsg("Please enter a valid email address");
+      showToast("Please enter a valid email address", 'error');
       return;
     }
 
@@ -120,11 +127,11 @@ const Login_new = () => {
 
       if (error) {
         if (error.message.includes("Invalid login credentials")) {
-          setErrorMsg("Invalid email or password");
+          showToast("Invalid email or password", 'error');
         } else if (error.message.includes("Email not confirmed")) {
-          setErrorMsg("Please verify your email before logging in");
+          showToast("Please verify your email before logging in", 'error');
         } else {
-          setErrorMsg(error.message || "Authentication failed");
+          showToast(error.message || "Authentication failed", 'error');
         }
         return;
       }
@@ -144,16 +151,17 @@ const Login_new = () => {
         if (!result.success) {
           // If backend validation fails, sign out from Supabase and show error
           await signOut();
-          setErrorMsg(result.error || 'Failed to validate user. Please contact your administrator.');
+          showToast(result.error || 'Failed to validate user. Please contact your administrator.', 'error');
           setLoading(false);
           return;
         }
 
         // Step 4: Navigate to employee list after successful backend validation
-        navigate("/employee-management");
+        showToast('Login successful! Welcome back.', 'success');
+        setTimeout(() => navigate("/employee-management"), 1500);
       }
     } catch (err) {
-      setErrorMsg("Authentication failed. Please try again.");
+      showToast("Authentication failed. Please try again.", 'error');
     } finally {
       setLoading(false);
     }
@@ -173,7 +181,7 @@ const Login_new = () => {
       if (error) {
         // Clear flag on error
         sessionStorage.removeItem('pending_oauth_callback');
-        setErrorMsg(error.message || "Google Sign-In failed");
+        showToast(error.message || "Google Sign-In failed", 'error');
         setLoading(false);
       }
       // Note: After successful Google login, the user will be redirected
@@ -181,7 +189,7 @@ const Login_new = () => {
     } catch (err) {
       // Clear flag on error
       sessionStorage.removeItem('pending_oauth_callback');
-      setErrorMsg("Google Sign-In failed. Please try again.");
+      showToast("Google Sign-In failed. Please try again.", 'error');
       setLoading(false);
     }
   };
@@ -189,6 +197,24 @@ const Login_new = () => {
   return (
     <>
       <Header isAuthenticated={false} />
+      
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2">
+          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${
+            toast.type === 'success' 
+              ? 'bg-green-50 border-green-200 text-green-800' 
+              : 'bg-red-50 border-red-200 text-red-800'
+          }`}>
+            {toast.type === 'success' ? (
+              <CheckCircle className="h-5 w-5 text-green-600" />
+            ) : (
+              <XCircle className="h-5 w-5 text-red-600" />
+            )}
+            <span className="font-medium text-sm">{toast.message}</span>
+          </div>
+        </div>
+      )}
       <div className="min-h-screen flex flex-col lg:flex-row bg-gradient-to-br from-gray-50 to-gray-100">
         {/* Left side - Brand section */}
         <div className="hidden lg:flex lg:w-1/2 xl:w-1/2 bg-[#D9E9FB] flex-col justify-center items-center p-6 lg:p-8 xl:p-12">

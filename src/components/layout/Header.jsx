@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import LogoutModal from "../ui/LogoutModal";
 
 const Header = ({ isAuthenticated = true }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -224,23 +225,12 @@ const Header = ({ isAuthenticated = true }) => {
       )}
 
       {/* Logout Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: "rgba(0, 0, 0, 0.5)" }}>
-          <div className="bg-white rounded-lg w-auto max-w-md shadow-lg">
-            <div className="bg-[#02066F] text-white p-1 flex justify-between items-center">
-              <h2 className="text-xl font-semibold w-full text-center">Logout</h2>
-              <button className="text-gray-400 hover:text-white text-4xl p-2" onClick={() => setShowModal(false)}>&times;</button>
-            </div>
-            <div className="p-6 text-center">
-              <h5 className="text-xl font-bold mb-4 text-gray-800">Are you sure you want to logout?</h5>
-              <div className="flex justify-center space-x-2">
-                <button className="bg-[#02066F] opacity-80 hover:opacity-70 text-white px-6 py-2 rounded-md" onClick={handleLogout}>Yes</button>
-                <button className="bg-white text-black px-6 py-2 rounded-md border border-[#02066F]" onClick={() => setShowModal(false)}>No</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <LogoutModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onConfirm={handleLogout}
+        userName={userProfile.name}
+      />
 
       {/* Mobile Sidebar */}
       {sidebarOpen && (

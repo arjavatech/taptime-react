@@ -8,7 +8,7 @@ const Profile = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [companyEditMode, setCompanyEditMode] = useState(false);
   const [customerEditMode, setCustomerEditMode] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [activeSection, setActiveSection] = useState("company");
   const [userType, setUserType] = useState("");
 
@@ -258,10 +258,12 @@ const Profile = () => {
 
     try {
       await updateCompany(companyId, companyData);
-      setShowSuccessModal(true);
-      setTimeout(() => setShowSuccessModal(false), 2000);
+      setToast({ show: true, message: 'Company details updated successfully!', type: 'success' });
+      setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
     } catch (error) {
       console.error("Company API Error:", error);
+      setToast({ show: true, message: 'Failed to update company details', type: 'error' });
+      setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
     }
   };
 
@@ -281,10 +283,12 @@ const Profile = () => {
 
     try {
       await updateCustomer(customerId, customerData);
-      setShowSuccessModal(true);
-      setTimeout(() => setShowSuccessModal(false), 2000);
+      setToast({ show: true, message: 'Customer details updated successfully!', type: 'success' });
+      setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
     } catch (error) {
       console.error("Customer API Error:", error);
+      setToast({ show: true, message: 'Failed to update customer details', type: 'error' });
+      setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
     }
   };
 
@@ -418,56 +422,61 @@ const Profile = () => {
           </div>
         )}
 
-        {/* Success Modal */}
-        {showSuccessModal && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center"
-            style={{ background: "rgba(0, 0, 0, 0.5)" }}
-          >
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-              <div className="bg-[#02066F] text-white p-4 rounded-t-lg">
-                <h5 className="text-lg font-bold text-center">Success!</h5>
-              </div>
-              <div className="p-10">
-                <p className="text-center font-semibold mb-4">
-                  Your details have been updated successfully!
-                </p>
-              </div>
+        {/* Toast Notification */}
+        {toast.show && (
+          <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2">
+            <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${
+              toast.type === 'success' 
+                ? 'bg-green-50 border-green-200 text-green-800' 
+                : 'bg-red-50 border-red-200 text-red-800'
+            }`}>
+              {toast.type === 'success' ? (
+                <svg className="h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <svg className="h-5 w-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              )}
+              <span className="font-medium text-sm">{toast.message}</span>
             </div>
           </div>
         )}
 
         {/* Main Content */}
-        <div className="max-w-4xl w-full mx-auto px-4 py-8 pt-28">
+        <div className="max-w-4xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 pt-20 sm:pt-28">
           {/* Section Toggle Buttons */}
-          <div className="text-center mb-6 space-y-2">
-            <button
-              className={`px-6 py-3 rounded-xl mr-2 cursor-pointer ${
-                activeSection === "company"
-                  ? "bg-[#02066F] text-white"
-                  : "bg-white text-[#02066F] border border-[#02066F]"
-              }`}
-              onClick={() => showSection("company")}
-            >
-              Company Details
-            </button>
-            <button
-              className={`px-6 py-3 rounded-xl cursor-pointer ${
-                activeSection === "customer"
-                  ? "bg-[#02066F] text-white"
-                  : "bg-white text-[#02066F] border border-[#02066F]"
-              }`}
-              onClick={() => showSection("customer")}
-            >
-              {userType === "Owner"
-                ? "Customer Details"
-                : userType === "Admin"
-                ? "Admin Details"
-                : "Super Admin Details"}
-            </button>
+          <div className="text-center mb-4 sm:mb-6">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-0 sm:space-x-2 justify-center">
+              <button
+                className={`px-4 sm:px-6 py-2 sm:py-3 rounded-xl cursor-pointer text-sm sm:text-base font-medium transition-colors ${
+                  activeSection === "company"
+                    ? "bg-[#02066F] text-white"
+                    : "bg-white text-[#02066F] border border-[#02066F] hover:bg-gray-50"
+                }`}
+                onClick={() => showSection("company")}
+              >
+                Company Details
+              </button>
+              <button
+                className={`px-4 sm:px-6 py-2 sm:py-3 rounded-xl cursor-pointer text-sm sm:text-base font-medium transition-colors ${
+                  activeSection === "customer"
+                    ? "bg-[#02066F] text-white"
+                    : "bg-white text-[#02066F] border border-[#02066F] hover:bg-gray-50"
+                }`}
+                onClick={() => showSection("customer")}
+              >
+                {userType === "Owner"
+                  ? "Customer Details"
+                  : userType === "Admin"
+                  ? "Admin Details"
+                  : "Super Admin Details"}
+              </button>
+            </div>
           </div>
 
-          <h1 className="text-3xl font-bold text-center text-gray-800 mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-center text-gray-800 mb-4 sm:mb-6">
             Profile
           </h1>
 
@@ -475,9 +484,9 @@ const Profile = () => {
           {activeSection === "company" && (
             <>
               {/* Logo Section */}
-              <div className="flex justify-center mb-8">
+              <div className="flex justify-center mb-6 sm:mb-8">
                 <div
-                  className={`relative w-24 h-24 rounded-full border-2 border-[#02066F] overflow-hidden 
+                  className={`relative w-20 h-20 sm:w-24 sm:h-24 rounded-full border-2 border-[#02066F] overflow-hidden 
                   ${
                     companyEditMode
                       ? "cursor-pointer bg-white"
@@ -487,7 +496,7 @@ const Profile = () => {
                 >
                   {typeof formData.logo === "string" && formData.logo === "" ? (
                     <div className="w-full h-full bg-gray-100 flex items-center justify-center">
-                      <i className="fas fa-building text-3xl text-gray-500"></i>
+                      <i className="fas fa-building text-2xl sm:text-3xl text-gray-500"></i>
                     </div>
                   ) : (
                     <img
@@ -507,12 +516,12 @@ const Profile = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl shadow-lg overflow-hidden p-6 pb-10 mb-8">
+              <div className="bg-white rounded-xl shadow-lg overflow-hidden p-4 sm:p-6 pb-6 sm:pb-10 mb-6 sm:mb-8">
                 {/* Company Form */}
                 <form id="companyForm">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                     <div>
-                      <label className="block text-base font-bold text-gray-900 mb-1">
+                      <label className="block text-sm sm:text-base font-bold text-gray-900 mb-1">
                         Company Name:
                       </label>
                       <input
@@ -522,7 +531,7 @@ const Profile = () => {
                         }
                         type="text"
                         placeholder="Company Name"
-                        className={`w-full px-4 py-3 rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
+                        className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
                           !companyEditMode ? "bg-gray-200 text-gray-500" : ""
                         }`}
                         disabled={!companyEditMode}
@@ -536,7 +545,7 @@ const Profile = () => {
                       )}
                     </div>
                     <div>
-                      <label className="block text-base font-bold text-gray-900 mb-1">
+                      <label className="block text-sm sm:text-base font-bold text-gray-900 mb-1">
                         Company Address Line 1:
                       </label>
                       <input
@@ -546,7 +555,7 @@ const Profile = () => {
                         }
                         type="text"
                         placeholder="Company Address Line 1"
-                        className={`w-full px-4 py-3 rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
+                        className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
                           !companyEditMode ? "bg-gray-200 text-gray-500" : ""
                         }`}
                         disabled={!companyEditMode}
@@ -561,7 +570,7 @@ const Profile = () => {
                     </div>
 
                     <div>
-                      <label className="block text-base font-bold text-gray-900 mb-1">
+                      <label className="block text-sm sm:text-base font-bold text-gray-900 mb-1">
                         Company State:
                       </label>
                       <input
@@ -571,7 +580,7 @@ const Profile = () => {
                         }
                         type="text"
                         placeholder="Company State"
-                        className={`w-full px-4 py-3 rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
+                        className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
                           !companyEditMode ? "bg-gray-200 text-gray-500" : ""
                         }`}
                         disabled={!companyEditMode}
@@ -585,7 +594,7 @@ const Profile = () => {
                       )}
                     </div>
                     <div>
-                      <label className="block text-base font-bold text-gray-900 mb-1">
+                      <label className="block text-sm sm:text-base font-bold text-gray-900 mb-1">
                         Company City:
                       </label>
                       <input
@@ -595,7 +604,7 @@ const Profile = () => {
                         }
                         type="text"
                         placeholder="Company City"
-                        className={`w-full px-4 py-3 rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
+                        className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
                           !companyEditMode ? "bg-gray-200 text-gray-500" : ""
                         }`}
                         disabled={!companyEditMode}
@@ -609,7 +618,7 @@ const Profile = () => {
                       )}
                     </div>
                     <div>
-                      <label className="block text-base font-bold text-gray-900 mb-1">
+                      <label className="block text-sm sm:text-base font-bold text-gray-900 mb-1">
                         Company Zip Code:
                       </label>
                       <input
@@ -619,7 +628,7 @@ const Profile = () => {
                         }
                         type="text"
                         placeholder="Company Zip"
-                        className={`w-full px-4 py-3 rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
+                        className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
                           !companyEditMode ? "bg-gray-200 text-gray-500" : ""
                         }`}
                         disabled={!companyEditMode}
@@ -637,10 +646,10 @@ const Profile = () => {
               </div>
 
               {/* Form Actions */}
-              <div className="flex justify-center mt-10 pb-16">
+              <div className="flex justify-center mt-6 sm:mt-10 pb-8 sm:pb-16">
                 <button
                   onClick={toggleCompanyEditMode}
-                  className="w-full px-8 py-3 bg-[#02066F] cursor-pointer text-white rounded-lg text-lg font-bold"
+                  className="w-full max-w-xs px-6 sm:px-8 py-2 sm:py-3 bg-[#02066F] cursor-pointer text-white rounded-lg text-base sm:text-lg font-bold transition-colors hover:bg-blue-800"
                 >
                   {companyEditMode ? "Save" : "Edit"}
                 </button>
@@ -651,12 +660,12 @@ const Profile = () => {
           {/* Customer Section */}
           {activeSection === "customer" && (
             <>
-              <div className="bg-white rounded-xl shadow-lg overflow-hidden p-6 mb-8">
+              <div className="bg-white rounded-xl shadow-lg overflow-hidden p-4 sm:p-6 mb-6 sm:mb-8">
                 {userType !== "Admin" && userType !== "SuperAdmin" ? (
                   <form id="customerForm">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                       <div>
-                        <label className="block text-base font-bold text-gray-900 mb-1">
+                        <label className="block text-sm sm:text-base font-bold text-gray-900 mb-1">
                           First Name:
                         </label>
                         <input
@@ -666,7 +675,7 @@ const Profile = () => {
                           }
                           type="text"
                           placeholder="First Name"
-                          className={`w-full px-4 py-3 rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
+                          className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
                             !customerEditMode ? "bg-gray-200 text-gray-500" : ""
                           }`}
                           disabled={!customerEditMode}
@@ -680,7 +689,7 @@ const Profile = () => {
                         )}
                       </div>
                       <div>
-                        <label className="block text-base font-bold text-gray-900 mb-1">
+                        <label className="block text-sm sm:text-base font-bold text-gray-900 mb-1">
                           Last Name:
                         </label>
                         <input
@@ -690,7 +699,7 @@ const Profile = () => {
                           }
                           type="text"
                           placeholder="Last Name"
-                          className={`w-full px-4 py-3 rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
+                          className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
                             !customerEditMode ? "bg-gray-200 text-gray-500" : ""
                           }`}
                           disabled={!customerEditMode}
@@ -704,7 +713,7 @@ const Profile = () => {
                         )}
                       </div>
                       <div>
-                        <label className="block text-base font-bold text-gray-900 mb-1">
+                        <label className="block text-sm sm:text-base font-bold text-gray-900 mb-1">
                           Email:
                         </label>
                         <input
@@ -714,7 +723,7 @@ const Profile = () => {
                           }
                           type="email"
                           placeholder="Email"
-                          className={`w-full px-4 py-3 rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
+                          className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
                             !customerEditMode ? "bg-gray-200 text-gray-500" : ""
                           }`}
                           disabled={!customerEditMode}
@@ -728,7 +737,7 @@ const Profile = () => {
                         )}
                       </div>
                       <div>
-                        <label className="block text-base font-bold text-gray-900 mb-1">
+                        <label className="block text-sm sm:text-base font-bold text-gray-900 mb-1">
                           Phone Number:
                         </label>
                         <input
@@ -736,7 +745,7 @@ const Profile = () => {
                           onChange={formatPhoneNumberInput}
                           type="tel"
                           placeholder="Phone Number"
-                          className={`w-full px-4 py-3 rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
+                          className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
                             !customerEditMode ? "bg-gray-200 text-gray-500" : ""
                           }`}
                           disabled={!customerEditMode}
@@ -750,7 +759,7 @@ const Profile = () => {
                         )}
                       </div>
                       <div>
-                        <label className="block text-base font-bold text-gray-900 mb-1">
+                        <label className="block text-sm sm:text-base font-bold text-gray-900 mb-1">
                           Customer Address Line 1:
                         </label>
                         <input
@@ -760,7 +769,7 @@ const Profile = () => {
                           }
                           type="text"
                           placeholder="Customer Address Line 1"
-                          className={`w-full px-4 py-3 rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
+                          className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
                             !customerEditMode ? "bg-gray-200 text-gray-500" : ""
                           }`}
                           disabled={!customerEditMode}
@@ -774,7 +783,7 @@ const Profile = () => {
                         )}
                       </div>
                       <div>
-                        <label className="block text-base font-bold text-gray-900 mb-1">
+                        <label className="block text-sm sm:text-base font-bold text-gray-900 mb-1">
                           Customer State:
                         </label>
                         <input
@@ -784,7 +793,7 @@ const Profile = () => {
                           }
                           type="text"
                           placeholder="Customer State"
-                          className={`w-full px-4 py-3 rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
+                          className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
                             !customerEditMode ? "bg-gray-200 text-gray-500" : ""
                           }`}
                           disabled={!customerEditMode}
@@ -798,7 +807,7 @@ const Profile = () => {
                         )}
                       </div>
                       <div>
-                        <label className="block text-base font-bold text-gray-900 mb-1">
+                        <label className="block text-sm sm:text-base font-bold text-gray-900 mb-1">
                           Customer City:
                         </label>
                         <input
@@ -808,7 +817,7 @@ const Profile = () => {
                           }
                           type="text"
                           placeholder="Customer City"
-                          className={`w-full px-4 py-3 rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
+                          className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
                             !customerEditMode ? "bg-gray-200 text-gray-500" : ""
                           }`}
                           disabled={!customerEditMode}
@@ -822,7 +831,7 @@ const Profile = () => {
                         )}
                       </div>
                       <div>
-                        <label className="block text-base font-bold text-gray-900 mb-1">
+                        <label className="block text-sm sm:text-base font-bold text-gray-900 mb-1">
                           Customer Zip Code:
                         </label>
                         <input
@@ -832,7 +841,7 @@ const Profile = () => {
                           }
                           type="text"
                           placeholder="Customer Zip"
-                          className={`w-full px-4 py-3 rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
+                          className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
                             !customerEditMode ? "bg-gray-200 text-gray-500" : ""
                           }`}
                           disabled={!customerEditMode}
@@ -849,10 +858,10 @@ const Profile = () => {
                   </form>
                 ) : (
                   <form id="adminForm">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                       {/* Pin */}
                       <div>
-                        <label className="block text-base font-bold text-gray-900 mb-1">
+                        <label className="block text-sm sm:text-base font-bold text-gray-900 mb-1">
                           Pin:
                         </label>
                         <input
@@ -862,7 +871,7 @@ const Profile = () => {
                           }
                           type="number"
                           placeholder="Pin"
-                          className={`w-full px-4 py-3 rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
+                          className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
                             !customerEditMode ? "bg-gray-200 text-gray-500" : ""
                           }`}
                           disabled={!customerEditMode}
@@ -878,7 +887,7 @@ const Profile = () => {
 
                       {/* Employee Name */}
                       <div>
-                        <label className="block text-base font-bold text-gray-900 mb-1">
+                        <label className="block text-sm sm:text-base font-bold text-gray-900 mb-1">
                           Employee Name:
                         </label>
                         <input
@@ -888,7 +897,7 @@ const Profile = () => {
                           }
                           type="text"
                           placeholder="Employee Name"
-                          className={`w-full px-4 py-3 rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
+                          className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
                             !customerEditMode ? "bg-gray-200 text-gray-500" : ""
                           }`}
                           disabled={!customerEditMode}
@@ -904,7 +913,7 @@ const Profile = () => {
 
                       {/* Email */}
                       <div>
-                        <label className="block text-base font-bold text-gray-900 mb-1">
+                        <label className="block text-sm sm:text-base font-bold text-gray-900 mb-1">
                           Email:
                         </label>
                         <input
@@ -914,7 +923,7 @@ const Profile = () => {
                           }
                           type="email"
                           placeholder="Email"
-                          className={`w-full px-4 py-3 rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
+                          className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
                             !customerEditMode ? "bg-gray-200 text-gray-500" : ""
                           }`}
                           disabled={!customerEditMode}
@@ -930,7 +939,7 @@ const Profile = () => {
 
                       {/* Phone */}
                       <div>
-                        <label className="block text-base font-bold text-gray-900 mb-1">
+                        <label className="block text-sm sm:text-base font-bold text-gray-900 mb-1">
                           Phone Number:
                         </label>
                         <input
@@ -938,7 +947,7 @@ const Profile = () => {
                           onChange={formatPhoneNumberInput}
                           type="tel"
                           placeholder="Phone Number"
-                          className={`w-full px-4 py-3 rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
+                          className={`w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base rounded-lg border border-[#02066F] text-[#02066F] font-bold focus:outline-none focus:ring-1 focus:ring-black ${
                             !customerEditMode ? "bg-gray-200 text-gray-500" : ""
                           }`}
                           disabled={!customerEditMode}
@@ -957,10 +966,10 @@ const Profile = () => {
               </div>
 
               {/* Form Actions */}
-              <div className="flex justify-center mt-10 pb-16">
+              <div className="flex justify-center mt-6 sm:mt-10 pb-8 sm:pb-16">
                 <button
                   onClick={toggleCustomerEditMode}
-                  className="w-full px-8 py-3 bg-[#02066F] cursor-pointer text-white rounded-lg text-lg font-bold"
+                  className="w-full max-w-xs px-6 sm:px-8 py-2 sm:py-3 bg-[#02066F] cursor-pointer text-white rounded-lg text-base sm:text-lg font-bold transition-colors hover:bg-blue-800"
                 >
                   {customerEditMode ? "Save" : "Edit"}
                 </button>

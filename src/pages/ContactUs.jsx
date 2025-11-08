@@ -18,7 +18,7 @@ const ContactUs = () => {
   const [errorPhone, setErrorPhone] = useState("");
 
   // Modal states
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
   // Regular expressions
   const isAlpha = /^[a-zA-Z\s]+$/;
@@ -121,16 +121,14 @@ const ContactUs = () => {
       setShowOverlay(true);
       try {
         await callContactUsCreateAPiData();
-        setShowSuccessModal(true);
-
-        // Hide modal after 5 seconds
-        setTimeout(() => {
-          setShowOverlay(false);
-          setShowSuccessModal(false);
-        }, 5000);
+        setToast({ show: true, message: 'Message sent successfully!', type: 'success' });
+        setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
       } catch (error) {
         console.error("Form submission failed:", error);
+        setToast({ show: true, message: 'Failed to send message', type: 'error' });
+        setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
       }
+      setShowOverlay(false);
     } else {
       // Trigger validation messages for required fields
       if (cname.trim() === "") setErrorName("Name is required");
@@ -197,13 +195,13 @@ const ContactUs = () => {
         </div>
       )}
 
-      <section className="flex-grow bg-gray-100 px-6 pt-28 pb-12">
-        <div className="max-w-md mx-auto bg-gray-50 rounded-lg shadow-xl overflow-hidden p-6 px-10">
-          <h3 className="text-3xl font-bold text-center text-gray-800 mb-6">
+      <section className="flex-grow bg-gray-100 px-4 sm:px-6 pt-20 sm:pt-28 pb-8 sm:pb-12">
+        <div className="max-w-sm sm:max-w-md mx-auto bg-gray-50 rounded-lg shadow-xl overflow-hidden p-4 sm:p-6 sm:px-10">
+          <h3 className="text-2xl sm:text-3xl font-bold text-center text-gray-800 mb-4 sm:mb-6">
             Contact Us
           </h3>
 
-          <form id="emp_form" className="space-y-4" onSubmit={handleSubmit}>
+          <form id="emp_form" className="space-y-3 sm:space-y-4" onSubmit={handleSubmit}>
             {/* Name */}
             <div>
               <input
@@ -213,7 +211,7 @@ const ContactUs = () => {
                 onChange={(e) => setCname(e.target.value)}
                 onBlur={validCName}
                 placeholder="Name"
-                className="w-full px-4 py-3 border-2 border-[#02066F] rounded-lg font-bold focus:outline-none bg-white"
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-[#02066F] rounded-lg font-bold focus:outline-none bg-white"
                 required
               />
               {errorName && (
@@ -230,7 +228,7 @@ const ContactUs = () => {
                 onChange={(e) => setCemail(e.target.value)}
                 onBlur={validCEmail}
                 placeholder="Email"
-                className="w-full px-4 py-3 border-2 border-[#02066F] rounded-lg font-bold focus:outline-none bg-white"
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-[#02066F] rounded-lg font-bold focus:outline-none bg-white"
                 required
               />
               {errorEmail && (
@@ -246,7 +244,7 @@ const ContactUs = () => {
                 onChange={(e) => setQuestion(e.target.value)}
                 onBlur={validCQueries}
                 placeholder="Message"
-                className="w-full px-4 py-3 border-2 border-[#02066F] rounded-lg font-bold focus:outline-none bg-white min-h-[90px]"
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-[#02066F] rounded-lg font-bold focus:outline-none bg-white min-h-[80px] sm:min-h-[90px]"
                 required
               />
               {errorTextarea && (
@@ -263,7 +261,7 @@ const ContactUs = () => {
                 onChange={formatPhoneNumber}
                 onBlur={validatePhoneNumber}
                 placeholder="Phone Number"
-                className="w-full px-4 py-3 border-2 border-[#02066F] rounded-lg font-bold focus:outline-none bg-white"
+                className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border-2 border-[#02066F] rounded-lg font-bold focus:outline-none bg-white"
                 required
               />
               {errorPhone && (
@@ -272,23 +270,25 @@ const ContactUs = () => {
             </div>
 
             {/* Email Link */}
-            <div className="flex flex-col md:flex md:flex-row items-center justify-center text-sm sm:text-base gap-2">
-              <span className="font-bold text-gray-800 mr-2">
-                Write to us at : <a
+            <div className="text-center text-xs sm:text-sm">
+              <span className="font-bold text-gray-800">
+                Write to us at: 
+                <a
                   href="https://mail.google.com/mail/?view=cm&fs=1&to=contact@tap-time.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline"
-                > contact@tap-time.com
+                  className="text-blue-600 hover:underline ml-1"
+                >
+                  contact@tap-time.com
                 </a>
               </span>
             </div>
 
             {/* Submit Button */}
-            <div className="pb-4 text-center">
+            <div className="pb-2 sm:pb-4 text-center">
               <button
                 type="submit"
-                className="w-auto bg-[#02066F] text-white py-3 px-8 rounded-md font-bold cursor-pointer transition duration-200"
+                className="w-full sm:w-auto bg-[#02066F] text-white py-2 sm:py-3 px-6 sm:px-8 text-sm sm:text-base rounded-md font-bold cursor-pointer transition duration-200 hover:bg-blue-800"
               >
                 Submit
               </button>
@@ -296,39 +296,27 @@ const ContactUs = () => {
           </form>
         </div>
 
-        {/* Success Modal */}
-        {showSuccessModal && (
-          <div
-            className="fixed inset-0 flex items-center justify-center z-50"
-            style={{ background: "rgba(0, 0, 0, 0.5)" }}
-          >
-            <div className="bg-white rounded-sm shadow-xl w-full max-w-sm sm:max-w-lg mx-auto my-6 sm:my-12">
-              {/* Header */}
-              <div className="bg-[#02066F] text-white py-4 px-4 sm:px-6 rounded-t-sm text-center">
-                <h5 className="text-lg sm:text-xl font-semibold">
-                  Thank You for Contacting Us!
-                </h5>
-              </div>
-
-              {/* Body */}
-              <div className="p-4 sm:p-6 text-center">
-                <p className="font-bold mb-4 text-base sm:text-xl">
-                  We have received your message and will get back to you
-                  shortly.
-                </p>
-
-                {/* Image */}
-                <div className="flex justify-center">
-                  <img
-                    src="https://www.shutterstock.com/image-vector/blue-check-mark-icon-tick-260nw-787016416.jpg"
-                    alt="Checkmark"
-                    className="w-20 h-20 sm:w-24 sm:h-24 object-contain"
-                  />
-                </div>
-              </div>
-            </div>
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2">
+          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${
+            toast.type === 'success' 
+              ? 'bg-green-50 border-green-200 text-green-800' 
+              : 'bg-red-50 border-red-200 text-red-800'
+          }`}>
+            {toast.type === 'success' ? (
+              <svg className="h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg className="h-5 w-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            )}
+            <span className="font-medium text-sm">{toast.message}</span>
           </div>
-        )}
+        </div>
+      )}
       </section>
 
       <Footer variant="authenticated"/>

@@ -12,7 +12,6 @@ import Login from "./pages/Login";
 import SetPassword from "./pages/SetPassword";
 import Register from "./pages/Register";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
-import Register2 from "./pages/Register2";
 import EmployeeList from "./pages/EmployeeList";
 import Device from "./pages/Device";
 import Profile from "./pages/Profile";
@@ -35,7 +34,6 @@ function App() {
             <Route path="/set-password" element={<SetPassword />} />
             <Route path="/register" element={<Register />} />
             <Route path="/privacypolicy" element={<PrivacyPolicy />} />
-            <Route path="/register2" element={<Register2 />} />
             <Route path="/employee-management" element={<EmployeeList/>} />
             <Route path="/device" element={<Device/>}/>
             <Route path="/profile" element={<Profile/>} />

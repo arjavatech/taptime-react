@@ -57,9 +57,14 @@ const Reports = () => {
   const [selectedFrequency, setSelectedFrequency] = useState("");
   const [employees, setEmployees] = useState([]);
 
+  // Weekly report specific
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedWeek, setSelectedWeek] = useState(1);
+
   const loadFrequenciesSync = () => {
     const savedFrequencies = localStorage.getItem("reportType");
-    return savedFrequencies ? savedFrequencies.split(",").filter(f => f.trim() !== "") : [];
+    return savedFrequencies ? savedFrequencies.split(",").filter(f => f.trim() !== "" && f.toLowerCase() !== "weekly") : [];
   };
 
   const loadDevices = useCallback(async () => {
@@ -354,6 +359,57 @@ const Reports = () => {
     }
   };
 
+  const downloadCSV = () => {
+    let csvContent, filename;
+
+    if (activeTab === "today") {
+      const headers = ["Employee ID", "Name", "Check-in Time", "Check-out Time"];
+      const rows = tableData.map(item => [
+        item.Pin || "",
+        item.Name?.split(" ")[0] || "",
+        item.checkInTimeFormatted || "",
+        item.CheckOutTime ? formatToAmPm(new Date(item.CheckOutTime)) : ""
+      ]);
+      csvContent = [headers, ...rows].map(row => row.join(",")).join("\n");
+      filename = `todays_report_${currentDate}.csv`;
+    } else if (activeTab === "daywise") {
+      const headers = ["Employee Name", "Employee ID", "Check-in Time", "Check-out Time", "Time Worked Hours(HH:MM)"];
+      const rows = filteredData.map(item => [
+        item.Name || "",
+        item.Pin || "",
+        item.formattedCheckIn || "",
+        item.formattedCheckOut || "",
+        item.timeWorked || ""
+      ]);
+      csvContent = [headers, ...rows].map(row => row.join(",")).join("\n");
+      filename = `daywise_report_${selectedDate}.csv`;
+    } else if (activeTab === "salaried") {
+      const headers = ["Name", "Pin", "Time Worked Hours (HH:MM)"];
+      const rows = employees.map(emp => [
+        emp.name || "",
+        emp.pin || "",
+        emp.hoursWorked || ""
+      ]);
+      csvContent = [headers, ...rows].map(row => row.join(",")).join("\n");
+      filename = `${selectedFrequency.toLowerCase()}_report_${startDateHeader}_to_${endDateHeader}.csv`;
+    } else if (activeTab === "weekly") {
+      const headers = ["Name", "Pin", "Time Worked Hours (HH:MM)"];
+      const rows = employees.map(emp => [
+        emp.name || "",
+        emp.pin || "",
+        emp.hoursWorked || ""
+      ]);
+      csvContent = [headers, ...rows].map(row => row.join(",")).join("\n");
+      filename = `weekly_report_${selectedYear}_${selectedMonth}_week${selectedWeek}.csv`;
+    }
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+  };
+
   const downloadPDF = () => {
     const doc = new jsPDF();
     let tableColumn, tableRows, title;
@@ -385,6 +441,14 @@ const Reports = () => {
         emp.pin || "--",
         emp.hoursWorked || "--",
       ]);
+    } else if (activeTab === "weekly") {
+      title = `Weekly Report - ${selectedYear} Month ${selectedMonth} Week ${selectedWeek}`;
+      tableColumn = ["Name", "Pin", "Time Worked Hours (HH:MM)"];
+      tableRows = employees.map(emp => [
+        emp.name || "--",
+        emp.pin || "--",
+        emp.hoursWorked || "--",
+      ]);
     }
 
     doc.text(title, 14, 10);
@@ -410,6 +474,12 @@ const Reports = () => {
         emp.pin.toLowerCase().includes(searchQuery.toLowerCase())
       );
       return filteredEmployees.slice(start, start + itemsPerPage);
+    } else if (activeTab === "weekly") {
+      const filteredEmployees = employees.filter(emp =>
+        emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        emp.pin.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      return filteredEmployees.slice(start, start + itemsPerPage);
     }
     return [];
   };
@@ -418,6 +488,12 @@ const Reports = () => {
     if (activeTab === "daywise") {
       return Math.ceil(filteredData.length / itemsPerPage);
     } else if (activeTab === "salaried") {
+      const filteredEmployees = employees.filter(emp =>
+        emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        emp.pin.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      return Math.ceil(filteredEmployees.length / itemsPerPage);
+    } else if (activeTab === "weekly") {
       const filteredEmployees = employees.filter(emp =>
         emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         emp.pin.toLowerCase().includes(searchQuery.toLowerCase())
@@ -615,80 +691,96 @@ const Reports = () => {
 
   const renderTodayReport = () => (
     <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-md overflow-hidden mb-8 border border-gray-300">
-      <div className="p-4 sm:p-6 overflow-x-auto">
-        <div className="text-center mb-4">
-          <h2 className="text-xl font-bold text-gray-800">Current Day Report</h2>
-          <div className="flex justify-between items-center mt-4">
-            <h3 className="text-lg font-semibold">Date: {currentDate}</h3>
-            <button
-              className="bg-white border border-blue-900 text-blue-900 px-6 py-2 rounded-md font-semibold cursor-pointer"
-              onClick={() => setShowModal(true)}
-            >
-              Add Entry
-            </button>
+      <div className="p-4 sm:p-6">
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-800 mb-4">Current Day Report</h2>
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="text-lg font-semibold text-[#02066F]">
+              Date: {currentDate}
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <button 
+                onClick={downloadCSV} 
+                className="text-[#02066F] hover:text-white hover:bg-[#02066F] px-4 py-2 rounded-lg transition-colors cursor-pointer border border-[#02066F] w-full sm:w-auto"
+              >
+                Download CSV
+              </button>
+              <button
+                className="bg-[#02066F] border border-[#02066F] text-white hover:bg-blue-800 px-6 py-2 rounded-md font-semibold cursor-pointer transition w-full sm:w-auto"
+                onClick={() => setShowModal(true)}
+              >
+                Add Entry
+              </button>
+            </div>
           </div>
         </div>
         
-        <table className="min-w-full border border-gray-300 text-sm">
-          <thead className="bg-[#02066F] text-white">
-            <tr>
-              <th className="px-6 py-3 text-center font-bold border-r">Employee ID</th>
-              <th className="px-6 py-3 text-center font-bold border-r">Name</th>
-              <th className="px-6 py-3 text-center font-bold border-r">Check-in Time</th>
-              <th className="px-6 py-3 text-center font-bold border-r">Check-out Time</th>
-              <th className="px-6 py-3 text-center font-bold border-r">Action</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {tableData.length === 0 ? (
+        <div className="overflow-x-auto">
+          <table className="min-w-full border border-gray-300 text-sm">
+            <thead className="bg-[#02066F] text-white">
               <tr>
-                <td colSpan="5" className="px-6 py-4 text-center">No Records Found</td>
+                <th className="px-3 sm:px-6 py-3 text-center font-bold border-r border-gray-400">Employee ID</th>
+                <th className="px-3 sm:px-6 py-3 text-center font-bold border-r border-gray-400">Name</th>
+                <th className="px-3 sm:px-6 py-3 text-center font-bold border-r border-gray-400">Check-in Time</th>
+                <th className="px-3 sm:px-6 py-3 text-center font-bold border-r border-gray-400">Check-out Time</th>
+                <th className="px-3 sm:px-6 py-3 text-center font-bold">Action</th>
               </tr>
-            ) : (
-              tableData.map((row, index) => (
-                <tr key={row.Pin || index} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-center">{row.Pin}</td>
-                  <td className="px-6 py-4 text-center">{row.Name?.split(" ")[0]}</td>
-                  <td className="px-6 py-4 text-center">{row.checkInTimeFormatted}</td>
-                  <td className="px-6 py-4 text-center">
-                    {row.CheckOutTime ? (
-                      formatToAmPm(new Date(row.CheckOutTime))
-                    ) : (
-                      <div className="flex justify-center items-center">
-                        <input
-                          type="time"
-                          step="1"
-                          className="border border-[#02066F] rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#02066F]"
-                          value={checkoutTimes[`${row.Pin}-${row.CheckInTime}`] || ""}
-                          onChange={(e) => handleCheckoutTimeChange(`${row.Pin}-${row.CheckInTime}`, e.target.value)}
-                        />
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    {row.CheckOutTime ? (
-                      <button className="bg-gray-300 text-gray-600 px-4 py-2 rounded cursor-not-allowed" disabled>
-                        Check-out
-                      </button>
-                    ) : (
-                      <button
-                        className={`px-4 py-2 rounded font-semibold ${
-                          checkoutTimes[`${row.Pin}-${row.CheckInTime}`]
-                            ? "bg-[#02066F] text-white cursor-pointer hover:bg-blue-800"
-                            : "bg-gray-300 text-gray-600 cursor-not-allowed"
-                        }`}
-                        disabled={!checkoutTimes[`${row.Pin}-${row.CheckInTime}`]}
-                        onClick={() => handleCheckout(row)}
-                      >
-                        Check-out
-                      </button>
-                    )}
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {tableData.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
+                    No Records Found
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : (
+                tableData.map((row, index) => (
+                  <tr key={row.Pin || index} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-3 sm:px-6 py-4 text-center font-semibold text-gray-900 border-r border-gray-200">{row.Pin}</td>
+                    <td className="px-3 sm:px-6 py-4 text-center font-semibold text-gray-900 border-r border-gray-200">{row.Name?.split(" ")[0]}</td>
+                    <td className="px-3 sm:px-6 py-4 text-center font-semibold text-gray-900 border-r border-gray-200">{row.checkInTimeFormatted}</td>
+                    <td className="px-3 sm:px-6 py-4 text-center border-r border-gray-200">
+                      {row.CheckOutTime ? (
+                        <span className="font-semibold text-gray-900">
+                          {formatToAmPm(new Date(row.CheckOutTime))}
+                        </span>
+                      ) : (
+                        <div className="flex justify-center items-center">
+                          <input
+                            type="time"
+                            step="1"
+                            className="border border-[#02066F] rounded px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#02066F] w-full max-w-[120px]"
+                            value={checkoutTimes[`${row.Pin}-${row.CheckInTime}`] || ""}
+                            onChange={(e) => handleCheckoutTimeChange(`${row.Pin}-${row.CheckInTime}`, e.target.value)}
+                          />
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-3 sm:px-6 py-4 text-center">
+                      {row.CheckOutTime ? (
+                        <button className="bg-gray-300 text-gray-600 px-2 sm:px-4 py-2 rounded cursor-not-allowed text-xs sm:text-sm font-medium" disabled>
+                          Checked-out
+                        </button>
+                      ) : (
+                        <button
+                          className={`px-2 sm:px-4 py-2 rounded font-medium text-xs sm:text-sm transition-colors ${
+                            checkoutTimes[`${row.Pin}-${row.CheckInTime}`]
+                              ? "bg-[#02066F] text-white cursor-pointer hover:bg-blue-800"
+                              : "bg-gray-300 text-gray-600 cursor-not-allowed"
+                          }`}
+                          disabled={!checkoutTimes[`${row.Pin}-${row.CheckInTime}`]}
+                          onClick={() => handleCheckout(row)}
+                        >
+                          Check-out
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -708,11 +800,16 @@ const Reports = () => {
                 viewDatewiseReport(newDate);
               }
             }}
-            className="border bg-white border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 shadow"
+            className="border bg-white border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#02066F] shadow w-full sm:w-auto"
           />
-          <button onClick={downloadPDF} className="text-[#02066F] hover:text-black px-4 py-2 rounded-lg transition-colors cursor-pointer border border-[#02066F]">
-            Download PDF
-          </button>
+          <div className="flex gap-2">
+            <button onClick={downloadCSV} className="text-[#02066F] hover:text-black px-4 py-2 rounded-lg transition-colors cursor-pointer border border-[#02066F]">
+              Download CSV
+            </button>
+            <button onClick={downloadPDF} className="text-[#02066F] hover:text-black px-4 py-2 rounded-lg transition-colors cursor-pointer border border-[#02066F]">
+              Download PDF
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
@@ -803,6 +900,234 @@ const Reports = () => {
     </div>
   );
 
+  const getWeeksInMonth = (year, month) => {
+    const weeks = [];
+    const firstDay = new Date(year, month - 1, 1);
+    const lastDay = new Date(year, month, 0);
+    
+    // Start from the first Monday of the month or the first day if it's Monday
+    let currentDate = new Date(firstDay);
+    const dayOfWeek = currentDate.getDay();
+    if (dayOfWeek !== 1) { // If not Monday
+      currentDate.setDate(currentDate.getDate() + (8 - dayOfWeek) % 7);
+    }
+    
+    let weekNumber = 1;
+    while (currentDate <= lastDay) {
+      const weekStart = new Date(currentDate);
+      const weekEnd = new Date(currentDate);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      
+      // Only include weeks that have at least one day in the current month
+      if (weekStart.getMonth() === month - 1 || weekEnd.getMonth() === month - 1) {
+        // Adjust dates to stay within the month
+        const adjustedStart = weekStart < firstDay ? firstDay : weekStart;
+        const adjustedEnd = weekEnd > lastDay ? lastDay : weekEnd;
+        
+        weeks.push({
+          start: adjustedStart.toISOString().split('T')[0],
+          end: adjustedEnd.toISOString().split('T')[0],
+          label: `Week ${weekNumber} (${adjustedStart.getDate()}/${adjustedStart.getMonth() + 1} - ${adjustedEnd.getDate()}/${adjustedEnd.getMonth() + 1})`
+        });
+        weekNumber++;
+      }
+      
+      currentDate.setDate(currentDate.getDate() + 7);
+    }
+    
+    return weeks;
+  };
+
+  const getSelectedWeekDates = () => {
+    const weeks = getWeeksInMonth(selectedYear, selectedMonth);
+    return weeks[selectedWeek - 1] || { start: '', end: '', label: '' };
+  };
+
+  const loadWeeklyReport = async () => {
+    const { start, end } = getSelectedWeekDates();
+    await loadReportTable(start, end);
+  };
+
+  const renderWeeklyReport = () => {
+    const filteredEmployees = employees.filter(emp =>
+      emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      emp.pin.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    const { start, end } = getSelectedWeekDates();
+
+    return (
+      <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-md overflow-hidden mb-8 border border-gray-300">
+        <div className="p-4 sm:p-6 overflow-x-auto">
+          <h1 className="text-2xl font-bold text-center mb-8">Weekly Report</h1>
+          
+          <div className="flex flex-col gap-4 mb-6">
+            <div className="flex flex-wrap justify-center items-center gap-2">
+              <select
+                value={selectedYear}
+                onChange={(e) => {
+                  setSelectedYear(Number(e.target.value));
+                  setSelectedWeek(1);
+                }}
+                className="border border-gray-400 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#02066F] min-w-[100px]"
+              >
+                {Array.from({length: 10}, (_, i) => new Date().getFullYear() - 5 + i).map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+              
+              <select
+                value={selectedMonth}
+                onChange={(e) => {
+                  setSelectedMonth(Number(e.target.value));
+                  setSelectedWeek(1);
+                }}
+                className="border border-gray-400 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#02066F] min-w-[120px]"
+              >
+                {Array.from({length: 12}, (_, i) => i + 1).map(month => (
+                  <option key={month} value={month}>
+                    {new Date(0, month - 1).toLocaleString('default', { month: 'long' })}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row justify-center items-center gap-2">
+              <select
+                value={selectedWeek}
+                onChange={(e) => setSelectedWeek(Number(e.target.value))}
+                className="border border-gray-400 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#02066F] w-full sm:w-auto min-w-[200px]"
+              >
+                {getWeeksInMonth(selectedYear, selectedMonth).map((week, index) => (
+                  <option key={index + 1} value={index + 1}>{week.label}</option>
+                ))}
+              </select>
+              
+              <button
+                onClick={loadWeeklyReport}
+                className="bg-[#02066F] text-white px-6 py-2 rounded-md hover:bg-blue-800 transition w-full sm:w-auto"
+              >
+                Load Report
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row justify-between items-center mb-6 p-4 bg-gray-50 rounded-lg border">
+            <div className="mb-2 sm:mb-0">
+              <span className="text-lg font-semibold text-gray-800">Week Start: </span>
+              <span className="text-lg font-semibold text-[#02066F]">{start || 'Not selected'}</span>
+            </div>
+            <div>
+              <span className="text-lg font-semibold text-gray-800">Week End: </span>
+              <span className="text-lg font-semibold text-[#02066F]">{end || 'Not selected'}</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row justify-center items-center mb-6">
+            <div className="flex gap-2">
+              <button 
+                onClick={downloadCSV} 
+                className="text-[#02066F] hover:text-white hover:bg-[#02066F] px-4 py-2 rounded-lg transition-colors cursor-pointer border border-[#02066F]"
+              >
+                Download CSV
+              </button>
+              <button 
+                onClick={downloadPDF} 
+                className="text-[#02066F] hover:text-white hover:bg-[#02066F] px-4 py-2 rounded-lg transition-colors cursor-pointer border border-[#02066F]"
+              >
+                Download PDF
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
+            <div className="flex items-center gap-2">
+              <label className="text-base font-semibold text-gray-700">Show:</label>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                className="border border-gray-400 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[#02066F]"
+              >
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+              <span className="text-base font-semibold text-gray-700">entries</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className="text-base font-semibold text-gray-800">Search:</label>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full sm:w-64 px-3 py-2 border border-gray-400 rounded-md focus:outline-none focus:ring-2 focus:ring-[#02066F] focus:border-transparent"
+                placeholder="Search by name or pin..."
+              />
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full border border-gray-300 text-sm">
+              <thead className="bg-[#02066F] text-white">
+                <tr>
+                  <th className="px-6 py-3 text-center font-bold border-r border-gray-400">Name</th>
+                  <th className="px-6 py-3 text-center font-bold border-r border-gray-400">Pin</th>
+                  <th className="px-6 py-3 text-center font-bold">Total Worked Hours (HH:MM)</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredEmployees.length === 0 ? (
+                  <tr>
+                    <td colSpan="3" className="px-6 py-8 text-center text-gray-500">
+                      {employees.length === 0 ? 'No data available. Please load a report first.' : 'No matching records found'}
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedData().map((employee, index) => (
+                    <tr key={`${employee.pin}-${index}`} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 text-center font-semibold text-gray-900 border-r border-gray-200">{employee.name}</td>
+                      <td className="px-6 py-4 text-center font-semibold text-gray-900 border-r border-gray-200">{employee.pin}</td>
+                      <td className="px-6 py-4 text-center font-semibold text-gray-900">{employee.hoursWorked}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {filteredEmployees.length > 0 && (
+            <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
+              <div className="text-sm text-gray-700">
+                Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredEmployees.length)} to {Math.min(currentPage * itemsPerPage, filteredEmployees.length)} of {filteredEmployees.length} results
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Previous
+                </button>
+                <span className="px-4 py-2 text-sm text-gray-700">
+                  Page {currentPage} of {totalPages()}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(Math.min(totalPages(), currentPage + 1))}
+                  disabled={currentPage === totalPages()}
+                  className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const renderSalariedReport = () => {
     const filteredEmployees = employees.filter(emp =>
       emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -826,9 +1151,14 @@ const Reports = () => {
           </div>
 
           <div className="flex flex-col gap-2 sm:flex-row justify-evenly items-center mb-6">
-            <button onClick={downloadPDF} className="text-[#02066F] hover:text-black px-4 py-2 rounded-lg transition-colors cursor-pointer border-1 border-[#02066F]">
-              Download PDF
-            </button>
+            <div className="flex gap-2">
+              <button onClick={downloadCSV} className="text-[#02066F] hover:text-black px-4 py-2 rounded-lg transition-colors cursor-pointer border border-[#02066F]">
+                Download CSV
+              </button>
+              <button onClick={downloadPDF} className="text-[#02066F] hover:text-black px-4 py-2 rounded-lg transition-colors cursor-pointer border border-[#02066F]">
+                Download PDF
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
@@ -952,6 +1282,14 @@ const Reports = () => {
                   >
                     Day Wise Report
                   </button>
+                  <button
+                    onClick={() => setActiveTab("weekly")}
+                    className={`px-4 py-2 font-semibold rounded-full cursor-pointer ${
+                      activeTab === "weekly" ? "bg-[#02066F] text-white" : "text-[#02066F]"
+                    }`}
+                  >
+                    Weekly Report
+                  </button>
                   {availableFrequencies.map((frequency) => (
                     <button
                       key={frequency}
@@ -1020,6 +1358,7 @@ const Reports = () => {
           <div className="py-8">
             {activeTab === "today" && renderTodayReport()}
             {activeTab === "daywise" && renderDayWiseReport()}
+            {activeTab === "weekly" && renderWeeklyReport()}
             {activeTab === "salaried" && renderSalariedReport()}
           </div>
         </div>

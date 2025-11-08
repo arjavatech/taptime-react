@@ -6,7 +6,7 @@ import { submitContactForm } from "../api.js";
 const HomePage = () => {
   const [phone, setPhone] = useState("");
   const [showOverlay, setShowOverlay] = useState(false);
-  const [showModal, setShowModal] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [errors, setErrors] = useState({});
 
   const formRef = useRef(null);
@@ -75,12 +75,13 @@ const HomePage = () => {
       };
       
       await submitContactForm(userData);
-      setShowModal(true);
+      setToast({ show: true, message: 'Message sent successfully!', type: 'success' });
       formRef.current.reset();
       setPhone('');
-      setTimeout(() => setShowModal(false), 5000);
+      setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
     } catch (error) {
-      alert('Something went wrong. Please try again.');
+      setToast({ show: true, message: 'Failed to send message', type: 'error' });
+      setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
     } finally {
       setShowOverlay(false);
     }
@@ -186,18 +187,24 @@ const HomePage = () => {
             </button>
           </form>
 
-          {showModal && (
-            <div className="fixed inset-0 flex items-center justify-center z-50" style={{ background: "rgba(0, 0, 0, 0.5)" }} onClick={() => setShowModal(false)}>
-              <div className="bg-white rounded-sm shadow-xl w-full max-w-sm sm:max-w-lg mx-auto my-6 sm:my-12">
-                <div className="bg-[#02066F] text-white py-4 px-4 sm:px-6 rounded-t-sm text-center">
-                  <h5 className="text-lg sm:text-xl font-semibold">Thank You for Contacting Us!</h5>
-                </div>
-                <div className="p-4 sm:p-6 text-center">
-                  <p className="font-bold mb-4 text-base sm:text-xl">We have received your message and will get back to you shortly.</p>
-                  <div className="flex justify-center">
-                    <img src="https://www.shutterstock.com/image-vector/blue-check-mark-icon-tick-260nw-787016416.jpg" alt="Checkmark" className="w-20 h-20 sm:w-24 sm:h-24 object-contain" />
-                  </div>
-                </div>
+          {/* Toast Notification */}
+          {toast.show && (
+            <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2">
+              <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${
+                toast.type === 'success' 
+                  ? 'bg-green-50 border-green-200 text-green-800' 
+                  : 'bg-red-50 border-red-200 text-red-800'
+              }`}>
+                {toast.type === 'success' ? (
+                  <svg className="h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <svg className="h-5 w-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+                <span className="font-medium text-sm">{toast.message}</span>
               </div>
             </div>
           )}
