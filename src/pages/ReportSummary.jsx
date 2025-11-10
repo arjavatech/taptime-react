@@ -1,1494 +1,1069 @@
-import React, { useState, useEffect, useCallback } from "react";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import Header from "../components/layout/Header";
-import Footer from "../components/layout/Footer";
-import { fetchEmployeeData, fetchDevices, fetchDailyReport, fetchDateRangeReport, createDailyReportEntry, updateDailyReportEntry } from "../api.js";
-import { getLocalDateString, getLocalDateTimeString } from "../utils";
+import React, { useState, useEffect } from "react"
+import Header from "../components/layout/Header"
+import Footer from "../components/layout/Footer"
+import { Button } from "../components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card"
+import { Input } from "../components/ui/input"
+import { Label } from "../components/ui/label"
+import { mockReportData, mockEmployeeData, mockAnalyticsData, mockReportSummary, generateTodayMockData, getMockDataForDateRange, delay } from "../data/mockData"
+import {
+  Calendar,
+  Download,
+  FileText,
+  Clock,
+  Users,
+  Search,
+  BarChart3,
+  TrendingUp,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+  Grid3X3,
+  Table
+} from "lucide-react"
 
-const Reports = () => {
-  const [activeTab, setActiveTab] = useState("today");
-  const [loading, setLoading] = useState(false);
-  const [reportData, setReportData] = useState([]);
-  const [filteredData, setFilteredData] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [sortConfig, setSortConfig] = useState({ key: "", direction: "asc" });
-  
-  // Common state
-  const [devices, setDevices] = useState([]);
-  const [selectedDevice, setSelectedDevice] = useState(null);
-  const [adminType, setAdminType] = useState("");
-  const [deviceID, setDeviceID] = useState("");
-  const [availableFrequencies, setAvailableFrequencies] = useState([]);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [showModal, setShowModal] = useState(false);
+const ReportsPage = () => {
+  const [viewSettings, setViewSettings] = useState(["Weekly"]) // Default from Report Settings
+  const [activeTab, setActiveTab] = useState("today")
+  const [reportData, setReportData] = useState([])
+  const [filteredData, setFilteredData] = useState([])
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  const [summaryStats, setSummaryStats] = useState(mockReportSummary.daily)
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" })
+  const [showModal, setShowModal] = useState(false)
   const [newEntry, setNewEntry] = useState({
     EmployeeID: "",
     Type: "",
     Date: "",
     CheckInTime: "",
     CheckOutTime: ""
-  });
-  const [employeeList, setEmployeeList] = useState([]);
-  const [checkoutDisabled, setCheckoutDisabled] = useState(true);
-  const [addButtonDisabled, setAddButtonDisabled] = useState(true);
+  })
+  const [employeeList, setEmployeeList] = useState([])
+  const [checkoutDisabled, setCheckoutDisabled] = useState(true)
+  const [addButtonDisabled, setAddButtonDisabled] = useState(true)
   const [formErrors, setFormErrors] = useState({
     employee: "",
     type: "",
     date: "",
     checkinTime: "",
     checkoutTime: ""
-  });
-  const companyId = localStorage.getItem("companyID");
+  })
+  const [viewMode, setViewMode] = useState("table") // table, grid
+  const [sortConfig, setSortConfig] = useState({ key: "name", direction: "asc" })
 
-  // Today's report specific
-  const [tableData, setTableData] = useState([]);
-  const [currentDate, setCurrentDate] = useState("");
-  const [checkoutTimes, setCheckoutTimes] = useState({});
-
-  // Day wise report specific
-  const [selectedDate, setSelectedDate] = useState("");
-
-  // Salaried report specific
-  const [startDateHeader, setStartDateHeader] = useState("");
-  const [endDateHeader, setEndDateHeader] = useState("");
-  const [selectedFrequency, setSelectedFrequency] = useState("");
-  const [employees, setEmployees] = useState([]);
-
-  // Weekly report specific
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedWeek, setSelectedWeek] = useState(1);
-
-  const loadFrequenciesSync = () => {
-    const savedFrequencies = localStorage.getItem("reportType");
-    return savedFrequencies ? savedFrequencies.split(",").filter(f => f.trim() !== "" && f.toLowerCase() !== "weekly") : [];
-  };
-
-  const loadDevices = useCallback(async () => {
-    try {
-      const filteredDevices = await fetchDevices(companyId);
-      setDevices(filteredDevices);
-      if (filteredDevices.length > 0) {
-        setSelectedDevice(filteredDevices[0]);
+  useEffect(() => {
+    loadViewSettings()
+    
+    // Listen for localStorage changes (when Report Settings are updated)
+    const handleStorageChange = (e) => {
+      if (e.key === 'reportViewSettings') {
+        loadViewSettings()
       }
-    } catch (error) {
-      console.error("Error fetching devices:", error);
     }
-  }, [companyId]);
-
-  const handleDeviceSelection = (device) => {
-    setSelectedDevice(device);
-    if (activeTab === "today") {
-      viewCurrentDateReport(currentDate);
-    } else if (activeTab === "daywise" && selectedDate) {
-      viewDatewiseReport(selectedDate);
+    
+    window.addEventListener('storage', handleStorageChange)
+    
+    // Also listen for custom events from same window
+    const handleSettingsUpdate = () => {
+      loadViewSettings()
     }
-  };
+    
+    window.addEventListener('reportSettingsUpdated', handleSettingsUpdate)
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('reportSettingsUpdated', handleSettingsUpdate)
+    }
+  }, [])
 
-  // Today's Report Functions
-  const formatToAmPm = (date) => {
-    let h = date.getHours();
-    const m = date.getMinutes();
-    const ampm = h >= 12 ? "PM" : "AM";
-    h = h % 12 || 12;
-    return `${h}:${String(m).padStart(2, "0")} ${ampm}`;
-  };
+  useEffect(() => {
+    loadEmployeeList()
+  }, [])
 
-  const viewCurrentDateReport = async (dateToUse = currentDate) => {
-    try {
-      const arr = await fetchDailyReport(companyId, dateToUse);
+  useEffect(() => {
+    if (activeTab === "today" || activeTab === "daily") {
+      loadDailyReport()
+    }
+  }, [selectedDate, activeTab])
 
-      if (!arr.length) {
-        setTableData([]);
-        return;
+  useEffect(() => {
+    filterData()
+  }, [reportData, searchQuery, sortConfig])
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 650 && viewMode === "table") { // lg breakpoint
+        setViewMode("grid") // Only auto-switch if currently on table view
       }
-
-      let processedData = arr.map(row => ({
-        ...row,
-        checkInTimeFormatted: formatToAmPm(new Date(row.CheckInTime)),
-        needsCheckout: !row.CheckOutTime,
-        checkoutTime: "",
-      }));
-
-      // Only apply device filter if a device is explicitly selected
-      if (selectedDevice && selectedDevice.DeviceID) {
-        processedData = processedData.filter(item => item.DeviceID === selectedDevice.DeviceID);
-      }
-
-      setTableData(processedData);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // Checkout functionality
-  const handleCheckoutTimeChange = (rowKey, value) => {
-    setCheckoutTimes(prev => ({
-      ...prev,
-      [rowKey]: value
-    }));
-  };
-
-  const handleCheckout = async (row) => {
-    const rowKey = `${row.Pin}-${row.CheckInTime}`;
-    const checkoutTime = checkoutTimes[rowKey];
-
-    if (!checkoutTime) {
-      alert("Please enter a checkout time");
-      return;
     }
 
-    // Extract date from check-in time (use local time, not UTC)
-    const checkinDateObj = new Date(row.CheckInTime);
-    const checkInDateString = getLocalDateString(checkinDateObj);
-
-    // Use check-in date with checkout time (time input already includes seconds)
-    const checkoutDateTime = `${checkInDateString}T${checkoutTime}`;
-    const checkinDateTime = row.CheckInTime;
-
-    // Use check-in date for the Date field in updateData
-    const today = checkInDateString;
-
-    // Validate that checkout time is after checkin time
-    const checkinDate = new Date(checkinDateTime);
-    const checkoutDate = new Date(checkoutDateTime);
-
-    if (checkoutDate <= checkinDate) {
-      alert("Checkout time must be greater than check-in time");
-      return;
+    // Set initial view mode to grid on mobile
+    if (window.innerWidth < 650) {
+      setViewMode("grid")
     }
 
-    // Calculate time worked
-    const timeWorked = calculateTimeWorked(checkinDateTime, checkoutDateTime);
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
-    setLoading(true);
+  useEffect(() => {
+    setViewMode(prev => prev) // Reset view mode when needed
+  }, [viewMode])
+
+  const loadViewSettings = () => {
+    // Load from localStorage or API - simulating Report Settings data
+    const savedSettings = localStorage.getItem('reportViewSettings')
+    if (savedSettings) {
+      setViewSettings(JSON.parse(savedSettings))
+    }
+  }
+
+  const getThirdTabLabel = () => {
+    const setting = viewSettings[0] || 'Weekly'
+    return `${setting} Report`
+  }
+
+  const showToast = (message, type = "success") => {
+    setToast({ show: true, message, type })
+    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000)
+  }
+
+  const loadDailyReport = async () => {
+    setIsLoading(true)
     try {
-      const updateData = {
-        CID: companyId,
-        EmpID: row.EmpID,
-        Pin: row.Pin,
-        Name: row.Name,
-        Date: today,
-        TypeID: row.Type || row.TypeID,
-        CheckInSnap: row.CheckInSnap || null,
-        CheckInTime: checkinDateTime,
-        CheckOutSnap: row.CheckOutSnap || null,
-        CheckOutTime: getLocalDateTimeString(checkoutDate),
-        TimeWorked: timeWorked,
-        LastModifiedBy: "Admin"
-      };
+      await delay(500) // Simulate API call
+      let dateFilteredData
 
-      await updateDailyReportEntry(row.EmpID, companyId, row.CheckInTime, updateData);
-
-      // Clear the checkout time for this row
-      setCheckoutTimes(prev => {
-        const updated = { ...prev };
-        delete updated[rowKey];
-        return updated;
-      });
-
-      // Refresh the data
-      await viewCurrentDateReport(currentDate);
-    } catch (error) {
-      console.error("Error updating checkout:", error);
-      alert("Failed to update checkout time. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Day Wise Report Functions
-  const convertToAmPm = (dateString) => {
-    const date = new Date(dateString);
-    let hours = date.getHours();
-    const minutes = date.getMinutes();
-    const ampm = hours >= 12 ? "PM" : "AM";
-    hours = hours % 12 || 12;
-    const minutesStr = minutes < 10 ? "0" + minutes : minutes;
-    return `${hours}:${minutesStr} ${ampm}`;
-  };
-
-  const calculateTimeWorked = (checkIn, checkOut) => {
-    const inTime = new Date(checkIn);
-    const outTime = new Date(checkOut);
-    const diff = outTime.getTime() - inTime.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    return `${hours}:${minutes.toString().padStart(2, "0")}`;
-  };
-
-  const viewDatewiseReport = async (dateValue) => {
-    if (!dateValue || !companyId) {
-      setReportData([]);
-      setFilteredData([]);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      console.log(`Fetching daily report for date: ${dateValue}, companyId: ${companyId}`);
-      const data = await fetchDailyReport(companyId, dateValue);
-      console.log('API Response:', data);
-
-      const records = Array.isArray(data) ? data : [];
-      let processedData = records.map(item => ({
-        ...item,
-        formattedCheckIn: item.CheckInTime ? convertToAmPm(item.CheckInTime) : "--",
-        formattedCheckOut: item.CheckOutTime ? convertToAmPm(item.CheckOutTime) : "--",
-        timeWorked: item.TimeWorked || (item.CheckInTime && item.CheckOutTime
-          ? calculateTimeWorked(item.CheckInTime, item.CheckOutTime) : "--"),
-      }));
-
-      // Only apply device filter if a device is explicitly selected
-      if (selectedDevice && selectedDevice.DeviceID) {
-        processedData = processedData.filter(item => item.DeviceID === selectedDevice.DeviceID);
-      }
-
-      console.log('Processed data:', processedData);
-      setReportData(processedData);
-      setFilteredData([...processedData]);
-      setCurrentPage(1);
-    } catch (err) {
-      console.error("Error fetching report:", err);
-      setReportData([]);
-      setFilteredData([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Salaried Report Functions
-  const calculateTotalTimeWorked = (data) => {
-    const employeeTimes = {};
-    data.forEach(entry => {
-      const { Name, Pin, CheckInTime, CheckOutTime } = entry;
-      if (!Name || !Pin || !CheckInTime) return;
-
-      const checkInDate = new Date(CheckInTime);
-      const checkOutDate = CheckOutTime ? new Date(CheckOutTime) : new Date();
-      const timeDifferenceInMinutes = Math.floor((Number(checkOutDate) - Number(checkInDate)) / 1000 / 60);
-
-      if (!employeeTimes[Pin]) {
-        employeeTimes[Pin] = { name: Name, totalMinutes: 0 };
-      }
-      employeeTimes[Pin].totalMinutes += timeDifferenceInMinutes;
-    });
-
-    for (const [pin, details] of Object.entries(employeeTimes)) {
-      const hours = Math.floor(details.totalMinutes / 60);
-      const mins = details.totalMinutes % 60;
-      details.totalHoursWorked = `${hours}:${mins.toString().padStart(2, "0")}`;
-    }
-    return employeeTimes;
-  };
-
-  const loadReportTable = async (startVal, endVal) => {
-    setLoading(true);
-    setStartDateHeader(startVal);
-    setEndDateHeader(endVal);
-
-    try {
-      const data = await fetchDateRangeReport(companyId, startVal, endVal);
-
-      if (Array.isArray(data)) {
-        let filteredData = data;
-        if (adminType !== "Owner") {
-          filteredData = data.filter(item => item.DeviceID === deviceID);
-        } else if (selectedDevice && selectedDevice.DeviceID) {
-          filteredData = data.filter(item => item.DeviceID === selectedDevice.DeviceID);
-        }
-
-        const employeeData = Object.entries(calculateTotalTimeWorked(filteredData)).map(([pin, empData]) => ({
-          pin,
-          name: empData.name,
-          hoursWorked: empData.totalHoursWorked || "0:00",
-        }));
-
-        setEmployees(employeeData);
+      // Use today's dynamic data if selected date is today
+      const today = new Date().toISOString().split('T')[0]
+      if (selectedDate === today) {
+        dateFilteredData = generateTodayMockData()
       } else {
-        setEmployees([]);
+        dateFilteredData = mockReportData.filter(record =>
+          record.Date === selectedDate
+        )
       }
+
+      setReportData(dateFilteredData)
+      setSummaryStats({
+        ...mockReportSummary.daily,
+        totalRecords: dateFilteredData.length,
+        presentEmployees: dateFilteredData.filter(r => r.CheckInTime).length,
+        totalHours: dateFilteredData.reduce((sum, r) => {
+          if (r.TimeWorked && r.TimeWorked !== "0:00") {
+            const [hours, minutes] = r.TimeWorked.split(':').map(Number)
+            return sum + hours + (minutes / 60)
+          }
+          return sum
+        }, 0).toFixed(1)
+      })
     } catch (error) {
-      console.error("Error fetching report data", error);
-      setEmployees([]);
+      showToast("Failed to load report data", "error")
     } finally {
-      setLoading(false);
+      setIsLoading(false)
     }
-  };
+  }
 
-  // Common Functions
-  const filterData = () => {
-    if (!searchQuery) {
-      if (activeTab === "daywise") {
-        setFilteredData([...reportData]);
-      }
-    } else {
-      const query = searchQuery.toLowerCase();
-      if (activeTab === "daywise") {
-        const filtered = reportData.filter(item =>
-          item.Name?.toLowerCase().includes(query) || item.Pin?.toLowerCase().includes(query)
-        );
-        setFilteredData(filtered);
-      }
+  const loadDateRangeReport = async () => {
+    if (!startDate || !endDate) {
+      showToast("Please select both start and end dates", "error")
+      return
     }
-    setCurrentPage(1);
-  };
 
-  const requestSort = (key) => {
-    let direction = "asc";
-    if (sortConfig.key === key && sortConfig.direction === "asc") {
-      direction = "desc";
-    }
-    setSortConfig({ key, direction });
+    setIsLoading(true)
+    try {
+      await delay(1000) // Simulate API call
+      const rangeFilteredData = getMockDataForDateRange(startDate, endDate)
 
-    if (activeTab === "daywise") {
-      const sorted = [...filteredData].sort((a, b) => {
-        const valA = a[key] ?? "";
-        const valB = b[key] ?? "";
-        if (!isNaN(Number(valA))) {
-          return direction === "asc" ? Number(valA) - Number(valB) : Number(valB) - Number(valA);
+      // Group by employee for summary
+      const employeeSummary = {}
+      rangeFilteredData.forEach(record => {
+        if (!employeeSummary[record.EmpID]) {
+          employeeSummary[record.EmpID] = {
+            EmpID: record.EmpID,
+            Name: record.Name,
+            Pin: record.Pin,
+            totalHours: 0,
+            totalDays: 0
+          }
         }
-        return direction === "asc" 
-          ? String(valA).localeCompare(String(valB))
-          : String(valB).localeCompare(String(valA));
-      });
-      setFilteredData(sorted);
+
+        if (record.TimeWorked && record.TimeWorked !== "0:00") {
+          const [hours, minutes] = record.TimeWorked.split(':').map(Number)
+          employeeSummary[record.EmpID].totalHours += hours + (minutes / 60)
+          employeeSummary[record.EmpID].totalDays += 1
+        }
+      })
+
+      const summaryData = Object.values(employeeSummary).map(emp => ({
+        ...emp,
+        TimeWorked: `${Math.floor(emp.totalHours)}:${String(Math.round((emp.totalHours % 1) * 60)).padStart(2, '0')}`,
+        avgHoursPerDay: emp.totalDays > 0 ? (emp.totalHours / emp.totalDays).toFixed(1) : "0.0"
+      }))
+
+      setReportData(summaryData)
+      setSummaryStats({
+        ...mockReportSummary.weekly,
+        totalRecords: rangeFilteredData.length,
+        totalHours: rangeFilteredData.reduce((sum, r) => {
+          if (r.TimeWorked && r.TimeWorked !== "0:00") {
+            const [hours, minutes] = r.TimeWorked.split(':').map(Number)
+            return sum + hours + (minutes / 60)
+          }
+          return sum
+        }, 0).toFixed(1)
+      })
+    } catch (error) {
+      showToast("Failed to load report data", "error")
+    } finally {
+      setIsLoading(false)
     }
-  };
+  }
+
+  const filterData = () => {
+    let filtered = reportData
+    
+    // Filter by search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      filtered = filtered.filter(record =>
+        record.Name?.toLowerCase().includes(query) ||
+        record.Pin?.toLowerCase().includes(query) ||
+        record.EmpID?.toLowerCase().includes(query)
+      )
+    }
+    
+    // Sort data
+    filtered.sort((a, b) => {
+      let aValue, bValue
+      if (sortConfig.key === "name") {
+        aValue = a.Name?.toLowerCase() || ""
+        bValue = b.Name?.toLowerCase() || ""
+        return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue)
+      } else if (sortConfig.key === "pin") {
+        aValue = a.Pin || ""
+        bValue = b.Pin || ""
+        return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue)
+      } else if (sortConfig.key === "time") {
+        aValue = a.TimeWorked || "0:00"
+        bValue = b.TimeWorked || "0:00"
+        return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue)
+      } else if (sortConfig.key === "checkin" && activeTab === "daily") {
+        aValue = a.CheckInTime || ""
+        bValue = b.CheckInTime || ""
+        return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue)
+      } else if (sortConfig.key === "days" && activeTab === "summary") {
+        aValue = a.totalDays || 0
+        bValue = b.totalDays || 0
+        return sortConfig.direction === "asc" ? aValue - bValue : bValue - aValue
+      }
+      return 0
+    })
+    
+    setFilteredData(filtered)
+  }
+
+  const formatTime = (timeString) => {
+    if (!timeString) return "--"
+    const date = new Date(timeString)
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    })
+  }
 
   const downloadCSV = () => {
-    let csvContent, filename;
-
-    if (activeTab === "today") {
-      const headers = ["Employee ID", "Name", "Check-in Time", "Check-out Time"];
-      const rows = tableData.map(item => [
-        item.Pin || "",
-        item.Name?.split(" ")[0] || "",
-        item.checkInTimeFormatted || "",
-        item.CheckOutTime ? formatToAmPm(new Date(item.CheckOutTime)) : ""
-      ]);
-      csvContent = [headers, ...rows].map(row => row.join(",")).join("\n");
-      filename = `todays_report_${currentDate}.csv`;
-    } else if (activeTab === "daywise") {
-      const headers = ["Employee Name", "Employee ID", "Check-in Time", "Check-out Time", "Time Worked Hours(HH:MM)"];
-      const rows = filteredData.map(item => [
-        item.Name || "",
-        item.Pin || "",
-        item.formattedCheckIn || "",
-        item.formattedCheckOut || "",
-        item.timeWorked || ""
-      ]);
-      csvContent = [headers, ...rows].map(row => row.join(",")).join("\n");
-      filename = `daywise_report_${selectedDate}.csv`;
-    } else if (activeTab === "salaried") {
-      const headers = ["Name", "Pin", "Time Worked Hours (HH:MM)"];
-      const rows = employees.map(emp => [
-        emp.name || "",
-        emp.pin || "",
-        emp.hoursWorked || ""
-      ]);
-      csvContent = [headers, ...rows].map(row => row.join(",")).join("\n");
-      filename = `${selectedFrequency.toLowerCase()}_report_${startDateHeader}_to_${endDateHeader}.csv`;
-    } else if (activeTab === "weekly") {
-      const headers = ["Name", "Pin", "Time Worked Hours (HH:MM)"];
-      const rows = employees.map(emp => [
-        emp.name || "",
-        emp.pin || "",
-        emp.hoursWorked || ""
-      ]);
-      csvContent = [headers, ...rows].map(row => row.join(",")).join("\n");
-      filename = `weekly_report_${selectedYear}_${selectedMonth}_week${selectedWeek}.csv`;
+    if (filteredData.length === 0) {
+      showToast("No data to export", "error")
+      return
     }
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = filename;
-    link.click();
-  };
+    let csvContent = ""
+    let filename = ""
+
+    if (activeTab === "daily") {
+      csvContent = "Employee ID,Name,Check-in Time,Check-out Time,Time Worked,Type\n"
+      csvContent += filteredData.map(record => [
+        record.Pin || "",
+        record.Name || "",
+        record.CheckInTime ? formatTime(record.CheckInTime) : "",
+        record.CheckOutTime ? formatTime(record.CheckOutTime) : "",
+        record.TimeWorked || "",
+        record.Type || ""
+      ].join(",")).join("\n")
+      filename = `daily_report_${selectedDate}.csv`
+    } else {
+      csvContent = "Employee ID,Name,Total Hours,Days Worked,Avg Hours/Day\n"
+      csvContent += filteredData.map(record => [
+        record.Pin || "",
+        record.Name || "",
+        record.TimeWorked || "",
+        record.totalDays || "",
+        record.avgHoursPerDay || ""
+      ].join(",")).join("\n")
+      filename = `summary_report_${startDate}_to_${endDate}.csv`
+    }
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const link = document.createElement("a")
+    link.href = URL.createObjectURL(blob)
+    link.download = filename
+    link.click()
+
+    showToast("Report exported successfully!")
+  }
 
   const downloadPDF = () => {
-    const doc = new jsPDF();
-    let tableColumn, tableRows, title;
+    showToast("PDF export functionality would be implemented here")
+  }
 
-    if (activeTab === "") {
-      title = `Today's Report - ${currentDate}`;
-      tableColumn = ["Employee ID", "Name", "Check-in Time", "Check-out Time"];
-      tableRows = tableData.map(item => [
-        item.Pin || "--",
-        item.Name?.split(" ")[0] || "--",
-        item.checkInTimeFormatted || "--",
-        item.CheckOutTime ? formatToAmPm(new Date(item.CheckOutTime)) : "--"
-      ]);
-    } else if (activeTab === "daywise") {
-      title = `Day-Wise Report - ${selectedDate}`;
-      tableColumn = ["Employee Name", "Employee ID", "Check-in Time", "Check-out Time", "Time Worked Hours(HH:MM)"];
-      tableRows = filteredData.map(item => [
-        item.Name?.split(" ")[0] || "",
-        item.Pin || "--",
-        item.formattedCheckIn || "--",
-        item.formattedCheckOut || "--",
-        item.timeWorked || "--",
-      ]);
-    } else if (activeTab === "salaried") {
-      title = `${selectedFrequency} Report (${startDateHeader} to ${endDateHeader})`;
-      tableColumn = ["Name", "Pin", "Time Worked Hours (HH:MM)"];
-      tableRows = employees.map(emp => [
-        emp.name || "--",
-        emp.pin || "--",
-        emp.hoursWorked || "--",
-      ]);
-    } else if (activeTab === "weekly") {
-      title = `Weekly Report - ${selectedYear} Month ${selectedMonth} Week ${selectedWeek}`;
-      tableColumn = ["Name", "Pin", "Time Worked Hours (HH:MM)"];
-      tableRows = employees.map(emp => [
-        emp.name || "--",
-        emp.pin || "--",
-        emp.hoursWorked || "--",
-      ]);
+  const getStatusBadge = (record) => {
+    if (activeTab === "daily") {
+      if (record.CheckOutTime) {
+        return <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Completed</span>
+      } else {
+        return <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">In Progress</span>
+      }
     }
+    return null
+  }
 
-    doc.text(title, 14, 10);
-    autoTable(doc, {
-      head: [tableColumn],
-      body: tableRows,
-      startY: 20,
-      headStyles: { fillColor: [2, 6, 111], textColor: 255, fontSize: 10, fontStyle: "bold" },
-      styles: { fontSize: 10 },
-      theme: "grid",
-    });
+  const getTotalHours = () => {
+    return filteredData.reduce((total, record) => {
+      if (record.TimeWorked && record.TimeWorked !== "0:00") {
+        const [hours, minutes] = record.TimeWorked.split(':').map(Number)
+        return total + hours + (minutes / 60)
+      }
+      return total
+    }, 0).toFixed(1)
+  }
 
-    doc.save(`${title.toLowerCase().replace(/\s+/g, "_")}.pdf`);
-  };
+  const getActiveEmployees = () => {
+    return filteredData.filter(record =>
+      activeTab === "daily" ? record.CheckInTime : record.totalDays > 0
+    ).length
+  }
 
-  const paginatedData = () => {
-    const start = (currentPage - 1) * itemsPerPage;
-    if (activeTab === "daywise") {
-      return filteredData.slice(start, start + itemsPerPage);
-    } else if (activeTab === "salaried") {
-      const filteredEmployees = employees.filter(emp =>
-        emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        emp.pin.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      return filteredEmployees.slice(start, start + itemsPerPage);
-    } else if (activeTab === "weekly") {
-      const filteredEmployees = employees.filter(emp =>
-        emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        emp.pin.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      return filteredEmployees.slice(start, start + itemsPerPage);
-    }
-    return [];
-  };
-
-  const totalPages = () => {
-    if (activeTab === "daywise") {
-      return Math.ceil(filteredData.length / itemsPerPage);
-    } else if (activeTab === "salaried") {
-      const filteredEmployees = employees.filter(emp =>
-        emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        emp.pin.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      return Math.ceil(filteredEmployees.length / itemsPerPage);
-    } else if (activeTab === "weekly") {
-      const filteredEmployees = employees.filter(emp =>
-        emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        emp.pin.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      return Math.ceil(filteredEmployees.length / itemsPerPage);
-    }
-    return 0;
-  };
-
-  // Modal Handlers
   const closeModal = () => {
-    setShowModal(false);
+    setShowModal(false)
     setNewEntry({
       EmployeeID: "",
       Type: "",
       Date: "",
       CheckInTime: "",
       CheckOutTime: ""
-    });
+    })
     setFormErrors({
       employee: "",
       type: "",
       date: "",
       checkinTime: "",
       checkoutTime: ""
-    });
-    setCheckoutDisabled(true);
-    setAddButtonDisabled(true);
-  };
-
-  const validateForm = () => {
-    const errors = {
-      employee: "",
-      type: "",
-      date: "",
-      checkinTime: "",
-      checkoutTime: ""
-    };
-    let isValid = true;
-
-    if (!newEntry.EmployeeID) {
-      errors.employee = "Employee selection is required";
-      isValid = false;
-    }
-    if (!newEntry.Type) {
-      errors.type = "Type selection is required";
-      isValid = false;
-    }
-    if (!newEntry.Date) {
-      errors.date = "Date is required";
-      isValid = false;
-    }
-    if (!newEntry.CheckInTime) {
-      errors.checkinTime = "Check-in time is required";
-      isValid = false;
-    }
-
-    setFormErrors(errors);
-    return isValid;
-  };
+    })
+    setCheckoutDisabled(true)
+    setAddButtonDisabled(true)
+  }
 
   const handleCheckinTimeChange = (value) => {
-    setNewEntry({ ...newEntry, CheckInTime: value });
-    // Enable checkout field and add button when check-in time is entered
+    setNewEntry({ ...newEntry, CheckInTime: value })
     if (value) {
-      setCheckoutDisabled(false);
-      setAddButtonDisabled(false);
+      setCheckoutDisabled(false)
+      setAddButtonDisabled(false)
     } else {
-      setCheckoutDisabled(true);
-      setAddButtonDisabled(true);
+      setCheckoutDisabled(true)
+      setAddButtonDisabled(true)
     }
-  };
+  }
 
   const loadEmployeeList = async () => {
     try {
-      const employeeData = await fetchEmployeeData(companyId);
-      setEmployeeList(employeeData || []);
+      await delay(300)
+      setEmployeeList(mockEmployeeData)
     } catch (error) {
-      console.error("Error loading employee list:", error);
-      setEmployeeList([]);
+      showToast("Failed to load employees", "error")
     }
-  };
+  }
 
-  // Load employee list when modal opens
-  useEffect(() => {
-    if (showModal) {
-      loadEmployeeList();
-      // Set max date to today (use local time, not UTC)
-      const today = getLocalDateString();
-      document.getElementById('datePicker')?.setAttribute('max', today);
-    }
-  }, [showModal]);
-
-  const handleSaveEntry = async () => {
-    if (!validateForm()) return;
-
-    setLoading(true);
-
-    try {
-      // Find selected employee
-      const selectedEmployee = employeeList.find(emp => emp.Pin === newEntry.EmployeeID);
-
-      // Combine date and time for check-in
-      const checkinDateTime = `${newEntry.Date}T${newEntry.CheckInTime}`;
-      const checkoutDateTime = newEntry.CheckOutTime ? `${newEntry.Date}T${newEntry.CheckOutTime}` : null;
-
-      // Prepare API payload
-      const entryData = {
-        Pin: newEntry.EmployeeID,
-        EmpID: selectedEmployee?.EmpID || "",
-        Name: selectedEmployee ? `${selectedEmployee.FName} ${selectedEmployee.LName}` : "",
-        TypeID: newEntry.Type,
-        DeviceID: selectedDevice?.DeviceID || deviceID,
-        CID: companyId,
-        CheckInTime: getLocalDateTimeString(new Date(checkinDateTime)),
-        CheckOutTime: checkoutDateTime ? getLocalDateTimeString(new Date(checkoutDateTime)) : null,
-        TimeWorked: checkoutDateTime ? calculateTimeDifference(checkinDateTime, checkoutDateTime) : "0:00",
-        LastModifiedBy: "Admin"
-      };
-
-      // Call API to create entry
-      await createDailyReportEntry(entryData);
-
-      // Refresh report data after successful creation
-      if (activeTab === "today") {
-        await viewCurrentDateReport();
-      } else if (activeTab === "daywise" && selectedDate) {
-        await viewDatewiseReport(selectedDate);
-      }
-
-      closeModal();
-    } catch (error) {
-      console.error("Error saving entry:", error);
-      alert("Failed to save entry. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const calculateTimeDifference = (checkIn, checkOut) => {
-    const start = new Date(checkIn);
-    const end = new Date(checkOut);
-    const diffInMinutes = Math.floor((end - start) / 1000 / 60);
-    const hours = Math.floor(diffInMinutes / 60);
-    const minutes = diffInMinutes % 60;
-    return `${hours}:${minutes.toString().padStart(2, '0')}`;
-  };
-
-  useEffect(() => {
-    const initializeComponent = async () => {
-      setLoading(true);
-      const adminTypeValue = localStorage.getItem("adminType") || "";
-      const deviceIDValue = localStorage.getItem("DeviceID") || "";
-      const frequencies = loadFrequenciesSync();
-
-      setAdminType(adminTypeValue);
-      setDeviceID(deviceIDValue);
-      setAvailableFrequencies(frequencies);
-      setSelectedFrequency(frequencies[0] || "");
-
-      const today = getLocalDateString();
-      setCurrentDate(today);
-      setSelectedDate(today);
-
-      await loadDevices();
-
-      // Load initial report data based on active tab
-      if (activeTab === "daywise") {
-        await viewDatewiseReport(today);
-      } else if (activeTab === "today") {
-        await viewCurrentDateReport(today);
-      }
-
-      setLoading(false);
-    };
-
-    initializeComponent();
-  }, [activeTab]);
-
-  useEffect(() => {
-    if (activeTab === "daywise") {
-      filterData();
-    }
-  }, [searchQuery, reportData, activeTab]);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownOpen && !event.target.closest('.relative')) {
-        setDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [dropdownOpen]);
-
-  const renderTodayReport = () => (
-    <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-md overflow-hidden mb-8 border border-gray-300">
-      <div className="p-4 sm:p-6">
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">Current Day Report</h2>
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div className="text-lg font-semibold text-[#02066F]">
-              Date: {currentDate}
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              <button 
-                onClick={downloadCSV} 
-                className="text-[#02066F] hover:text-white hover:bg-[#02066F] px-4 py-2 rounded-lg transition-colors cursor-pointer border border-[#02066F] w-full sm:w-auto"
-              >
-                Download CSV
-              </button>
-              <button
-                className="bg-[#02066F] border border-[#02066F] text-white hover:bg-blue-800 px-6 py-2 rounded-md font-semibold cursor-pointer transition w-full sm:w-auto"
-                onClick={() => setShowModal(true)}
-              >
-                Add Entry
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        <div className="overflow-x-auto">
-          <table className="min-w-full border border-gray-300 text-sm">
-            <thead className="bg-[#02066F] text-white">
-              <tr>
-                <th className="px-3 sm:px-6 py-3 text-center font-bold border-r border-gray-400">Employee ID</th>
-                <th className="px-3 sm:px-6 py-3 text-center font-bold border-r border-gray-400">Name</th>
-                <th className="px-3 sm:px-6 py-3 text-center font-bold border-r border-gray-400">Check-in Time</th>
-                <th className="px-3 sm:px-6 py-3 text-center font-bold border-r border-gray-400">Check-out Time</th>
-                <th className="px-3 sm:px-6 py-3 text-center font-bold">Action</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {tableData.length === 0 ? (
-                <tr>
-                  <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
-                    No Records Found
-                  </td>
-                </tr>
-              ) : (
-                tableData.map((row, index) => (
-                  <tr key={row.Pin || index} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-3 sm:px-6 py-4 text-center font-semibold text-gray-900 border-r border-gray-200">{row.Pin}</td>
-                    <td className="px-3 sm:px-6 py-4 text-center font-semibold text-gray-900 border-r border-gray-200">{row.Name?.split(" ")[0]}</td>
-                    <td className="px-3 sm:px-6 py-4 text-center font-semibold text-gray-900 border-r border-gray-200">{row.checkInTimeFormatted}</td>
-                    <td className="px-3 sm:px-6 py-4 text-center border-r border-gray-200">
-                      {row.CheckOutTime ? (
-                        <span className="font-semibold text-gray-900">
-                          {formatToAmPm(new Date(row.CheckOutTime))}
-                        </span>
-                      ) : (
-                        <div className="flex justify-center items-center">
-                          <input
-                            type="time"
-                            step="1"
-                            className="border border-[#02066F] rounded px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#02066F] w-full max-w-[120px]"
-                            value={checkoutTimes[`${row.Pin}-${row.CheckInTime}`] || ""}
-                            onChange={(e) => handleCheckoutTimeChange(`${row.Pin}-${row.CheckInTime}`, e.target.value)}
-                          />
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-3 sm:px-6 py-4 text-center">
-                      {row.CheckOutTime ? (
-                        <button className="bg-gray-300 text-gray-600 px-2 sm:px-4 py-2 rounded cursor-not-allowed text-xs sm:text-sm font-medium" disabled>
-                          Checked-out
-                        </button>
-                      ) : (
-                        <button
-                          className={`px-2 sm:px-4 py-2 rounded font-medium text-xs sm:text-sm transition-colors ${
-                            checkoutTimes[`${row.Pin}-${row.CheckInTime}`]
-                              ? "bg-[#02066F] text-white cursor-pointer hover:bg-blue-800"
-                              : "bg-gray-300 text-gray-600 cursor-not-allowed"
-                          }`}
-                          disabled={!checkoutTimes[`${row.Pin}-${row.CheckInTime}`]}
-                          onClick={() => handleCheckout(row)}
-                        >
-                          Check-out
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderDayWiseReport = () => (
-    <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-md overflow-hidden mb-8 border border-gray-300">
-      <div className="p-4 sm:p-6 overflow-x-auto">
-        <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => {
-              const newDate = e.target.value;
-              console.log('Date selected:', newDate);
-              setSelectedDate(newDate);
-              if (newDate) {
-                viewDatewiseReport(newDate);
-              }
-            }}
-            className="border bg-white border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#02066F] shadow w-full sm:w-auto"
-          />
-          <div className="flex gap-2">
-            <button onClick={downloadCSV} className="text-[#02066F] hover:text-black px-4 py-2 rounded-lg transition-colors cursor-pointer border border-[#02066F]">
-              Download CSV
-            </button>
-            <button onClick={downloadPDF} className="text-[#02066F] hover:text-black px-4 py-2 rounded-lg transition-colors cursor-pointer border border-[#02066F]">
-              Download PDF
-            </button>
-          </div>
-        </div>
-
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
-          <div className="flex items-center gap-2">
-            <label className="text-base font-semibold text-gray-700">Show</label>
-            <select
-              value={itemsPerPage}
-              onChange={(e) => setItemsPerPage(Number(e.target.value))}
-              className="border border-gray-400 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[#02066F]"
-            >
-              <option value="10">10</option>
-              <option value="25">25</option>
-              <option value="50">50</option>
-              <option value="100">100</option>
-            </select>
-            <span className="text-base font-semibold text-gray-700">entries</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <label className="text-base font-semibold text-gray-800">Search:</label>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full sm:w-64 px-2 py-1 border border-gray-500 rounded-md focus:outline-none focus:ring-1 focus:ring-[#02066F]"
-            />
-          </div>
-        </div>
-
-        <table className="min-w-full border border-gray-300 text-sm">
-          <thead className="bg-[#02066F] text-white">
-            <tr>
-              <th className="px-6 py-3 text-center font-bold border-r cursor-pointer" onClick={() => requestSort("Name")}>
-                Employee Name {sortConfig.key === "Name" ? (sortConfig.direction === "asc" ? "↑" : "↓") : "↑↓"}
-              </th>
-              <th className="px-6 py-3 text-center font-bold border-r cursor-pointer" onClick={() => requestSort("Pin")}>
-                Employee ID {sortConfig.key === "Pin" ? (sortConfig.direction === "asc" ? "↑" : "↓") : "↑↓"}
-              </th>
-              <th className="px-6 py-3 text-center font-bold border-r">Check-in Time</th>
-              <th className="px-6 py-3 text-center font-bold border-r">Check-out Time</th>
-              <th className="px-6 py-3 text-center font-bold border-r">Time Worked Hours (HH:MM)</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredData.length === 0 ? (
-              <tr>
-                <td colSpan="5" className="px-4 py-4 text-center text-gray-500">
-                  {reportData.length === 0 ? "No records found for selected date" : "No matching records found"}
-                </td>
-              </tr>
-            ) : (
-              paginatedData().map((item, index) => (
-                <tr key={item.Pin + "-" + index} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-center font-semibold text-gray-900 border-r">{item.Name}</td>
-                  <td className="px-4 py-3 text-center font-semibold text-gray-900 border-r">{item.Pin}</td>
-                  <td className="px-4 py-3 text-center font-semibold text-gray-900 border-r">{item.formattedCheckIn}</td>
-                  <td className="px-4 py-3 text-center font-semibold text-gray-900 border-r">{item.formattedCheckOut}</td>
-                  <td className="px-4 py-3 text-center font-semibold text-gray-900 border-r">{item.timeWorked}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-
-        {/* Pagination */}
-        <div className="flex justify-between items-center mt-4">
-          <div className="text-base font-semibold text-gray-700">
-            Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredData.length)} to {Math.min(currentPage * itemsPerPage, filteredData.length)} of {filteredData.length} results
-          </div>
-          <div className="flex space-x-1">
-            <button
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1 rounded-md text-base font-semibold text-gray-500 disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setCurrentPage(Math.min(totalPages(), currentPage + 1))}
-              disabled={currentPage === totalPages()}
-              className="px-3 py-1 rounded-md text-base font-semibold text-gray-500 disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const getWeeksInMonth = (year, month) => {
-    const weeks = [];
-    const firstDay = new Date(year, month - 1, 1);
-    const lastDay = new Date(year, month, 0);
+  const calculateTimeWorked = (checkIn, checkOut) => {
+    if (!checkIn || !checkOut) return "0:00"
     
-    // Start from the first Monday of the month or the first day if it's Monday
-    let currentDate = new Date(firstDay);
-    const dayOfWeek = currentDate.getDay();
-    if (dayOfWeek !== 1) { // If not Monday
-      currentDate.setDate(currentDate.getDate() + (8 - dayOfWeek) % 7);
-    }
+    const [checkInHour, checkInMin] = checkIn.split(':').map(Number)
+    const [checkOutHour, checkOutMin] = checkOut.split(':').map(Number)
     
-    let weekNumber = 1;
-    while (currentDate <= lastDay) {
-      const weekStart = new Date(currentDate);
-      const weekEnd = new Date(currentDate);
-      weekEnd.setDate(weekEnd.getDate() + 6);
-      
-      // Only include weeks that have at least one day in the current month
-      if (weekStart.getMonth() === month - 1 || weekEnd.getMonth() === month - 1) {
-        // Adjust dates to stay within the month
-        const adjustedStart = weekStart < firstDay ? firstDay : weekStart;
-        const adjustedEnd = weekEnd > lastDay ? lastDay : weekEnd;
-        
-        weeks.push({
-          start: adjustedStart.toISOString().split('T')[0],
-          end: adjustedEnd.toISOString().split('T')[0],
-          label: `Week ${weekNumber} (${adjustedStart.getDate()}/${adjustedStart.getMonth() + 1} - ${adjustedEnd.getDate()}/${adjustedEnd.getMonth() + 1})`
-        });
-        weekNumber++;
-      }
-      
-      currentDate.setDate(currentDate.getDate() + 7);
-    }
+    const checkInMinutes = checkInHour * 60 + checkInMin
+    const checkOutMinutes = checkOutHour * 60 + checkOutMin
     
-    return weeks;
-  };
+    const diffMinutes = checkOutMinutes - checkInMinutes
+    const hours = Math.floor(diffMinutes / 60)
+    const minutes = diffMinutes % 60
+    
+    return `${hours}:${String(minutes).padStart(2, '0')}`
+  }
 
-  const getSelectedWeekDates = () => {
-    const weeks = getWeeksInMonth(selectedYear, selectedMonth);
-    return weeks[selectedWeek - 1] || { start: '', end: '', label: '' };
-  };
+  const handleSaveEntry = () => {
+    if (!newEntry.EmployeeID || !newEntry.Type || !newEntry.Date || !newEntry.CheckInTime) {
+      showToast("Please fill in all required fields", "error")
+      return
+    }
 
-  const loadWeeklyReport = async () => {
-    const { start, end } = getSelectedWeekDates();
-    await loadReportTable(start, end);
-  };
+    const selectedEmployee = employeeList.find(emp => emp.Pin === newEntry.EmployeeID)
+    if (!selectedEmployee) {
+      showToast("Selected employee not found", "error")
+      return
+    }
 
-  const renderWeeklyReport = () => {
-    const filteredEmployees = employees.filter(emp =>
-      emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emp.pin.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const timeWorked = calculateTimeWorked(newEntry.CheckInTime, newEntry.CheckOutTime)
+    
+    const newRecord = {
+      EmpID: selectedEmployee.EmpID,
+      Pin: selectedEmployee.Pin,
+      Name: `${selectedEmployee.FName} ${selectedEmployee.LName}`,
+      Date: newEntry.Date,
+      CheckInTime: `${newEntry.Date}T${newEntry.CheckInTime}:00`,
+      CheckOutTime: newEntry.CheckOutTime ? `${newEntry.Date}T${newEntry.CheckOutTime}:00` : null,
+      TimeWorked: timeWorked,
+      Type: newEntry.Type
+    }
 
-    const { start, end } = getSelectedWeekDates();
-
-    return (
-      <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-md overflow-hidden mb-8 border border-gray-300">
-        <div className="p-4 sm:p-6 overflow-x-auto">
-          <h1 className="text-2xl font-bold text-center mb-8">Weekly Report</h1>
-          
-          <div className="flex flex-col gap-4 mb-6">
-            <div className="flex flex-wrap justify-center items-center gap-2">
-              <select
-                value={selectedYear}
-                onChange={(e) => {
-                  setSelectedYear(Number(e.target.value));
-                  setSelectedWeek(1);
-                }}
-                className="border border-gray-400 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#02066F] min-w-[100px]"
-              >
-                {Array.from({length: 10}, (_, i) => new Date().getFullYear() - 5 + i).map(year => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
-              
-              <select
-                value={selectedMonth}
-                onChange={(e) => {
-                  setSelectedMonth(Number(e.target.value));
-                  setSelectedWeek(1);
-                }}
-                className="border border-gray-400 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#02066F] min-w-[120px]"
-              >
-                {Array.from({length: 12}, (_, i) => i + 1).map(month => (
-                  <option key={month} value={month}>
-                    {new Date(0, month - 1).toLocaleString('default', { month: 'long' })}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="flex flex-col sm:flex-row justify-center items-center gap-2">
-              <select
-                value={selectedWeek}
-                onChange={(e) => setSelectedWeek(Number(e.target.value))}
-                className="border border-gray-400 rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#02066F] w-full sm:w-auto min-w-[200px]"
-              >
-                {getWeeksInMonth(selectedYear, selectedMonth).map((week, index) => (
-                  <option key={index + 1} value={index + 1}>{week.label}</option>
-                ))}
-              </select>
-              
-              <button
-                onClick={loadWeeklyReport}
-                className="bg-[#02066F] text-white px-6 py-2 rounded-md hover:bg-blue-800 transition w-full sm:w-auto"
-              >
-                Load Report
-              </button>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row justify-between items-center mb-6 p-4 bg-gray-50 rounded-lg border">
-            <div className="mb-2 sm:mb-0">
-              <span className="text-lg font-semibold text-gray-800">Week Start: </span>
-              <span className="text-lg font-semibold text-[#02066F]">{start || 'Not selected'}</span>
-            </div>
-            <div>
-              <span className="text-lg font-semibold text-gray-800">Week End: </span>
-              <span className="text-lg font-semibold text-[#02066F]">{end || 'Not selected'}</span>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2 sm:flex-row justify-center items-center mb-6">
-            <div className="flex gap-2">
-              <button 
-                onClick={downloadCSV} 
-                className="text-[#02066F] hover:text-white hover:bg-[#02066F] px-4 py-2 rounded-lg transition-colors cursor-pointer border border-[#02066F]"
-              >
-                Download CSV
-              </button>
-              <button 
-                onClick={downloadPDF} 
-                className="text-[#02066F] hover:text-white hover:bg-[#02066F] px-4 py-2 rounded-lg transition-colors cursor-pointer border border-[#02066F]"
-              >
-                Download PDF
-              </button>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
-            <div className="flex items-center gap-2">
-              <label className="text-base font-semibold text-gray-700">Show:</label>
-              <select
-                value={itemsPerPage}
-                onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                className="border border-gray-400 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[#02066F]"
-              >
-                <option value="10">10</option>
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
-              <span className="text-base font-semibold text-gray-700">entries</span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <label className="text-base font-semibold text-gray-800">Search:</label>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full sm:w-64 px-3 py-2 border border-gray-400 rounded-md focus:outline-none focus:ring-2 focus:ring-[#02066F] focus:border-transparent"
-                placeholder="Search by name or pin..."
-              />
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full border border-gray-300 text-sm">
-              <thead className="bg-[#02066F] text-white">
-                <tr>
-                  <th className="px-6 py-3 text-center font-bold border-r border-gray-400">Name</th>
-                  <th className="px-6 py-3 text-center font-bold border-r border-gray-400">Pin</th>
-                  <th className="px-6 py-3 text-center font-bold">Total Worked Hours (HH:MM)</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredEmployees.length === 0 ? (
-                  <tr>
-                    <td colSpan="3" className="px-6 py-8 text-center text-gray-500">
-                      {employees.length === 0 ? 'No data available. Please load a report first.' : 'No matching records found'}
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedData().map((employee, index) => (
-                    <tr key={`${employee.pin}-${index}`} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 text-center font-semibold text-gray-900 border-r border-gray-200">{employee.name}</td>
-                      <td className="px-6 py-4 text-center font-semibold text-gray-900 border-r border-gray-200">{employee.pin}</td>
-                      <td className="px-6 py-4 text-center font-semibold text-gray-900">{employee.hoursWorked}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {filteredEmployees.length > 0 && (
-            <div className="flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
-              <div className="text-sm text-gray-700">
-                Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredEmployees.length)} to {Math.min(currentPage * itemsPerPage, filteredEmployees.length)} of {filteredEmployees.length} results
-              </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                  className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Previous
-                </button>
-                <span className="px-4 py-2 text-sm text-gray-700">
-                  Page {currentPage} of {totalPages()}
-                </span>
-                <button
-                  onClick={() => setCurrentPage(Math.min(totalPages(), currentPage + 1))}
-                  disabled={currentPage === totalPages()}
-                  className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const renderSalariedReport = () => {
-    const filteredEmployees = employees.filter(emp =>
-      emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emp.pin.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-    return (
-      <div className="max-w-5xl mx-auto bg-white rounded-xl shadow-md overflow-hidden mb-8 border border-gray-300">
-        <div className="p-4 sm:p-6 overflow-x-auto">
-          <h1 className="text-2xl font-bold text-center mb-8">{selectedFrequency} Report</h1>
-          
-          <div className="flex justify-between mb-6 p-4 rounded-lg">
-            <div>
-              <span className="text-lg font-semibold text-gray-800">Start Date: </span>
-              <span className="text-lg font-semibold text-gray-800">{startDateHeader}</span>
-            </div>
-            <div>
-              <span className="text-lg font-semibold text-gray-800">End Date: </span>
-              <span className="text-lg font-semibold text-gray-800">{endDateHeader}</span>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2 sm:flex-row justify-evenly items-center mb-6">
-            <div className="flex gap-2">
-              <button onClick={downloadCSV} className="text-[#02066F] hover:text-black px-4 py-2 rounded-lg transition-colors cursor-pointer border border-[#02066F]">
-                Download CSV
-              </button>
-              <button onClick={downloadPDF} className="text-[#02066F] hover:text-black px-4 py-2 rounded-lg transition-colors cursor-pointer border border-[#02066F]">
-                Download PDF
-              </button>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mb-4">
-            <div className="flex items-center gap-2">
-              <label className="text-base font-semibold text-gray-700">Show:</label>
-              <select
-                value={itemsPerPage}
-                onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                className="border border-gray-400 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-[#02066F]"
-              >
-                <option value="10">10</option>
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
-              <span className="text-base font-semibold text-gray-700">entries</span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <label className="text-base font-semibold text-gray-800">Search:</label>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full sm:w-64 px-2 py-1 border border-gray-500 rounded-md focus:outline-none focus:ring-1 focus:ring-[#02066F]"
-              />
-            </div>
-          </div>
-
-          <table className="min-w-full border border-gray-300 text-sm">
-            <thead className="bg-[#02066F] text-white">
-              <tr>
-                <th className="px-6 py-3 text-center font-bold border-r">Name</th>
-                <th className="px-6 py-3 text-center font-bold border-r">Pin</th>
-                <th className="px-6 py-3 text-center font-bold border-r">Total Worked Hours (HH:MM)</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredEmployees.length === 0 ? (
-                <tr>
-                  <td colSpan="3" className="px-4 py-4 text-center text-gray-500">No matching records found</td>
-                </tr>
-              ) : (
-                paginatedData().map((employee, index) => (
-                  <tr key={index} className="hover:bg-gray-50 text-center">
-                    <td className="px-6 py-3 text-sm font-semibold text-gray-900 border-r">{employee.name}</td>
-                    <td className="px-6 py-3 text-sm font-semibold text-gray-900 border-r">{employee.pin}</td>
-                    <td className="px-6 py-3 text-sm font-semibold text-gray-900 border-r">{employee.hoursWorked}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-
-          {/* Pagination */}
-          <div className="flex justify-between items-center mt-4">
-            <div className="text-base font-semibold text-gray-700">
-              Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredEmployees.length)} to {Math.min(currentPage * itemsPerPage, filteredEmployees.length)} of {filteredEmployees.length} results
-            </div>
-            <div className="flex space-x-1">
-              <button
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-1 rounded-md text-base font-semibold text-gray-500 disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setCurrentPage(Math.min(totalPages(), currentPage + 1))}
-                disabled={currentPage === totalPages()}
-                className="px-3 py-1 rounded-md text-base font-semibold text-gray-500 disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
+    setReportData(prev => [...prev, newRecord])
+    showToast("Entry saved successfully!")
+    closeModal()
+  }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header isAuthenticated={true} />
-      <div className="bg-gray-100 flex-1">
-        {loading && (
-          <div className="fixed inset-0 flex items-center justify-center z-50" style={{ background: "rgba(0, 0, 0, 0.5)" }}>
-            <div className="animate-spin w-12 h-12 border-t-4 border-b-4 border-[#02066F] rounded-full"></div>
+    <div className="min-h-screen bg-background flex flex-col">
+      <Header />
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className="fixed top-4 left-4 right-4 sm:right-4 sm:left-auto z-50 animate-in slide-in-from-top-2">
+          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${toast.type === 'success'
+              ? 'bg-green-50 border-green-200 text-green-800'
+              : 'bg-red-50 border-red-200 text-red-800'
+            }`}>
+            {toast.type === 'success' ? (
+              <CheckCircle className="h-5 w-5 text-green-600" />
+            ) : (
+              <AlertCircle className="h-5 w-5 text-red-600" />
+            )}
+            <span className="font-medium text-sm">{toast.message}</span>
           </div>
-        )}
+        </div>
+      )}
 
-        <div className="pt-16">
-          {/* Navigation Tabs */}
-          <nav className="bg-white shadow">
-            <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex flex-col md:flex-row justify-end items-center h-auto md:h-16 py-4 md:py-0">
-                <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4 text-center">
-                  <button
-                    onClick={() => {
-                      setActiveTab("today");
-                      const today = new Date().toISOString().split("T")[0];
-                      setCurrentDate(today);
-                      viewCurrentDateReport(today);
-                    }}
-                    className={`px-4 py-2 font-semibold rounded-full cursor-pointer ${
-                      activeTab === "today" ? "bg-[#02066F] text-white" : "text-[#02066F]"
-                    }`}
-                  >
-                    Today's Report
-                  </button>
-                  <button
-                    onClick={() => {
-                      setActiveTab("daywise");
-                      const dateToUse = selectedDate || new Date().toISOString().split("T")[0];
-                      setSelectedDate(dateToUse);
-                      viewDatewiseReport(dateToUse);
-                    }}
-                    className={`px-4 py-2 font-semibold rounded-full cursor-pointer ${
-                      activeTab === "daywise" ? "bg-[#02066F] text-white" : "text-[#02066F]"
-                    }`}
-                  >
-                    Day Wise Report
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("weekly")}
-                    className={`px-4 py-2 font-semibold rounded-full cursor-pointer ${
-                      activeTab === "weekly" ? "bg-[#02066F] text-white" : "text-[#02066F]"
-                    }`}
-                  >
-                    Weekly Report
-                  </button>
-                  {availableFrequencies.map((frequency) => (
-                    <button
-                      key={frequency}
-                      onClick={() => {
-                        setActiveTab("salaried");
-                        setSelectedFrequency(frequency);
-                        // Initialize salaried report data
-                      }}
-                      className={`px-4 py-2 font-semibold rounded-full cursor-pointer ${
-                        activeTab === "salaried" && selectedFrequency === frequency ? "bg-[#02066F] text-white" : "text-[#02066F]"
-                      }`}
-                    >
-                      {frequency} Report
-                    </button>
-                  ))}
-                </div>
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-lg p-6 shadow-xl">
+            <div className="flex items-center space-x-3">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="pt-20 pb-8 flex-grow bg-gradient-to-br from-slate-50 to-blue-50">
+        {/* Page Header */}
+        <div className="border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-foreground">Reports & Analytics</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  View and analyze employee time tracking data
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <Button variant="outline" onClick={downloadCSV} className="flex items-center justify-center gap-2 w-full sm:w-auto">
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline">Export CSV</span>
+                  <span className="sm:hidden">CSV</span>
+                </Button>
+                <Button variant="outline" onClick={downloadPDF} className="flex items-center justify-center gap-2 w-full sm:w-auto">
+                  <FileText className="w-4 h-4" />
+                  <span className="hidden sm:inline">Export PDF</span>
+                  <span className="sm:hidden">PDF</span>
+                </Button>
               </div>
             </div>
-          </nav>
-
-          {/* Device Dropdown */}
-          {adminType === "Owner" && (
-            <div className="max-w-5xl mx-auto mt-5 px-4">
-              <div className="flex justify-center">
-                <div className="relative inline-block text-left w-64">
-                  <button
-                    type="button"
-                    className="inline-flex w-full justify-between items-center rounded-lg bg-white px-4 py-3 text-sm font-semibold text-[#02066F] border border-[#02066F] shadow-sm hover:bg-[#02066F] hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#02066F] transition"
-                    onClick={() => setDropdownOpen(!dropdownOpen)}
-                  >
-                    <span>{selectedDevice ? selectedDevice.DeviceName : "Select Device Name"}</span>
-                    <svg className="h-5 w-5 text-gray-400 group-hover:text-white transition" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-
-                  {dropdownOpen && (
-                    <div className="absolute right-0 z-20 mt-2 w-full origin-top-right rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5">
-                      <div className="py-1">
-                        {devices.length > 0 ? (
-                          devices.map((device) => (
-                            <button
-                              key={device.DeviceID}
-                              type="button"
-                              className="text-gray-700 block w-full px-4 py-2 text-left text-sm hover:bg-[#02066F] hover:text-white transition"
-                              onClick={() => {
-                                handleDeviceSelection(device);
-                                setDropdownOpen(false);
-                              }}
-                            >
-                              {device.DeviceName}
-                            </button>
-                          ))
-                        ) : (
-                          <div className="text-gray-500 block px-4 py-2 text-sm">No devices available</div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Report Content */}
-          <div className="py-8">
-            {activeTab === "today" && renderTodayReport()}
-            {activeTab === "daywise" && renderDayWiseReport()}
-            {activeTab === "weekly" && renderWeeklyReport()}
-            {activeTab === "salaried" && renderSalariedReport()}
           </div>
         </div>
 
-        {/* Add Entry Modal */}
-        {showModal && (
-          <div style={{ zIndex: 4000 }} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-6">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-sm">
-              {/* Modal Header */}
-              <div className="bg-[#02066F] text-white p-4 flex justify-between items-center rounded-t-lg">
-                <h5 className="text-xl font-semibold w-full text-center">Add entry</h5>
+        {/* Summary Statistics */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+            <Card>
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center">
+                  <Users className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+                  <div className="ml-3 sm:ml-4">
+                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">Check-in employee</p>
+                    <p className="text-xl sm:text-2xl font-bold text-foreground">{summaryStats.presentEmployees}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center">
+                  <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
+                  <div className="ml-3 sm:ml-4">
+                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">Currently working employee</p>
+                    <p className="text-xl sm:text-2xl font-bold text-foreground">{filteredData.filter(r => r.CheckInTime && !r.CheckOutTime).length}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="sm:col-span-2 md:col-span-1">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center">
+                  <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600" />
+                  <div className="ml-3 sm:ml-4">
+                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Records</p>
+                    <p className="text-xl sm:text-2xl font-bold text-foreground">{filteredData.length}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <nav className="flex space-x-4 sm:space-x-8 overflow-x-auto">
+              {[
+                { key: "today", label: "Today Report", icon: Calendar },
+                { key: "daily", label: "Day-wise Report", icon: Calendar },
+                { key: "summary", label: getThirdTabLabel(), icon: BarChart3 }
+              ].map(({ key, label, icon: Icon }) => (
                 <button
-                  type="button"
-                  onClick={closeModal}
-                  className="text-gray-400 hover:text-white text-4xl cursor-pointer p-2 leading-none"
+                  key={key}
+                  onClick={() => setActiveTab(key)}
+                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center gap-1 sm:gap-2 whitespace-nowrap ${activeTab === key
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
+                    }`}
                 >
-                  ×
+                  <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">{label}</span>
+                  <span className="sm:hidden">
+                    {key === "today" ? "Today" : key === "daily" ? "Daily" : "Summary"}
+                  </span>
                 </button>
+              ))}
+            </nav>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-col gap-4">
+            {/* Date Controls Row */}
+            {activeTab === "daily" ? (
+              <div className="space-y-2">
+                <Label htmlFor="selectedDate">Select Date</Label>
+                <Input
+                  id="selectedDate"
+                  type="date"
+                  value={selectedDate}
+                  max={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="w-auto"
+                />
               </div>
-
-              {/* Modal Body */}
-              <div className="p-4">
-                <form id="entryForm">
-                  {/* Employee Dropdown */}
-                  <select
-                    id="dynamicDropdown"
-                    value={newEntry.EmployeeID}
-                    onChange={(e) => setNewEntry({ ...newEntry, EmployeeID: e.target.value })}
-                    className="w-full p-2 mb-3 border border-[#02066F] rounded-lg text-[#02066F] font-bold focus:outline-none focus:ring-2 focus:ring-[#02066F]"
-                  >
-                    <option value="">Select Employee</option>
-                    {employeeList.map((employee) => (
-                      <option key={employee.Pin} value={employee.Pin}>
-                        {employee.FName} {employee.LName}
-                      </option>
-                    ))}
-                  </select>
-                  {formErrors.employee && (
-                    <div className="text-red-500 text-sm text-center mb-3">{formErrors.employee}</div>
-                  )}
-
-                  {/* Type Dropdown */}
-                  <select
-                    id="type"
-                    value={newEntry.Type}
-                    onChange={(e) => setNewEntry({ ...newEntry, Type: e.target.value })}
-                    className="w-full p-2 mb-3 border border-[#02066F] rounded-lg text-[#02066F] font-bold focus:outline-none focus:ring-2 focus:ring-[#02066F]"
-                  >
-                    <option value="">Select Type</option>
-                    <option value="Belt">Belt</option>
-                    <option value="Path">Path</option>
-                    <option value="Camp">Camp</option>
-                    <option value="External">Off site</option>
-                    <option value="Trial">Trial</option>
-                    <option value="Reception">Reception</option>
-                  </select>
-                  {formErrors.type && (
-                    <div className="text-red-500 text-sm text-center mb-3">{formErrors.type}</div>
-                  )}
-
-                  {/* Date Picker */}
-                  <input
+            ) : activeTab === "summary" ? (
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="startDate">Start Date</Label>
+                  <Input
+                    id="startDate"
                     type="date"
-                    id="datePicker"
-                    value={newEntry.Date}
-                    onChange={(e) => setNewEntry({ ...newEntry, Date: e.target.value })}
-                    placeholder="Check-in Date (yyyy-mm-dd):"
-                    max=""
-                    className="w-full p-2 mb-3 border border-[#02066F] rounded-lg text-[#02066F] font-bold focus:outline-none focus:ring-2 focus:ring-[#02066F]"
-                    required
+                    value={startDate}
+                    max={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setStartDate(e.target.value)}
                   />
-                  {formErrors.date && (
-                    <div className="text-red-500 text-sm text-center mb-3">{formErrors.date}</div>
-                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="endDate">End Date</Label>
+                  <Input
+                    id="endDate"
+                    type="date"
+                    value={endDate}
+                    max={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setEndDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>&nbsp;</Label>
+                  <Button onClick={loadDateRangeReport} className="flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4" />
+                    Generate Report
+                  </Button>
+                </div>
+              </div>
+            ) : null}
 
-                  {/* Check-in Time */}
-                  <div className="relative mb-3">
-                    <input
-                      type="time"
-                      id="checkinTime"
-                      value={newEntry.CheckInTime}
-                      onChange={(e) => handleCheckinTimeChange(e.target.value)}
-                      className="w-full p-2 border border-[#02066F] rounded-lg text-[#02066F] font-bold focus:outline-none focus:ring-2 focus:ring-[#02066F]"
-                      placeholder="Check-in Time:"
-                      required
-                    />
-                    {formErrors.checkinTime && (
-                      <div className="text-red-500 text-sm text-center mt-1">{formErrors.checkinTime}</div>
-                    )}
-                  </div>
-
-                  {/* Check-out Time */}
-                  <div className="relative mb-3">
-                    <input
-                      type="time"
-                      id="checkoutTime"
-                      value={newEntry.CheckOutTime}
-                      onChange={(e) => setNewEntry({ ...newEntry, CheckOutTime: e.target.value })}
-                      disabled={checkoutDisabled}
-                      className="w-full p-2 border border-[#02066F] rounded-lg text-[#02066F] font-bold focus:outline-none focus:ring-2 focus:ring-[#02066F] disabled:bg-gray-100 disabled:cursor-not-allowed"
-                      placeholder="Check-out Time:"
-                      required
-                    />
-                    {formErrors.checkoutTime && (
-                      <div className="text-red-500 text-sm text-center mt-1">{formErrors.checkoutTime}</div>
-                    )}
-                  </div>
-
-                  {/* Add Button */}
-                  <div className="text-center">
-                    <button
-                      type="button"
-                      onClick={handleSaveEntry}
-                      disabled={addButtonDisabled}
-                      className="bg-[#02066F] text-white px-6 py-2 rounded-md font-semibold mt-2 hover:opacity-80 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
-                      id="AddEmployee"
-                    >
-                      Add
-                    </button>
-                  </div>
-                </form>
+            {/* Search and Controls Row */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <div className="relative flex-1 max-w-full sm:max-w-md">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  placeholder="Search employees..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 text-sm"
+                />
+              </div>
+              
+              <div className="flex items-center gap-2 justify-between sm:justify-start">
+                <select
+                  value={`${sortConfig.key}-${sortConfig.direction}`}
+                  onChange={(e) => {
+                    const [key, direction] = e.target.value.split('-')
+                    setSortConfig({ key, direction })
+                  }}
+                  className="px-3 py-2 border border-input bg-background rounded-md text-sm flex-1 sm:flex-none"
+                >
+                  <option value="name-asc">Name A-Z</option>
+                  <option value="name-desc">Name Z-A</option>
+                  <option value="pin-asc">PIN A-Z</option>
+                  <option value="pin-desc">PIN Z-A</option>
+                  {activeTab === "daily" ? (
+                    <>
+                      <option value="checkin-asc">Check-in: Early First</option>
+                      <option value="checkin-desc">Check-in: Late First</option>
+                    </>
+                  ) : activeTab === "summary" ? (
+                    <>
+                      <option value="days-asc">Days: Low to High</option>
+                      <option value="days-desc">Days: High to Low</option>
+                    </>
+                  ) : null}
+                  <option value="time-asc">Time: Low to High</option>
+                  <option value="time-desc">Time: High to Low</option>
+                </select>
+                
+                <div className="flex items-center gap-1 border rounded-lg p-1">
+                  <Button
+                    variant={viewMode === "table" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("table")}
+                    className="h-8 w-8 p-0"
+                  >
+                    <Table className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === "grid" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setViewMode("grid")}
+                    className="h-8 w-8 p-0"
+                  >
+                    <Grid3X3 className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Stats Cards */}
+        
+
+        {/* Today's Report Section */}
+        {activeTab === "today" && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <Card>
+              <CardHeader className="pb-4 sm:pb-6">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                      <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
+                      <span className="hidden sm:inline">Today's Report - {new Date().toLocaleDateString()}</span>
+                      <span className="sm:hidden">Today's Report</span>
+                    </CardTitle>
+                    <CardDescription className="text-xs sm:text-sm mt-1">
+                      Current day employee check-in and check-out summary
+                    </CardDescription>
+                  </div>
+                  <button 
+                    onClick={() => setShowModal(true)}
+                    className="bg-[#02066F] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#030974] transition-colors w-full sm:w-auto text-sm sm:text-base"
+                  >
+                    Add Entry
+                  </button>
+                </div>
+              </CardHeader>
+
+              <CardContent>
+                {filteredData.length === 0 ? (
+                  <div className="text-center py-8 sm:py-12">
+                    <FileText className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-base sm:text-lg font-medium text-foreground mb-2">No Records Found</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground px-4">
+                      No entries found for today. Click "Add Entry" to get started.
+                    </p>
+                  </div>
+                ) : (
+                  viewMode === "grid" ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                      {filteredData.map((record, index) => (
+                        <Card key={index} className="hover:shadow-lg transition-shadow">
+                          <CardHeader className="pb-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                                  <Users className="w-4 h-4 text-primary" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <CardTitle className="text-base sm:text-lg truncate">{record.Name}</CardTitle>
+                                  <CardDescription className="text-xs sm:text-sm">PIN: {record.Pin}</CardDescription>
+                                </div>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-3 sm:space-y-4 pt-0">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs sm:text-sm text-muted-foreground">Type</span>
+                              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{record.Type}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs sm:text-sm">
+                              <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
+                              <span className="truncate">In: {formatTime(record.CheckInTime)}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs sm:text-sm">
+                              <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
+                              <span className="truncate">Out: {formatTime(record.CheckOutTime)}</span>
+                            </div>
+                            <div className="pt-2 border-t">
+                              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                <span>Time Worked</span>
+                                <span className="font-medium text-foreground">{record.TimeWorked}</span>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full border border-gray-300 rounded-lg">
+                        <thead className="bg-[#02066F] text-white">
+                          <tr>
+                            <th className="px-2 sm:px-4 py-2 sm:py-3 text-center font-semibold text-xs sm:text-sm border-r border-white/20">Employee ID</th>
+                            <th className="px-2 sm:px-4 py-2 sm:py-3 text-center font-semibold text-xs sm:text-sm border-r border-white/20">Name</th>
+                            <th className="px-2 sm:px-4 py-2 sm:py-3 text-center font-semibold text-xs sm:text-sm border-r border-white/20">Check-in Time</th>
+                            <th className="px-2 sm:px-4 py-2 sm:py-3 text-center font-semibold text-xs sm:text-sm border-r border-white/20">Check-out Time</th>
+                            <th className="px-2 sm:px-4 py-2 sm:py-3 text-center font-semibold text-xs sm:text-sm">Type</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {filteredData.map((record, index) => (
+                            <tr key={index} className="hover:bg-gray-50">
+                              <td className="px-2 sm:px-4 py-2 sm:py-3 text-center font-medium text-xs sm:text-sm">{record.Pin}</td>
+                              <td className="px-2 sm:px-4 py-2 sm:py-3 text-center text-xs sm:text-sm">{record.Name}</td>
+                              <td className="px-2 sm:px-4 py-2 sm:py-3 text-center text-xs sm:text-sm">{formatTime(record.CheckInTime)}</td>
+                              <td className="px-2 sm:px-4 py-2 sm:py-3 text-center text-xs sm:text-sm">{formatTime(record.CheckOutTime)}</td>
+                              <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
+                                <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                  {record.Type}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Report Table */}
+        {activeTab !== "today" && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  {activeTab === "daily" ? `Day-wise Report - ${selectedDate}` : getThirdTabLabel()}
+                </CardTitle>
+                <CardDescription>
+                  {activeTab === "daily"
+                    ? "Employee check-in and check-out times for the selected date"
+                    : `Employee work summary for the selected date range (${viewSettings[0] || 'Weekly'} view)`
+                  }
+                </CardDescription>
+              </CardHeader>
+
+              <CardContent>
+                {filteredData.length === 0 ? (
+                  <div className="text-center py-12">
+                    <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium text-foreground mb-2">No data found</h3>
+                    <p className="text-sm text-muted-foreground">
+                      {activeTab === "daily"
+                        ? "No records found for the selected date."
+                        : "No records found for the selected date range. Try generating a report first."
+                      }
+                    </p>
+                  </div>
+                ) : (
+                  viewMode === "grid" ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                      {filteredData.map((record, index) => (
+                        <Card key={index} className="hover:shadow-lg transition-shadow">
+                          <CardHeader className="pb-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                                  <Users className="w-4 h-4 text-primary" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <CardTitle className="text-base sm:text-lg truncate">{record.Name}</CardTitle>
+                                  <CardDescription className="text-xs sm:text-sm">PIN: {record.Pin}</CardDescription>
+                                </div>
+                              </div>
+                              {activeTab === "daily" && getStatusBadge(record)}
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-3 sm:space-y-4 pt-0">
+                            {activeTab === "daily" ? (
+                              <>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs sm:text-sm text-muted-foreground">Type</span>
+                                  <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{record.Type}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs sm:text-sm">
+                                  <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
+                                  <span className="truncate">In: {formatTime(record.CheckInTime)}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs sm:text-sm">
+                                  <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
+                                  <span className="truncate">Out: {formatTime(record.CheckOutTime)}</span>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs sm:text-sm text-muted-foreground">Total Hours</span>
+                                  <span className="font-medium">{record.TimeWorked}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs sm:text-sm text-muted-foreground">Days Worked</span>
+                                  <span className="font-medium">{record.totalDays}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs sm:text-sm text-muted-foreground">Avg Hours/Day</span>
+                                  <span className="font-medium">{record.avgHoursPerDay}h</span>
+                                </div>
+                              </>
+                            )}
+                            <div className="pt-2 border-t">
+                              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                <span>Time Worked</span>
+                                <span className="font-medium text-foreground">{record.TimeWorked}</span>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full border border-gray-300 rounded-lg">
+                        <thead className="bg-[#02066F] text-white">
+                          <tr>
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Employee</th>
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">PIN</th>
+                            {activeTab === "daily" ? (
+                              <>
+                                <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Check In</th>
+                                <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Check Out</th>
+                                <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Type</th>
+                                <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Status</th>
+                              </>
+                            ) : (
+                              <>
+                                <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Total Hours</th>
+                                <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Days Worked</th>
+                                <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Avg Hours/Day</th>
+                              </>
+                            )}
+                            <th className="px-4 py-3 text-center font-semibold text-sm">Time Worked</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {filteredData.map((record, index) => (
+                            <tr key={index} className="hover:bg-gray-50">
+                              <td className="px-4 py-3 text-center font-medium">{record.Name}</td>
+                              <td className="px-4 py-3 text-center text-gray-600">{record.Pin}</td>
+                              {activeTab === "daily" ? (
+                                <>
+                                  <td className="px-4 py-3 text-center">{formatTime(record.CheckInTime)}</td>
+                                  <td className="px-4 py-3 text-center">{formatTime(record.CheckOutTime)}</td>
+                                  <td className="px-4 py-3 text-center">
+                                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                      {record.Type}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 text-center">{getStatusBadge(record)}</td>
+                                </>
+                              ) : (
+                                <>
+                                  <td className="px-4 py-3 text-center font-medium">{record.TimeWorked}</td>
+                                  <td className="px-4 py-3 text-center">{record.totalDays}</td>
+                                  <td className="px-4 py-3 text-center">{record.avgHoursPerDay}h</td>
+                                </>
+                              )}
+                              <td className="px-4 py-3 text-center font-medium">{record.TimeWorked}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
+                )}
+              </CardContent>
+            </Card>
+          </div>
         )}
       </div>
-      <Footer variant="authenticated" />
+
+      {/* Add Entry Modal */}
+      {showModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
+          <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto mx-4">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg sm:text-xl">
+                Add Entry
+              </CardTitle>
+              <CardDescription className="text-sm">
+                Add a new time tracking entry
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="employee" className="text-sm font-medium">Employee</Label>
+                <select
+                  id="employee"
+                  value={newEntry.EmployeeID}
+                  onChange={(e) => setNewEntry({ ...newEntry, EmployeeID: e.target.value })}
+                  className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
+                >
+                  <option value="">Select Employee</option>
+                  {employeeList.map((employee) => (
+                    <option key={employee.Pin} value={employee.Pin}>
+                      {employee.FName} {employee.LName}
+                    </option>
+                  ))}
+                </select>
+                {formErrors.employee && (
+                  <p className="text-red-500 text-sm mt-1">{formErrors.employee}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="type" className="text-sm font-medium">Type</Label>
+                <select
+                  id="type"
+                  value={newEntry.Type}
+                  onChange={(e) => setNewEntry({ ...newEntry, Type: e.target.value })}
+                  className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
+                >
+                  <option value="">Select Type</option>
+                  <option value="Belt">Belt</option>
+                  <option value="Path">Path</option>
+                  <option value="Camp">Camp</option>
+                  <option value="External">Off site</option>
+                  <option value="Trial">Trial</option>
+                  <option value="Reception">Reception</option>
+                </select>
+                {formErrors.type && (
+                  <p className="text-red-500 text-sm mt-1">{formErrors.type}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="date" className="text-sm font-medium">Date</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={newEntry.Date}
+                  onChange={(e) => setNewEntry({ ...newEntry, Date: e.target.value })}
+                  max={new Date().toISOString().split('T')[0]}
+                  className="text-sm"
+                />
+                {formErrors.date && (
+                  <p className="text-red-500 text-sm mt-1">{formErrors.date}</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="checkinTime" className="text-sm font-medium">Check-in Time</Label>
+                  <Input
+                    id="checkinTime"
+                    type="time"
+                    value={newEntry.CheckInTime}
+                    onChange={(e) => handleCheckinTimeChange(e.target.value)}
+                    className="text-sm"
+                  />
+                  {formErrors.checkinTime && (
+                    <p className="text-red-500 text-sm mt-1">{formErrors.checkinTime}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="checkoutTime" className="text-sm font-medium">Check-out Time</Label>
+                  <Input
+                    id="checkoutTime"
+                    type="time"
+                    value={newEntry.CheckOutTime}
+                    onChange={(e) => setNewEntry({ ...newEntry, CheckOutTime: e.target.value })}
+                    disabled={checkoutDisabled}
+                    className="text-sm disabled:bg-muted"
+                  />
+                  {formErrors.checkoutTime && (
+                    <p className="text-red-500 text-sm mt-1">{formErrors.checkoutTime}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={closeModal}
+                  className="flex-1 order-2 sm:order-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveEntry}
+                  disabled={addButtonDisabled}
+                  className="flex-1 order-1 sm:order-2"
+                >
+                  Add Entry
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      <Footer />
     </div>
-  );
-};
+  )
+}
 
-export default Reports;
-
+export default ReportsPage

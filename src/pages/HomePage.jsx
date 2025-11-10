@@ -1,220 +1,337 @@
-import React, { useState, useRef } from "react";
-import Header from "../components/layout/Header";
-import Footer from "../components/layout/Footer";
-import { submitContactForm } from "../api.js";
+import React, { useState } from "react"
+import Header from "../components/layout/Header"
+import Footer from "../components/layout/Footer"
+import { Button } from "../components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card"
+import { Input } from "../components/ui/input"
+import { Textarea } from "../components/ui/textarea"
+import { Label } from "../components/ui/label"
+import { 
+  Clock, 
+  Users, 
+  BarChart3, 
+  Shield, 
+  Download, 
+  CheckCircle,
+  ArrowRight,
+  Star,
+  Zap
+} from "lucide-react"
 
 const HomePage = () => {
-  const [phone, setPhone] = useState("");
-  const [showOverlay, setShowOverlay] = useState(false);
-  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-  const [errors, setErrors] = useState({});
-
-  const formRef = useRef(null);
-
-  const phoneRegex = /^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/;
-  const zipRegex = /^\d{5}(-\d{4})?$/;
-  const nameRegex = /^[a-zA-Z\s]+$/;
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    company: "",
+    message: ""
+  })
 
   const features = [
-    { icon: "Mask-group.png", title: "Facial Recognition", desc: "Snap photo to log hours instantly." },
-    { icon: "Mask group-1.png", title: "Clock In/Out", desc: "Seamless one-tap login and logout solution with employee identifications." },
-    { icon: "Mask group-2.png", title: "Timesheet Reports", desc: "Provides employee time reports at your preferred frequency." },
-    { icon: "Mask group-3.png", title: "Admin Dashboard", desc: "Employee onboarding system for Admins." },
-    { icon: "Mask group-4.png", title: "Export Options", desc: "Delivers time reports in multiple formats like CSV and PDF." },
-    { icon: "Mask group-5.png", title: "Validation", desc: "Admin features to update time entries." }
-  ];
-
-  const formatPhoneNumber = (e) => {
-    const value = e.target.value.replace(/\D/g, "");
-    if (value.length <= 3) setPhone(value);
-    else if (value.length <= 6) setPhone(`(${value.slice(0, 3)}) ${value.slice(3)}`);
-    else setPhone(`(${value.slice(0, 3)}) ${value.slice(3, 6)}-${value.slice(6, 10)}`);
-  };
-
-  const validateField = (name, value) => {
-    const newErrors = { ...errors };
-    
-    if (!value.trim()) {
-      newErrors[name] = `${name.replace(/([A-Z])/g, ' $1').toLowerCase()} is required`;
-    } else if ((name === 'firstName' || name === 'lastName') && !nameRegex.test(value)) {
-      newErrors[name] = 'Only letters allowed';
-    } else if (name === 'phone' && !phoneRegex.test(value)) {
-      newErrors[name] = 'Invalid phone format';
-    } else if (name === 'zip' && !zipRegex.test(value)) {
-      newErrors[name] = 'Invalid ZIP code';
-    } else {
-      delete newErrors[name];
+    {
+      icon: Clock,
+      title: "Facial Recognition",
+      description: "Snap photo to log hours instantly with advanced AI recognition technology.",
+      color: "bg-blue-50 text-blue-600"
+    },
+    {
+      icon: Users,
+      title: "Clock In/Out",
+      description: "Seamless one-tap login and logout solution with employee identifications.",
+      color: "bg-green-50 text-green-600"
+    },
+    {
+      icon: BarChart3,
+      title: "Timesheet Reports",
+      description: "Provides employee time reports at your preferred frequency with detailed analytics.",
+      color: "bg-purple-50 text-purple-600"
+    },
+    {
+      icon: Shield,
+      title: "Admin Dashboard",
+      description: "Comprehensive employee onboarding system for Admins with full control.",
+      color: "bg-orange-50 text-orange-600"
+    },
+    {
+      icon: Download,
+      title: "Export Options",
+      description: "Delivers time reports in multiple formats like CSV and PDF for easy sharing.",
+      color: "bg-red-50 text-red-600"
+    },
+    {
+      icon: CheckCircle,
+      title: "Validation",
+      description: "Admin features to update and validate time entries with approval workflows.",
+      color: "bg-teal-50 text-teal-600"
     }
-    
-    setErrors(newErrors);
-    return !newErrors[name];
-  };
+  ]
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData);
-    
-    const fields = ['firstName', 'lastName', 'email', 'phone', 'street', 'city', 'state', 'zip', 'subject', 'message'];
-    const isValid = fields.every(field => validateField(field, data[field] || ''));
-    
-    if (!isValid) return;
-    
-    setShowOverlay(true);
-    try {
-      const userData = {
-        FirstName: data.firstName,
-        LastName: data.lastName,
-        Email: data.email,
-        PhoneNumber: data.phone,
-        Subject: data.subject,
-        Address: `${data.street}--${data.city}--${data.state}--${data.zip}`,
-        Message: data.message,
-        WhatsappNumber: null,
-        LastModifiedBy: "Admin"
-      };
-      
-      await submitContactForm(userData);
-      setToast({ show: true, message: 'Message sent successfully!', type: 'success' });
-      formRef.current.reset();
-      setPhone('');
-      setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
-    } catch (error) {
-      setToast({ show: true, message: 'Failed to send message', type: 'error' });
-      setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
-    } finally {
-      setShowOverlay(false);
+  const stats = [
+    { number: "10K+", label: "Active Users" },
+    { number: "99.9%", label: "Uptime" },
+    { number: "50+", label: "Companies" },
+    { number: "24/7", label: "Support" }
+  ]
+
+  const testimonials = [
+    {
+      name: "Sarah Johnson",
+      role: "HR Manager",
+      company: "TechCorp Inc.",
+      content: "TapTime has revolutionized our employee time tracking. The facial recognition feature is incredibly accurate and saves us hours of manual work.",
+      rating: 5
+    },
+    {
+      name: "Michael Chen",
+      role: "Operations Director",
+      company: "BuildRight LLC",
+      content: "The reporting features are outstanding. We can generate detailed reports in seconds and export them in any format we need.",
+      rating: 5
+    },
+    {
+      name: "Emily Rodriguez",
+      role: "Small Business Owner",
+      company: "Creative Studio",
+      content: "As a small business, we needed something simple yet powerful. TapTime delivers exactly that with excellent customer support.",
+      rating: 5
     }
-  };
+  ]
+
+  const handleInputChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    })
+  }
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    console.log("Form submitted:", formData)
+  }
 
   return (
-    <>
-    <Header isAuthenticated={false}/>
+    <div className="min-h-screen bg-background">
+      <Header />
 
-    
-      {/* Loading Overlay */}
-      {showOverlay && (
-        <div
-          className="fixed inset-0 flex items-center justify-center z-50"
-          style={{ background: "rgba(0, 0, 0, 0.5)" }}
-        >
-          <div className="animate-spin w-12 h-12 border-t-4 border-b-4 border-[#02066F] rounded-full"></div>
+      {/* Hero Section */}
+      <section className="pt-23 pb-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center max-w-4xl mx-auto">
+            <div className="inline-flex items-center px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
+              <Zap className="w-4 h-4 mr-2" />
+              Revolutionary Time Tracking Solution
+            </div>
+            
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight">
+              Employee Time Tracking
+              <span className="text-primary block">Made Simple</span>
+            </h1>
+            
+            <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
+              One tap solution for simplifying and streamlining employee time logging and reporting. 
+              Transform your workforce management today.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+              <Button size="lg" className="text-lg px-8 py-6">
+                Get Started Free
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+              <Button variant="outline" size="lg" className="text-lg px-8 py-6">
+                Watch Demo
+              </Button>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 max-w-3xl mx-auto">
+              {stats.map((stat, index) => (
+                <div key={index} className="text-center">
+                  <div className="text-3xl font-bold text-primary mb-1">{stat.number}</div>
+                  <div className="text-sm text-muted-foreground">{stat.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      )}
-
-      {/* Header */}
-      <section className="max-w-7xl mx-auto px-4 pt-24 text-center">
-        <h2 className="text-3xl font-bold text-[#02066F] mb-3">
-          Employee Time Tracking
-        </h2>
-        <p className="text-[16px]">
-          One tap solution for simplifying and streamlining employee time
-          logging and reporting.
-        </p>
       </section>
 
       {/* Features Section */}
-      <section
-        id="whatWeProvide"
-        className="flex flex-col lg:flex-row p-4 pt-10 gap-12 items-center"
-      >
-        <img
-          src="/images/main-image.jpeg"
-          alt="Main Feature"
-          className="w-full lg:w-1/2 shadow-md"
-        />
+      <section id="features" className="py-20 bg-muted/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+              Powerful Features for Modern Workplaces
+            </h2>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Streamline your workforce management with our comprehensive time tracking solution
+            </p>
+          </div>
 
-        <div className="space-y-8 w-full lg:w-1/2">
-          {features.map((feature, index) => (
-            <div key={index} className="flex items-start gap-6 sm:gap-8">
-              <img
-                src={`/images/${feature.icon}`}
-                alt={feature.title}
-                className="w-14 h-14 sm:w-18 sm:h-18 object-contain"
-              />
-              <div className="flex flex-col gap-2">
-                <h4 className="text-xl sm:text-2xl font-semibold">
-                  {feature.title}
-                </h4>
-                <p className="text-gray-800 text-base sm:text-lg">
-                  {feature.desc}
-                </p>
-              </div>
-            </div>
-          ))}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {features.map((feature, index) => {
+              const Icon = feature.icon
+              return (
+                <Card key={index} className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                  <CardHeader>
+                    <div className={`w-12 h-12 rounded-lg ${feature.color} flex items-center justify-center mb-4`}>
+                      <Icon className="w-6 h-6" />
+                    </div>
+                    <CardTitle className="text-xl">{feature.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-base leading-relaxed">
+                      {feature.description}
+                    </CardDescription>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+              What Our Customers Say
+            </h2>
+            <p className="text-xl text-muted-foreground">
+              Join thousands of satisfied customers who trust TapTime
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {testimonials.map((testimonial, index) => (
+              <Card key={index} className="border-0 shadow-lg">
+                <CardHeader>
+                  <div className="flex items-center space-x-1 mb-4">
+                    {[...Array(testimonial.rating)].map((_, i) => (
+                      <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                    ))}
+                  </div>
+                  <CardDescription className="text-base leading-relaxed">
+                    "{testimonial.content}"
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div>
+                    <div className="font-semibold text-foreground">{testimonial.name}</div>
+                    <div className="text-sm text-muted-foreground">{testimonial.role}</div>
+                    <div className="text-sm text-muted-foreground">{testimonial.company}</div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Contact Section */}
-      <section id="contact" className="pt-18">
-        <div className="max-w-2xl mx-auto px-4">
-          <h2 className="text-[32px] sm:text-[40px] font-bold text-gray-900 text-center mb-2">
-            Contact
-          </h2>
+      <section id="contact" className="py-20 bg-muted/30">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+              Get in Touch
+            </h2>
+            <p className="text-xl text-muted-foreground">
+              Ready to transform your time tracking? Contact us today and discover how our solution can streamline your workforce management.
+            </p>
+          </div>
 
-          <form ref={formRef} onSubmit={handleSubmit} className="bg-white rounded-lg shadow-[0_0_20px_rgba(0,0,0,0.2)] p-6 sm:p-10 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[
-                { name: 'firstName', placeholder: 'First Name', type: 'text' },
-                { name: 'lastName', placeholder: 'Last Name', type: 'text' },
-                { name: 'email', placeholder: 'Email', type: 'email' },
-                { name: 'phone', placeholder: 'Phone', type: 'text', value: phone, onChange: formatPhoneNumber },
-                { name: 'street', placeholder: 'Address Line 1', type: 'text' },
-                { name: 'city', placeholder: 'City', type: 'text' },
-                { name: 'zip', placeholder: 'Zip', type: 'text' },
-                { name: 'state', placeholder: 'State', type: 'text' }
-              ].map(field => (
-                <div key={field.name}>
-                  <input
-                    name={field.name}
-                    type={field.type}
-                    placeholder={field.placeholder}
-                    value={field.value}
-                    onChange={field.onChange}
-                    className="border-2 border-[#02066F] rounded-[10px] w-full p-3 font-bold focus:outline-none placeholder:text-[#02066F]"
+          <Card className="border-0 shadow-xl">
+            <CardHeader className="bg-primary text-primary-foreground rounded-t-xl">
+              <CardTitle className="text-xl">Send us a message</CardTitle>
+              <CardDescription className="text-primary-foreground/80">
+                We'll get back to you within 24 hours
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-8">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName">First Name</Label>
+                    <Input
+                      id="firstName"
+                      name="firstName"
+                      value={formData.firstName}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">Last Name</Label>
+                    <Input
+                      id="lastName"
+                      name="lastName"
+                      value={formData.lastName}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone</Label>
+                    <Input
+                      id="phone"
+                      name="phone"
+                      type="tel"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="company">Company</Label>
+                  <Input
+                    id="company"
+                    name="company"
+                    value={formData.company}
+                    onChange={handleInputChange}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="message">Message</Label>
+                  <Textarea
+                    id="message"
+                    name="message"
+                    rows={4}
+                    value={formData.message}
+                    onChange={handleInputChange}
+                    placeholder="Tell us about your requirements..."
                     required
                   />
-                  {errors[field.name] && <p className="text-red-500 text-sm mt-1">{errors[field.name]}</p>}
                 </div>
-              ))}
-            </div>
-            
-            <input name="subject" placeholder="Subject" className="border-2 border-[#02066F] rounded-[10px] w-full p-3 font-bold focus:outline-none placeholder:text-[#02066F]" required />
-            <textarea name="message" placeholder="Message..." rows="4" className="border-2 border-[#02066F] rounded-[10px] w-full p-3 font-bold resize-none focus:outline-none placeholder:text-[#02066F]" required></textarea>
-            
-            <button type="submit" className="w-full bg-[#02066F] text-lg cursor-pointer text-white font-semibold py-4 rounded-[10px] transition-colors">
-              Submit
-            </button>
-          </form>
 
-          {/* Toast Notification */}
-          {toast.show && (
-            <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2">
-              <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${
-                toast.type === 'success' 
-                  ? 'bg-green-50 border-green-200 text-green-800' 
-                  : 'bg-red-50 border-red-200 text-red-800'
-              }`}>
-                {toast.type === 'success' ? (
-                  <svg className="h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                ) : (
-                  <svg className="h-5 w-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                )}
-                <span className="font-medium text-sm">{toast.message}</span>
-              </div>
-            </div>
-          )}
+                <Button type="submit" size="lg" className="w-full">
+                  Send Message
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
         </div>
       </section>
 
       <Footer />
-    </>
-  );
-};
+    </div>
+  )
+}
 
-export default HomePage;
-
+export default HomePage

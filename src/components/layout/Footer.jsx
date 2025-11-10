@@ -1,119 +1,169 @@
-import React from "react";
+import React, { useState, useEffect } from "react"
+import { Link, useLocation } from "react-router-dom"
+import { Mail, Phone, MapPin, Facebook, Twitter, Linkedin, Instagram } from "lucide-react"
+import icodeLogoWhite from "../../assets/images/icode-logo-white.png"
+import facebookIcon from "../../assets/images/facebook.png"
+import twitterIcon from "../../assets/images/twitter.png"
+import linkedinIcon from "../../assets/images/linkedin.png"
+import instagramIcon from "../../assets/images/instagram.png"
 
-const Footer = ({ variant = "default" }) => {
-  const socialLinks = [
-    { href: "https://www.facebook.com/profile.php?id=61565587366048", src: "/images/facebook.png", alt: "Facebook" },
-    { href: "https://www.instagram.com/_tap_time", src: "/images/instagram.png", alt: "Instagram" },
-    { href: "https://www.linkedin.com/company/arjavatech/", src: "/images/linkedin.png", alt: "LinkedIn" },
-    { href: "https://x.com/_Tap_Time", src: "/images/twitter.png", alt: "X" }
-  ];
+const Footer = () => {
+  const currentYear = new Date().getFullYear()
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const location = useLocation()
 
-  const quickLinks = variant === "authenticated" ? [
+  useEffect(() => {
+    const checkAuthStatus = () => {
+      const adminMail = localStorage.getItem("adminMail")
+      setIsAuthenticated(!!adminMail)
+    }
+    
+    checkAuthStatus()
+  }, [location])
+
+  // Before Login (Public Navigation)
+  const publicLinks = [
+    { href: "/", text: "Home" },
+    { href: "/login", text: "Login" },
+    { href: "/register", text: "Register" },
+    { href: "#contact", text: "Contact Us" },
+    { href: "/privacypolicy", text: "Privacy Policy" }
+  ]
+
+  // After Login (Authenticated Navigation)
+  const authenticatedLinks = [
     { href: "/device", text: "Device" },
     { href: "/employee-management", text: "Employee Management" },
     { href: "/reportsummary", text: "Report Summary" },
     { href: "/reportsetting", text: "Report Settings" },
     { href: "/profile", text: "Profile" },
     { href: "/contact", text: "Contact Us" }
-  ] : [
-    { href: "/", text: "Home" },
-    { href: "/login", text: "Login" },
-    { href: "/register", text: "Register" },
-    { href: "#contact", text: "Contact Us" },
-    { href: "/privacypolicy", text: "Privacy Policy" }
-  ];
+  ]
 
-  const contactInfo = [
-    { 
-      href: "https://maps.google.com/?q=2135+204th+PL+NE,+Sammamish,+WA+98074", 
-      src: "/images/location-pin.png", 
-      alt: "Location", 
-      text: "Arjava Technologies,\n2135 204th PL NE,\nSammamish,\nWA - 98074.", 
-      className: "w-5 mt-1" 
-    },
-    { 
-      href: "tel:+14258181900", 
-      src: "/images/phone-call.png", 
-      alt: "Phone", 
-      text: "(541) 371-2950", 
-      className: "w-4 h-4" 
-    },
-    { 
-      href: "https://mail.google.com/mail/?view=cm&fs=1&to=contact@tap-time.com", 
-      src: "/images/paper-plane.png", 
-      alt: "Email", 
-      text: "contact@tap-time.com", 
-      className: "w-4 h-4" 
-    }
-  ];
+  const quickLinks = isAuthenticated ? authenticatedLinks : publicLinks
+
+  const socialLinks = [
+    { href: "https://facebook.com", src: facebookIcon, alt: "Facebook" },
+    { href: "https://twitter.com", src: twitterIcon, alt: "Twitter" },
+    { href: "https://linkedin.com", src: linkedinIcon, alt: "LinkedIn" },
+    { href: "https://instagram.com", src: instagramIcon, alt: "Instagram" }
+  ]
 
   return (
-    <footer className="bg-[#02066F] text-white w-full pt-10 mt-4 pb-18 sm:pb-24">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row flex-wrap justify-evenly items-start gap-12 text-center md:text-left">
-        {/* Logo & Social */}
-        <div className="flex flex-col items-center md:items-start w-full md:w-auto">
-          <img src="/images/icode-logo-white.png" alt="Tap Time Logo" className="w-24 sm:w-28 md:w-30 pb-2" />
-          <p className="text-center md:text-left text-sm sm:text-base mt-4 font-bold text-lg">
-            Powered by<br />Arjava Technologies
-          </p>
-          <div className="flex mt-5 gap-6 items-center justify-center md:justify-start flex-wrap">
-            {socialLinks.map((link, i) => (
-              <a key={i} href={link.href}>
-                <img 
-                  src={link.src} 
-                  alt={link.alt} 
-                  className="w-5 sm:w-6 rounded-full inline-block transition-all duration-300 ease-in-out hover:shadow-[0_0_15px_white]" 
-                />
-              </a>
-            ))}
+    <footer className="bg-primary text-primary-foreground">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          
+          {/* Company Info */}
+          <div className="lg:col-span-2">
+            <div className="mb-6">
+              <img src={icodeLogoWhite} alt="Tap Time Logo" className="w-32 h-auto mb-4" />
+            </div>
+            <p className="text-gray-200 text-base leading-relaxed mb-6 max-w-md">
+              Powered by Arjava Technologies - Your trusted partner for innovative employee time tracking solutions that streamline workforce management.
+            </p>
+            <div className="flex space-x-4">
+              {socialLinks.map((social, i) => (
+                <a 
+                  key={i} 
+                  href={social.href} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="w-10 h-10 bg-opacity-10 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-opacity-20 hover:scale-110 transition-all duration-300 group"
+                >
+                  <img src={social.src} alt={social.alt} className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                </a>
+              ))}
+            </div>
+          </div>
+
+          {/* Quick Links */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
+            <ul className="space-y-3">
+              {quickLinks.map((link) => (
+                <li key={link.text}>
+                  {link.href.startsWith('#') ? (
+                    <a
+                      href={link.href}
+                      className="text-primary-foreground/80 hover:text-primary-foreground transition-colors text-sm"
+                    >
+                      {link.text}
+                    </a>
+                  ) : (
+                    <Link
+                      to={link.href}
+                      className="text-primary-foreground/80 hover:text-primary-foreground transition-colors text-sm"
+                    >
+                      {link.text}
+                    </Link>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Contact Info */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Contact Info</h3>
+            <div className="space-y-3">
+              <div className="flex items-start space-x-3">
+                <MapPin className="w-5 h-5 mt-0.5 text-primary-foreground/60" />
+                <div className="text-sm text-primary-foreground/80">
+                  <p>Arjava Technologies</p>
+                  <p>2135 204th PL NE</p>
+                  <p>Sammamish, WA 98074</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center space-x-3">
+                <Phone className="w-5 h-5 text-primary-foreground/60" />
+                <a 
+                  href="tel:+15413712950" 
+                  className="text-sm text-primary-foreground/80 hover:text-primary-foreground transition-colors"
+                >
+                  (541) 371-2950
+                </a>
+              </div>
+              
+              <div className="flex items-center space-x-3">
+                <Mail className="w-5 h-5 text-primary-foreground/60" />
+                <a 
+                  href="mailto:contact@tap-time.com" 
+                  className="text-sm text-primary-foreground/80 hover:text-primary-foreground transition-colors"
+                >
+                  contact@tap-time.com
+                </a>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Quick Links */}
-        <div className="quick-links w-50 md:w-auto text-left" style={{ alignSelf: "center", justifySelf: "center", paddingLeft: "25px" }}>
-          <h4 className="text-lg sm:text-[16px] font-bold mb-6">
-            {variant === "authenticated" ? "QUICK EXPLORE" : "QUICK LINKS"}
-          </h4>
-          <ul className="list-none space-y-2 text-sm sm:text-base">
-            {quickLinks.map((link, i) => (
-              <li key={i}>
-                <a
-                  href={link.href}
-                  className="text-gray-400 hover:text-white transition-colors duration-200"
-                >
-                  {link.text}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Contact Information */}
-        <div className="address text-sm sm:text-base w-full md:w-auto text-center md:text-left">
-          <h4 className="text-lg sm:text-[16px] font-semibold mb-4">CONTACT INFORMATION</h4>
-          {contactInfo.map((info, i) => (
-            <a 
-              key={i} 
-              href={info.href} 
-              target={i === 0 ? "_blank" : undefined} 
-              rel={i === 0 ? "noopener noreferrer" : undefined} 
-              className="hover:underline text-white"
-            >
-              <div className={`flex flex-col sm:flex-row items-center justify-center md:justify-start ${i < contactInfo.length - 1 ? 'mb-3' : ''} gap-2`}>
-                <img src={info.src} alt={info.alt} className={info.className} />
-                {info.text.split('\n').map((line, j) => (
-                  <React.Fragment key={j}>
-                    {line}
-                    {j < info.text.split('\n').length - 1 && <br />}
-                  </React.Fragment>
-                ))}
-              </div>
-            </a>
-          ))}
+        {/* Bottom Section */}
+        <div className="border-t border-primary-foreground/20 mt-8 pt-8">
+          <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+            <p className="text-sm text-primary-foreground/60">
+              © {currentYear} TapTime by Arjava Technologies. All rights reserved.
+            </p>
+            <div className="flex space-x-6">
+              <Link 
+                to={isAuthenticated ? "/privacypolicy" : "/privacy"} 
+                className="text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors"
+              >
+                Privacy Policy
+              </Link>
+              <Link 
+                to="/terms" 
+                className="text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors"
+              >
+                Terms of Service
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     </footer>
-  );
-};
+  )
+}
 
-export default Footer;
+export default Footer
