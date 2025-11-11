@@ -85,6 +85,12 @@ const Reports = () => {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedWeek, setSelectedWeek] = useState(1);
 
+  // Salaried report specific
+  const [selectedReportType, setSelectedReportType] = useState('Weekly');
+  const [selectedHalf, setSelectedHalf] = useState('first');
+  const [availableWeeks, setAvailableWeeks] = useState([]);
+  const [salariedReportData, setSalariedReportData] = useState([]);
+
   // Summary stats
   const [summaryStats, setSummaryStats] = useState({
     presentEmployees: 0,
@@ -393,6 +399,138 @@ const Reports = () => {
     }
   };
 
+  // Helper function to calculate weeks in a month (Monday-based)
+  const calculateWeeksInMonth = (year, month) => {
+    const weeks = [];
+    const firstDay = new Date(year, month - 1, 1);
+    const lastDay = new Date(year, month, 0);
+
+    // Find first Monday of the month
+    let current = new Date(firstDay);
+    while (current.getDay() !== 1 && current <= lastDay) {
+      current.setDate(current.getDate() + 1);
+    }
+
+    // If no Monday found in this month, return empty
+    if (current > lastDay) return [];
+
+    // Create week blocks (Monday to Sunday)
+    let weekNum = 1;
+    while (current <= lastDay) {
+      const weekStart = new Date(current);
+      const weekEnd = new Date(current);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+
+      // Don't go past the month end
+      const actualEnd = weekEnd > lastDay ? lastDay : weekEnd;
+
+      weeks.push({
+        number: weekNum,
+        label: `Week ${weekNum}: ${weekStart.getDate()} ${weekStart.toLocaleString('default', { month: 'short' })} - ${actualEnd.getDate()} ${actualEnd.toLocaleString('default', { month: 'short' })}`,
+        start: `${year}-${String(month).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`,
+        end: `${year}-${String(actualEnd.getMonth() + 1).padStart(2, '0')}-${String(actualEnd.getDate()).padStart(2, '0')}`
+      });
+
+      current.setDate(current.getDate() + 7);
+      weekNum++;
+    }
+
+    return weeks;
+  };
+
+  // Helper function to get date range based on report type
+  const getDateRangeForReportType = (reportType, year, month, weekIndex, half) => {
+    const today = new Date();
+
+    switch (reportType) {
+      case 'Weekly': {
+        if (availableWeeks.length === 0 || weekIndex === null) return null;
+        const selectedWeekData = availableWeeks[weekIndex];
+        return { start: selectedWeekData.start, end: selectedWeekData.end };
+      }
+
+      case 'Biweekly': {
+        // Last 14 days from today
+        const endDate = getTodayDate();
+        const startDateObj = new Date(today);
+        startDateObj.setDate(startDateObj.getDate() - 13);
+        const startDate = `${startDateObj.getFullYear()}-${String(startDateObj.getMonth() + 1).padStart(2, '0')}-${String(startDateObj.getDate()).padStart(2, '0')}`;
+        return { start: startDate, end: endDate };
+      }
+
+      case 'Monthly': {
+        // Full month: 1st to last day
+        const lastDay = new Date(year, month, 0).getDate();
+        const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+        const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+        return { start: startDate, end: endDate };
+      }
+
+      case 'Bimonthly': {
+        if (half === 'first') {
+          // 1st to 15th
+          const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+          const endDate = `${year}-${String(month).padStart(2, '0')}-15`;
+          return { start: startDate, end: endDate };
+        } else {
+          // 16th to end of month
+          const lastDay = new Date(year, month, 0).getDate();
+          const startDate = `${year}-${String(month).padStart(2, '0')}-16`;
+          const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+          return { start: startDate, end: endDate };
+        }
+      }
+
+      default:
+        return null;
+    }
+  };
+
+  // Load salaried report data
+  const loadSalariedReport = async () => {
+    const dateRange = getDateRangeForReportType(selectedReportType, selectedYear, selectedMonth, selectedWeek, selectedHalf);
+
+    if (!dateRange) {
+      showToast("Please select all required options", "error");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const data = await fetchDateRangeReport(companyId, dateRange.start, dateRange.end);
+      let filteredData = Array.isArray(data) ? data : [];
+
+      // Apply device filter if selected
+      if (selectedDevice && selectedDevice.DeviceID) {
+        filteredData = filteredData.filter(item => item.DeviceID === selectedDevice.DeviceID);
+      }
+
+      // Calculate total hours per employee
+      const employeeData = Object.entries(
+        calculateTotalTimeWorked(filteredData)
+      ).map(([pin, empData]) => ({
+        Pin: pin,
+        Name: empData.name,
+        TimeWorked: empData.totalHoursWorked || "0:00",
+        hoursWorked: empData.totalHoursWorked || "0:00"
+      }));
+
+      setSalariedReportData(employeeData);
+      setReportData(employeeData);
+      setFilteredData(employeeData);
+      showToast(`Loaded ${employeeData.length} employee records`);
+      setCurrentPage(1);
+    } catch (error) {
+      console.error("Error loading salaried report:", error);
+      showToast("Failed to load report", "error");
+      setSalariedReportData([]);
+      setReportData([]);
+      setFilteredData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filterData = () => {
     let filtered = activeTab === "today" ? tableData : reportData;
     
@@ -659,6 +797,15 @@ const Reports = () => {
   }, [activeTab, currentDate, selectedDate]);
 
   useEffect(() => {
+    // Auto-calculate weeks when year/month changes for Weekly report
+    if (selectedReportType === 'Weekly' && selectedYear && selectedMonth) {
+      const weeks = calculateWeeksInMonth(selectedYear, selectedMonth);
+      setAvailableWeeks(weeks);
+      setSelectedWeek(weeks.length > 0 ? 0 : null);
+    }
+  }, [selectedYear, selectedMonth, selectedReportType]);
+
+  useEffect(() => {
     filterData();
   }, [reportData, tableData, searchQuery, sortConfig, activeTab]);
 
@@ -775,7 +922,8 @@ const Reports = () => {
               {[
                 { key: "today", label: "Today Report", icon: Calendar },
                 { key: "daywise", label: "Day-wise Report", icon: Calendar },
-                { key: "summary", label: "Date Range Report", icon: BarChart3 }
+                { key: "summary", label: "Date Range Report", icon: BarChart3 },
+                { key: "salaried", label: "Salaried Report", icon: TrendingUp }
               ].map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}
@@ -1183,6 +1331,158 @@ const Reports = () => {
                     <BarChart3 className="w-12 h-12 mx-auto text-gray-400 mb-4" />
                     <p className="text-gray-500 text-sm">No records found for the selected date range.</p>
                     <p className="text-gray-400 text-xs mt-2">Select dates above and click "Load Report" to view data.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full border border-gray-300 rounded-lg">
+                      <thead className="bg-[#02066F] text-white">
+                        <tr>
+                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Employee</th>
+                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">PIN</th>
+                          <th className="px-4 py-3 text-center font-semibold text-sm">Total Time Worked</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {filteredData.map((employee, index) => (
+                          <tr key={index} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-4 py-3 text-center font-medium text-gray-900">{employee.Name}</td>
+                            <td className="px-4 py-3 text-center text-gray-600">{employee.Pin}</td>
+                            <td className="px-4 py-3 text-center font-semibold text-blue-600">
+                              {employee.TimeWorked || employee.hoursWorked || "0:00"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Salaried Report Section (Weekly/Biweekly/Monthly/Bimonthly) */}
+        {activeTab === "salaried" && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
+                  {selectedReportType} Report
+                </CardTitle>
+                <CardDescription className="text-sm">
+                  Select report type and view consolidated employee hours
+                </CardDescription>
+              </CardHeader>
+
+              <CardContent className="space-y-6">
+                {/* Report Type Selector Buttons */}
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Report Type</Label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {['Weekly', 'Biweekly', 'Monthly', 'Bimonthly'].map(type => (
+                      <Button
+                        key={type}
+                        onClick={() => setSelectedReportType(type)}
+                        variant={selectedReportType === type ? 'default' : 'outline'}
+                        className={`${selectedReportType === type ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-white hover:bg-gray-50'} text-sm`}
+                      >
+                        {type}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Conditional Date Selectors */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Year & Month - Hide for Biweekly */}
+                  {selectedReportType !== 'Biweekly' && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="year" className="text-sm font-medium">Year</Label>
+                        <select
+                          id="year"
+                          value={selectedYear}
+                          onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          {[...Array(5)].map((_, i) => {
+                            const year = new Date().getFullYear() - i;
+                            return <option key={year} value={year}>{year}</option>;
+                          })}
+                        </select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="month" className="text-sm font-medium">Month</Label>
+                        <select
+                          id="month"
+                          value={selectedMonth}
+                          onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          {['January', 'February', 'March', 'April', 'May', 'June',
+                            'July', 'August', 'September', 'October', 'November', 'December']
+                            .map((month, idx) => (
+                              <option key={idx} value={idx + 1}>{month}</option>
+                            ))}
+                        </select>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Week Selector - Only for Weekly */}
+                  {selectedReportType === 'Weekly' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="week" className="text-sm font-medium">Week</Label>
+                      <select
+                        id="week"
+                        value={selectedWeek !== null ? selectedWeek : ''}
+                        onChange={(e) => setSelectedWeek(parseInt(e.target.value))}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={availableWeeks.length === 0}
+                      >
+                        <option value="">Select Week</option>
+                        {availableWeeks.map((week, idx) => (
+                          <option key={idx} value={idx}>{week.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Half Selector - Only for Bimonthly */}
+                  {selectedReportType === 'Bimonthly' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="half" className="text-sm font-medium">Period</Label>
+                      <select
+                        id="half"
+                        value={selectedHalf}
+                        onChange={(e) => setSelectedHalf(e.target.value)}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="first">First Half (1-15)</option>
+                        <option value="second">Second Half (16-End)</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                {/* Load Report Button */}
+                <Button
+                  onClick={loadSalariedReport}
+                  disabled={loading}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {loading && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
+                  {loading ? 'Loading...' : 'Load Report'}
+                </Button>
+
+                {/* Report Table */}
+                {filteredData.length === 0 ? (
+                  <div className="text-center py-12">
+                    <TrendingUp className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                    <p className="text-gray-500 text-sm">No records found.</p>
+                    <p className="text-gray-400 text-xs mt-2">Select options above and click "Load Report" to view data.</p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
