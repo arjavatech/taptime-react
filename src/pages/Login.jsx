@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import Header from "../components/layout/Header";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -146,12 +147,15 @@ const Login_new = () => {
 
   return (
     <>
+      {/* Header Navigation */}
+      <Header />
+
       {/* Toast Notification */}
       {toast.show && (
-        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2">
+        <div className="fixed top-24 right-4 z-50 animate-in slide-in-from-top-2">
           <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${
-            toast.type === 'success' 
-              ? 'bg-green-50 border-green-200 text-green-800' 
+            toast.type === 'success'
+              ? 'bg-green-50 border-green-200 text-green-800'
               : 'bg-red-50 border-red-200 text-red-800'
           }`}>
             {toast.type === 'success' ? (
@@ -163,8 +167,8 @@ const Login_new = () => {
           </div>
         </div>
       )}
-      
-      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4">
+
+      <div className="min-h-screen pt-20 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           {/* Logo */}
           <div className="text-center mb-8">

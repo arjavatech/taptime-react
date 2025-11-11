@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
 import LogoutModal from "../ui/LogoutModal";
 import tapTimeLogo from "../../assets/images/tap-time-logo.png";
 
 const Header = () => {
+  const { user, session, signOut } = useAuth();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -27,17 +29,23 @@ const Header = () => {
 
   useEffect(() => {
     const checkAuthStatus = () => {
+      // Check both AuthContext (Supabase session) AND localStorage (backend validation)
+      // User must be authenticated with Supabase AND have backend user data stored
+      const hasSupabaseAuth = !!(user && session);
       const adminMail = localStorage.getItem("adminMail");
-      const authenticated = !!adminMail;
+      const hasBackendData = !!adminMail;
+
+      // User is only truly authenticated if both conditions are met
+      const authenticated = hasSupabaseAuth && hasBackendData;
       setIsAuthenticated(authenticated);
-      
+
       if (authenticated) {
         const adminType = localStorage.getItem("adminType") || "";
         const email = localStorage.getItem("adminMail") || "";
         const userName = localStorage.getItem("userName") || "";
         const userPictureUrl = localStorage.getItem("userPicture");
 
-        const fixedPictureUrl = userPictureUrl && !userPictureUrl.startsWith("http") 
+        const fixedPictureUrl = userPictureUrl && !userPictureUrl.startsWith("http")
           ? `https:${userPictureUrl}` : userPictureUrl;
 
         setUserType(adminType);
@@ -47,11 +55,20 @@ const Header = () => {
           picture: fixedPictureUrl || "",
           fallback: email.charAt(0).toUpperCase(),
         });
+      } else {
+        // Reset user profile when not authenticated
+        setUserType("");
+        setUserProfile({
+          name: "",
+          email: "",
+          picture: "",
+          fallback: "",
+        });
       }
     };
-    
+
     checkAuthStatus();
-  }, [location]);
+  }, [user, session, location]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -108,7 +125,9 @@ const Header = () => {
   };
 
   const handleLogout = async () => {
-    localStorage.clear();
+    // Clear both Supabase session AND localStorage
+    await signOut();
+    // localStorage.clear() is already called in signOut() method in AuthContext
     navigate("/login", { replace: true });
   };
 
