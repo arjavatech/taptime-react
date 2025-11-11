@@ -313,6 +313,82 @@ const Reports = () => {
     }
   };
 
+  const calculateTotalTimeWorked = (data) => {
+    const employeeTimes = {};
+
+    data.forEach(entry => {
+      const { Name, Pin, CheckInTime, CheckOutTime } = entry;
+      if (!Name || !Pin || !CheckInTime) return;
+
+      const checkInDate = new Date(CheckInTime);
+      const checkOutDate = CheckOutTime ? new Date(CheckOutTime) : new Date();
+      const timeDifferenceInMinutes = Math.floor(
+        (Number(checkOutDate) - Number(checkInDate)) / 1000 / 60
+      );
+
+      if (!employeeTimes[Pin]) {
+        employeeTimes[Pin] = { name: Name, totalMinutes: 0 };
+      }
+      employeeTimes[Pin].totalMinutes += timeDifferenceInMinutes;
+    });
+
+    // Convert to hours:minutes format
+    for (const [pin, details] of Object.entries(employeeTimes)) {
+      const hours = Math.floor(details.totalMinutes / 60);
+      const mins = details.totalMinutes % 60;
+      details.totalHoursWorked = `${hours}:${mins.toString().padStart(2, "0")}`;
+    }
+    return employeeTimes;
+  };
+
+  const loadSummaryReport = async () => {
+    if (!startDate || !endDate) {
+      showToast("Please select both start and end dates", "error");
+      return;
+    }
+
+    if (new Date(startDate) > new Date(endDate)) {
+      showToast("Start date must be before end date", "error");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const data = await fetchDateRangeReport(companyId, startDate, endDate);
+
+      let filteredData = Array.isArray(data) ? data : [];
+
+      // Apply device filter if selected
+      if (selectedDevice && selectedDevice.DeviceID) {
+        filteredData = filteredData.filter(item => item.DeviceID === selectedDevice.DeviceID);
+      }
+
+      // Calculate total hours per employee
+      const employeeData = Object.entries(
+        calculateTotalTimeWorked(filteredData)
+      ).map(([pin, empData]) => ({
+        Pin: pin,
+        Name: empData.name,
+        TimeWorked: empData.totalHoursWorked || "0:00",
+        hoursWorked: empData.totalHoursWorked || "0:00" // For backward compatibility
+      }));
+
+      setEmployees(employeeData);
+      setReportData(employeeData);
+      setFilteredData(employeeData);
+      showToast(`Loaded ${employeeData.length} employee records`);
+      setCurrentPage(1);
+    } catch (error) {
+      console.error("Error loading summary report:", error);
+      showToast("Failed to load summary report", "error");
+      setEmployees([]);
+      setReportData([]);
+      setFilteredData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filterData = () => {
     let filtered = activeTab === "today" ? tableData : reportData;
     
@@ -380,7 +456,80 @@ const Reports = () => {
   };
 
   const downloadPDF = () => {
-    showToast("PDF export functionality would be implemented here");
+    if (filteredData.length === 0) {
+      showToast("No data to export", "error");
+      return;
+    }
+
+    try {
+      const doc = new jsPDF();
+      const companyName = localStorage.getItem("companyName") || "Company";
+
+      // Title
+      doc.setFontSize(18);
+      doc.text(`${companyName} - Attendance Report`, 14, 20);
+
+      // Date information
+      doc.setFontSize(11);
+      let dateText = "";
+      if (activeTab === "today") {
+        dateText = `Date: ${new Date().toLocaleDateString()}`;
+      } else if (activeTab === "daywise") {
+        dateText = `Date: ${selectedDate || new Date().toISOString().split('T')[0]}`;
+      } else if (activeTab === "summary") {
+        dateText = `Period: ${startDate || "N/A"} to ${endDate || "N/A"}`;
+      }
+      doc.text(dateText, 14, 30);
+
+      // Prepare table data based on active tab
+      let tableData, headers;
+
+      if (activeTab === "summary") {
+        // Summary report shows employee, pin, and total hours
+        headers = [['Employee ID', 'Name', 'Total Hours Worked']];
+        tableData = filteredData.map(record => [
+          record.Pin || "",
+          record.Name || "",
+          record.TimeWorked || record.hoursWorked || "0:00"
+        ]);
+      } else {
+        // Today and daywise reports show detailed check-in/out info
+        headers = [['Employee ID', 'Name', 'Check-in', 'Check-out', 'Time Worked', 'Type']];
+        tableData = filteredData.map(record => [
+          record.Pin || "",
+          record.Name || "",
+          record.formattedCheckIn || convertToAmPm(record.CheckInTime) || "--",
+          record.formattedCheckOut || convertToAmPm(record.CheckOutTime) || "--",
+          record.TimeWorked || record.timeWorked || "--",
+          record.Type || ""
+        ]);
+      }
+
+      // Generate table
+      autoTable(doc, {
+        head: headers,
+        body: tableData,
+        startY: 35,
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [2, 6, 111] }
+      });
+
+      // Generate filename
+      let filename;
+      if (activeTab === "today") {
+        filename = `report_${new Date().toISOString().split('T')[0]}.pdf`;
+      } else if (activeTab === "daywise") {
+        filename = `report_${selectedDate}.pdf`;
+      } else {
+        filename = `report_${startDate}_to_${endDate}.pdf`;
+      }
+
+      doc.save(filename);
+      showToast("PDF exported successfully!");
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      showToast("Failed to generate PDF", "error");
+    }
   };
 
   const getStatusBadge = (record) => {
@@ -432,42 +581,58 @@ const Reports = () => {
     }
   }, [companyId]);
 
-  const handleSaveEntry = () => {
+  const handleSaveEntry = async () => {
+    // Validation
     if (!newEntry.EmployeeID || !newEntry.Type || !newEntry.Date || !newEntry.CheckInTime) {
       showToast("Please fill in all required fields", "error");
       return;
     }
 
-    const selectedEmployee = employeeList.find(emp => emp.Pin === newEntry.EmployeeID);
+    const selectedEmployee = employeeList.find(emp => emp.pin === newEntry.EmployeeID);
     if (!selectedEmployee) {
       showToast("Selected employee not found", "error");
       return;
     }
 
-    const timeWorked = calculateTimeWorked(
-      `${newEntry.Date}T${newEntry.CheckInTime}:00`,
-      newEntry.CheckOutTime ? `${newEntry.Date}T${newEntry.CheckOutTime}:00` : null
-    );
-    
-    const newRecord = {
-      EmpID: selectedEmployee.EmpID,
-      Pin: selectedEmployee.Pin,
-      Name: `${selectedEmployee.FName} ${selectedEmployee.LName}`,
-      Date: newEntry.Date,
-      CheckInTime: `${newEntry.Date}T${newEntry.CheckInTime}:00`,
-      CheckOutTime: newEntry.CheckOutTime ? `${newEntry.Date}T${newEntry.CheckOutTime}:00` : null,
-      TimeWorked: timeWorked,
-      Type: newEntry.Type
-    };
+    setLoading(true);
+    try {
+      const timeWorked = calculateTimeWorked(
+        `${newEntry.Date}T${newEntry.CheckInTime}:00`,
+        newEntry.CheckOutTime ? `${newEntry.Date}T${newEntry.CheckOutTime}:00` : null
+      );
 
-    if (activeTab === "today") {
-      setTableData(prev => [...prev, newRecord]);
-    } else {
-      setReportData(prev => [...prev, newRecord]);
+      // Prepare entry data for backend
+      const entryData = {
+        CID: companyId,
+        EmpID: selectedEmployee.EmpID || selectedEmployee.emp_id,
+        TypeID: newEntry.Type,
+        CheckInSnap: null,
+        CheckInTime: `${newEntry.Date}T${newEntry.CheckInTime}:00`,
+        CheckOutSnap: null,
+        CheckOutTime: newEntry.CheckOutTime ? `${newEntry.Date}T${newEntry.CheckOutTime}:00` : null,
+        TimeWorked: timeWorked,
+        Date: newEntry.Date,
+        LastModifiedBy: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "Admin"
+      };
+
+      // Save to backend
+      await createDailyReportEntry(entryData);
+
+      // Refresh the current view to show the new entry
+      if (activeTab === "today" && currentDate) {
+        await viewCurrentDateReport(currentDate);
+      } else if (activeTab === "daywise" && selectedDate) {
+        await viewDatewiseReport(selectedDate);
+      }
+
+      showToast("Entry saved successfully!");
+      closeModal();
+    } catch (error) {
+      console.error("Error saving entry:", error);
+      showToast("Failed to save entry. Please try again.", "error");
+    } finally {
+      setLoading(false);
     }
-    
-    showToast("Entry saved successfully!");
-    closeModal();
   };
 
   useEffect(() => {
@@ -639,6 +804,50 @@ const Reports = () => {
                   onChange={(e) => setSelectedDate(e.target.value)}
                   className="w-auto"
                 />
+              </div>
+            )}
+
+            {/* Date Range Controls for Summary/Weekly Report */}
+            {activeTab === "summary" && (
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="space-y-2 flex-1">
+                  <Label htmlFor="startDate">Start Date</Label>
+                  <Input
+                    id="startDate"
+                    type="date"
+                    value={startDate}
+                    max={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+                <div className="space-y-2 flex-1">
+                  <Label htmlFor="endDate">End Date</Label>
+                  <Input
+                    id="endDate"
+                    type="date"
+                    value={endDate}
+                    max={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    onClick={loadSummaryReport}
+                    disabled={loading || !startDate || !endDate}
+                    className="w-full sm:w-auto"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      "Load Report"
+                    )}
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -916,7 +1125,7 @@ const Reports = () => {
       {/* Add Entry Modal */}
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-          <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto mx-4">
+          <Card className="w-full max-w-md max-h-[90vh] mx-4">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg sm:text-xl">
                 Add Entry
@@ -926,19 +1135,19 @@ const Reports = () => {
               </CardDescription>
             </CardHeader>
 
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 max-h-[calc(90vh-8rem)] overflow-y-auto">
               <div className="space-y-2">
                 <Label htmlFor="employee" className="text-sm font-medium">Employee</Label>
                 <select
                   id="employee"
                   value={newEntry.EmployeeID}
                   onChange={(e) => setNewEntry({ ...newEntry, EmployeeID: e.target.value })}
-                  className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
+                  className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md text-sm"
                 >
                   <option value="">Select Employee</option>
-                  {employeeList.map((employee) => (
-                    <option key={employee.Pin} value={employee.Pin}>
-                      {employee.FName} {employee.LName}
+                  {(employeeList || []).map((employee) => (
+                    <option key={employee.pin} value={employee.pin}>
+                      {employee.first_name} {employee.last_name}
                     </option>
                   ))}
                 </select>

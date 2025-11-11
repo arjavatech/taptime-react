@@ -146,7 +146,7 @@ export const fetchEmployeeData = async () => {
     return data;
   } catch (error) {
     console.error('Fetch error:', error);
-    return null;
+    return [];
   }
 };
 
@@ -200,7 +200,7 @@ export const fetchDevices = async (companyId) => {
     ).map(device => ({
       id: device.device_id,
       name: device.device_name,
-      deviceId: device.device_id
+      DeviceID: device.device_id
     }));
   } catch (error) {
     console.error('Error fetching devices:', error);
@@ -211,16 +211,33 @@ export const fetchDevices = async (companyId) => {
 // Report functions
 export const fetchDailyReport = async (companyId, date) => {
   try {
-    return await api.get(`${API_BASE}/dailyreport/getdatebasedata/${companyId}/${date}`);
+    return await api.get(`${API_BASE}/dailyreport/get_date_base_data/${companyId}/${date}`);
   } catch (error) {
     console.error('Error fetching daily report:', error);
     return [];
   }
 };
 
+// Helper function to transform payload to backend's snake_case format
+const transformDailyReportPayload = (entryData) => {
+  return {
+    c_id: entryData.CID,
+    emp_id: entryData.EmpID,
+    type_id: entryData.TypeID,
+    check_in_snap: entryData.CheckInSnap || null,
+    check_in_time: entryData.CheckInTime,
+    check_out_snap: entryData.CheckOutSnap || null,
+    check_out_time: entryData.CheckOutTime || null,
+    time_worked: entryData.TimeWorked,
+    date: entryData.Date || null,
+    last_modified_by: entryData.LastModifiedBy
+  };
+};
+
 export const createDailyReportEntry = async (entryData) => {
   try {
-    return await api.post(`${API_BASE}/dailyreport/create`, entryData);
+    const transformedPayload = transformDailyReportPayload(entryData);
+    return await api.post(`${API_BASE}/dailyreport/create`, transformedPayload);
   } catch (error) {
     console.error('Error creating daily report entry:', error);
     throw error;
