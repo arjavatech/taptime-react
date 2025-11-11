@@ -168,14 +168,51 @@ const Login_new = () => {
         </div>
       )}
 
-      <div className="min-h-screen pt-20 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          {/* Logo */}
-          <div className="text-center mb-8">
-            <img src={tabtimelogo} alt="TabTime Logo" className="mx-auto h-20 w-auto sm:h-25" />
+      <div className="min-h-screen flex flex-col md:flex-row pt-20 md:pt-0">
+        {/* Left side - Brand section (hidden on mobile) */}
+        <div className="hidden md:flex xl:w-1/2 md:w-1/2 bg-[#D9E9FB] flex-col justify-center items-center p-12 md:pt-32">
+          <div className="w-full max-w-lg flex flex-col items-center text-center space-y-8">
+            {/* Brand Logo */}
+            <img
+              src={tabtimelogo}
+              alt="Tap-Time Logo"
+              className="w-48 xl:w-56 md:w-40 mx-auto"
+            />
+            <div className="space-y-4">
+              <h1 className="text-3xl xl:text-4xl md:text-3xl font-bold text-gray-800">
+                Employee Time Tracking
+              </h1>
+              <p className="text-lg text-gray-700 leading-relaxed">
+                One tap solution for simplifying and streamlining employee time
+                logging and reporting.
+              </p>
+            </div>
+            <div className="flex gap-8 text-gray-600 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span>Secure</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                <span>Fast</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+                <span>Reliable</span>
+              </div>
+            </div>
           </div>
+        </div>
 
-          <Card className="border-0 shadow-2xl">
+        {/* Right side - Login form */}
+        <div className="w-full md:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center py-12 px-6 sm:px-8 md:px-12 lg:px-20">
+          <div className="w-full max-w-md">
+            {/* Logo (visible on mobile only) */}
+            <div className="text-center mb-8 md:hidden">
+              <img src={tabtimelogo} alt="TabTime Logo" className="mx-auto h-20 w-auto sm:h-25" />
+            </div>
+
+            <Card className="border-0 shadow-2xl">
             <CardHeader className="space-y-1 text-center">
               <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
               <CardDescription>
@@ -302,10 +339,11 @@ const Login_new = () => {
             </CardContent>
           </Card>
 
-          <div className="text-center mt-8">
-            <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
-              ← Back to home
-            </Link>
+            <div className="text-center mt-8">
+              <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
+                ← Back to home
+              </Link>
+            </div>
           </div>
         </div>
       </div>
