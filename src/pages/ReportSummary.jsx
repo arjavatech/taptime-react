@@ -97,6 +97,15 @@ const Reports = () => {
     setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
   };
 
+  // Helper function to get today's date in YYYY-MM-DD format (local timezone)
+  const getTodayDate = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const loadFrequenciesSync = () => {
     const savedFrequencies = localStorage.getItem("reportType");
     return savedFrequencies ? savedFrequencies.split(",").filter(f => f.trim() !== "" && f.toLowerCase() !== "weekly") : [];
@@ -596,10 +605,13 @@ const Reports = () => {
 
     setLoading(true);
     try {
-      const timeWorked = calculateTimeWorked(
-        `${newEntry.Date}T${newEntry.CheckInTime}:00`,
-        newEntry.CheckOutTime ? `${newEntry.Date}T${newEntry.CheckOutTime}:00` : null
-      );
+      // Calculate time worked: if no checkout time, set to "0:00"
+      const timeWorked = newEntry.CheckOutTime
+        ? calculateTimeWorked(
+            `${newEntry.Date}T${newEntry.CheckInTime}:00`,
+            `${newEntry.Date}T${newEntry.CheckOutTime}:00`
+          )
+        : "0:00";
 
       // Prepare entry data for backend
       const entryData = {
@@ -639,7 +651,7 @@ const Reports = () => {
     if (companyId) {
       loadDevices();
       loadEmployeeList();
-      setCurrentDate(new Date().toISOString().split('T')[0]);
+      setCurrentDate(getTodayDate());
     }
   }, [companyId, loadDevices, loadEmployeeList]);
 
@@ -768,7 +780,7 @@ const Reports = () => {
               {[
                 { key: "today", label: "Today Report", icon: Calendar },
                 { key: "daywise", label: "Day-wise Report", icon: Calendar },
-                { key: "summary", label: "Weekly Report", icon: BarChart3 }
+                { key: "summary", label: "Date Range Report", icon: BarChart3 }
               ].map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}
@@ -807,7 +819,7 @@ const Reports = () => {
               </div>
             )}
 
-            {/* Date Range Controls for Summary/Weekly Report */}
+            {/* Date Range Controls for Date Range Report */}
             {activeTab === "summary" && (
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="space-y-2 flex-1">
@@ -1120,6 +1132,58 @@ const Reports = () => {
             </Card>
           </div>
         )}
+
+        {/* Date Range Report Section */}
+        {activeTab === "summary" && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                  <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="hidden sm:inline">Date Range Report</span>
+                  <span className="sm:hidden">Range Report</span>
+                </CardTitle>
+                {startDate && endDate && (
+                  <CardDescription className="text-sm">
+                    Showing consolidated data from {new Date(startDate).toLocaleDateString()} to {new Date(endDate).toLocaleDateString()}
+                  </CardDescription>
+                )}
+              </CardHeader>
+              <CardContent>
+                {filteredData.length === 0 ? (
+                  <div className="text-center py-12">
+                    <BarChart3 className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                    <p className="text-gray-500 text-sm">No records found for the selected date range.</p>
+                    <p className="text-gray-400 text-xs mt-2">Select dates above and click "Load Report" to view data.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full border border-gray-300 rounded-lg">
+                      <thead className="bg-[#02066F] text-white">
+                        <tr>
+                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Employee</th>
+                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">PIN</th>
+                          <th className="px-4 py-3 text-center font-semibold text-sm">Total Time Worked</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {filteredData.map((employee, index) => (
+                          <tr key={index} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-4 py-3 text-center font-medium text-gray-900">{employee.Name}</td>
+                            <td className="px-4 py-3 text-center text-gray-600">{employee.Pin}</td>
+                            <td className="px-4 py-3 text-center font-semibold text-blue-600">
+                              {employee.TimeWorked || employee.hoursWorked || "0:00"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
 
       {/* Add Entry Modal */}
@@ -1184,7 +1248,7 @@ const Reports = () => {
                   type="date"
                   value={newEntry.Date}
                   onChange={(e) => setNewEntry({ ...newEntry, Date: e.target.value })}
-                  max={new Date().toISOString().split('T')[0]}
+                  max={getTodayDate()}
                   className="text-sm"
                 />
                 {formErrors.date && (

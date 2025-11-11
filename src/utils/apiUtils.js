@@ -520,7 +520,7 @@ export const updateDailyReportEntry = async (empId, cid, checkinTime, updateData
 
 export const fetchDateRangeReport = async (companyId, startDate, endDate) => {
   const BASE = "http://0.0.0.0:8000";
-  const apiUrl = `${BASE}/report/dateRangeReportGet/${companyId}/${startDate}/${endDate}`;
+  const apiUrl = `${BASE}/dailyreport/date_range_report_get/${companyId}/${startDate}/${endDate}`;
   
   try {
     const response = await fetch(apiUrl);

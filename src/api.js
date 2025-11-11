@@ -208,10 +208,37 @@ export const fetchDevices = async (companyId) => {
   }
 };
 
+// Helper function to transform API response from snake_case to PascalCase
+const transformReportRecord = (record) => {
+  if (!record) return record;
+
+  return {
+    Pin: record.pin,
+    Name: record.name,
+    Type: record.type,
+    EmpID: record.emp_id,
+    CheckInTime: record.check_in_time,
+    CheckOutTime: record.check_out_time,
+    TimeWorked: record.time_worked,
+    DeviceID: record.device_id,
+    CheckInSnap: record.check_in_snap,
+    CheckOutSnap: record.check_out_snap,
+    // Keep any other fields as-is
+    ...Object.keys(record).reduce((acc, key) => {
+      if (!['pin', 'name', 'type', 'emp_id', 'check_in_time', 'check_out_time', 'time_worked', 'device_id', 'check_in_snap', 'check_out_snap'].includes(key)) {
+        acc[key] = record[key];
+      }
+      return acc;
+    }, {})
+  };
+};
+
 // Report functions
 export const fetchDailyReport = async (companyId, date) => {
   try {
-    return await api.get(`${API_BASE}/dailyreport/get_date_base_data/${companyId}/${date}`);
+    const data = await api.get(`${API_BASE}/dailyreport/get_date_base_data/${companyId}/${date}`);
+    const records = Array.isArray(data) ? data : [];
+    return records.map(transformReportRecord);
   } catch (error) {
     console.error('Error fetching daily report:', error);
     return [];
@@ -255,7 +282,9 @@ export const updateDailyReportEntry = async (empId, cid, checkinTime, updateData
 
 export const fetchDateRangeReport = async (companyId, startDate, endDate) => {
   try {
-    return await api.get(`${API_BASE}/report/dateRangeReportGet/${companyId}/${startDate}/${endDate}`);
+    const data = await api.get(`${API_BASE}/dailyreport/date_range_report_get/${companyId}/${startDate}/${endDate}`);
+    const records = Array.isArray(data) ? data : [];
+    return records.map(transformReportRecord);
   } catch (error) {
     console.error('Error fetching date range report:', error);
     return [];
@@ -299,7 +328,7 @@ export const deleteReportEmail = async (email, companyId) => {
   }
 };
 
-export const createReportObject = (email, companyId, deviceId, selectedValues) => {
+export const createReportObject = (email, companyId, selectedValues) => {
   const reportFlags = {
     is_daily_report_active: selectedValues.includes('Daily'),
     is_weekly_report_active: selectedValues.includes('Weekly'),
