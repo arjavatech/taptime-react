@@ -2,12 +2,12 @@ import { supabase } from '../config/supabase';
 
 // API Base URLs
 export const API_URLS = {
-  employee: 'http://0.0.0.0:8000/employee',
-  company: 'http://0.0.0.0:8000/company',
-  customer: 'http://0.0.0.0:8000/customer',
-  device: 'http://0.0.0.0:8000/device',
-  loginCheck: 'http://0.0.0.0:8000/employee/login_check',
-  signUp: 'http://0.0.0.0:8000/auth/sign_up'
+  employee: 'https://postgresql-restless-waterfall-2105.fly.dev/employee',
+  company: 'https://postgresql-restless-waterfall-2105.fly.dev/company',
+  customer: 'https://postgresql-restless-waterfall-2105.fly.dev/customer',
+  device: 'https://postgresql-restless-waterfall-2105.fly.dev/device',
+  loginCheck: 'https://postgresql-restless-waterfall-2105.fly.dev/employee/login_check',
+  signUp: 'https://postgresql-restless-waterfall-2105.fly.dev/auth/sign_up'
 };
 
 // Encryption key
@@ -689,7 +689,7 @@ export const deleteEmployeeById = async (empId) => {
 
 // Contact form API function
 export const submitContactForm = async (userData) => {
-  const apiUrl = 'http://0.0.0.0:8000/web_contact_us/create';
+  const apiUrl = 'https://postgresql-restless-waterfall-2105.fly.dev/web_contact_us/create';
   
   try {
     const response = await fetch(apiUrl, {
