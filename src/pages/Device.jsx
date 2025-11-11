@@ -23,12 +23,12 @@ const Device = () => {
   // Device API functions
   const deviceApi = {
     getAll: async (companyId) => {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://postgresql-restless-waterfall-2105.fly.dev/'}/device/get_all/${companyId}`);
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://postgresql-restless-waterfall-2105.fly.dev'}/device/get_all/${companyId}`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       return response.json();
     },
     create: async (deviceData) => {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://postgresql-restless-waterfall-2105.fly.dev/'}/device/create`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://postgresql-restless-waterfall-2105.fly.dev'}/device/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify(deviceData)
@@ -138,11 +138,6 @@ const Device = () => {
   };
 
   const handleAddDevice = async () => {
-    if (!formData.deviceName.trim()) {
-      showToast("Device name is required", "error");
-      return;
-    }
-
     setIsAddLoading(true);
     const companyId = localStorage.getItem("companyID");
 
@@ -153,11 +148,10 @@ const Device = () => {
     }
 
     const newDevice = {
-      time_zone: formData.timeZone,
-      device_id: formData.deviceName,
+      time_zone: "Not Registered",
+      device_id: "Not Registered",
       c_id: companyId,
-      device_name: formData.deviceName,
-      branch_name: formData.branchName || "Main Branch",
+      device_name: "Not Registered",
       access_key: createAccessKey(),
       access_key_generated_time: new Date().toISOString(),
       last_modified_by: "Admin"
@@ -166,8 +160,6 @@ const Device = () => {
     try {
       await deviceApi.create(newDevice);
       await loadDevices();
-      setShowAddModal(false);
-      setFormData({ deviceName: "", branchName: "", timeZone: "America/New_York" });
       showToast("Device added successfully!");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Failed to add device", "error");
@@ -236,15 +228,13 @@ const Device = () => {
     }
   };
 
-  const openAddModal = () => {
+  const openAddDevice = async () => {
     if (devices.length >= maxDevices) {
       setShowApprovalModal(true);
       return;
     }
-    
-    setEditingDevice(null);
-    setFormData({ deviceName: "", branchName: "", timeZone: "America/New_York" });
-    setShowAddModal(true);
+
+    await handleAddDevice();
   };
 
   const openEditModal = (device) => {
@@ -306,13 +296,22 @@ const Device = () => {
                   Manage and monitor your registered devices
                 </p>
               </div>
-              <Button 
-                onClick={openAddModal} 
+              <Button
+                onClick={openAddDevice}
                 className="flex items-center justify-center gap-2 w-full sm:w-auto"
-                disabled={devices.length >= maxDevices}
+                disabled={devices.length >= maxDevices || isAddLoading}
               >
-                <Plus className="w-4 h-4" />
-                <span className="sm:inline">Add Device</span>
+                {isAddLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="sm:inline">Adding...</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4" />
+                    <span className="sm:inline">Add Device</span>
+                  </>
+                )}
               </Button>
             </div>
           </div>
@@ -328,9 +327,18 @@ const Device = () => {
                 <p className="text-sm text-muted-foreground mb-6">
                   Get started by adding your first device.
                 </p>
-                <Button onClick={openAddModal} className="flex items-center justify-center gap-2 w-full sm:w-auto">
-                  <Plus className="w-4 h-4" />
-                  Add Your First Device
+                <Button onClick={openAddDevice} disabled={isAddLoading} className="flex items-center justify-center gap-2 w-full sm:w-auto">
+                  {isAddLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Adding...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-4 h-4" />
+                      Add Your First Device
+                    </>
+                  )}
                 </Button>
               </CardContent>
             </Card>
