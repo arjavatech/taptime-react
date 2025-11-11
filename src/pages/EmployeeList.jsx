@@ -60,7 +60,6 @@ const EmployeeList = () => {
 
   // Form data
   const [formData, setFormData] = useState({
-    emp_id: "",
     pin: "",
     first_name: "",
     last_name: "",
@@ -246,7 +245,6 @@ const EmployeeList = () => {
   const openAddModal = (adminLevel = 0) => {
     setEditingEmployee(null);
     setFormData({
-      emp_id: "",
       pin: "",
       first_name: "",
       last_name: "",
@@ -263,7 +261,6 @@ const EmployeeList = () => {
   const openEditModal = (employee) => {
     setEditingEmployee(employee);
     setFormData({
-      emp_id: employee.emp_id,
       pin: employee.pin,
       first_name: employee.first_name,
       last_name: employee.last_name,
@@ -459,13 +456,15 @@ const EmployeeList = () => {
                   Manage employees, admins, and super admins
                 </p>
               </div>
-              <Button
-                onClick={() => openAddModal(activeTab === "admins" ? 1 : activeTab === "superadmins" ? 2 : 0)}
-                className="flex items-center justify-center gap-2 w-full sm:w-auto"
-              >
-                <Plus className="w-4 h-4" />
-                <span className="truncate">Add {activeTab === "admins" ? "Admin" : activeTab === "superadmins" ? "Super Admin" : "Employee"}</span>
-              </Button>
+              {(adminType !== "Admin") && (
+                <Button
+                  onClick={() => openAddModal(activeTab === "admins" ? 1 : activeTab === "superadmins" ? 2 : 0)}
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="truncate">Add {activeTab === "admins" ? "Admin" : activeTab === "superadmins" ? "Super Admin" : "Employee"}</span>
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -476,8 +475,8 @@ const EmployeeList = () => {
             <nav className="flex space-x-4 sm:space-x-8 overflow-x-auto">
               {[
                 { key: "employees", label: "Employees", icon: Users },
-                { key: "admins", label: "Admins", icon: Shield },
-                { key: "superadmins", label: "Super Admins", icon: Crown }
+                ...(adminType !== "Admin" ? [{ key: "admins", label: "Admins", icon: Shield }] : []),
+                ...(adminType !== "Admin" ? [{ key: "superadmins", label: "Super Admins", icon: Crown }] : [])
               ].map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}

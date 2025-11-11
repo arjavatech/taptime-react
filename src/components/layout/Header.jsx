@@ -120,7 +120,7 @@ const Header = () => {
   ];
 
   const authenticatedNavItems = [
-    { to: "/device", label: "Device" },
+    ...(userType !== "Admin" ? [{ to: "/device", label: "Device" }] : []),
     { to: "/employee-management", label: "Employee Management" },
     { 
       label: "Reports", 
