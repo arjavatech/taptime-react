@@ -1,11 +1,17 @@
-import React, { useState, useEffect } from "react"
-import Header from "../components/layout/Header"
-import Footer from "../components/layout/Footer"
-import { Button } from "../components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card"
-import { Input } from "../components/ui/input"
-import { Label } from "../components/ui/label"
-import { mockEmployeeData, delay } from "../data/mockData"
+import React, { useState, useEffect, useCallback } from "react";
+import { v4 as uuidv4 } from "uuid";
+import Header from "../components/layout/Header";
+import Footer from "../components/layout/Footer";
+import { Button } from "../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { 
+  fetchEmployeeData, 
+  createEmployeeWithData, 
+  updateEmployeeWithData, 
+  deleteEmployeeById 
+} from "../api.js";
 import {
   Plus,
   Search,
@@ -21,325 +27,393 @@ import {
   CheckCircle,
   Loader2,
   Grid3X3,
-  List,
-  ArrowUpDown,
   Table,
-  ChevronUp,
-  ChevronDown,
   ChevronLeft,
   ChevronRight
-} from "lucide-react"
+} from "lucide-react";
 
-const EmployeePage = () => {
-  const [employees, setEmployees] = useState([])
-  const [filteredEmployees, setFilteredEmployees] = useState([])
-  const [paginatedEmployees, setPaginatedEmployees] = useState([])
-  const [searchQuery, setSearchQuery] = useState("")
-  const [activeTab, setActiveTab] = useState("employees") // employees, admins, superadmins
-  const [isLoading, setIsLoading] = useState(true)
-  const [isAddLoading, setIsAddLoading] = useState(false)
-  const [isDeleteLoading, setIsDeleteLoading] = useState(false)
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [employeeToDelete, setEmployeeToDelete] = useState(null)
-  const [editingEmployee, setEditingEmployee] = useState(null)
-  const [toast, setToast] = useState({ show: false, message: "", type: "success" })
-  const [viewMode, setViewMode] = useState("table") // table, grid
-  const [sortConfig, setSortConfig] = useState({ key: "name", direction: "asc" })
-  const [currentPage, setCurrentPage] = useState(1)
-  const getItemsPerPage = () => {
-    return (viewMode === "grid" || window.innerWidth < 1024) ? 5 : 10
-  }
+const EmployeeList = () => {
+  // Data state
+  const [employees, setEmployees] = useState([]);
+  const [filteredEmployees, setFilteredEmployees] = useState([]);
+  const [admins, setAdmins] = useState([]);
+  const [superAdmins, setSuperAdmins] = useState([]);
 
+  const [searchTerms, setSearchTerms] = useState({ employee: "", admin: "", superAdmin: "" });
+  const [getEmail, setGetEmail] = useState("");
+
+  // UI state
+  const [activeTab, setActiveTab] = useState("employees");
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [currentEmployee, setCurrentEmployee] = useState(null);
+  const [editingEmployee, setEditingEmployee] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isAddLoading, setIsAddLoading] = useState(false);
+  const [isDeleteLoading, setIsDeleteLoading] = useState(false);
+  const [adminCount, setAdminCount] = useState(0);
+  const [superAdminCount, setSuperAdminCount] = useState(0);
+  const [viewMode, setViewMode] = useState("table");
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  const [employeeToDelete, setEmployeeToDelete] = useState(null);
+
+  // Form data
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
+    emp_id: "",
     pin: "",
-    isAdmin: 0 // 0 = Employee, 1 = Admin, 2 = SuperAdmin
-  })
+    first_name: "",
+    last_name: "",
+    phone_number: "",
+    email: "",
+    is_admin: 0,
+    is_active: true,
+    last_modified_by: "Admin",
+    c_id: "",
+  });
+
+  // Validation errors
+  const [errors, setErrors] = useState({
+    first_name: "",
+    last_name: "",
+    phone_number: "",
+    email: "",
+  });
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Sorting and pagination state
+  const [sortConfig, setSortConfig] = useState({
+    key: "pin",
+    direction: "asc",
+  });
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const [paginatedEmployees, setPaginatedEmployees] = useState([]);
+  
+  const getItemsPerPage = () => {
+    return (viewMode === "grid" || window.innerWidth < 1024) ? 6 : 10;
+  };
+
+  // Get values from localStorage
+  const limitEmployees = localStorage.getItem("NoOfEmployees") || "";
+  const maxEmployees = parseInt(limitEmployees);
+  const adminType = localStorage.getItem("adminType");
+  const companyId = localStorage.getItem("companyID");
+
+  // Initialize component
+  useEffect(() => {
+    const email = localStorage.getItem("adminMail") || "";
+    setGetEmail(email);
+    loadEmployeeData();
+  }, []);
 
   useEffect(() => {
-    loadEmployees()
-  }, [])
+    filterEmployees();
+  }, [employees, searchQuery, activeTab, sortConfig, currentPage, viewMode]);
 
   useEffect(() => {
-    filterEmployees()
-  }, [employees, searchQuery, activeTab, sortConfig, currentPage, viewMode])
-
-  useEffect(() => {
-    setCurrentPage(1) // Reset to first page when filters change
-  }, [searchQuery, activeTab, sortConfig])
+    setCurrentPage(1);
+  }, [searchQuery, activeTab, sortConfig]);
 
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 1024 && viewMode === "table") { // lg breakpoint
-        setViewMode("grid") // Only auto-switch if currently on table view
+      if (window.innerWidth < 1024 && viewMode === "table") {
+        setViewMode("grid");
       }
-    }
+    };
 
-    // Set initial view mode to grid on mobile
     if (window.innerWidth < 1024) {
-      setViewMode("grid")
+      setViewMode("grid");
     }
 
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
-    setCurrentPage(1) // Reset to first page when view mode changes
-  }, [viewMode])
+    setCurrentPage(1);
+  }, [viewMode]);
 
-  const loadEmployees = async () => {
-    setIsLoading(true)
+  // Fetch all employee data using centralized API
+  const loadEmployeeData = useCallback(async () => {
     try {
-      await delay(500) // Simulate API call
-      setEmployees(mockEmployeeData)
+      setLoading(true);
+      const data = await fetchEmployeeData();
+      if (data) {
+        const employeesArray = Array.isArray(data) ? data : [];
+        setEmployees(employeesArray);
+      }
     } catch (error) {
-      showToast("Failed to load employees", "error")
+      showToast("Failed to load employee data", "error");
     } finally {
-      setIsLoading(false)
+      setLoading(false);
     }
-  }
+  }, []);
 
-  const filterEmployees = () => {
-    let filtered = employees
+  // Filter employees by type and search
+  const filterEmployees = useCallback(() => {
+    const allEmployees = Array.isArray(employees) ? employees : [];
+    let filtered = allEmployees;
 
     // Filter by type
     if (activeTab === "employees") {
-      filtered = filtered.filter(emp => emp.is_admin === 0)
+      filtered = filtered.filter(emp => emp.is_admin === 0);
     } else if (activeTab === "admins") {
-      filtered = filtered.filter(emp => emp.is_admin === 1)
+      filtered = filtered.filter(emp => emp.is_admin === 1);
     } else if (activeTab === "superadmins") {
-      filtered = filtered.filter(emp => emp.is_admin === 2)
+      filtered = filtered.filter(emp => emp.is_admin === 2);
     }
 
     // Filter by search query
     if (searchQuery) {
-      const query = searchQuery.toLowerCase()
+      const query = searchQuery.toLowerCase();
       filtered = filtered.filter(emp =>
         emp.first_name.toLowerCase().includes(query) ||
         emp.last_name.toLowerCase().includes(query) ||
-        emp.email.toLowerCase().includes(query) ||
-        emp.pin.includes(query)
-      )
+        (emp.email && emp.email.toLowerCase().includes(query)) ||
+        emp.pin.includes(query) ||
+        emp.phone_number.includes(query)
+      );
     }
 
     // Sort employees
     filtered.sort((a, b) => {
-      let aValue, bValue
-      if (sortConfig.key === "name") {
-        aValue = (a.Name || `${a.first_name} ${a.last_name}`).toLowerCase()
-        bValue = (b.Name || `${b.first_name} ${b.last_name}`).toLowerCase()
-        return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue)
+      let aValue, bValue;
+      if (sortConfig.key === "pin") {
+        aValue = a.pin;
+        bValue = b.pin;
+        return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+      } else if (sortConfig.key === "name") {
+        aValue = `${a.first_name} ${a.last_name}`.toLowerCase();
+        bValue = `${b.first_name} ${b.last_name}`.toLowerCase();
+        return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
       } else if (sortConfig.key === "role") {
-        return sortConfig.direction === "asc" ? a.is_admin - b.is_admin : b.is_admin - a.is_admin
+        return sortConfig.direction === "asc" ? a.is_admin - b.is_admin : b.is_admin - a.is_admin;
       } else if (sortConfig.key === "status") {
-        return sortConfig.direction === "asc" ? a.is_active - b.is_active : b.is_active - a.is_active
+        return sortConfig.direction === "asc" ? a.is_active - b.is_active : b.is_active - a.is_active;
       }
-      return 0
-    })
+      return 0;
+    });
 
-    setFilteredEmployees(filtered)
+    setFilteredEmployees(filtered);
+    
+    // Update counts
+    const adminList = allEmployees.filter((emp) => emp.is_admin === 1);
+    const superAdminList = allEmployees.filter((emp) => emp.is_admin === 2);
+    setAdmins(adminList);
+    setSuperAdmins(superAdminList);
+    setAdminCount(adminList.length);
+    setSuperAdminCount(superAdminList.length);
 
     // Paginate results
-    const itemsPerPage = getItemsPerPage()
-    const startIndex = (currentPage - 1) * itemsPerPage
-    const endIndex = startIndex + itemsPerPage
-    setPaginatedEmployees(filtered.slice(startIndex, endIndex))
-  }
+    const itemsPerPage = getItemsPerPage();
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    setPaginatedEmployees(filtered.slice(startIndex, endIndex));
 
+    // Store matched admin for profile
+    const cleanEmail = getEmail.trim().toLowerCase();
+    const targetList = adminType === "Admin" ? adminList : adminType === "SuperAdmin" ? superAdminList : [];
+    const matchedEmployee = targetList.find(emp => (emp.email || "").trim().toLowerCase() === cleanEmail);
+
+    if (matchedEmployee) {
+      localStorage.setItem("loggedAdmin", JSON.stringify(matchedEmployee));
+    }
+  }, [employees, searchQuery, activeTab, sortConfig, currentPage, viewMode, getEmail, adminType]);
+
+  // Toast notification helper
   const showToast = (message, type = "success") => {
-    setToast({ show: true, message, type })
-    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000)
-  }
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
+  };
 
-  const formatPhoneNumber = (value) => {
-    const digits = value.replace(/\D/g, '').slice(0, 10)
-    let formatted = ''
-    if (digits.length > 6) {
-      formatted = `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
-    } else if (digits.length > 3) {
-      formatted = `(${digits.slice(0, 3)}) ${digits.slice(3)}`
-    } else if (digits.length > 0) {
-      formatted = `(${digits}`
-    }
-    return formatted
-  }
-
-  const handlePhoneChange = (e) => {
-    const formatted = formatPhoneNumber(e.target.value)
-    setFormData(prev => ({
-      ...prev,
-      phone: formatted,
-      pin: formatted.slice(-4) // Auto-generate PIN from last 4 digits
-    }))
-  }
-
-  const generateEmployeeId = () => {
-    return `EMP${String(employees.length + 1).padStart(3, '0')}`
-  }
-
-  const handleAddEmployee = async () => {
-    if (!formData.firstName.trim() || !formData.lastName.trim()) {
-      showToast("First name and last name are required", "error")
-      return
-    }
-
-    setIsAddLoading(true)
-    try {
-      await delay(1000) // Simulate API call
-
-      const newEmployee = {
-        emp_id: generateEmployeeId(),
-        EmpID: generateEmployeeId(),
-        pin: formData.pin,
-        Pin: formData.pin,
-        first_name: formData.firstName,
-        FName: formData.firstName,
-        last_name: formData.lastName,
-        LName: formData.lastName,
-        Name: `${formData.firstName} ${formData.lastName}`,
-        phone_number: formData.phone.replace(/\D/g, ''),
-        PhoneNumber: formData.phone,
-        email: formData.email,
-        Email: formData.email,
-        is_admin: formData.isAdmin,
-        IsAdmin: formData.isAdmin,
-        is_active: true,
-        IsActive: true,
-        c_id: "COMP001",
-        CID: "COMP001",
-        last_modified_by: "Admin"
-      }
-
-      setEmployees(prev => [...prev, newEmployee])
-      setShowAddModal(false)
-      resetForm()
-      showToast("Employee added successfully!")
-    } catch (error) {
-      showToast("Failed to add employee", "error")
-    } finally {
-      setIsAddLoading(false)
-    }
-  }
-
-  const handleEditEmployee = async () => {
-    if (!formData.firstName.trim() || !formData.lastName.trim()) {
-      showToast("First name and last name are required", "error")
-      return
-    }
-
-    setIsAddLoading(true)
-    try {
-      await delay(1000) // Simulate API call
-
-      setEmployees(prev => prev.map(employee =>
-        employee.emp_id === editingEmployee.emp_id
-          ? {
-            ...employee,
-            first_name: formData.firstName,
-            FName: formData.firstName,
-            last_name: formData.lastName,
-            LName: formData.lastName,
-            Name: `${formData.firstName} ${formData.lastName}`,
-            phone_number: formData.phone.replace(/\D/g, ''),
-            PhoneNumber: formData.phone,
-            email: formData.email,
-            Email: formData.email,
-            pin: formData.pin,
-            Pin: formData.pin,
-            is_admin: formData.isAdmin,
-            IsAdmin: formData.isAdmin,
-            last_modified_by: "Admin"
-          }
-          : employee
-      ))
-
-      setEditingEmployee(null)
-      setShowAddModal(false)
-      resetForm()
-      showToast("Employee updated successfully!")
-    } catch (error) {
-      showToast("Failed to update employee", "error")
-    } finally {
-      setIsAddLoading(false)
-    }
-  }
-
-  const handleDeleteEmployee = async () => {
-    if (!employeeToDelete) return
-
-    setIsDeleteLoading(true)
-    try {
-      await delay(1000) // Simulate API call
-
-      setEmployees(prev => prev.filter(employee => employee.emp_id !== employeeToDelete.emp_id))
-      setShowDeleteModal(false)
-      setEmployeeToDelete(null)
-      showToast("Employee deleted successfully!")
-    } catch (error) {
-      showToast("Failed to delete employee", "error")
-    } finally {
-      setIsDeleteLoading(false)
-    }
-  }
-
-  const resetForm = () => {
-    setFormData({
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      pin: "",
-      isAdmin: activeTab === "admins" ? 1 : activeTab === "superadmins" ? 2 : 0
-    })
-  }
-
-  const openAddModal = (adminLevel = 0) => {
-    setEditingEmployee(null)
-    setFormData({
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      pin: "",
-      isAdmin: adminLevel
-    })
-    setShowAddModal(true)
-  }
-
-  const openEditModal = (employee) => {
-    setEditingEmployee(employee)
-    setFormData({
-      firstName: employee.first_name,
-      lastName: employee.last_name,
-      email: employee.email || "",
-      phone: employee.PhoneNumber || "",
-      pin: employee.pin,
-      isAdmin: employee.is_admin
-    })
-    setShowAddModal(true)
-  }
-
-  const openDeleteModal = (employee) => {
-    setEmployeeToDelete(employee)
-    setShowDeleteModal(true)
-  }
-
+  // Employee type helpers
   const getEmployeeTypeIcon = (isAdmin) => {
-    if (isAdmin === 2) return <Crown className="w-4 h-4 text-yellow-600" />
-    if (isAdmin === 1) return <Shield className="w-4 h-4 text-blue-600" />
-    return <User className="w-4 h-4 text-gray-600" />
-  }
+    if (isAdmin === 2) return <Crown className="w-4 h-4 text-yellow-600" />;
+    if (isAdmin === 1) return <Shield className="w-4 h-4 text-blue-600" />;
+    return <User className="w-4 h-4 text-gray-600" />;
+  };
 
   const getEmployeeTypeBadge = (isAdmin) => {
-    if (isAdmin === 2) return <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Super Admin</span>
-    if (isAdmin === 1) return <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Admin</span>
-    return <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">Employee</span>
-  }
+    if (isAdmin === 2) return <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Super Admin</span>;
+    if (isAdmin === 1) return <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Admin</span>;
+    return <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">Employee</span>;
+  };
+
+  // Modal handlers
+  const openAddModal = (adminLevel = 0) => {
+    setEditingEmployee(null);
+    setFormData({
+      emp_id: "",
+      pin: "",
+      first_name: "",
+      last_name: "",
+      phone_number: "",
+      email: "",
+      is_admin: adminLevel,
+      is_active: true,
+      last_modified_by: "Admin",
+      c_id: companyId || "",
+    });
+    setShowAddModal(true);
+  };
+
+  const openEditModal = (employee) => {
+    setEditingEmployee(employee);
+    setFormData({
+      emp_id: employee.emp_id,
+      pin: employee.pin,
+      first_name: employee.first_name,
+      last_name: employee.last_name,
+      phone_number: employee.phone_number,
+      email: employee.email || "",
+      is_admin: employee.is_admin,
+      is_active: employee.is_active,
+      last_modified_by: "Admin",
+      c_id: employee.c_id,
+    });
+    setShowAddModal(true);
+  };
+
+  const openDeleteModal = (employee) => {
+    setEmployeeToDelete(employee);
+    setShowDeleteModal(true);
+  };
+
+  // Format phone number display
+  const formatPhoneNumber = useCallback((phone) => {
+    if (!phone) return "";
+    let value = phone.replace(/\D/g, "");
+    if (value.length > 6) {
+      value = `(${value.slice(0, 3)}) ${value.slice(3, 6)}-${value.slice(
+        6,
+        10
+      )}`;
+    } else if (value.length > 3) {
+      value = `(${value.slice(0, 3)}) ${value.slice(3)}`;
+    } else {
+      value = `(${value}`;
+    }
+    return value;
+  }, []);
+
+  // Handle phone input with auto-formatting
+  const handlePhoneInput = useCallback((e) => {
+    let value = e.target.value.replace(/\D/g, "");
+    if (value.length > 10) value = value.slice(0, 10);
+
+    if (value.length > 6) {
+      value = `(${value.slice(0, 3)}) ${value.slice(3, 6)}-${value.slice(6)}`;
+    } else if (value.length > 3) {
+      value = `(${value.slice(0, 3)}) ${value.slice(3)}`;
+    } else if (value.length > 0) {
+      value = `(${value}`;
+    }
+
+    setFormData((prev) => ({ ...prev, phone_number: value }));
+
+    // Auto-generate PIN from last 4 digits
+    const digits = value.replace(/\D/g, "");
+    if (digits.length >= 4) {
+      setFormData((prev) => ({ ...prev, pin: digits.slice(-4) }));
+    }
+  }, []);
+
+  // Form validation
+  const validateForm = useCallback(() => {
+    let isValid = true;
+    const newErrors = { first_name: "", last_name: "", phone_number: "", email: "" };
+
+    // First name validation
+    if (!formData.first_name.trim()) {
+      newErrors.first_name = "First name is required";
+      isValid = false;
+    } else if (!/^[a-zA-Z\s]+$/.test(formData.first_name)) {
+      newErrors.first_name = "Only letters allowed";
+      isValid = false;
+    }
+
+    // Last name validation
+    if (!formData.last_name.trim()) {
+      newErrors.last_name = "Last name is required";
+      isValid = false;
+    } else if (!/^[a-zA-Z\s]+$/.test(formData.last_name)) {
+      newErrors.last_name = "Only letters allowed";
+      isValid = false;
+    }
+
+    // Phone validation
+    const phoneRegex = /^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/;
+    if (!formData.phone_number) {
+      newErrors.phone_number = "Phone number is required";
+      isValid = false;
+    } else if (!phoneRegex.test(formData.phone_number)) {
+      newErrors.phone_number = "Invalid phone number format";
+      isValid = false;
+    }
+
+    // Email validation for admins/superadmins
+    if (formData.is_admin > 0) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!formData.email) {
+        newErrors.email = "Email is required for admin";
+        isValid = false;
+      } else if (!emailRegex.test(formData.email)) {
+        newErrors.email = "Invalid email format";
+        isValid = false;
+      }
+    }
+
+    setErrors(newErrors);
+    return isValid;
+  }, [formData]);
+
+  // Handle add/edit employee
+  const handleAddEmployee = async () => {
+    if (!validateForm()) {
+      showToast("Please fix the errors before submitting", "error");
+      return;
+    }
+
+    setIsAddLoading(true);
+    try {
+      if (editingEmployee) {
+        await updateEmployeeWithData(editingEmployee.emp_id, formData);
+        showToast("Employee updated successfully!");
+      } else {
+        await createEmployeeWithData(formData);
+        showToast("Employee added successfully!");
+      }
+      
+      setShowAddModal(false);
+      setEditingEmployee(null);
+      loadEmployeeData();
+    } catch (error) {
+      showToast(editingEmployee ? "Failed to update employee" : "Failed to add employee", "error");
+    } finally {
+      setIsAddLoading(false);
+    }
+  };
+
+  // Handle delete employee
+  const handleDeleteEmployee = async () => {
+    if (!employeeToDelete) return;
+
+    setIsDeleteLoading(true);
+    try {
+      await deleteEmployeeById(employeeToDelete.emp_id);
+      setShowDeleteModal(false);
+      setEmployeeToDelete(null);
+      showToast("Employee deleted successfully!");
+      loadEmployeeData();
+    } catch (error) {
+      showToast("Failed to delete employee", "error");
+    } finally {
+      setIsDeleteLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -348,10 +422,11 @@ const EmployeePage = () => {
       {/* Toast Notification */}
       {toast.show && (
         <div className="fixed top-4 left-4 right-4 sm:right-4 sm:left-auto z-50 animate-in slide-in-from-top-2">
-          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${toast.type === 'success'
+          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${
+            toast.type === 'success'
               ? 'bg-green-50 border-green-200 text-green-800'
               : 'bg-red-50 border-red-200 text-red-800'
-            }`}>
+          }`}>
             {toast.type === 'success' ? (
               <CheckCircle className="h-5 w-5 text-green-600" />
             ) : (
@@ -363,7 +438,7 @@ const EmployeePage = () => {
       )}
 
       {/* Loading Overlay */}
-      {isLoading && (
+      {loading && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-lg p-6 shadow-xl">
             <div className="flex items-center space-x-3">
@@ -407,10 +482,11 @@ const EmployeePage = () => {
                 <button
                   key={key}
                   onClick={() => setActiveTab(key)}
-                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center gap-1 sm:gap-2 whitespace-nowrap ${activeTab === key
+                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center gap-1 sm:gap-2 whitespace-nowrap ${
+                    activeTab === key
                       ? "border-primary text-primary"
                       : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
-                    }`}
+                  }`}
                 >
                   <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
                   <span className="hidden sm:inline">{label}</span>
@@ -444,13 +520,15 @@ const EmployeePage = () => {
               <select
                 value={`${sortConfig.key}-${sortConfig.direction}`}
                 onChange={(e) => {
-                  const [key, direction] = e.target.value.split('-')
-                  setSortConfig({ key, direction })
+                  const [key, direction] = e.target.value.split('-');
+                  setSortConfig({ key, direction });
                 }}
                 className="px-3 py-2 border border-input bg-background rounded-md text-sm flex-1 sm:flex-none"
               >
                 <option value="name-asc">Name A-Z</option>
                 <option value="name-desc">Name Z-A</option>
+                <option value="pin-asc">PIN A-Z</option>
+                <option value="pin-desc">PIN Z-A</option>
                 <option value="role-asc">Role: Employee First</option>
                 <option value="role-desc">Role: Admin First</option>
                 <option value="status-asc">Status: Inactive First</option>
@@ -514,7 +592,7 @@ const EmployeePage = () => {
                           </div>
                           <div className="min-w-0 flex-1">
                             <CardTitle className="text-base sm:text-lg truncate">
-                              {employee.Name || `${employee.first_name} ${employee.last_name}`}
+                              {`${employee.first_name} ${employee.last_name}`}
                             </CardTitle>
                             <CardDescription className="text-xs sm:text-sm">
                               PIN: {employee.pin}
@@ -555,18 +633,19 @@ const EmployeePage = () => {
                         </div>
                       )}
 
-                      {employee.PhoneNumber && (
+                      {employee.phone_number && (
                         <div className="flex items-center gap-2 text-xs sm:text-sm">
                           <Phone className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
-                          <span>{employee.PhoneNumber}</span>
+                          <span>{formatPhoneNumber(employee.phone_number)}</span>
                         </div>
                       )}
 
                       <div className="pt-2 border-t">
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
                           <span>Status</span>
-                          <span className={`px-2 py-1 rounded-full text-xs ${employee.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }`}>
+                          <span className={`px-2 py-1 rounded-full text-xs ${
+                            employee.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
                             {employee.is_active ? 'Active' : 'Inactive'}
                           </span>
                         </div>
@@ -598,7 +677,7 @@ const EmployeePage = () => {
                               </div>
                               <div>
                                 <div className="font-medium text-sm">
-                                  {employee.Name || `${employee.first_name} ${employee.last_name}`}
+                                  {`${employee.first_name} ${employee.last_name}`}
                                 </div>
                                 <div className="text-xs text-muted-foreground">PIN: {employee.pin}</div>
                               </div>
@@ -610,12 +689,13 @@ const EmployeePage = () => {
                           <td className="p-4">
                             <div className="text-sm space-y-1">
                               {employee.email && <div>{employee.email}</div>}
-                              {employee.PhoneNumber && <div className="text-muted-foreground">{employee.PhoneNumber}</div>}
+                              {employee.phone_number && <div className="text-muted-foreground">{formatPhoneNumber(employee.phone_number)}</div>}
                             </div>
                           </td>
                           <td className="p-4">
-                            <span className={`px-2 py-1 rounded-full text-xs ${employee.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                              }`}>
+                            <span className={`px-2 py-1 rounded-full text-xs ${
+                              employee.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
                               {employee.is_active ? 'Active' : 'Inactive'}
                             </span>
                           </td>
@@ -650,7 +730,7 @@ const EmployeePage = () => {
 
           {/* Pagination */}
           {(() => {
-            const itemsPerPage = getItemsPerPage()
+            const itemsPerPage = getItemsPerPage();
             return filteredEmployees.length > itemsPerPage && (
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
                 <div className="text-xs sm:text-sm text-muted-foreground order-2 sm:order-1 text-center sm:text-left">
@@ -681,7 +761,7 @@ const EmployeePage = () => {
                   </Button>
                 </div>
               </div>
-            )
+            );
           })()}
         </div>
       </div>
@@ -693,8 +773,8 @@ const EmployeePage = () => {
             <CardHeader className="pb-4">
               <CardTitle className="text-lg sm:text-xl">
                 {editingEmployee ? "Edit" : "Add"} {
-                  formData.isAdmin === 2 ? "Super Admin" :
-                    formData.isAdmin === 1 ? "Admin" :
+                  formData.is_admin === 2 ? "Super Admin" :
+                    formData.is_admin === 1 ? "Admin" :
                       "Employee"
                 }
               </CardTitle>
@@ -710,20 +790,22 @@ const EmployeePage = () => {
                   <Input
                     id="firstName"
                     placeholder="First name"
-                    value={formData.firstName}
-                    onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
+                    value={formData.first_name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, first_name: e.target.value }))}
                     className="text-sm"
                   />
+                  {errors.first_name && <p className="text-xs text-red-600">{errors.first_name}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="lastName" className="text-sm font-medium">Last Name *</Label>
                   <Input
                     id="lastName"
                     placeholder="Last name"
-                    value={formData.lastName}
-                    onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
+                    value={formData.last_name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, last_name: e.target.value }))}
                     className="text-sm"
                   />
+                  {errors.last_name && <p className="text-xs text-red-600">{errors.last_name}</p>}
                 </div>
               </div>
 
@@ -732,10 +814,11 @@ const EmployeePage = () => {
                 <Input
                   id="phone"
                   placeholder="(123) 456-7890"
-                  value={formData.phone}
-                  onChange={handlePhoneChange}
+                  value={formData.phone_number}
+                  onChange={handlePhoneInput}
                   className="text-sm"
                 />
+                {errors.phone_number && <p className="text-xs text-red-600">{errors.phone_number}</p>}
               </div>
 
               <div className="space-y-2">
@@ -752,7 +835,7 @@ const EmployeePage = () => {
                 </p>
               </div>
 
-              {formData.isAdmin > 0 && (
+              {formData.is_admin > 0 && (
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-sm font-medium">Email Address *</Label>
                   <Input
@@ -763,6 +846,7 @@ const EmployeePage = () => {
                     onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                     className="text-sm"
                   />
+                  {errors.email && <p className="text-xs text-red-600">{errors.email}</p>}
                 </div>
               )}
 
@@ -770,8 +854,8 @@ const EmployeePage = () => {
                 <Label htmlFor="role" className="text-sm font-medium">Role</Label>
                 <select
                   id="role"
-                  value={formData.isAdmin}
-                  onChange={(e) => setFormData(prev => ({ ...prev, isAdmin: parseInt(e.target.value) }))}
+                  value={formData.is_admin}
+                  onChange={(e) => setFormData(prev => ({ ...prev, is_admin: parseInt(e.target.value) }))}
                   className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
                 >
                   <option value={0}>Employee</option>
@@ -789,7 +873,7 @@ const EmployeePage = () => {
                   Cancel
                 </Button>
                 <Button
-                  onClick={editingEmployee ? handleEditEmployee : handleAddEmployee}
+                  onClick={handleAddEmployee}
                   className="flex-1 order-1 sm:order-2"
                   disabled={isAddLoading}
                 >
@@ -818,7 +902,7 @@ const EmployeePage = () => {
                 Delete Employee
               </CardTitle>
               <CardDescription className="text-sm">
-                Are you sure you want to delete "{employeeToDelete.Name}"? This action cannot be undone.
+                Are you sure you want to delete "{employeeToDelete.first_name} {employeeToDelete.last_name}"? This action cannot be undone.
               </CardDescription>
             </CardHeader>
 
@@ -854,7 +938,7 @@ const EmployeePage = () => {
 
       <Footer />
     </div>
-  )
-}
+  );
+};
 
-export default EmployeePage
+export default EmployeeList;

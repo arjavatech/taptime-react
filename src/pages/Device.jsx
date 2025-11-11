@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react"
-import Header from "../components/layout/Header"
-import Footer from "../components/layout/Footer"
-import { Button } from "../components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card"
-import { Input } from "../components/ui/input"
-import { Label } from "../components/ui/label"
-import { mockDeviceData, delay } from "../data/mockData"
+import React, { useState, useEffect } from "react";
+import { v4 as uuidv4 } from "uuid";
+import Header from "../components/layout/Header";
+import Footer from "../components/layout/Footer";
+import { Button } from "../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
 import { 
   Plus, 
   Copy, 
@@ -17,183 +17,250 @@ import {
   AlertCircle,
   CheckCircle,
   Loader2
-} from "lucide-react"
+} from "lucide-react";
 
-const DevicePage = () => {
-  const [devices, setDevices] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [isAddLoading, setIsAddLoading] = useState(false)
-  const [isDeleteLoading, setIsDeleteLoading] = useState(false)
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [showApprovalModal, setShowApprovalModal] = useState(false)
-  const [deviceToDelete, setDeviceToDelete] = useState(null)
-  const [editingDevice, setEditingDevice] = useState(null)
-  const [copiedKey, setCopiedKey] = useState("")
-  const [toast, setToast] = useState({ show: false, message: "", type: "success" })
-  const [userRole] = useState("admin") // Mock user role - could be "admin" or "superadmin"
-  const maxDevices = userRole === "superadmin" ? 999 : 1
+const Device = () => {
+  // Device API functions
+  const deviceApi = {
+    getAll: async (companyId) => {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://postgresql-restless-waterfall-2105.fly.dev/'}/device/get_all/${companyId}`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      return response.json();
+    },
+    create: async (deviceData) => {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://postgresql-restless-waterfall-2105.fly.dev/'}/device/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(deviceData)
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    },
+    delete: async (accessKey, companyId) => {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://postgresql-restless-waterfall-2105.fly.dev/'}/device/delete/${accessKey}/${companyId}/Admin`, {
+        method: "PUT",
+        headers: { Accept: "application/json" }
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    }
+  };
+
+  const [devices, setDevices] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAddLoading, setIsAddLoading] = useState(false);
+  const [isDeleteLoading, setIsDeleteLoading] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [deviceToDelete, setDeviceToDelete] = useState(null);
+  const [editingDevice, setEditingDevice] = useState(null);
+  const [copiedKey, setCopiedKey] = useState("");
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  const [maxDevices, setMaxDevices] = useState(0);
+  const [userRole] = useState("admin");
 
   const [formData, setFormData] = useState({
     deviceName: "",
     branchName: "",
     timeZone: "America/New_York"
-  })
+  });
 
   useEffect(() => {
-    loadDevices()
-  }, [])
-
-  const loadDevices = async () => {
-    setIsLoading(true)
-    try {
-      await delay(500) // Simulate API call
-      setDevices(mockDeviceData)
-    } catch (error) {
-      showToast("Failed to load devices", "error")
-    } finally {
-      setIsLoading(false)
-    }
-  }
+    const limitStr = localStorage.getItem("device_count") || "";
+    setMaxDevices(parseInt(limitStr, 10) || 1);
+    loadDevices();
+  }, []);
 
   const showToast = (message, type = "success") => {
-    setToast({ show: true, message, type })
-    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000)
-  }
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
+  };
 
-  const generateAccessKey = () => {
-    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
-  }
+  const loadDevices = async () => {
+    setIsLoading(true);
+    const companyId = localStorage.getItem("companyID");
+
+    if (!companyId) {
+      showToast("Company ID not found", "error");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const data = await deviceApi.getAll(companyId);
+      if (data.error || data.length === 0) {
+        setDevices([]);
+      } else {
+        setDevices(Array.isArray(data) ? data : [data]);
+      }
+    } catch (error) {
+      showToast("Failed to load devices", "error");
+      setDevices([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const generateRandomString = (length = 4) => {
+    return Math.random()
+      .toString(36)
+      .substring(2, 2 + length)
+      .padEnd(length, "0");
+  };
+
+  const createAccessKey = () => {
+    return `${generateRandomString(4)}${uuidv4()
+      .replace(/-/g, "")
+      .substring(0, 6)}${generateRandomString(4)}`;
+  };
 
   const maskAccessKey = (key) => {
-    if (!key) return ""
-    return "*".repeat(key.length - 4) + key.slice(-4)
-  }
+    if (!key) return "";
+    return "*".repeat(key.length - 4) + key.slice(-4);
+  };
 
   const copyAccessKey = async (accessKey) => {
     try {
-      await navigator.clipboard.writeText(accessKey)
-      setCopiedKey(accessKey)
-      showToast("Access key copied to clipboard!")
-      setTimeout(() => setCopiedKey(""), 2000)
+      await navigator.clipboard.writeText(accessKey);
+      setCopiedKey(accessKey);
+      showToast("Access key copied to clipboard!");
+      setTimeout(() => setCopiedKey(""), 2000);
     } catch (error) {
-      showToast("Failed to copy access key", "error")
+      showToast("Failed to copy access key", "error");
     }
-  }
+  };
 
   const handleAddDevice = async () => {
     if (!formData.deviceName.trim()) {
-      showToast("Device name is required", "error")
-      return
+      showToast("Device name is required", "error");
+      return;
     }
 
-    setIsAddLoading(true)
+    setIsAddLoading(true);
+    const companyId = localStorage.getItem("companyID");
+
+    if (!companyId) {
+      showToast("Company ID not found", "error");
+      setIsAddLoading(false);
+      return;
+    }
+
+    const newDevice = {
+      time_zone: formData.timeZone,
+      device_id: formData.deviceName,
+      c_id: companyId,
+      device_name: formData.deviceName,
+      branch_name: formData.branchName || "Main Branch",
+      access_key: createAccessKey(),
+      access_key_generated_time: new Date().toISOString(),
+      last_modified_by: "Admin"
+    };
+
     try {
-      await delay(1000) // Simulate API call
-      
-      const newDevice = {
-        AccessKey: generateAccessKey(),
-        access_key: generateAccessKey(),
-        DeviceID: `DEVICE${String(devices.length + 1).padStart(3, '0')}`,
-        device_id: formData.deviceName,
-        DeviceName: formData.deviceName,
-        device_name: formData.deviceName,
-        time_zone: formData.timeZone,
-        branch_name: formData.branchName || "Main Branch",
-        access_key_generated_time: new Date().toISOString(),
-        last_modified_by: "Admin"
-      }
-
-      setDevices(prev => [...prev, newDevice])
-      setShowAddModal(false)
-      setFormData({ deviceName: "", branchName: "", timeZone: "America/New_York" })
-      showToast("Device added successfully!")
+      await deviceApi.create(newDevice);
+      await loadDevices();
+      setShowAddModal(false);
+      setFormData({ deviceName: "", branchName: "", timeZone: "America/New_York" });
+      showToast("Device added successfully!");
     } catch (error) {
-      showToast("Failed to add device", "error")
+      showToast(error instanceof Error ? error.message : "Failed to add device", "error");
     } finally {
-      setIsAddLoading(false)
+      setIsAddLoading(false);
     }
-  }
+  };
 
   const handleEditDevice = async () => {
     if (!formData.deviceName.trim()) {
-      showToast("Device name is required", "error")
-      return
+      showToast("Device name is required", "error");
+      return;
     }
 
-    setIsAddLoading(true)
+    setIsAddLoading(true);
     try {
-      await delay(1000) // Simulate API call
-      
+      // Since there's no update API, we'll simulate it by updating the local state
       setDevices(prev => prev.map(device => 
         device.AccessKey === editingDevice.AccessKey 
           ? {
               ...device,
-              DeviceName: formData.deviceName,
               device_name: formData.deviceName,
               device_id: formData.deviceName,
               branch_name: formData.branchName,
               time_zone: formData.timeZone,
-              last_modified_by: "Admin"
+              last_modified_by: formData.last_modified_by
             }
           : device
-      ))
+      ));
       
-      setEditingDevice(null)
-      setShowAddModal(false)
-      setFormData({ deviceName: "", branchName: "", timeZone: "America/New_York" })
-      showToast("Device updated successfully!")
+      setEditingDevice(null);
+      setShowAddModal(false);
+      setFormData({ deviceName: "", branchName: "", timeZone: "America/New_York" });
+      showToast("Device updated successfully!");
     } catch (error) {
-      showToast("Failed to update device", "error")
+      showToast("Failed to update device", "error");
     } finally {
-      setIsAddLoading(false)
+      setIsAddLoading(false);
     }
-  }
+  };
 
   const handleDeleteDevice = async () => {
-    if (!deviceToDelete) return
+    if (!deviceToDelete) return;
 
-    setIsDeleteLoading(true)
-    try {
-      await delay(1000) // Simulate API call
-      
-      setDevices(prev => prev.filter(device => device.AccessKey !== deviceToDelete.AccessKey))
-      setShowDeleteModal(false)
-      setDeviceToDelete(null)
-      showToast("Device deleted successfully!")
-    } catch (error) {
-      showToast("Failed to delete device", "error")
-    } finally {
-      setIsDeleteLoading(false)
+    setIsDeleteLoading(true);
+    const companyId = localStorage.getItem("companyID");
+
+    if (!companyId) {
+      showToast("Company ID not found", "error");
+      setIsDeleteLoading(false);
+      return;
     }
-  }
+
+    try {
+      await deviceApi.delete(deviceToDelete.access_key, companyId);
+      const updatedDevices = devices.filter(device => device.AccessKey !== deviceToDelete.AccessKey);
+      setDevices(updatedDevices);
+      setShowDeleteModal(false);
+      setDeviceToDelete(null);
+      showToast("Device deleted successfully!");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to delete device", "error");
+      await loadDevices();
+    } finally {
+      setIsDeleteLoading(false);
+    }
+  };
 
   const openAddModal = () => {
-    // Check if user can add more devices
     if (devices.length >= maxDevices) {
-      setShowApprovalModal(true)
-      return
+      setShowApprovalModal(true);
+      return;
     }
     
-    setEditingDevice(null)
-    setFormData({ deviceName: "", branchName: "", timeZone: "America/New_York" })
-    setShowAddModal(true)
-  }
+    setEditingDevice(null);
+    setFormData({ deviceName: "", branchName: "", timeZone: "America/New_York" });
+    setShowAddModal(true);
+  };
 
   const openEditModal = (device) => {
-    setEditingDevice(device)
+    setEditingDevice(device);
     setFormData({
-      deviceName: device.device_name || device.DeviceName,
+      deviceName: device.device_name || device.DeviceName || "",
       branchName: device.branch_name || "",
       timeZone: device.time_zone || "America/New_York"
-    })
-    setShowAddModal(true)
-  }
+    });
+    setShowAddModal(true);
+  };
 
   const openDeleteModal = (device) => {
-    setDeviceToDelete(device)
-    setShowDeleteModal(true)
-  }
+    setDeviceToDelete(device);
+    setShowDeleteModal(true);
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -281,13 +348,12 @@ const DevicePage = () => {
                             <th className="text-left py-3 px-4 font-medium text-muted-foreground">Branch</th>
                             <th className="text-left py-3 px-4 font-medium text-muted-foreground">Time Zone</th>
                             <th className="text-left py-3 px-4 font-medium text-muted-foreground">Access Key</th>
-                            <th className="text-left py-3 px-4 font-medium text-muted-foreground">Created</th>
                             <th className="text-center py-3 px-4 font-medium text-muted-foreground">Actions</th>
                           </tr>
                         </thead>
                         <tbody>
                           {devices.map((device) => (
-                            <tr key={device.AccessKey} className="border-b hover:bg-muted/50">
+                            <tr key={device.AccessKey || device.access_key} className="border-b hover:bg-muted/50">
                               <td className="py-3 px-4">
                                 <div className="flex items-center gap-3">
                                   <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -295,9 +361,9 @@ const DevicePage = () => {
                                   </div>
                                   <div>
                                     <div className="font-medium">
-                                      {device.device_name === "Not Registered" ? "Pending Setup" : device.device_name}
+                                      {device.device_name}
                                     </div>
-                                    <div className="text-sm text-muted-foreground">ID: {device.DeviceID}</div>
+                                    <div className="text-sm text-muted-foreground">ID: {device.device_id}</div>
                                   </div>
                                 </div>
                               </td>
@@ -327,9 +393,7 @@ const DevicePage = () => {
                                   </Button>
                                 </div>
                               </td>
-                              <td className="py-3 px-4 text-sm text-muted-foreground">
-                                {new Date(device.access_key_generated_time).toLocaleDateString()}
-                              </td>
+                           
                               <td className="py-3 px-4">
                                 <div className="flex items-center justify-center gap-2">
                                   <Button
@@ -362,7 +426,7 @@ const DevicePage = () => {
               {/* Mobile Card View */}
               <div className="md:hidden space-y-4">
                 {devices.map((device) => (
-                  <Card key={device.AccessKey} className="hover:shadow-lg transition-shadow">
+                  <Card key={device.AccessKey || device.access_key} className="hover:shadow-lg transition-shadow">
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -374,7 +438,7 @@ const DevicePage = () => {
                               {device.device_name === "Not Registered" ? "Pending Setup" : device.device_name}
                             </CardTitle>
                             <CardDescription className="text-xs truncate">
-                              ID: {device.DeviceID}
+                              ID: {device.device_id}
                             </CardDescription>
                           </div>
                         </div>
@@ -435,12 +499,7 @@ const DevicePage = () => {
                         </div>
                       </div>
 
-                      <div className="pt-2 border-t">
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>Created</span>
-                          <span>{new Date(device.access_key_generated_time).toLocaleDateString()}</span>
-                        </div>
-                      </div>
+                     
                     </CardContent>
                   </Card>
                 ))}
@@ -557,10 +616,10 @@ const DevicePage = () => {
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-orange-600 text-lg">
                 <AlertCircle className="w-5 h-5" />
-                Super Admin Approval Required
+                Device Limit Reached
               </CardTitle>
               <CardDescription className="text-sm">
-                You can only add one device. To add additional devices, please contact your Super Admin for approval.
+                You have reached the maximum device limit ({maxDevices}). Please contact support to add more devices.
               </CardDescription>
             </CardHeader>
             
@@ -624,7 +683,7 @@ const DevicePage = () => {
 
       <Footer />
     </div>
-  )
-}
+  );
+};
 
-export default DevicePage
+export default Device;

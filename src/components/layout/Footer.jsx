@@ -6,10 +6,12 @@ import facebookIcon from "../../assets/images/facebook.png"
 import twitterIcon from "../../assets/images/twitter.png"
 import linkedinIcon from "../../assets/images/linkedin.png"
 import instagramIcon from "../../assets/images/instagram.png"
+import PrivacyPolicyModal from "../PrivacyPolicyModal"
 
 const Footer = () => {
   const currentYear = new Date().getFullYear()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false)
   const location = useLocation()
 
   useEffect(() => {
@@ -27,7 +29,7 @@ const Footer = () => {
     { href: "/login", text: "Login" },
     { href: "/register", text: "Register" },
     { href: "#contact", text: "Contact Us" },
-    { href: "/privacypolicy", text: "Privacy Policy" }
+    { action: () => setShowPrivacyModal(true), text: "Privacy Policy" }
   ]
 
   // After Login (Authenticated Navigation)
@@ -43,10 +45,10 @@ const Footer = () => {
   const quickLinks = isAuthenticated ? authenticatedLinks : publicLinks
 
   const socialLinks = [
-    { href: "https://facebook.com", src: facebookIcon, alt: "Facebook" },
-    { href: "https://twitter.com", src: twitterIcon, alt: "Twitter" },
-    { href: "https://linkedin.com", src: linkedinIcon, alt: "LinkedIn" },
-    { href: "https://instagram.com", src: instagramIcon, alt: "Instagram" }
+    { href: "https://www.facebook.com/profile.php?id=61565587366048", src: facebookIcon, alt: "Facebook" },
+    { href: "https://x.com/_Tap_Time", src: twitterIcon, alt: "Twitter" },
+    { href: "https://www.linkedin.com/company/arjavatech/", src: linkedinIcon, alt: "LinkedIn" },
+    { href: "https://www.instagram.com/_tap_time", src: instagramIcon, alt: "Instagram" }
   ]
 
   return (
@@ -83,7 +85,14 @@ const Footer = () => {
             <ul className="space-y-3">
               {quickLinks.map((link) => (
                 <li key={link.text}>
-                  {link.href.startsWith('#') ? (
+                  {link.action ? (
+                    <button
+                      onClick={link.action}
+                      className="text-primary-foreground/80 hover:text-primary-foreground transition-colors text-sm"
+                    >
+                      {link.text}
+                    </button>
+                  ) : link.href.startsWith('#') ? (
                     <a
                       href={link.href}
                       className="text-primary-foreground/80 hover:text-primary-foreground transition-colors text-sm"
@@ -146,22 +155,22 @@ const Footer = () => {
               © {currentYear} TapTime by Arjava Technologies. All rights reserved.
             </p>
             <div className="flex space-x-6">
-              <Link 
-                to={isAuthenticated ? "/privacypolicy" : "/privacy"} 
+              <button 
+                onClick={() => setShowPrivacyModal(true)}
                 className="text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors"
               >
                 Privacy Policy
-              </Link>
-              <Link 
-                to="/terms" 
-                className="text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors"
-              >
-                Terms of Service
-              </Link>
+              </button>
+              
             </div>
           </div>
         </div>
       </div>
+      
+      <PrivacyPolicyModal 
+        isOpen={showPrivacyModal} 
+        onClose={() => setShowPrivacyModal(false)} 
+      />
     </footer>
   )
 }

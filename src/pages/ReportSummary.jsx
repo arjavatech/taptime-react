@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from "react"
-import Header from "../components/layout/Header"
-import Footer from "../components/layout/Footer"
-import { Button } from "../components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card"
-import { Input } from "../components/ui/input"
-import { Label } from "../components/ui/label"
-import { mockReportData, mockEmployeeData, mockAnalyticsData, mockReportSummary, generateTodayMockData, getMockDataForDateRange, delay } from "../data/mockData"
+import React, { useState, useEffect, useCallback } from "react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import Header from "../components/layout/Header";
+import Footer from "../components/layout/Footer";
+import { Button } from "../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { fetchEmployeeData, fetchDevices, fetchDailyReport, fetchDateRangeReport, createDailyReportEntry, updateDailyReportEntry } from "../api.js";
+import { getLocalDateString, getLocalDateTimeString } from "../utils";
 import {
   Calendar,
   Download,
@@ -20,404 +23,431 @@ import {
   Loader2,
   Grid3X3,
   Table
-} from "lucide-react"
+} from "lucide-react";
 
-const ReportsPage = () => {
-  const [viewSettings, setViewSettings] = useState(["Weekly"]) // Default from Report Settings
-  const [activeTab, setActiveTab] = useState("today")
-  const [reportData, setReportData] = useState([])
-  const [filteredData, setFilteredData] = useState([])
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
-  const [summaryStats, setSummaryStats] = useState(mockReportSummary.daily)
-  const [startDate, setStartDate] = useState("")
-  const [endDate, setEndDate] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [toast, setToast] = useState({ show: false, message: "", type: "success" })
-  const [showModal, setShowModal] = useState(false)
+const Reports = () => {
+  const [activeTab, setActiveTab] = useState("today");
+  const [loading, setLoading] = useState(false);
+  const [reportData, setReportData] = useState([]);
+  const [filteredData, setFilteredData] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [sortConfig, setSortConfig] = useState({ key: "name", direction: "asc" });
+  const [viewMode, setViewMode] = useState("table");
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  
+  // Common state
+  const [devices, setDevices] = useState([]);
+  const [selectedDevice, setSelectedDevice] = useState(null);
+  const [adminType, setAdminType] = useState("");
+  const [deviceID, setDeviceID] = useState("");
+  const [availableFrequencies, setAvailableFrequencies] = useState([]);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [newEntry, setNewEntry] = useState({
     EmployeeID: "",
     Type: "",
     Date: "",
     CheckInTime: "",
     CheckOutTime: ""
-  })
-  const [employeeList, setEmployeeList] = useState([])
-  const [checkoutDisabled, setCheckoutDisabled] = useState(true)
-  const [addButtonDisabled, setAddButtonDisabled] = useState(true)
+  });
+  const [employeeList, setEmployeeList] = useState([]);
+  const [checkoutDisabled, setCheckoutDisabled] = useState(true);
+  const [addButtonDisabled, setAddButtonDisabled] = useState(true);
   const [formErrors, setFormErrors] = useState({
     employee: "",
     type: "",
     date: "",
     checkinTime: "",
     checkoutTime: ""
-  })
-  const [viewMode, setViewMode] = useState("table") // table, grid
-  const [sortConfig, setSortConfig] = useState({ key: "name", direction: "asc" })
+  });
+  const companyId = localStorage.getItem("companyID");
 
-  useEffect(() => {
-    loadViewSettings()
-    
-    // Listen for localStorage changes (when Report Settings are updated)
-    const handleStorageChange = (e) => {
-      if (e.key === 'reportViewSettings') {
-        loadViewSettings()
-      }
-    }
-    
-    window.addEventListener('storage', handleStorageChange)
-    
-    // Also listen for custom events from same window
-    const handleSettingsUpdate = () => {
-      loadViewSettings()
-    }
-    
-    window.addEventListener('reportSettingsUpdated', handleSettingsUpdate)
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange)
-      window.removeEventListener('reportSettingsUpdated', handleSettingsUpdate)
-    }
-  }, [])
+  // Today's report specific
+  const [tableData, setTableData] = useState([]);
+  const [currentDate, setCurrentDate] = useState("");
+  const [checkoutTimes, setCheckoutTimes] = useState({});
 
-  useEffect(() => {
-    loadEmployeeList()
-  }, [])
+  // Day wise report specific
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
-  useEffect(() => {
-    if (activeTab === "today" || activeTab === "daily") {
-      loadDailyReport()
-    }
-  }, [selectedDate, activeTab])
+  // Salaried report specific
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [startDateHeader, setStartDateHeader] = useState("");
+  const [endDateHeader, setEndDateHeader] = useState("");
+  const [selectedFrequency, setSelectedFrequency] = useState("");
+  const [employees, setEmployees] = useState([]);
 
-  useEffect(() => {
-    filterData()
-  }, [reportData, searchQuery, sortConfig])
+  // Weekly report specific
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedWeek, setSelectedWeek] = useState(1);
 
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 650 && viewMode === "table") { // lg breakpoint
-        setViewMode("grid") // Only auto-switch if currently on table view
-      }
-    }
-
-    // Set initial view mode to grid on mobile
-    if (window.innerWidth < 650) {
-      setViewMode("grid")
-    }
-
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
-
-  useEffect(() => {
-    setViewMode(prev => prev) // Reset view mode when needed
-  }, [viewMode])
-
-  const loadViewSettings = () => {
-    // Load from localStorage or API - simulating Report Settings data
-    const savedSettings = localStorage.getItem('reportViewSettings')
-    if (savedSettings) {
-      setViewSettings(JSON.parse(savedSettings))
-    }
-  }
-
-  const getThirdTabLabel = () => {
-    const setting = viewSettings[0] || 'Weekly'
-    return `${setting} Report`
-  }
+  // Summary stats
+  const [summaryStats, setSummaryStats] = useState({
+    presentEmployees: 0,
+    totalRecords: 0,
+    totalHours: "0.0"
+  });
 
   const showToast = (message, type = "success") => {
-    setToast({ show: true, message, type })
-    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000)
-  }
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
+  };
 
-  const loadDailyReport = async () => {
-    setIsLoading(true)
+  const loadFrequenciesSync = () => {
+    const savedFrequencies = localStorage.getItem("reportType");
+    return savedFrequencies ? savedFrequencies.split(",").filter(f => f.trim() !== "" && f.toLowerCase() !== "weekly") : [];
+  };
+
+  const loadDevices = useCallback(async () => {
     try {
-      await delay(500) // Simulate API call
-      let dateFilteredData
-
-      // Use today's dynamic data if selected date is today
-      const today = new Date().toISOString().split('T')[0]
-      if (selectedDate === today) {
-        dateFilteredData = generateTodayMockData()
-      } else {
-        dateFilteredData = mockReportData.filter(record =>
-          record.Date === selectedDate
-        )
+      const filteredDevices = await fetchDevices(companyId);
+      setDevices(filteredDevices);
+      if (filteredDevices.length > 0) {
+        setSelectedDevice(filteredDevices[0]);
       }
-
-      setReportData(dateFilteredData)
-      setSummaryStats({
-        ...mockReportSummary.daily,
-        totalRecords: dateFilteredData.length,
-        presentEmployees: dateFilteredData.filter(r => r.CheckInTime).length,
-        totalHours: dateFilteredData.reduce((sum, r) => {
-          if (r.TimeWorked && r.TimeWorked !== "0:00") {
-            const [hours, minutes] = r.TimeWorked.split(':').map(Number)
-            return sum + hours + (minutes / 60)
-          }
-          return sum
-        }, 0).toFixed(1)
-      })
     } catch (error) {
-      showToast("Failed to load report data", "error")
-    } finally {
-      setIsLoading(false)
+      console.error("Error fetching devices:", error);
     }
-  }
+  }, [companyId]);
 
-  const loadDateRangeReport = async () => {
-    if (!startDate || !endDate) {
-      showToast("Please select both start and end dates", "error")
-      return
+  const handleDeviceSelection = (device) => {
+    setSelectedDevice(device);
+    if (activeTab === "today") {
+      viewCurrentDateReport(currentDate);
+    } else if (activeTab === "daywise" && selectedDate) {
+      viewDatewiseReport(selectedDate);
     }
+  };
 
-    setIsLoading(true)
-    try {
-      await delay(1000) // Simulate API call
-      const rangeFilteredData = getMockDataForDateRange(startDate, endDate)
-
-      // Group by employee for summary
-      const employeeSummary = {}
-      rangeFilteredData.forEach(record => {
-        if (!employeeSummary[record.EmpID]) {
-          employeeSummary[record.EmpID] = {
-            EmpID: record.EmpID,
-            Name: record.Name,
-            Pin: record.Pin,
-            totalHours: 0,
-            totalDays: 0
-          }
-        }
-
-        if (record.TimeWorked && record.TimeWorked !== "0:00") {
-          const [hours, minutes] = record.TimeWorked.split(':').map(Number)
-          employeeSummary[record.EmpID].totalHours += hours + (minutes / 60)
-          employeeSummary[record.EmpID].totalDays += 1
-        }
-      })
-
-      const summaryData = Object.values(employeeSummary).map(emp => ({
-        ...emp,
-        TimeWorked: `${Math.floor(emp.totalHours)}:${String(Math.round((emp.totalHours % 1) * 60)).padStart(2, '0')}`,
-        avgHoursPerDay: emp.totalDays > 0 ? (emp.totalHours / emp.totalDays).toFixed(1) : "0.0"
-      }))
-
-      setReportData(summaryData)
-      setSummaryStats({
-        ...mockReportSummary.weekly,
-        totalRecords: rangeFilteredData.length,
-        totalHours: rangeFilteredData.reduce((sum, r) => {
-          if (r.TimeWorked && r.TimeWorked !== "0:00") {
-            const [hours, minutes] = r.TimeWorked.split(':').map(Number)
-            return sum + hours + (minutes / 60)
-          }
-          return sum
-        }, 0).toFixed(1)
-      })
-    } catch (error) {
-      showToast("Failed to load report data", "error")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const filterData = () => {
-    let filtered = reportData
-    
-    // Filter by search query
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      filtered = filtered.filter(record =>
-        record.Name?.toLowerCase().includes(query) ||
-        record.Pin?.toLowerCase().includes(query) ||
-        record.EmpID?.toLowerCase().includes(query)
-      )
-    }
-    
-    // Sort data
-    filtered.sort((a, b) => {
-      let aValue, bValue
-      if (sortConfig.key === "name") {
-        aValue = a.Name?.toLowerCase() || ""
-        bValue = b.Name?.toLowerCase() || ""
-        return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue)
-      } else if (sortConfig.key === "pin") {
-        aValue = a.Pin || ""
-        bValue = b.Pin || ""
-        return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue)
-      } else if (sortConfig.key === "time") {
-        aValue = a.TimeWorked || "0:00"
-        bValue = b.TimeWorked || "0:00"
-        return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue)
-      } else if (sortConfig.key === "checkin" && activeTab === "daily") {
-        aValue = a.CheckInTime || ""
-        bValue = b.CheckInTime || ""
-        return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue)
-      } else if (sortConfig.key === "days" && activeTab === "summary") {
-        aValue = a.totalDays || 0
-        bValue = b.totalDays || 0
-        return sortConfig.direction === "asc" ? aValue - bValue : bValue - aValue
-      }
-      return 0
-    })
-    
-    setFilteredData(filtered)
-  }
+  // Today's Report Functions
+  const formatToAmPm = (date) => {
+    let h = date.getHours();
+    const m = date.getMinutes();
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return `${h}:${String(m).padStart(2, "0")} ${ampm}`;
+  };
 
   const formatTime = (timeString) => {
-    if (!timeString) return "--"
-    const date = new Date(timeString)
+    if (!timeString) return "--";
+    const date = new Date(timeString);
     return date.toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
       hour12: true
-    })
-  }
+    });
+  };
+
+  const viewCurrentDateReport = async (dateToUse = currentDate) => {
+    try {
+      const arr = await fetchDailyReport(companyId, dateToUse);
+
+      if (!arr.length) {
+        setTableData([]);
+        setFilteredData([]);
+        return;
+      }
+
+      let processedData = arr.map(row => ({
+        ...row,
+        checkInTimeFormatted: formatToAmPm(new Date(row.CheckInTime)),
+        needsCheckout: !row.CheckOutTime,
+        checkoutTime: "",
+      }));
+
+      if (selectedDevice && selectedDevice.DeviceID) {
+        processedData = processedData.filter(item => item.DeviceID === selectedDevice.DeviceID);
+      }
+
+      setTableData(processedData);
+      setFilteredData([...processedData]);
+      updateSummaryStats(processedData);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const updateSummaryStats = (data) => {
+    const presentEmployees = data.filter(r => r.CheckInTime).length;
+    const totalHours = data.reduce((sum, r) => {
+      if (r.TimeWorked && r.TimeWorked !== "0:00") {
+        const [hours, minutes] = r.TimeWorked.split(':').map(Number);
+        return sum + hours + (minutes / 60);
+      }
+      return sum;
+    }, 0).toFixed(1);
+
+    setSummaryStats({
+      presentEmployees,
+      totalRecords: data.length,
+      totalHours
+    });
+  };
+
+  // Checkout functionality
+  const handleCheckoutTimeChange = (rowKey, value) => {
+    setCheckoutTimes(prev => ({
+      ...prev,
+      [rowKey]: value
+    }));
+  };
+
+  const handleCheckout = async (row) => {
+    const rowKey = `${row.Pin}-${row.CheckInTime}`;
+    const checkoutTime = checkoutTimes[rowKey];
+
+    if (!checkoutTime) {
+      showToast("Please enter a checkout time", "error");
+      return;
+    }
+
+    const checkinDateObj = new Date(row.CheckInTime);
+    const checkInDateString = getLocalDateString(checkinDateObj);
+    const checkoutDateTime = `${checkInDateString}T${checkoutTime}`;
+    const checkinDateTime = row.CheckInTime;
+    const today = checkInDateString;
+
+    const checkinDate = new Date(checkinDateTime);
+    const checkoutDate = new Date(checkoutDateTime);
+
+    if (checkoutDate <= checkinDate) {
+      showToast("Checkout time must be greater than check-in time", "error");
+      return;
+    }
+
+    const timeWorked = calculateTimeWorked(checkinDateTime, checkoutDateTime);
+
+    setLoading(true);
+    try {
+      const updateData = {
+        CID: companyId,
+        EmpID: row.EmpID,
+        Pin: row.Pin,
+        Name: row.Name,
+        Date: today,
+        TypeID: row.Type || row.TypeID,
+        CheckInSnap: row.CheckInSnap || null,
+        CheckInTime: checkinDateTime,
+        CheckOutSnap: row.CheckOutSnap || null,
+        CheckOutTime: getLocalDateTimeString(checkoutDate),
+        TimeWorked: timeWorked,
+        LastModifiedBy: "Admin"
+      };
+
+      await updateDailyReportEntry(row.EmpID, companyId, row.CheckInTime, updateData);
+
+      setCheckoutTimes(prev => {
+        const updated = { ...prev };
+        delete updated[rowKey];
+        return updated;
+      });
+
+      await viewCurrentDateReport(currentDate);
+      showToast("Checkout time updated successfully!");
+    } catch (error) {
+      console.error("Error updating checkout:", error);
+      showToast("Failed to update checkout time. Please try again.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Day Wise Report Functions
+  const convertToAmPm = (dateString) => {
+    const date = new Date(dateString);
+    let hours = date.getHours();
+    const minutes = date.getMinutes();
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12 || 12;
+    const minutesStr = minutes < 10 ? "0" + minutes : minutes;
+    return `${hours}:${minutesStr} ${ampm}`;
+  };
+
+  const calculateTimeWorked = (checkIn, checkOut) => {
+    const inTime = new Date(checkIn);
+    const outTime = new Date(checkOut);
+    const diff = outTime.getTime() - inTime.getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}:${minutes.toString().padStart(2, "0")}`;
+  };
+
+  const viewDatewiseReport = async (dateValue) => {
+    if (!dateValue || !companyId) {
+      setReportData([]);
+      setFilteredData([]);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const data = await fetchDailyReport(companyId, dateValue);
+      const records = Array.isArray(data) ? data : [];
+      let processedData = records.map(item => ({
+        ...item,
+        formattedCheckIn: item.CheckInTime ? convertToAmPm(item.CheckInTime) : "--",
+        formattedCheckOut: item.CheckOutTime ? convertToAmPm(item.CheckOutTime) : "--",
+        timeWorked: item.TimeWorked || (item.CheckInTime && item.CheckOutTime
+          ? calculateTimeWorked(item.CheckInTime, item.CheckOutTime) : "--"),
+      }));
+
+      if (selectedDevice && selectedDevice.DeviceID) {
+        processedData = processedData.filter(item => item.DeviceID === selectedDevice.DeviceID);
+      }
+
+      setReportData(processedData);
+      setFilteredData([...processedData]);
+      updateSummaryStats(processedData);
+      setCurrentPage(1);
+    } catch (err) {
+      console.error("Error fetching report:", err);
+      setReportData([]);
+      setFilteredData([]);
+      showToast("Failed to load report data", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filterData = () => {
+    let filtered = activeTab === "today" ? tableData : reportData;
+    
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(record =>
+        record.Name?.toLowerCase().includes(query) ||
+        record.Pin?.toLowerCase().includes(query) ||
+        record.EmpID?.toLowerCase().includes(query)
+      );
+    }
+    
+    filtered.sort((a, b) => {
+      let aValue, bValue;
+      if (sortConfig.key === "name") {
+        aValue = a.Name?.toLowerCase() || "";
+        bValue = b.Name?.toLowerCase() || "";
+        return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+      } else if (sortConfig.key === "pin") {
+        aValue = a.Pin || "";
+        bValue = b.Pin || "";
+        return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+      } else if (sortConfig.key === "time") {
+        aValue = a.TimeWorked || "0:00";
+        bValue = b.TimeWorked || "0:00";
+        return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+      } else if (sortConfig.key === "checkin") {
+        aValue = a.CheckInTime || "";
+        bValue = b.CheckInTime || "";
+        return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+      }
+      return 0;
+    });
+    
+    setFilteredData(filtered);
+  };
 
   const downloadCSV = () => {
     if (filteredData.length === 0) {
-      showToast("No data to export", "error")
-      return
+      showToast("No data to export", "error");
+      return;
     }
 
-    let csvContent = ""
-    let filename = ""
+    let csvContent = "Employee ID,Name,Check-in Time,Check-out Time,Time Worked,Type\n";
+    csvContent += filteredData.map(record => [
+      record.Pin || "",
+      record.Name || "",
+      record.CheckInTime ? formatTime(record.CheckInTime) : "",
+      record.CheckOutTime ? formatTime(record.CheckOutTime) : "",
+      record.TimeWorked || "",
+      record.Type || ""
+    ].join(",")).join("\n");
 
-    if (activeTab === "daily") {
-      csvContent = "Employee ID,Name,Check-in Time,Check-out Time,Time Worked,Type\n"
-      csvContent += filteredData.map(record => [
-        record.Pin || "",
-        record.Name || "",
-        record.CheckInTime ? formatTime(record.CheckInTime) : "",
-        record.CheckOutTime ? formatTime(record.CheckOutTime) : "",
-        record.TimeWorked || "",
-        record.Type || ""
-      ].join(",")).join("\n")
-      filename = `daily_report_${selectedDate}.csv`
-    } else {
-      csvContent = "Employee ID,Name,Total Hours,Days Worked,Avg Hours/Day\n"
-      csvContent += filteredData.map(record => [
-        record.Pin || "",
-        record.Name || "",
-        record.TimeWorked || "",
-        record.totalDays || "",
-        record.avgHoursPerDay || ""
-      ].join(",")).join("\n")
-      filename = `summary_report_${startDate}_to_${endDate}.csv`
-    }
+    const filename = activeTab === "today" 
+      ? `today_report_${new Date().toISOString().split('T')[0]}.csv`
+      : `daily_report_${selectedDate}.csv`;
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-    const link = document.createElement("a")
-    link.href = URL.createObjectURL(blob)
-    link.download = filename
-    link.click()
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
 
-    showToast("Report exported successfully!")
-  }
+    showToast("Report exported successfully!");
+  };
 
   const downloadPDF = () => {
-    showToast("PDF export functionality would be implemented here")
-  }
+    showToast("PDF export functionality would be implemented here");
+  };
 
   const getStatusBadge = (record) => {
-    if (activeTab === "daily") {
-      if (record.CheckOutTime) {
-        return <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Completed</span>
-      } else {
-        return <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">In Progress</span>
-      }
+    if (record.CheckOutTime) {
+      return <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Completed</span>;
+    } else {
+      return <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">In Progress</span>;
     }
-    return null
-  }
-
-  const getTotalHours = () => {
-    return filteredData.reduce((total, record) => {
-      if (record.TimeWorked && record.TimeWorked !== "0:00") {
-        const [hours, minutes] = record.TimeWorked.split(':').map(Number)
-        return total + hours + (minutes / 60)
-      }
-      return total
-    }, 0).toFixed(1)
-  }
-
-  const getActiveEmployees = () => {
-    return filteredData.filter(record =>
-      activeTab === "daily" ? record.CheckInTime : record.totalDays > 0
-    ).length
-  }
+  };
 
   const closeModal = () => {
-    setShowModal(false)
+    setShowModal(false);
     setNewEntry({
       EmployeeID: "",
       Type: "",
       Date: "",
       CheckInTime: "",
       CheckOutTime: ""
-    })
+    });
     setFormErrors({
       employee: "",
       type: "",
       date: "",
       checkinTime: "",
       checkoutTime: ""
-    })
-    setCheckoutDisabled(true)
-    setAddButtonDisabled(true)
-  }
+    });
+    setCheckoutDisabled(true);
+    setAddButtonDisabled(true);
+  };
 
   const handleCheckinTimeChange = (value) => {
-    setNewEntry({ ...newEntry, CheckInTime: value })
+    setNewEntry({ ...newEntry, CheckInTime: value });
     if (value) {
-      setCheckoutDisabled(false)
-      setAddButtonDisabled(false)
+      setCheckoutDisabled(false);
+      setAddButtonDisabled(false);
     } else {
-      setCheckoutDisabled(true)
-      setAddButtonDisabled(true)
+      setCheckoutDisabled(true);
+      setAddButtonDisabled(true);
     }
-  }
+  };
 
-  const loadEmployeeList = async () => {
+  const loadEmployeeList = useCallback(async () => {
     try {
-      await delay(300)
-      setEmployeeList(mockEmployeeData)
+      const data = await fetchEmployeeData(companyId);
+      setEmployeeList(data);
     } catch (error) {
-      showToast("Failed to load employees", "error")
+      console.error("Error loading employees:", error);
+      showToast("Failed to load employees", "error");
     }
-  }
-
-  const calculateTimeWorked = (checkIn, checkOut) => {
-    if (!checkIn || !checkOut) return "0:00"
-    
-    const [checkInHour, checkInMin] = checkIn.split(':').map(Number)
-    const [checkOutHour, checkOutMin] = checkOut.split(':').map(Number)
-    
-    const checkInMinutes = checkInHour * 60 + checkInMin
-    const checkOutMinutes = checkOutHour * 60 + checkOutMin
-    
-    const diffMinutes = checkOutMinutes - checkInMinutes
-    const hours = Math.floor(diffMinutes / 60)
-    const minutes = diffMinutes % 60
-    
-    return `${hours}:${String(minutes).padStart(2, '0')}`
-  }
+  }, [companyId]);
 
   const handleSaveEntry = () => {
     if (!newEntry.EmployeeID || !newEntry.Type || !newEntry.Date || !newEntry.CheckInTime) {
-      showToast("Please fill in all required fields", "error")
-      return
+      showToast("Please fill in all required fields", "error");
+      return;
     }
 
-    const selectedEmployee = employeeList.find(emp => emp.Pin === newEntry.EmployeeID)
+    const selectedEmployee = employeeList.find(emp => emp.Pin === newEntry.EmployeeID);
     if (!selectedEmployee) {
-      showToast("Selected employee not found", "error")
-      return
+      showToast("Selected employee not found", "error");
+      return;
     }
 
-    const timeWorked = calculateTimeWorked(newEntry.CheckInTime, newEntry.CheckOutTime)
+    const timeWorked = calculateTimeWorked(
+      `${newEntry.Date}T${newEntry.CheckInTime}:00`,
+      newEntry.CheckOutTime ? `${newEntry.Date}T${newEntry.CheckOutTime}:00` : null
+    );
     
     const newRecord = {
       EmpID: selectedEmployee.EmpID,
@@ -428,12 +458,43 @@ const ReportsPage = () => {
       CheckOutTime: newEntry.CheckOutTime ? `${newEntry.Date}T${newEntry.CheckOutTime}:00` : null,
       TimeWorked: timeWorked,
       Type: newEntry.Type
-    }
+    };
 
-    setReportData(prev => [...prev, newRecord])
-    showToast("Entry saved successfully!")
-    closeModal()
-  }
+    if (activeTab === "today") {
+      setTableData(prev => [...prev, newRecord]);
+    } else {
+      setReportData(prev => [...prev, newRecord]);
+    }
+    
+    showToast("Entry saved successfully!");
+    closeModal();
+  };
+
+  useEffect(() => {
+    if (companyId) {
+      loadDevices();
+      loadEmployeeList();
+      setCurrentDate(new Date().toISOString().split('T')[0]);
+    }
+  }, [companyId, loadDevices, loadEmployeeList]);
+
+  useEffect(() => {
+    if (activeTab === "today" && currentDate) {
+      viewCurrentDateReport(currentDate);
+    } else if (activeTab === "daywise" && selectedDate) {
+      viewDatewiseReport(selectedDate);
+    }
+  }, [activeTab, currentDate, selectedDate]);
+
+  useEffect(() => {
+    filterData();
+  }, [reportData, tableData, searchQuery, sortConfig, activeTab]);
+
+  useEffect(() => {
+    if (window.innerWidth < 650) {
+      setViewMode("grid");
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -457,7 +518,7 @@ const ReportsPage = () => {
       )}
 
       {/* Loading Overlay */}
-      {isLoading && (
+      {loading && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-lg p-6 shadow-xl">
             <div className="flex items-center space-x-3">
@@ -541,8 +602,8 @@ const ReportsPage = () => {
             <nav className="flex space-x-4 sm:space-x-8 overflow-x-auto">
               {[
                 { key: "today", label: "Today Report", icon: Calendar },
-                { key: "daily", label: "Day-wise Report", icon: Calendar },
-                { key: "summary", label: getThirdTabLabel(), icon: BarChart3 }
+                { key: "daywise", label: "Day-wise Report", icon: Calendar },
+                { key: "summary", label: "Weekly Report", icon: BarChart3 }
               ].map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}
@@ -555,7 +616,7 @@ const ReportsPage = () => {
                   <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
                   <span className="hidden sm:inline">{label}</span>
                   <span className="sm:hidden">
-                    {key === "today" ? "Today" : key === "daily" ? "Daily" : "Summary"}
+                    {key === "today" ? "Today" : key === "daywise" ? "Daily" : "Summary"}
                   </span>
                 </button>
               ))}
@@ -567,7 +628,7 @@ const ReportsPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col gap-4">
             {/* Date Controls Row */}
-            {activeTab === "daily" ? (
+            {activeTab === "daywise" && (
               <div className="space-y-2">
                 <Label htmlFor="selectedDate">Select Date</Label>
                 <Input
@@ -579,37 +640,7 @@ const ReportsPage = () => {
                   className="w-auto"
                 />
               </div>
-            ) : activeTab === "summary" ? (
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="startDate">Start Date</Label>
-                  <Input
-                    id="startDate"
-                    type="date"
-                    value={startDate}
-                    max={new Date().toISOString().split('T')[0]}
-                    onChange={(e) => setStartDate(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="endDate">End Date</Label>
-                  <Input
-                    id="endDate"
-                    type="date"
-                    value={endDate}
-                    max={new Date().toISOString().split('T')[0]}
-                    onChange={(e) => setEndDate(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>&nbsp;</Label>
-                  <Button onClick={loadDateRangeReport} className="flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4" />
-                    Generate Report
-                  </Button>
-                </div>
-              </div>
-            ) : null}
+            )}
 
             {/* Search and Controls Row */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -627,8 +658,8 @@ const ReportsPage = () => {
                 <select
                   value={`${sortConfig.key}-${sortConfig.direction}`}
                   onChange={(e) => {
-                    const [key, direction] = e.target.value.split('-')
-                    setSortConfig({ key, direction })
+                    const [key, direction] = e.target.value.split('-');
+                    setSortConfig({ key, direction });
                   }}
                   className="px-3 py-2 border border-input bg-background rounded-md text-sm flex-1 sm:flex-none"
                 >
@@ -636,17 +667,8 @@ const ReportsPage = () => {
                   <option value="name-desc">Name Z-A</option>
                   <option value="pin-asc">PIN A-Z</option>
                   <option value="pin-desc">PIN Z-A</option>
-                  {activeTab === "daily" ? (
-                    <>
-                      <option value="checkin-asc">Check-in: Early First</option>
-                      <option value="checkin-desc">Check-in: Late First</option>
-                    </>
-                  ) : activeTab === "summary" ? (
-                    <>
-                      <option value="days-asc">Days: Low to High</option>
-                      <option value="days-desc">Days: High to Low</option>
-                    </>
-                  ) : null}
+                  <option value="checkin-asc">Check-in: Early First</option>
+                  <option value="checkin-desc">Check-in: Late First</option>
                   <option value="time-asc">Time: Low to High</option>
                   <option value="time-desc">Time: High to Low</option>
                 </select>
@@ -673,9 +695,6 @@ const ReportsPage = () => {
             </div>
           </div>
         </div>
-
-        {/* Stats Cards */}
-        
 
         {/* Today's Report Section */}
         {activeTab === "today" && (
@@ -788,20 +807,17 @@ const ReportsPage = () => {
           </div>
         )}
 
-        {/* Report Table */}
-        {activeTab !== "today" && (
+        {/* Day-wise Report Section */}
+        {activeTab === "daywise" && (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <FileText className="w-5 h-5" />
-                  {activeTab === "daily" ? `Day-wise Report - ${selectedDate}` : getThirdTabLabel()}
+                  Day-wise Report - {selectedDate}
                 </CardTitle>
                 <CardDescription>
-                  {activeTab === "daily"
-                    ? "Employee check-in and check-out times for the selected date"
-                    : `Employee work summary for the selected date range (${viewSettings[0] || 'Weekly'} view)`
-                  }
+                  Employee check-in and check-out times for the selected date
                 </CardDescription>
               </CardHeader>
 
@@ -811,10 +827,7 @@ const ReportsPage = () => {
                     <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
                     <h3 className="text-lg font-medium text-foreground mb-2">No data found</h3>
                     <p className="text-sm text-muted-foreground">
-                      {activeTab === "daily"
-                        ? "No records found for the selected date."
-                        : "No records found for the selected date range. Try generating a report first."
-                      }
+                      No records found for the selected date.
                     </p>
                   </div>
                 ) : (
@@ -833,41 +846,22 @@ const ReportsPage = () => {
                                   <CardDescription className="text-xs sm:text-sm">PIN: {record.Pin}</CardDescription>
                                 </div>
                               </div>
-                              {activeTab === "daily" && getStatusBadge(record)}
+                              {getStatusBadge(record)}
                             </div>
                           </CardHeader>
                           <CardContent className="space-y-3 sm:space-y-4 pt-0">
-                            {activeTab === "daily" ? (
-                              <>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs sm:text-sm text-muted-foreground">Type</span>
-                                  <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{record.Type}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-xs sm:text-sm">
-                                  <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
-                                  <span className="truncate">In: {formatTime(record.CheckInTime)}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-xs sm:text-sm">
-                                  <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
-                                  <span className="truncate">Out: {formatTime(record.CheckOutTime)}</span>
-                                </div>
-                              </>
-                            ) : (
-                              <>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs sm:text-sm text-muted-foreground">Total Hours</span>
-                                  <span className="font-medium">{record.TimeWorked}</span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs sm:text-sm text-muted-foreground">Days Worked</span>
-                                  <span className="font-medium">{record.totalDays}</span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs sm:text-sm text-muted-foreground">Avg Hours/Day</span>
-                                  <span className="font-medium">{record.avgHoursPerDay}h</span>
-                                </div>
-                              </>
-                            )}
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs sm:text-sm text-muted-foreground">Type</span>
+                              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{record.Type}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs sm:text-sm">
+                              <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
+                              <span className="truncate">In: {formatTime(record.CheckInTime)}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs sm:text-sm">
+                              <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
+                              <span className="truncate">Out: {formatTime(record.CheckOutTime)}</span>
+                            </div>
                             <div className="pt-2 border-t">
                               <div className="flex items-center justify-between text-xs text-muted-foreground">
                                 <span>Time Worked</span>
@@ -885,20 +879,10 @@ const ReportsPage = () => {
                           <tr>
                             <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Employee</th>
                             <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">PIN</th>
-                            {activeTab === "daily" ? (
-                              <>
-                                <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Check In</th>
-                                <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Check Out</th>
-                                <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Type</th>
-                                <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Status</th>
-                              </>
-                            ) : (
-                              <>
-                                <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Total Hours</th>
-                                <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Days Worked</th>
-                                <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Avg Hours/Day</th>
-                              </>
-                            )}
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Check In</th>
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Check Out</th>
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Type</th>
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Status</th>
                             <th className="px-4 py-3 text-center font-semibold text-sm">Time Worked</th>
                           </tr>
                         </thead>
@@ -907,24 +891,14 @@ const ReportsPage = () => {
                             <tr key={index} className="hover:bg-gray-50">
                               <td className="px-4 py-3 text-center font-medium">{record.Name}</td>
                               <td className="px-4 py-3 text-center text-gray-600">{record.Pin}</td>
-                              {activeTab === "daily" ? (
-                                <>
-                                  <td className="px-4 py-3 text-center">{formatTime(record.CheckInTime)}</td>
-                                  <td className="px-4 py-3 text-center">{formatTime(record.CheckOutTime)}</td>
-                                  <td className="px-4 py-3 text-center">
-                                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                                      {record.Type}
-                                    </span>
-                                  </td>
-                                  <td className="px-4 py-3 text-center">{getStatusBadge(record)}</td>
-                                </>
-                              ) : (
-                                <>
-                                  <td className="px-4 py-3 text-center font-medium">{record.TimeWorked}</td>
-                                  <td className="px-4 py-3 text-center">{record.totalDays}</td>
-                                  <td className="px-4 py-3 text-center">{record.avgHoursPerDay}h</td>
-                                </>
-                              )}
+                              <td className="px-4 py-3 text-center">{formatTime(record.CheckInTime)}</td>
+                              <td className="px-4 py-3 text-center">{formatTime(record.CheckOutTime)}</td>
+                              <td className="px-4 py-3 text-center">
+                                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                  {record.Type}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-center">{getStatusBadge(record)}</td>
                               <td className="px-4 py-3 text-center font-medium">{record.TimeWorked}</td>
                             </tr>
                           ))}
@@ -1063,7 +1037,7 @@ const ReportsPage = () => {
 
       <Footer />
     </div>
-  )
-}
+  );
+};
 
-export default ReportsPage
+export default Reports;

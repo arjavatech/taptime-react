@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { v4 as uuidv4 } from "uuid";
 import Header from "../components/layout/Header";
 import Footer from "../components/layout/Footer";
 import { Loader2 } from "lucide-react";
@@ -98,7 +99,7 @@ const ContactUs = () => {
   };
 
   // Submit form
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     // Validate all fields
@@ -119,25 +120,65 @@ const ContactUs = () => {
       isRequiredFieldsValid
     ) {
       setShowOverlay(true);
-      
-      // Simulate form submission
-      setTimeout(() => {
-        setShowOverlay(false);
+      try {
+        await callContactUsCreateAPiData();
         setToast({ show: true, message: 'Message sent successfully!', type: 'success' });
         setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
-        
-        // Reset form
-        setCname("");
-        setCemail("");
-        setQuestion("");
-        setPhoneNumber("");
-      }, 1500);
+      } catch (error) {
+        console.error("Form submission failed:", error);
+        setToast({ show: true, message: 'Failed to send message', type: 'error' });
+        setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+      }
+      setShowOverlay(false);
     } else {
       // Trigger validation messages for required fields
       if (cname.trim() === "") setErrorName("Name is required");
       if (cemail.trim() === "") setErrorEmail("Email is required");
       if (question.trim() === "") setErrorTextarea("Message is required");
     }
+  };
+
+  // API call
+  const callContactUsCreateAPiData = async () => {
+    const apiLink = `https://postgresql-restless-waterfall-2105.fly.dev//contact-us/create`;
+    const requestID = uuidv4();
+    const cid = localStorage.getItem("companyID") || "";
+
+    const userData = {
+      request_id: requestID,
+      c_id: cid,
+      name: cname,
+      requestor_email: cemail,
+      concerns_questions: question,
+      phone_number: phoneNumber,
+      status: "pending",
+      last_modified_by: "Admin",
+      is_active: true
+    };
+
+    const response = await fetch(apiLink, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(userData),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (data.error) {
+      throw new Error(data.error);
+    }
+
+    // Reset form only after successful submission
+    setCname("");
+    setCemail("");
+    setQuestion("");
+    setPhoneNumber("");
   };
 
   return (
@@ -357,4 +398,3 @@ const ContactUs = () => {
 };
 
 export default ContactUs;
-

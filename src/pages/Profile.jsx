@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from "react"
-import Header from "../components/layout/Header"
-import Footer from "../components/layout/Footer"
-import { Button } from "../components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card"
-import { Input } from "../components/ui/input"
-import { Label } from "../components/ui/label"
-import { Textarea } from "../components/ui/textarea"
-import { mockUserProfile, mockCompanyData, mockCustomerData, delay } from "../data/mockData"
+import React, { useState, useEffect } from "react";
+import Header from "../components/layout/Header";
+import Footer from "../components/layout/Footer";
+import { Button } from "../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { updateCompany, updateCustomer, fetchEmployeeData } from "../api.js";
 import { 
   User, 
   Building, 
@@ -18,19 +17,15 @@ import {
   Edit,
   CheckCircle,
   AlertCircle,
-  Loader2,
-  Eye,
-  EyeOff
-} from "lucide-react"
+  Loader2
+} from "lucide-react";
 
-const ProfilePage = () => {
-  const [activeTab, setActiveTab] = useState("personal")
-  const [isEditing, setIsEditing] = useState({ personal: false, company: false })
-  const [isLoading, setIsLoading] = useState(false)
-  const [toast, setToast] = useState({ show: false, message: "", type: "success" })
-  const [showPasswordFields, setShowPasswordFields] = useState(false)
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
-  const [showNewPassword, setShowNewPassword] = useState(false)
+const Profile = () => {
+  const [activeTab, setActiveTab] = useState("personal");
+  const [isEditing, setIsEditing] = useState({ personal: false, company: false });
+  const [isLoading, setIsLoading] = useState(true);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [userType, setUserType] = useState("");
 
   const [personalData, setPersonalData] = useState({
     firstName: "",
@@ -41,10 +36,10 @@ const ProfilePage = () => {
     city: "",
     state: "",
     zipCode: "",
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: ""
-  })
+    EName: "",
+    adminPin: "",
+    decryptedPassword: "",
+  });
 
   const [companyData, setCompanyData] = useState({
     name: "",
@@ -52,181 +47,348 @@ const ProfilePage = () => {
     city: "",
     state: "",
     zipCode: "",
-    logo: "",
-    description: ""
-  })
+    logo: ""
+  });
 
-  useEffect(() => {
-    loadProfileData()
-  }, [])
+  const [errors, setErrors] = useState({
+    companyName: "",
+    companyStreet: "",
+    companyCity: "",
+    companyState: "",
+    companyZip: "",
+    firstName: "",
+    lastName: "",
+    customerStreet: "",
+    customerCity: "",
+    customerState: "",
+    customerZip: "",
+    email: "",
+    phone: "",
+    adminPin: "",
+    EName: "",
+  });
 
-  const loadProfileData = async () => {
-    setIsLoading(true)
-    try {
-      await delay(500) // Simulate API call
-      
-      // Load personal data
-      const customerAddress = mockCustomerData.address.split("--")
-      setPersonalData({
-        firstName: mockCustomerData.firstName,
-        lastName: mockCustomerData.lastName,
-        email: mockCustomerData.email,
-        phone: mockCustomerData.phone,
-        address: customerAddress[0] || "",
-        city: customerAddress[1] || "",
-        state: customerAddress[2] || "",
-        zipCode: customerAddress[3] || "",
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: ""
-      })
-
-      // Load company data
-      const companyAddress = mockCompanyData.companyAddress.split("--")
-      setCompanyData({
-        name: mockCompanyData.companyName,
-        address: companyAddress[0] || "",
-        city: companyAddress[1] || "",
-        state: companyAddress[2] || "",
-        zipCode: companyAddress[3] || "",
-        logo: mockCompanyData.companyLogo,
-        description: "Leading provider of innovative time tracking solutions for modern businesses."
-      })
-    } catch (error) {
-      showToast("Failed to load profile data", "error")
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  const [companyId, setCompanyId] = useState("");
+  const [customerId, setCustomerId] = useState("");
 
   const showToast = (message, type = "success") => {
-    setToast({ show: true, message, type })
-    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000)
-  }
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+  };
 
   const formatPhoneNumber = (value) => {
-    const digits = value.replace(/\D/g, '').slice(0, 10)
-    let formatted = ''
+    const digits = value.replace(/\D/g, '').slice(0, 10);
+    let formatted = '';
     if (digits.length > 6) {
-      formatted = `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
+      formatted = `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
     } else if (digits.length > 3) {
-      formatted = `(${digits.slice(0, 3)}) ${digits.slice(3)}`
+      formatted = `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
     } else if (digits.length > 0) {
-      formatted = `(${digits}`
+      formatted = `(${digits}`;
     }
-    return formatted
-  }
+    return formatted;
+  };
 
   const handlePersonalInputChange = (field, value) => {
     if (field === "phone") {
-      value = formatPhoneNumber(value)
+      value = formatPhoneNumber(value);
     }
-    setPersonalData(prev => ({ ...prev, [field]: value }))
-  }
+    setPersonalData(prev => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: "" }));
+    }
+  };
 
   const handleCompanyInputChange = (field, value) => {
-    setCompanyData(prev => ({ ...prev, [field]: value }))
-  }
+    setCompanyData(prev => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    const errorField = field === "name" ? "companyName" : 
+                      field === "address" ? "companyStreet" :
+                      field === "city" ? "companyCity" :
+                      field === "state" ? "companyState" :
+                      field === "zipCode" ? "companyZip" : field;
+    if (errors[errorField]) {
+      setErrors(prev => ({ ...prev, [errorField]: "" }));
+    }
+  };
 
   const handleLogoUpload = (event) => {
-    const file = event.target.files[0]
+    const file = event.target.files[0];
     if (file) {
-      const reader = new FileReader()
+      const reader = new FileReader();
       reader.onload = (e) => {
-        setCompanyData(prev => ({ ...prev, logo: e.target.result }))
-      }
-      reader.readAsDataURL(file)
+        setCompanyData(prev => ({ ...prev, logo: e.target.result }));
+      };
+      reader.readAsDataURL(file);
     }
-  }
+  };
+
+  useEffect(() => {
+    const initializeProfile = async () => {
+      const companyId = localStorage.getItem("companyID") || "";
+      const customerId = localStorage.getItem("customerID") || "";
+      const userType = localStorage.getItem("adminType") || "";
+
+      setCompanyId(companyId);
+      setCustomerId(customerId);
+      setUserType(userType);
+
+      let adminDetails = null;
+      const storedAdmin = localStorage.getItem("loggedAdmin");
+
+      if (!storedAdmin && (userType === "Admin" || userType === "SuperAdmin")) {
+        try {
+          const employeeData = await fetchEmployeeData();
+          const allEmployees = Array.isArray(employeeData) ? employeeData : [];
+          const adminLevel = userType === "Admin" ? 1 : 2;
+          const adminMail = localStorage.getItem("adminMail")?.toLowerCase();
+
+          const matchedAdmin = allEmployees.find(
+            emp => emp.IsAdmin === adminLevel &&
+                   emp.Email?.toLowerCase() === adminMail
+          );
+
+          if (matchedAdmin) {
+            localStorage.setItem("loggedAdmin", JSON.stringify(matchedAdmin));
+            adminDetails = matchedAdmin;
+          }
+        } catch (error) {
+          console.error("Error fetching admin details:", error);
+        }
+      } else if (storedAdmin) {
+        adminDetails = JSON.parse(storedAdmin);
+      }
+
+      const companyAddress = localStorage.getItem("companyAddress") || "";
+      const customerAddress = localStorage.getItem("address") || "";
+      const [companyStreet, companyCity, companyState, companyZip] = companyAddress.split("--");
+      const [customerStreet, customerCity, customerState, customerZip] = customerAddress.split("--");
+
+      setPersonalData({
+        firstName: localStorage.getItem("firstName") || "",
+        lastName: localStorage.getItem("lastName") || "",
+        email: localStorage.getItem("email") || "",
+        phone: localStorage.getItem("phone") || "",
+        address: customerStreet || "",
+        city: customerCity || "",
+        state: customerState || "",
+        zipCode: customerZip || "",
+        EName: adminDetails ? `${adminDetails.FName || ""} ${adminDetails.LName || ""}`.trim() : "",
+        adminPin: adminDetails?.Pin || "",
+        decryptedPassword: "",
+      });
+
+      setCompanyData({
+        name: localStorage.getItem("companyName") || "",
+        address: companyStreet || "",
+        city: companyCity || "",
+        state: companyState || "",
+        zipCode: companyZip || "",
+        logo: localStorage.getItem("companyLogo") || ""
+      });
+
+      setIsLoading(false);
+    };
+
+    initializeProfile();
+  }, []);
 
   const validatePersonalForm = () => {
+    let isValid = true;
+    const newErrors = { ...errors };
+
+    newErrors.firstName = "";
+    newErrors.lastName = "";
+    newErrors.customerStreet = "";
+    newErrors.customerCity = "";
+    newErrors.customerState = "";
+    newErrors.customerZip = "";
+    newErrors.email = "";
+    newErrors.phone = "";
+
     if (!personalData.firstName.trim()) {
-      showToast("First name is required", "error")
-      return false
+      newErrors.firstName = "Please fill out this field";
+      isValid = false;
     }
+
     if (!personalData.lastName.trim()) {
-      showToast("Last name is required", "error")
-      return false
+      newErrors.lastName = "Please fill out this field";
+      isValid = false;
     }
-    if (!personalData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(personalData.email)) {
-      showToast("Valid email is required", "error")
-      return false
+
+    if (!personalData.address.trim()) {
+      newErrors.customerStreet = "Please fill out this field";
+      isValid = false;
     }
-    if (showPasswordFields) {
-      if (!personalData.currentPassword) {
-        showToast("Current password is required", "error")
-        return false
-      }
-      if (!personalData.newPassword || personalData.newPassword.length < 6) {
-        showToast("New password must be at least 6 characters", "error")
-        return false
-      }
-      if (personalData.newPassword !== personalData.confirmPassword) {
-        showToast("Passwords do not match", "error")
-        return false
-      }
+
+    if (!personalData.city.trim()) {
+      newErrors.customerCity = "Please fill out this field";
+      isValid = false;
     }
-    return true
-  }
+
+    if (!personalData.state.trim()) {
+      newErrors.customerState = "Please fill out this field";
+      isValid = false;
+    }
+
+    if (!personalData.zipCode.trim()) {
+      newErrors.customerZip = "Please fill out this field";
+      isValid = false;
+    }
+
+    if (!personalData.email.trim()) {
+      newErrors.email = "Please fill out this field";
+      isValid = false;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(personalData.email)) {
+      newErrors.email = "Valid email is required";
+      isValid = false;
+    }
+
+    if (personalData.phone && !/^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/.test(personalData.phone)) {
+      newErrors.phone = "Please use format: (123) 456-7890";
+      isValid = false;
+    }
+
+    setErrors(newErrors);
+    return isValid;
+  };
 
   const validateCompanyForm = () => {
+    let isValid = true;
+    const newErrors = { ...errors };
+
+    newErrors.companyName = "";
+    newErrors.companyStreet = "";
+    newErrors.companyCity = "";
+    newErrors.companyState = "";
+    newErrors.companyZip = "";
+
     if (!companyData.name.trim()) {
-      showToast("Company name is required", "error")
-      return false
+      newErrors.companyName = "Please fill out this field";
+      isValid = false;
     }
-    return true
-  }
+
+    if (!companyData.address.trim()) {
+      newErrors.companyStreet = "Please fill out this field";
+      isValid = false;
+    }
+
+    if (!companyData.city.trim()) {
+      newErrors.companyCity = "Please fill out this field";
+      isValid = false;
+    }
+
+    if (!companyData.state.trim()) {
+      newErrors.companyState = "Please fill out this field";
+      isValid = false;
+    }
+
+    if (!companyData.zipCode.trim()) {
+      newErrors.companyZip = "Please fill out this field";
+      isValid = false;
+    }
+
+    setErrors(newErrors);
+    return isValid;
+  };
 
   const handleSavePersonal = async () => {
-    if (!validatePersonalForm()) return
+    if (!validatePersonalForm()) return;
 
-    setIsLoading(true)
+    if (!companyId || !customerId) return;
+    
+    setIsLoading(true);
     try {
-      await delay(1000) // Simulate API call
-      setIsEditing(prev => ({ ...prev, personal: false }))
-      setShowPasswordFields(false)
-      setPersonalData(prev => ({
-        ...prev,
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: ""
-      }))
-      showToast("Personal information updated successfully!")
+      const customerData = {
+        CustomerID: customerId,
+        CID: companyId,
+        FName: personalData.firstName,
+        LName: personalData.lastName,
+        Address: `${personalData.address}--${personalData.city}--${personalData.state}--${personalData.zipCode}`,
+        PhoneNumber: personalData.phone,
+        Email: personalData.email,
+        IsActive: true,
+        LastModifiedBy: "Admin",
+      };
+
+      await updateCustomer(customerId, customerData);
+      
+      // Update localStorage
+      localStorage.setItem("firstName", personalData.firstName);
+      localStorage.setItem("lastName", personalData.lastName);
+      localStorage.setItem("email", personalData.email);
+      localStorage.setItem("phone", personalData.phone);
+      localStorage.setItem("address", `${personalData.address}--${personalData.city}--${personalData.state}--${personalData.zipCode}`);
+      
+      setIsEditing(prev => ({ ...prev, personal: false }));
+      showToast("Personal information updated successfully!");
     } catch (error) {
-      showToast("Failed to update personal information", "error")
+      console.error("Customer API Error:", error);
+      showToast("Failed to update personal information", "error");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleSaveCompany = async () => {
-    if (!validateCompanyForm()) return
+    if (!validateCompanyForm()) return;
 
-    setIsLoading(true)
+    if (!companyId) return;
+    
+    setIsLoading(true);
     try {
-      await delay(1000) // Simulate API call
-      setIsEditing(prev => ({ ...prev, company: false }))
-      showToast("Company information updated successfully!")
+      const companyDataPayload = {
+        CID: companyId,
+        UserName: localStorage.getItem("username"),
+        CName: companyData.name,
+        CAddress: `${companyData.address}--${companyData.city}--${companyData.state}--${companyData.zipCode}`,
+        CLogo: companyData.logo || localStorage.getItem("companyLogo"),
+        Password: localStorage.getItem("password"),
+        ReportType: "Weekly",
+        LastModifiedBy: "Admin",
+      };
+
+      await updateCompany(companyId, companyDataPayload);
+      
+      // Update localStorage
+      localStorage.setItem("companyName", companyData.name);
+      localStorage.setItem("companyAddress", `${companyData.address}--${companyData.city}--${companyData.state}--${companyData.zipCode}`);
+      if (companyData.logo) {
+        localStorage.setItem("companyLogo", companyData.logo);
+      }
+      
+      setIsEditing(prev => ({ ...prev, company: false }));
+      showToast("Company information updated successfully!");
     } catch (error) {
-      showToast("Failed to update company information", "error")
+      console.error("Company API Error:", error);
+      showToast("Failed to update company information", "error");
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleCancel = (type) => {
-    setIsEditing(prev => ({ ...prev, [type]: false }))
-    if (type === "personal") {
-      setShowPasswordFields(false)
-      setPersonalData(prev => ({
-        ...prev,
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: ""
-      }))
-    }
-    loadProfileData() // Reset to original data
-  }
+    setIsEditing(prev => ({ ...prev, [type]: false }));
+    // Reset errors
+    setErrors({
+      companyName: "",
+      companyStreet: "",
+      companyCity: "",
+      companyState: "",
+      companyZip: "",
+      firstName: "",
+      lastName: "",
+      customerStreet: "",
+      customerCity: "",
+      customerState: "",
+      customerZip: "",
+      email: "",
+      phone: "",
+      adminPin: "",
+      EName: "",
+    });
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -252,14 +414,14 @@ const ProfilePage = () => {
 
       {/* Loading Overlay */}
       {isLoading && (
-              <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-                <div className="bg-white rounded-lg p-6 shadow-xl">
-                  <div className="flex items-center space-x-3">
-                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                  </div>
-                </div>
-              </div>
-            )}
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-lg p-6 shadow-xl">
+            <div className="flex items-center space-x-3">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="pt-20 pb-8 bg-gradient-to-br from-slate-50 to-blue-50">
         {/* Page Header */}
@@ -344,9 +506,10 @@ const ProfilePage = () => {
                         value={personalData.firstName}
                         onChange={(e) => handlePersonalInputChange("firstName", e.target.value)}
                         disabled={!isEditing.personal}
-                        className="pl-10"
+                        className={`pl-10 ${errors.firstName ? "border-red-500" : ""}`}
                       />
                     </div>
+                    {errors.firstName && <p className="text-sm text-red-600">{errors.firstName}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -358,9 +521,10 @@ const ProfilePage = () => {
                         value={personalData.lastName}
                         onChange={(e) => handlePersonalInputChange("lastName", e.target.value)}
                         disabled={!isEditing.personal}
-                        className="pl-10"
+                        className={`pl-10 ${errors.lastName ? "border-red-500" : ""}`}
                       />
                     </div>
+                    {errors.lastName && <p className="text-sm text-red-600">{errors.lastName}</p>}
                   </div>
 
                   <div className="space-y-2 sm:col-span-2">
@@ -373,9 +537,10 @@ const ProfilePage = () => {
                         value={personalData.email}
                         onChange={(e) => handlePersonalInputChange("email", e.target.value)}
                         disabled={!isEditing.personal}
-                        className="pl-10"
+                        className={`pl-10 ${errors.email ? "border-red-500" : ""}`}
                       />
                     </div>
+                    {errors.email && <p className="text-sm text-red-600">{errors.email}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -387,10 +552,11 @@ const ProfilePage = () => {
                         value={personalData.phone}
                         onChange={(e) => handlePersonalInputChange("phone", e.target.value)}
                         disabled={!isEditing.personal}
-                        className="pl-10"
+                        className={`pl-10 ${errors.phone ? "border-red-500" : ""}`}
                         placeholder="(123) 456-7890"
                       />
                     </div>
+                    {errors.phone && <p className="text-sm text-red-600">{errors.phone}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -402,9 +568,10 @@ const ProfilePage = () => {
                         value={personalData.address}
                         onChange={(e) => handlePersonalInputChange("address", e.target.value)}
                         disabled={!isEditing.personal}
-                        className="pl-10"
+                        className={`pl-10 ${errors.customerStreet ? "border-red-500" : ""}`}
                       />
                     </div>
+                    {errors.customerStreet && <p className="text-sm text-red-600">{errors.customerStreet}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -414,7 +581,9 @@ const ProfilePage = () => {
                       value={personalData.city}
                       onChange={(e) => handlePersonalInputChange("city", e.target.value)}
                       disabled={!isEditing.personal}
+                      className={errors.customerCity ? "border-red-500" : ""}
                     />
+                    {errors.customerCity && <p className="text-sm text-red-600">{errors.customerCity}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -424,7 +593,9 @@ const ProfilePage = () => {
                       value={personalData.state}
                       onChange={(e) => handlePersonalInputChange("state", e.target.value)}
                       disabled={!isEditing.personal}
+                      className={errors.customerState ? "border-red-500" : ""}
                     />
+                    {errors.customerState && <p className="text-sm text-red-600">{errors.customerState}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -434,11 +605,12 @@ const ProfilePage = () => {
                       value={personalData.zipCode}
                       onChange={(e) => handlePersonalInputChange("zipCode", e.target.value)}
                       disabled={!isEditing.personal}
+                      className={errors.customerZip ? "border-red-500" : ""}
                     />
+                    {errors.customerZip && <p className="text-sm text-red-600">{errors.customerZip}</p>}
                   </div>
                 </div>
 
-                
                 {isEditing.personal && (
                   <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
                     <Button
@@ -528,9 +700,10 @@ const ProfilePage = () => {
                         value={companyData.name}
                         onChange={(e) => handleCompanyInputChange("name", e.target.value)}
                         disabled={!isEditing.company}
-                        className="pl-10"
+                        className={`pl-10 ${errors.companyName ? "border-red-500" : ""}`}
                       />
                     </div>
+                    {errors.companyName && <p className="text-sm text-red-600">{errors.companyName}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -542,9 +715,10 @@ const ProfilePage = () => {
                         value={companyData.address}
                         onChange={(e) => handleCompanyInputChange("address", e.target.value)}
                         disabled={!isEditing.company}
-                        className="pl-10"
+                        className={`pl-10 ${errors.companyStreet ? "border-red-500" : ""}`}
                       />
                     </div>
+                    {errors.companyStreet && <p className="text-sm text-red-600">{errors.companyStreet}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -554,7 +728,9 @@ const ProfilePage = () => {
                       value={companyData.city}
                       onChange={(e) => handleCompanyInputChange("city", e.target.value)}
                       disabled={!isEditing.company}
+                      className={errors.companyCity ? "border-red-500" : ""}
                     />
+                    {errors.companyCity && <p className="text-sm text-red-600">{errors.companyCity}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -564,7 +740,9 @@ const ProfilePage = () => {
                       value={companyData.state}
                       onChange={(e) => handleCompanyInputChange("state", e.target.value)}
                       disabled={!isEditing.company}
+                      className={errors.companyState ? "border-red-500" : ""}
                     />
+                    {errors.companyState && <p className="text-sm text-red-600">{errors.companyState}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -574,21 +752,11 @@ const ProfilePage = () => {
                       value={companyData.zipCode}
                       onChange={(e) => handleCompanyInputChange("zipCode", e.target.value)}
                       disabled={!isEditing.company}
+                      className={errors.companyZip ? "border-red-500" : ""}
                     />
+                    {errors.companyZip && <p className="text-sm text-red-600">{errors.companyZip}</p>}
                   </div>
                 </div>
-
-                {/* <div className="space-y-2">
-                  <Label htmlFor="companyDescription">Company Description</Label>
-                  <Textarea
-                    id="companyDescription"
-                    value={companyData.description}
-                    onChange={(e) => handleCompanyInputChange("description", e.target.value)}
-                    disabled={!isEditing.company}
-                    rows={4}
-                    placeholder="Tell us about your company..."
-                  />
-                </div> */}
 
                 {isEditing.company && (
                   <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
@@ -616,7 +784,7 @@ const ProfilePage = () => {
 
       <Footer />
     </div>
-  )
-}
+  );
+};
 
-export default ProfilePage
+export default Profile;

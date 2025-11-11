@@ -127,7 +127,7 @@ const Header = () => {
       dropdown: true,
       items: [
         { to: "/reportsummary", label: "Report Summary" },
-        { to: "/report-settings", label: "Report Settings" }
+        { to: "/reportsetting", label: "Report Settings" }
       ]
     },
     { to: "/profile", label: "Profile" },

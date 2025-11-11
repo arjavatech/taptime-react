@@ -1,10 +1,17 @@
-import React, { useState, useEffect } from "react"
-import Header from "../components/layout/Header"
-import Footer from "../components/layout/Footer"
-import { Button } from "../components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card"
-import { Input } from "../components/ui/input"
-import { Label } from "../components/ui/label"
+import React, { useState, useEffect } from "react";
+import Header from "../components/layout/Header";
+import Footer from "../components/layout/Footer";
+import { Button } from "../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import {
+  getAllReportEmails,
+  createReportEmail,
+  updateReportEmail,
+  deleteReportEmail,
+  createReportObject
+} from "../api.js";
 import { 
   Settings, 
   Mail, 
@@ -15,231 +22,337 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
-  X,
   Search,
   Grid3X3,
   Table
-} from "lucide-react"
+} from "lucide-react";
 
-const ReportSettings = () => {
-  const [isLoading, setIsLoading] = useState(false)
-  const [emailSettings, setEmailSettings] = useState([
-    {
-      id: 1,
-      email: "admin@company.com",
-      frequencies: ["Weekly", "Monthly"]
-    },
-    {
-      id: 2,
-      email: "hr@company.com", 
-      frequencies: ["Daily"]
-    }
-  ])
-  const [viewSettings, setViewSettings] = useState(["Weekly"])
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [showViewEditModal, setShowViewEditModal] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [currentSetting, setCurrentSetting] = useState(null)
-  const [newEmail, setNewEmail] = useState("")
-  const [newFrequencies, setNewFrequencies] = useState([])
-  const [editFrequencies, setEditFrequencies] = useState([])
-  const [tempViewSettings, setTempViewSettings] = useState([])
-  const [emailError, setEmailError] = useState("")
-  const [frequencyError, setFrequencyError] = useState("")
-  const [toast, setToast] = useState({ show: false, message: "", type: "success" })
-  const [searchQuery, setSearchQuery] = useState("")
-  const [viewMode, setViewMode] = useState("table") // table, grid
-  const [sortConfig, setSortConfig] = useState({ key: "email", direction: "asc" })
+const ReportSetting = () => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [emailSettings, setEmailSettings] = useState([]);
+  const [allEmailSettings, setAllEmailSettings] = useState([]);
+  const [viewSettings, setViewSettings] = useState(["Weekly"]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showViewEditModal, setShowViewEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [currentSetting, setCurrentSetting] = useState(null);
+  const [currentEmail, setCurrentEmail] = useState("");
+  const [currentFrequencies, setCurrentFrequencies] = useState([]);
+  const [newEmail, setNewEmail] = useState("");
+  const [newFrequencies, setNewFrequencies] = useState([]);
+  const [editFrequencies, setEditFrequencies] = useState([]);
+  const [tempViewSettings, setTempViewSettings] = useState([]);
+  const [emailError, setEmailError] = useState("");
+  const [frequencyError, setFrequencyError] = useState("");
+  const [viewFrequencies, setViewFrequencies] = useState([]);
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState("table");
+  const [sortConfig, setSortConfig] = useState({ key: "email", direction: "asc" });
 
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 1024 && viewMode === "table") { // lg breakpoint
-        setViewMode("grid") // Only auto-switch if currently on table view
-      }
-    }
-
-    // Set initial view mode to grid on mobile
-    if (window.innerWidth < 1024) {
-      setViewMode("grid")
-    }
-
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
-
-  const frequencies = ["Daily", "Weekly", "Biweekly", "Monthly", "Bimonthly"]
-
-  const getFilteredAndSortedSettings = () => {
-    let filtered = emailSettings
-    
-    // Filter by search query
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      filtered = filtered.filter(setting =>
-        setting.email.toLowerCase().includes(query) ||
-        setting.frequencies.some(freq => freq.toLowerCase().includes(query))
-      )
-    }
-    
-    // Sort data
-    filtered.sort((a, b) => {
-      let aValue, bValue
-      if (sortConfig.key === "email") {
-        aValue = a.email.toLowerCase()
-        bValue = b.email.toLowerCase()
-        return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue)
-      } else if (sortConfig.key === "frequency") {
-        aValue = a.frequencies[0]?.toLowerCase() || ""
-        bValue = b.frequencies[0]?.toLowerCase() || ""
-        return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue)
-      }
-      return 0
-    })
-    
-    return filtered
-  }
+  const frequencies = ["Daily", "Weekly", "Biweekly", "Monthly", "Bimonthly"];
 
   const showToast = (message, type = "success") => {
-    setToast({ show: true, message, type })
-    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000)
-  }
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
+  };
+
+  const loadReportSettings = async () => {
+    setIsLoading(true);
+    if (typeof window === "undefined") return;
+    const company_id = localStorage.getItem("companyID") || "";
+
+    try {
+      const data = await getAllReportEmails(company_id);
+      console.log(data)
+      setAllEmailSettings(data);
+      filterReportSettings(data);
+    } catch (error) {
+      console.error("Failed to load report settings:", error);
+      setAllEmailSettings([]);
+      setEmailSettings([]);
+      showToast("Failed to load report settings", "error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const filterReportSettings = (data = allEmailSettings) => {
+    setEmailSettings(Array.isArray(data) ? data : []);
+  };
+
+  const getFilteredAndSortedSettings = () => {
+    let filtered = emailSettings;
+    
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(setting =>
+        setting.email?.toLowerCase().includes(query) ||
+        formatFrequencies(setting).join(', ').toLowerCase().includes(query)
+      );
+    }
+    
+    filtered.sort((a, b) => {
+      let aValue, bValue;
+      if (sortConfig.key === "email") {
+        aValue = a.email?.toLowerCase() || "";
+        bValue = b.email?.toLowerCase() || "";
+        return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+      } else if (sortConfig.key === "frequency") {
+        aValue = formatFrequencies(a).join(', ').toLowerCase();
+        bValue = formatFrequencies(b).join(', ').toLowerCase();
+        return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+      }
+      return 0;
+    });
+    
+    return filtered;
+  };
+
+  const loadViewSetting = () => {
+    if (typeof window === "undefined") return;
+    const savedSetting = localStorage.getItem("reportType");
+
+    if (savedSetting) {
+      const frequencies = savedSetting
+        .split(",")
+        .filter((f) => f.trim() !== "" && f.trim().toLowerCase() !== "basic")
+        .filter((f) => ["Daily", "Weekly", "Biweekly", "Monthly", "Bimonthly"].includes(f.trim()));
+
+      setViewFrequencies(frequencies);
+      setViewSettings(frequencies);
+
+      if (frequencies.length === 0 && savedSetting.toLowerCase().includes("basic")) {
+        localStorage.removeItem("reportType");
+      }
+    }
+  };
 
   const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!email.trim()) {
-      setEmailError("Email is required")
-      return false
+      setEmailError("Email is required");
+      return false;
     }
     if (!emailRegex.test(email)) {
-      setEmailError("Please enter a valid email address")
-      return false
+      setEmailError("Please enter a valid email address");
+      return false;
     }
-    setEmailError("")
-    return true
-  }
+    setEmailError("");
+    return true;
+  };
 
   const validateFrequencies = (freqs) => {
     if (freqs.length === 0) {
-      setFrequencyError("Please select at least one frequency")
-      return false
+      setFrequencyError("Please select at least one frequency");
+      return false;
     }
     if (freqs.length > 2) {
-      setFrequencyError("Maximum 2 frequencies allowed")
-      return false
+      setFrequencyError("Maximum 2 frequencies allowed");
+      return false;
     }
-    setFrequencyError("")
-    return true
-  }
+    setFrequencyError("");
+    return true;
+  };
 
   const openAddModal = () => {
-    setNewEmail("")
-    setNewFrequencies([])
-    setEmailError("")
-    setFrequencyError("")
-    setShowAddModal(true)
-  }
+    setNewEmail("");
+    setNewFrequencies([]);
+    setEmailError("");
+    setFrequencyError("");
+    setShowAddModal(true);
+  };
 
   const openEditModal = (setting) => {
-    setCurrentSetting(setting)
-    setNewEmail(setting.email)
-    setEditFrequencies([...setting.frequencies])
-    setEmailError("")
-    setFrequencyError("")
-    setShowEditModal(true)
-  }
+    setCurrentSetting(setting);
+    setCurrentEmail(setting.email?.trim() || "");
+    setNewEmail(setting.email?.trim() || "");
+    const frequencies = [];
+    if (setting.is_daily_report_active) frequencies.push("Daily");
+    if (setting.is_weekly_report_active) frequencies.push("Weekly");
+    if (setting.is_bi_weekly_report_active) frequencies.push("Biweekly");
+    if (setting.is_monthly_report_active) frequencies.push("Monthly");
+    if (setting.is_bi_monthly_report_active) frequencies.push("Bimonthly");
+    setEditFrequencies([...frequencies]);
+    setCurrentFrequencies([...frequencies]);
+    setEmailError("");
+    setFrequencyError("");
+    setShowEditModal(true);
+  };
 
   const openViewEditModal = () => {
-    setTempViewSettings([...viewSettings])
-    setShowViewEditModal(true)
-  }
+    setTempViewSettings([...viewSettings]);
+    setShowViewEditModal(true);
+  };
 
   const openDeleteModal = (setting) => {
-    setCurrentSetting(setting)
-    setShowDeleteModal(true)
-  }
+    setCurrentSetting(setting);
+    setCurrentEmail(setting.email);
+    setShowDeleteModal(true);
+  };
 
   const closeModals = () => {
-    setShowAddModal(false)
-    setShowEditModal(false)
-    setShowViewEditModal(false)
-    setShowDeleteModal(false)
-    setCurrentSetting(null)
-    setNewEmail("")
-    setNewFrequencies([])
-    setEditFrequencies([])
-    setTempViewSettings([])
-    setEmailError("")
-    setFrequencyError("")
-  }
+    setShowAddModal(false);
+    setShowEditModal(false);
+    setShowViewEditModal(false);
+    setShowDeleteModal(false);
+    setCurrentSetting(null);
+    setNewEmail("");
+    setNewFrequencies([]);
+    setEditFrequencies([]);
+    setTempViewSettings([]);
+    setEmailError("");
+    setFrequencyError("");
+  };
 
   const toggleFrequency = (freq, isEdit = false) => {
-    const currentFreqs = isEdit ? editFrequencies : newFrequencies
-    const setFreqs = isEdit ? setEditFrequencies : setNewFrequencies
+    const currentFreqs = isEdit ? editFrequencies : newFrequencies;
+    const setFreqs = isEdit ? setEditFrequencies : setNewFrequencies;
     
     if (currentFreqs.includes(freq)) {
-      setFreqs(currentFreqs.filter(f => f !== freq))
+      setFreqs(currentFreqs.filter(f => f !== freq));
     } else if (currentFreqs.length < 2) {
-      setFreqs([...currentFreqs, freq])
+      setFreqs([...currentFreqs, freq]);
     }
-    setFrequencyError("")
-  }
+    setFrequencyError("");
+  };
 
   const toggleViewFrequency = (freq) => {
     if (tempViewSettings.includes(freq)) {
-      setTempViewSettings([])
+      setTempViewSettings([]);
     } else {
-      setTempViewSettings([freq])
+      setTempViewSettings([freq]);
     }
-  }
+  };
 
-  const saveEmailSetting = () => {
-    if (!validateEmail(newEmail) || !validateFrequencies(newFrequencies)) return
+  const saveReportSettings = async () => {
+    if (!validateEmail(newEmail) || !validateFrequencies(newFrequencies)) return;
 
-    const newSetting = {
-      id: Date.now(),
-      email: newEmail.trim(),
-      frequencies: [...newFrequencies]
+    if (typeof window === "undefined") return;
+    const company_id = localStorage.getItem("companyID") || "";
+    if (!company_id) {
+      showToast("Missing company ID", "error");
+      return;
     }
 
-    setEmailSettings([...emailSettings, newSetting])
-    showToast("Email setting added successfully!")
-    closeModals()
-  }
+    const deviceId = "";
+    const reportData = createReportObject(newEmail, company_id, deviceId, newFrequencies);
 
-  const updateEmailSetting = () => {
-    if (!validateEmail(newEmail) || !validateFrequencies(editFrequencies)) return
+    try {
+      await createReportEmail(reportData);
+      showToast("Email setting added successfully!");
+      closeModals();
+      loadReportSettings();
+    } catch (error) {
+      console.error("Error saving report settings:", error);
+      showToast("Failed to save email setting", "error");
+    }
+  };
 
-    setEmailSettings(emailSettings.map(setting => 
-      setting.id === currentSetting.id 
-        ? { ...setting, email: newEmail.trim(), frequencies: [...editFrequencies] }
-        : setting
-    ))
-    showToast("Email setting updated successfully!")
-    closeModals()
-  }
+  const updateReportSettings = async () => {
+    if (!validateEmail(newEmail) || !validateFrequencies(editFrequencies)) return;
 
-  const deleteEmailSetting = () => {
-    setEmailSettings(emailSettings.filter(setting => setting.id !== currentSetting.id))
-    showToast("Email setting deleted successfully!")
-    closeModals()
-  }
+    const company_id = localStorage.getItem("companyID") || "";
+    const deviceId = "";
+    const reportData = createReportObject(newEmail, company_id, deviceId, editFrequencies);
 
-  const updateViewSettings = () => {
+    try {
+      await updateReportEmail(currentEmail, company_id, reportData);
+      showToast("Email setting updated successfully!");
+      closeModals();
+      loadReportSettings();
+    } catch (error) {
+      console.error("Error updating report settings:", error);
+      showToast("Failed to update email setting", "error");
+    }
+  };
+
+  const deleteReportSettings = async () => {
+    const company_id = localStorage.getItem("companyID") || "";
+
+    try {
+      await deleteReportEmail(currentEmail, company_id);
+      showToast("Email setting deleted successfully!");
+      closeModals();
+      loadReportSettings();
+    } catch (error) {
+      console.error("Error deleting report settings:", error);
+      showToast("Failed to delete email setting", "error");
+    }
+  };
+
+  const updateViewSettings = async () => {
     if (tempViewSettings.length === 0) {
-      showToast("Please select one frequency", "error")
-      return
+      showToast("Please select one frequency", "error");
+      return;
     }
-    const newSettings = [...tempViewSettings]
-    setViewSettings(newSettings)
-    
-    // Save to localStorage and notify other components
-    localStorage.setItem('reportViewSettings', JSON.stringify(newSettings))
-    window.dispatchEvent(new CustomEvent('reportSettingsUpdated'))
-    
-    showToast("View settings updated successfully!")
-    closeModals()
-  }
+
+    if (typeof window === "undefined") return;
+    const company_id = localStorage.getItem("companyID") || "";
+    const setting = {
+      c_id: company_id,
+      report_type: tempViewSettings.join(","),
+      last_modified_date_time: new Date().toISOString(),
+      last_modified_by: localStorage.getItem("UserEmail") || localStorage.getItem("userName") || "unknown",
+    };
+
+    setIsLoading(true);
+    try {
+      const response = await fetch(`https://postgresql-restless-waterfall-2105.fly.dev/admin-report-type/update/${company_id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(setting),
+      });
+
+      if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+
+      localStorage.setItem("reportType", tempViewSettings.join(","));
+      setViewSettings([...tempViewSettings]);
+      setViewFrequencies([...tempViewSettings]);
+      
+      localStorage.setItem('reportViewSettings', JSON.stringify(tempViewSettings));
+      window.dispatchEvent(new CustomEvent('reportSettingsUpdated'));
+      
+      showToast("View settings updated successfully!");
+      closeModals();
+    } catch (error) {
+      console.error("Failed to update view setting:", error);
+      showToast("Failed to update view settings", "error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const formatFrequencies = (setting) => {
+    const frequencies = [];
+    if (setting.is_daily_report_active) frequencies.push("Daily");
+    if (setting.is_weekly_report_active) frequencies.push("Weekly");
+    if (setting.is_bi_weekly_report_active) frequencies.push("Biweekly");
+    if (setting.is_monthly_report_active) frequencies.push("Monthly");
+    if (setting.is_bi_monthly_report_active) frequencies.push("Bimonthly");
+    return frequencies;
+  };
+
+  useEffect(() => {
+    const initializeComponent = async () => {
+      const savedReportType = localStorage.getItem("reportType");
+      if (savedReportType && savedReportType.toLowerCase().includes("basic")) {
+        localStorage.removeItem("reportType");
+      }
+
+      await loadReportSettings();
+      loadViewSetting();
+    };
+
+    initializeComponent();
+  }, []);
+
+  useEffect(() => {
+    if (window.innerWidth < 1024) {
+      setViewMode("grid");
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -265,14 +378,14 @@ const ReportSettings = () => {
 
       {/* Loading Overlay */}
       {isLoading && (
-              <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-                <div className="bg-white rounded-lg p-6 shadow-xl">
-                  <div className="flex items-center space-x-3">
-                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                  </div>
-                </div>
-              </div>
-            )}
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-lg p-6 shadow-xl">
+            <div className="flex items-center space-x-3">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="pt-20 pb-8 flex-grow bg-gradient-to-br from-slate-50 to-blue-50">
         {/* Page Header */}
@@ -315,8 +428,8 @@ const ReportSettings = () => {
                 <select
                   value={`${sortConfig.key}-${sortConfig.direction}`}
                   onChange={(e) => {
-                    const [key, direction] = e.target.value.split('-')
-                    setSortConfig({ key, direction })
+                    const [key, direction] = e.target.value.split('-');
+                    setSortConfig({ key, direction });
                   }}
                   className="px-3 py-2 border border-input bg-background rounded-md text-sm flex-1 sm:flex-none"
                 >
@@ -377,8 +490,8 @@ const ReportSettings = () => {
               ) : (
                 viewMode === "grid" ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                    {getFilteredAndSortedSettings().map((setting) => (
-                      <Card key={setting.id} className="hover:shadow-lg transition-shadow">
+                    {getFilteredAndSortedSettings().map((setting, index) => (
+                      <Card key={index} className="hover:shadow-lg transition-shadow">
                         <CardHeader className="pb-3">
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -414,7 +527,7 @@ const ReportSettings = () => {
                           <div className="flex items-center justify-between">
                             <span className="text-xs sm:text-sm text-muted-foreground">Frequencies</span>
                             <div className="flex gap-1 flex-wrap">
-                              {setting.frequencies.map((freq) => (
+                              {formatFrequencies(setting).map((freq) => (
                                 <span key={freq} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
                                   {freq}
                                 </span>
@@ -436,12 +549,12 @@ const ReportSettings = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {getFilteredAndSortedSettings().map((setting) => (
-                          <tr key={setting.id} className="hover:bg-gray-50">
-                            <td className="px-2 sm:px-4 py-2 sm:py-3 text-center font-medium text-xs sm:text-sm">{setting.email}</td>
+                        {getFilteredAndSortedSettings().map((setting, index) => (
+                          <tr key={index} className="hover:bg-gray-50">
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 text-center font-medium text-xs sm:text-sm">{setting.company_reporter_email}</td>
                             <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
                               <div className="flex gap-1 sm:gap-2 justify-center flex-wrap">
-                                {setting.frequencies.map((freq) => (
+                                {formatFrequencies(setting).map((freq) => (
                                   <span key={freq} className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
                                     {freq}
                                   </span>
@@ -588,7 +701,7 @@ const ReportSettings = () => {
                   Cancel
                 </Button>
                 <Button
-                  onClick={saveEmailSetting}
+                  onClick={saveReportSettings}
                   className="flex-1 order-1 sm:order-2"
                 >
                   Save Setting
@@ -655,7 +768,7 @@ const ReportSettings = () => {
                   Cancel
                 </Button>
                 <Button
-                  onClick={updateEmailSetting}
+                  onClick={updateReportSettings}
                   className="flex-1 order-1 sm:order-2"
                 >
                   Update Setting
@@ -743,7 +856,7 @@ const ReportSettings = () => {
                 </Button>
                 <Button
                   variant="destructive"
-                  onClick={deleteEmailSetting}
+                  onClick={deleteReportSettings}
                   className="flex-1 order-1 sm:order-2"
                 >
                   Delete Setting
@@ -756,7 +869,7 @@ const ReportSettings = () => {
 
       <Footer />
     </div>
-  )
-}
+  );
+};
 
-export default ReportSettings
+export default ReportSetting;

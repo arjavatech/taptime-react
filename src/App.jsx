@@ -1,33 +1,54 @@
-import React from "react"
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom"
-import HomePage from "./pages/HomePage"
-import LoginPage from "./pages/LoginPage"
-import RegisterPage from "./pages/RegisterPage"
-import DevicePage from "./pages/DevicePage"
-import EmployeePage from "./pages/EmployeePage"
-import ReportsPage from "./pages/Reportsummary"
-import ReportSettings from "./pages/ReportSettings"
-import ProfilePage from "./pages/ProfilePage"
-import ContactsPage from "./pages/ContactsPage"
+// App.js (or your main component)
+import React from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  BrowserRouter,
+} from "react-router-dom";
+
+import HomePage from "./pages/HomePage";
+import Login from "./pages/Login";
+import SetPassword from "./pages/SetPassword";
+import Register from "./pages/Register";
+import EmployeeList from "./pages/EmployeeList";
+import Device from "./pages/Device";
+import Profile from "./pages/Profile";
+import ContactUs from "./pages/ContactUs";
+import ReportSummary from "./pages/ReportSummary";
+import ReportSetting from "./pages/ReportSetting";
+import { AuthProvider } from "./contexts/AuthContext";
+
 
 function App() {
   return (
+    // <BrowserRouter>
     <Router>
-      <div className="App">
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/device" element={<DevicePage />} />
-          <Route path="/employee-management" element={<EmployeePage />} />
-          <Route path="/reportsummary" element={<ReportsPage />} />
-          <Route path="/report-settings" element={<ReportSettings />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/contact" element={<ContactsPage />} />
-        </Routes>
-      </div>
+      <AuthProvider>
+        <div className="App">
+          {/* <Header /> */}
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/set-password" element={<SetPassword />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/employee-management" element={<EmployeeList/>} />
+            <Route path="/device" element={<Device/>}/>
+            <Route path="/profile" element={<Profile/>} />
+            <Route path="/contact" element={<ContactUs/>}/>
+            <Route path="/reports" element={<ReportSummary/>}/>
+            <Route path="/reportsummary" element={<ReportSummary/>}/>
+            <Route path="/daywisereport" element={<ReportSummary/>}/>
+            <Route path="/salariedreport" element={<ReportSummary/>}/>
+            <Route path="/reportsetting" element={<ReportSetting/>}/>
+            {/* Add other routes as needed */}
+          </Routes>
+          {/* <Footer /> */}
+        </div>
+      </AuthProvider>
     </Router>
-  )
+    // </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
