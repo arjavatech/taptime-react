@@ -216,9 +216,8 @@ const Reports = () => {
 
     const checkinDateObj = new Date(row.CheckInTime);
     const checkInDateString = getLocalDateString(checkinDateObj);
-    const checkoutDateTime = `${checkInDateString}T${checkoutTime}`;
+    const checkoutDateTime = `${checkInDateString}T${checkoutTime}:00`;
     const checkinDateTime = row.CheckInTime;
-    const today = checkInDateString;
 
     const checkinDate = new Date(checkinDateTime);
     const checkoutDate = new Date(checkoutDateTime);
@@ -232,19 +231,15 @@ const Reports = () => {
 
     setLoading(true);
     try {
+      // Prepare payload in snake_case format for backend
       const updateData = {
-        CID: companyId,
-        EmpID: row.EmpID,
-        Pin: row.Pin,
-        Name: row.Name,
-        Date: today,
-        TypeID: row.Type || row.TypeID,
-        CheckInSnap: row.CheckInSnap || null,
-        CheckInTime: checkinDateTime,
-        CheckOutSnap: row.CheckOutSnap || null,
-        CheckOutTime: getLocalDateTimeString(checkoutDate),
-        TimeWorked: timeWorked,
-        LastModifiedBy: "Admin"
+        type_id: row.Type || row.TypeID,
+        check_out_time: checkoutDateTime,
+        time_worked: timeWorked,
+        check_in_snap: row.CheckInSnap || null,
+        check_out_snap: null,
+        date: checkInDateString,
+        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "Admin"
       };
 
       await updateDailyReportEntry(row.EmpID, companyId, row.CheckInTime, updateData);
@@ -1001,23 +996,56 @@ const Reports = () => {
                             <th className="px-2 sm:px-4 py-2 sm:py-3 text-center font-semibold text-xs sm:text-sm border-r border-white/20">Name</th>
                             <th className="px-2 sm:px-4 py-2 sm:py-3 text-center font-semibold text-xs sm:text-sm border-r border-white/20">Check-in Time</th>
                             <th className="px-2 sm:px-4 py-2 sm:py-3 text-center font-semibold text-xs sm:text-sm border-r border-white/20">Check-out Time</th>
-                            <th className="px-2 sm:px-4 py-2 sm:py-3 text-center font-semibold text-xs sm:text-sm">Type</th>
+                            <th className="px-2 sm:px-4 py-2 sm:py-3 text-center font-semibold text-xs sm:text-sm border-r border-white/20">Type</th>
+                            <th className="px-2 sm:px-4 py-2 sm:py-3 text-center font-semibold text-xs sm:text-sm">Action</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                          {filteredData.map((record, index) => (
-                            <tr key={index} className="hover:bg-gray-50">
-                              <td className="px-2 sm:px-4 py-2 sm:py-3 text-center font-medium text-xs sm:text-sm">{record.Pin}</td>
-                              <td className="px-2 sm:px-4 py-2 sm:py-3 text-center text-xs sm:text-sm">{record.Name}</td>
-                              <td className="px-2 sm:px-4 py-2 sm:py-3 text-center text-xs sm:text-sm">{formatTime(record.CheckInTime)}</td>
-                              <td className="px-2 sm:px-4 py-2 sm:py-3 text-center text-xs sm:text-sm">{formatTime(record.CheckOutTime)}</td>
-                              <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
-                                <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                                  {record.Type}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
+                          {filteredData.map((record, index) => {
+                            const rowKey = `${record.Pin}-${record.CheckInTime}`;
+                            const hasCheckout = record.CheckOutTime;
+                            const selectedTime = checkoutTimes[rowKey];
+
+                            // Get minimum time (check-in time) for time picker
+                            const checkInTime = new Date(record.CheckInTime);
+                            const minTime = `${String(checkInTime.getHours()).padStart(2, '0')}:${String(checkInTime.getMinutes() + 1).padStart(2, '0')}`;
+
+                            return (
+                              <tr key={index} className="hover:bg-gray-50">
+                                <td className="px-2 sm:px-4 py-2 sm:py-3 text-center font-medium text-xs sm:text-sm">{record.Pin}</td>
+                                <td className="px-2 sm:px-4 py-2 sm:py-3 text-center text-xs sm:text-sm">{record.Name}</td>
+                                <td className="px-2 sm:px-4 py-2 sm:py-3 text-center text-xs sm:text-sm">{formatTime(record.CheckInTime)}</td>
+                                <td className="px-2 sm:px-4 py-2 sm:py-3 text-center text-xs sm:text-sm">
+                                  {hasCheckout ? (
+                                    formatTime(record.CheckOutTime)
+                                  ) : (
+                                    <input
+                                      type="time"
+                                      value={selectedTime || ''}
+                                      onChange={(e) => handleCheckoutTimeChange(rowKey, e.target.value)}
+                                      min={minTime}
+                                      className="border border-gray-300 rounded px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                  )}
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
+                                  <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                    {record.Type}
+                                  </span>
+                                </td>
+                                <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
+                                  <Button
+                                    onClick={() => handleCheckout(record)}
+                                    disabled={hasCheckout || !selectedTime}
+                                    size="sm"
+                                    className={`text-xs ${hasCheckout || !selectedTime ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+                                  >
+                                    {hasCheckout ? 'Checked Out' : 'Check Out'}
+                                  </Button>
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
