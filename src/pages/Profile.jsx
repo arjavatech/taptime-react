@@ -5,7 +5,7 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { updateCompany, updateCustomer } from "../api.js";
+import { updateCompany, updateCustomer, updateCompanyAndCustomer, updateEmployeeWithData, fetchEmployeeData } from "../api.js";
 import { initializeUserSession, loadProfileData, isUserAuthenticated, logoutUser } from "./ProfilePageLogic.js";
 import { 
   User, 
@@ -34,6 +34,7 @@ const Profile = () => {
     email: "",
     phone: "",
     address: "",
+    street2: "",
     city: "",
     state: "",
     zipCode: "",
@@ -45,6 +46,7 @@ const Profile = () => {
   const [companyData, setCompanyData] = useState({
     name: "",
     address: "",
+    street2: "",
     city: "",
     state: "",
     zipCode: "",
@@ -116,18 +118,37 @@ const Profile = () => {
 
   const handleLogoUpload = (event) => {
     const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setCompanyData(prev => ({ ...prev, logo: e.target.result }));
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      showToast("Please upload a valid image file (JPEG, PNG, GIF, or WebP)", "error");
+      event.target.value = ''; // Reset file input
+      return;
     }
+
+    // Validate file size (2MB max)
+    const maxSize = 2 * 1024 * 1024; // 2MB in bytes
+    if (file.size > maxSize) {
+      showToast("Image size must be less than 2MB", "error");
+      event.target.value = ''; // Reset file input
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setCompanyData(prev => ({ ...prev, logo: e.target.result }));
+    };
+    reader.readAsDataURL(file);
   };
 
   useEffect(() => {
     const initializeProfile = async () => {
-      if (!isUserAuthenticated()) {
+      // Simplified authentication check - only verify essential companyID
+      const companyIdCheck = localStorage.getItem("companyID");
+
+      if (!companyIdCheck) {
         logoutUser();
         window.location.href = "/login";
         return;
@@ -148,6 +169,7 @@ const Profile = () => {
         email: formData.email,
         phone: formData.phone,
         address: formData.customerStreet,
+        street2: formData.customerStreet2,
         city: formData.customerCity,
         state: formData.customerState,
         zipCode: formData.customerZip,
@@ -155,10 +177,11 @@ const Profile = () => {
         adminPin: formData.adminPin,
         decryptedPassword: formData.decryptedPassword,
       });
-      
+
       setCompanyData({
         name: formData.companyName,
         address: formData.companyStreet,
+        street2: formData.companyStreet2,
         city: formData.companyCity,
         state: formData.companyState,
         zipCode: formData.companyZip,
@@ -226,6 +249,22 @@ const Profile = () => {
       isValid = false;
     }
 
+    // Admin PIN validation for Admin/SuperAdmin users
+    if (userType === "Admin" || userType === "SuperAdmin") {
+      if (!personalData.adminPin.trim()) {
+        newErrors.adminPin = "Admin PIN is required";
+        isValid = false;
+      } else if (!/^\d{4,6}$/.test(personalData.adminPin)) {
+        newErrors.adminPin = "PIN must be 4-6 digits";
+        isValid = false;
+      }
+
+      if (!personalData.EName.trim()) {
+        newErrors.EName = "Employee name is required";
+        isValid = false;
+      }
+    }
+
     setErrors(newErrors);
     return isValid;
   };
@@ -272,35 +311,150 @@ const Profile = () => {
   const handleSavePersonal = async () => {
     if (!validatePersonalForm()) return;
 
-    if (!companyId || !customerId) return;
-    
+    if (!companyId) return;
+
     setIsLoading(true);
     try {
-      const customerData = {
-        CustomerID: customerId,
-        CID: companyId,
-        FName: personalData.firstName,
-        LName: personalData.lastName,
-        Address: `${personalData.address}--${personalData.city}--${personalData.state}--${personalData.zipCode}`,
-        PhoneNumber: personalData.phone,
-        Email: personalData.email,
-        IsActive: true,
-        LastModifiedBy: "Admin",
-      };
+      if (userType === "Owner") {
+        // Owner: Update both company and customer using combined API
+        const combinedData = {
+          // Company fields (snake_case)
+          company_name: companyData.name,
+          company_logo: companyData.logo || localStorage.getItem("companyLogo") || "",
+          report_type: localStorage.getItem("reportType") || "Weekly",
+          company_address_line1: companyData.address,
+          company_address_line2: companyData.street2 || "",
+          company_city: companyData.city,
+          company_state: companyData.state,
+          company_zip_code: companyData.zipCode,
 
-      await updateCustomer(customerId, customerData);
-      
-      // Update localStorage
-      localStorage.setItem("firstName", personalData.firstName);
-      localStorage.setItem("lastName", personalData.lastName);
-      localStorage.setItem("email", personalData.email);
-      localStorage.setItem("phone", personalData.phone);
-      localStorage.setItem("address", `${personalData.address}--${personalData.city}--${personalData.state}--${personalData.zipCode}`);
-      
+          // Customer fields (snake_case)
+          first_name: personalData.firstName,
+          last_name: personalData.lastName,
+          email: personalData.email,
+          phone_number: personalData.phone,
+          customer_address_line1: personalData.address,
+          customer_address_line2: personalData.street2 || "",
+          customer_city: personalData.city,
+          customer_state: personalData.state,
+          customer_zip_code: personalData.zipCode,
+
+          // Metadata
+          is_verified: localStorage.getItem("isVerified") === "true" || true,
+          device_count: parseInt(localStorage.getItem("NoOfDevices") || "1"),
+          employee_count: parseInt(localStorage.getItem("NoOfEmployees") || "30"),
+          last_modified_by: localStorage.getItem("adminMail") || "Admin"
+        };
+
+        await updateCompanyAndCustomer(companyId, combinedData);
+
+        // Update all localStorage values
+        localStorage.setItem("companyName", companyData.name);
+        localStorage.setItem("companyStreet", companyData.address);
+        localStorage.setItem("companyStreet2", companyData.street2 || "");
+        localStorage.setItem("companyCity", companyData.city);
+        localStorage.setItem("companyState", companyData.state);
+        localStorage.setItem("companyZip", companyData.zipCode);
+        if (companyData.logo) {
+          localStorage.setItem("companyLogo", companyData.logo);
+        }
+
+        localStorage.setItem("firstName", personalData.firstName);
+        localStorage.setItem("lastName", personalData.lastName);
+        localStorage.setItem("userName", `${personalData.firstName} ${personalData.lastName}`.trim());
+        localStorage.setItem("adminMail", personalData.email);
+        localStorage.setItem("phone", personalData.phone);
+        localStorage.setItem("phoneNumber", personalData.phone);
+        localStorage.setItem("customerStreet", personalData.address);
+        localStorage.setItem("customerStreet2", personalData.street2 || "");
+        localStorage.setItem("customerCity", personalData.city);
+        localStorage.setItem("customerState", personalData.state);
+        localStorage.setItem("customerZip", personalData.zipCode);
+
+      } else if (userType === "Admin" || userType === "SuperAdmin") {
+        // Admin/SuperAdmin: Update employee data
+        const adminDetails = JSON.parse(localStorage.getItem("loggedAdmin") || "{}");
+
+        if (!adminDetails.EmpID) {
+          showToast("Employee ID not found", "error");
+          setIsLoading(false);
+          return;
+        }
+
+        const employeeData = {
+          EmpID: adminDetails.EmpID,
+          CID: companyId,
+          FName: personalData.firstName,
+          LName: personalData.lastName,
+          Pin: personalData.adminPin,
+          PhoneNumber: personalData.phone,
+          Email: personalData.email,
+          IsAdmin: userType === "Admin" ? 1 : 2,
+          IsActive: true,
+          LastModifiedBy: "Admin",
+        };
+
+        await updateEmployeeWithData(adminDetails.EmpID, employeeData);
+
+        // Update localStorage and loggedAdmin
+        localStorage.setItem("firstName", personalData.firstName);
+        localStorage.setItem("lastName", personalData.lastName);
+        localStorage.setItem("userName", `${personalData.firstName} ${personalData.lastName}`.trim());
+        localStorage.setItem("adminMail", personalData.email);
+        localStorage.setItem("phone", personalData.phone);
+        localStorage.setItem("phoneNumber", personalData.phone);
+
+        // Update loggedAdmin object
+        const updatedAdmin = {
+          ...adminDetails,
+          FName: personalData.firstName,
+          LName: personalData.lastName,
+          Pin: personalData.adminPin,
+          Email: personalData.email,
+          PhoneNumber: personalData.phone
+        };
+        localStorage.setItem("loggedAdmin", JSON.stringify(updatedAdmin));
+
+      } else {
+        // Customer: Update customer data only
+        if (!customerId) {
+          showToast("Customer ID not found", "error");
+          setIsLoading(false);
+          return;
+        }
+
+        const customerData = {
+          CustomerID: customerId,
+          CID: companyId,
+          FName: personalData.firstName,
+          LName: personalData.lastName,
+          Address: `${personalData.address}--${personalData.street2 || ""}--${personalData.city}--${personalData.state}--${personalData.zipCode}`,
+          PhoneNumber: personalData.phone,
+          Email: personalData.email,
+          IsActive: true,
+          LastModifiedBy: "Admin",
+        };
+
+        await updateCustomer(customerId, customerData);
+
+        // Update localStorage
+        localStorage.setItem("firstName", personalData.firstName);
+        localStorage.setItem("lastName", personalData.lastName);
+        localStorage.setItem("userName", `${personalData.firstName} ${personalData.lastName}`.trim());
+        localStorage.setItem("adminMail", personalData.email);
+        localStorage.setItem("phone", personalData.phone);
+        localStorage.setItem("phoneNumber", personalData.phone);
+        localStorage.setItem("customerStreet", personalData.address);
+        localStorage.setItem("customerStreet2", personalData.street2 || "");
+        localStorage.setItem("customerCity", personalData.city);
+        localStorage.setItem("customerState", personalData.state);
+        localStorage.setItem("customerZip", personalData.zipCode);
+      }
+
       setIsEditing(prev => ({ ...prev, personal: false }));
       showToast("Personal information updated successfully!");
     } catch (error) {
-      console.error("Customer API Error:", error);
+      console.error("Save Personal API Error:", error);
       showToast("Failed to update personal information", "error");
     } finally {
       setIsLoading(false);
@@ -311,29 +465,33 @@ const Profile = () => {
     if (!validateCompanyForm()) return;
 
     if (!companyId) return;
-    
+
     setIsLoading(true);
     try {
       const companyDataPayload = {
         CID: companyId,
         UserName: localStorage.getItem("username"),
         CName: companyData.name,
-        CAddress: `${companyData.address}--${companyData.city}--${companyData.state}--${companyData.zipCode}`,
+        CAddress: `${companyData.address}--${companyData.street2 || ""}--${companyData.city}--${companyData.state}--${companyData.zipCode}`,
         CLogo: companyData.logo || localStorage.getItem("companyLogo"),
         Password: localStorage.getItem("password"),
-        ReportType: "Weekly",
+        ReportType: localStorage.getItem("reportType") || "Weekly",
         LastModifiedBy: "Admin",
       };
 
       await updateCompany(companyId, companyDataPayload);
-      
-      // Update localStorage
+
+      // Update localStorage with separate address fields
       localStorage.setItem("companyName", companyData.name);
-      localStorage.setItem("companyAddress", `${companyData.address}--${companyData.city}--${companyData.state}--${companyData.zipCode}`);
+      localStorage.setItem("companyStreet", companyData.address);
+      localStorage.setItem("companyStreet2", companyData.street2 || "");
+      localStorage.setItem("companyCity", companyData.city);
+      localStorage.setItem("companyState", companyData.state);
+      localStorage.setItem("companyZip", companyData.zipCode);
       if (companyData.logo) {
         localStorage.setItem("companyLogo", companyData.logo);
       }
-      
+
       setIsEditing(prev => ({ ...prev, company: false }));
       showToast("Company information updated successfully!");
     } catch (error) {
@@ -344,8 +502,42 @@ const Profile = () => {
     }
   };
 
-  const handleCancel = (type) => {
+  const handleCancel = async (type) => {
     setIsEditing(prev => ({ ...prev, [type]: false }));
+
+    // Reload original data from localStorage
+    const adminDetails = userType === "Admin" || userType === "SuperAdmin"
+      ? JSON.parse(localStorage.getItem("loggedAdmin") || "{}")
+      : null;
+    const formData = loadProfileData(adminDetails);
+
+    if (type === "personal") {
+      setPersonalData({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.customerStreet,
+        street2: formData.customerStreet2,
+        city: formData.customerCity,
+        state: formData.customerState,
+        zipCode: formData.customerZip,
+        EName: formData.EName,
+        adminPin: formData.adminPin,
+        decryptedPassword: formData.decryptedPassword,
+      });
+    } else if (type === "company") {
+      setCompanyData({
+        name: formData.companyName,
+        address: formData.companyStreet,
+        street2: formData.companyStreet2,
+        city: formData.companyCity,
+        state: formData.companyState,
+        zipCode: formData.companyZip,
+        logo: formData.logo
+      });
+    }
+
     // Reset errors
     setErrors({
       companyName: "",
@@ -535,8 +727,51 @@ const Profile = () => {
                     {errors.phone && <p className="text-sm text-red-600">{errors.phone}</p>}
                   </div>
 
+                  {/* Admin/SuperAdmin specific fields */}
+                  {(userType === "Admin" || userType === "SuperAdmin") && (
+                    <>
+                      <div className="space-y-2 sm:col-span-2">
+                        <Label htmlFor="EName">Employee Name (Read-only)</Label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                          <Input
+                            id="EName"
+                            value={personalData.EName}
+                            disabled={true}
+                            className="pl-10 bg-muted"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="adminPin">Admin PIN</Label>
+                        <Input
+                          id="adminPin"
+                          value={personalData.adminPin}
+                          onChange={(e) => handlePersonalInputChange("adminPin", e.target.value)}
+                          disabled={!isEditing.personal}
+                          className={errors.adminPin ? "border-red-500" : ""}
+                          maxLength={6}
+                          placeholder="4-6 digits"
+                        />
+                        {errors.adminPin && <p className="text-sm text-red-600">{errors.adminPin}</p>}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="decryptedPassword">Password (Read-only)</Label>
+                        <Input
+                          id="decryptedPassword"
+                          type="password"
+                          value={personalData.decryptedPassword}
+                          disabled={true}
+                          className="bg-muted"
+                        />
+                      </div>
+                    </>
+                  )}
+
                   <div className="space-y-2">
-                    <Label htmlFor="address">Street Address</Label>
+                    <Label htmlFor="address">Street Address Line 1</Label>
                     <div className="relative">
                       <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                       <Input
@@ -548,6 +783,21 @@ const Profile = () => {
                       />
                     </div>
                     {errors.customerStreet && <p className="text-sm text-red-600">{errors.customerStreet}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="street2">Street Address Line 2</Label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                      <Input
+                        id="street2"
+                        value={personalData.street2}
+                        onChange={(e) => handlePersonalInputChange("street2", e.target.value)}
+                        disabled={!isEditing.personal}
+                        className="pl-10"
+                        placeholder="Apartment, suite, unit, etc. (optional)"
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -683,7 +933,7 @@ const Profile = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="companyAddress">Street Address</Label>
+                    <Label htmlFor="companyAddress">Street Address Line 1</Label>
                     <div className="relative">
                       <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                       <Input
@@ -695,6 +945,21 @@ const Profile = () => {
                       />
                     </div>
                     {errors.companyStreet && <p className="text-sm text-red-600">{errors.companyStreet}</p>}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="companyStreet2">Street Address Line 2</Label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                      <Input
+                        id="companyStreet2"
+                        value={companyData.street2}
+                        onChange={(e) => handleCompanyInputChange("street2", e.target.value)}
+                        disabled={!isEditing.company}
+                        className="pl-10"
+                        placeholder="Suite, floor, etc. (optional)"
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-2">

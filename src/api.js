@@ -388,6 +388,15 @@ export const updateCompany = async (cid, companyData) => {
   }
 };
 
+export const updateCompanyAndCustomer = async (cid, combinedData) => {
+  try {
+    return await api.put(`${API_BASE}/company/update_company_and_customer/${cid}`, combinedData);
+  } catch (error) {
+    console.error('Update company and customer error:', error);
+    throw error;
+  }
+};
+
 // Contact form
 export const submitContactForm = async (userData) => {
   try {
