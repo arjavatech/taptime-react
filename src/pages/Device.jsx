@@ -148,10 +148,10 @@ const Device = () => {
     }
 
     const newDevice = {
-      time_zone: "Not Registered",
-      device_id: "Not Registered",
+      timezone: null,
+      device_id: null,
       c_id: companyId,
-      device_name: "Not Registered",
+      device_name: null,
       access_key: createAccessKey(),
       access_key_generated_time: new Date().toISOString(),
       last_modified_by: "Admin"
@@ -184,7 +184,7 @@ const Device = () => {
               device_name: formData.deviceName,
               device_id: formData.deviceName,
               branch_name: formData.branchName,
-              time_zone: formData.timeZone,
+              timezone: formData.timeZone,
               last_modified_by: formData.last_modified_by
             }
           : device
@@ -239,10 +239,11 @@ const Device = () => {
 
   const openEditModal = (device) => {
     setEditingDevice(device);
+    
     setFormData({
       deviceName: device.device_name || device.DeviceName || "",
       branchName: device.branch_name || "",
-      timeZone: device.time_zone || "America/New_York"
+      timeZone: device.timezone || "America/New_York"
     });
     setShowAddModal(true);
   };
@@ -382,7 +383,7 @@ const Device = () => {
                               </td>
                               <td className="py-3 px-4">
                                 <span className="font-medium">
-                                  {device.time_zone === "Not Registered" ? "Not Set" : device.time_zone}
+                                  {device.timezone === "Not Registered" ? "Not Set" : device.timezone}
                                 </span>
                               </td>
                               <td className="py-3 px-4">
@@ -477,7 +478,7 @@ const Device = () => {
                           <Clock className="w-3 h-3 text-muted-foreground flex-shrink-0" />
                           <span className="text-muted-foreground">Time Zone:</span>
                           <span className="font-medium truncate">
-                            {device.time_zone === "Not Registered" ? "Not Set" : device.time_zone}
+                            {device.timezone === "Not Registered" ? "Not Set" : device.timezone}
                           </span>
                         </div>
                         
