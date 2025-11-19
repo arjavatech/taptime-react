@@ -2,7 +2,17 @@
 import { supabase } from './config/supabase';
 import { ENCRYPTION_KEY, STORAGE_KEYS } from './constants';
 
+
+
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://postgresql-restless-waterfall-2105.fly.dev').replace(/\/$/, '');
+export const API_URLS = {
+  employee: 'https://postgresql-restless-waterfall-2105.fly.dev/employee',
+  company: 'https://postgresql-restless-waterfall-2105.fly.dev/company',
+  customer: 'https://postgresql-restless-waterfall-2105.fly.dev/customer',
+  device: 'https://postgresql-restless-waterfall-2105.fly.dev/device',
+  loginCheck: 'https://postgresql-restless-waterfall-2105.fly.dev/employee/login_check',
+  signUp: 'https://postgresql-restless-waterfall-2105.fly.dev/auth/sign_up'
+};
 
 // HTTP client
 const api = {
@@ -60,7 +70,7 @@ export const loginCheck = async (username, password) => {
     const data = await api.get(`${API_BASE}/company/getuser/${username}`);
     const decryptPassword = await decrypt(data.Password, ENCRYPTION_KEY);
     const companyID = data.CID;
-    
+
     localStorage.setItem(STORAGE_KEYS.COMPANY_ID, companyID);
     localStorage.setItem(STORAGE_KEYS.COMPANY_NAME, data.CName);
     localStorage.setItem(STORAGE_KEYS.COMPANY_LOGO, data.CLogo);
@@ -70,7 +80,7 @@ export const loginCheck = async (username, password) => {
     localStorage.setItem(STORAGE_KEYS.REPORT_TYPE, data.ReportType);
     localStorage.setItem(STORAGE_KEYS.ADMIN_TYPE, 'customer');
     localStorage.setItem('passwordDecryptedValue', decryptPassword);
-    
+
     return data.UserName === username && decryptPassword === password;
   } catch (error) {
     console.error('Login check error:', error);
@@ -81,20 +91,20 @@ export const loginCheck = async (username, password) => {
 export const googleSignInCheck = async (email) => {
   try {
     const data = await api.get(`${API_BASE}/employee/login_check/${email}`);
-    
+
     if (data.error) throw new Error(data.error);
-    
+
     const adminTypeValue = data.admin_type?.toString().toLowerCase();
     const allowedTypes = ['admin', 'superadmin', 'owner'];
-    
+
     if (!allowedTypes.includes(adminTypeValue)) {
       return { success: false, error: `Access denied. Invalid admin type: "${data.admin_type}"` };
     }
-    
+
     const companyID = data.cid;
     const adminTypeMap = { admin: 'Admin', superadmin: 'SuperAdmin', owner: 'Owner' };
     const properCaseAdminType = adminTypeMap[adminTypeValue];
-    
+
     const storeData = {
       [STORAGE_KEYS.COMPANY_ID]: companyID,
       [STORAGE_KEYS.COMPANY_NAME]: data.company_name,
@@ -111,21 +121,38 @@ export const googleSignInCheck = async (email) => {
       isVerified: data.is_verified,
       createdDate: data.created_date,
       [STORAGE_KEYS.NO_OF_DEVICES]: '1',
-      [STORAGE_KEYS.NO_OF_EMPLOYEES]: '50'
+      [STORAGE_KEYS.NO_OF_EMPLOYEES]: '50',
+      [STORAGE_KEYS.COMPANY_ADDRESS1]: data.company_address_line1,
+      [STORAGE_KEYS.COMPANY_ADDRESS2]: data.company_address_line2,
+      [STORAGE_KEYS.COMPANY_CITY]: data.company_city,
+      [STORAGE_KEYS.COMPANY_STATE]: data.company_state,
+      [STORAGE_KEYS.COMPANY_ZIP]: data.company_zip_code,
+      [STORAGE_KEYS.CUSTOMER_ZIP_CODE]: data.customer_zip_code,
+      [STORAGE_KEYS.CUSTOMER_ADDRESS1]: data.customer_address_line1,
+      [STORAGE_KEYS.CUSTOMER_ADDRESS2]: data.customer_address_line2,
+      [STORAGE_KEYS.CUSTOMER_CITY]: data.customer_city,
+      [STORAGE_KEYS.CUSTOMER_STATE]: data.customer_state
+      
+
     };
-    
+
+
+
+
     Object.entries(storeData).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
         localStorage.setItem(key, value);
       }
     });
-    
+
     return { success: true, companyID };
   } catch (error) {
     console.error('Google Sign-In error:', error);
     return { success: false, error: error.message };
   }
 };
+
+
 
 export const registerUser = async (registrationData) => {
   try {
@@ -380,14 +407,22 @@ export const updateCustomer = async (customerId, customerData) => {
 
 // Company functions
 export const updateCompany = async (cid, companyData) => {
+  const apiUrl = `${API_URLS.company}/update/${cid}`;
+
   try {
-    return await api.put(`${API_BASE}/company/update/${cid}`, companyData);
+    const response = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(companyData)
+    });
+
+    if (!response.ok) throw new Error(`Error: ${response.status}`);
+    return await response.json();
   } catch (error) {
-    console.error('Update company error:', error);
+    console.error("Update company error:", error);
     throw error;
   }
 };
-
 export const updateCompanyAndCustomer = async (cid, combinedData) => {
   try {
     return await api.put(`${API_BASE}/company/update_company_and_customer/${cid}`, combinedData);

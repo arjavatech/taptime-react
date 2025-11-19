@@ -459,6 +459,7 @@ const EmployeeList = () => {
               {(adminType !== "Admin") && (
                 <Button
                   onClick={() => openAddModal(activeTab === "admins" ? 1 : activeTab === "superadmins" ? 2 : 0)}
+                  disabled={activeTab === "superadmins"}
                   className="flex items-center justify-center gap-2 w-full sm:w-auto"
                 >
                   <Plus className="w-4 h-4" />
@@ -466,6 +467,47 @@ const EmployeeList = () => {
                 </Button>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* Summary Statistics */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+            <Card>
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center">
+                  <Users className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+                  <div className="ml-3 sm:ml-4">
+                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Employees</p>
+                    <p className="text-xl sm:text-2xl font-bold text-foreground">{employees.filter(emp => emp.is_admin === 0).length}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center">
+                  <Shield className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
+                  <div className="ml-3 sm:ml-4">
+                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Admins</p>
+                    <p className="text-xl sm:text-2xl font-bold text-foreground">{adminCount}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="sm:col-span-2 md:col-span-1">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex items-center">
+                  <Crown className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600" />
+                  <div className="ml-3 sm:ml-4">
+                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Super Admins</p>
+                    <p className="text-xl sm:text-2xl font-bold text-foreground">{superAdminCount}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
 
@@ -570,6 +612,7 @@ const EmployeeList = () => {
                 {!searchQuery && (
                   <Button
                     onClick={() => openAddModal(activeTab === "admins" ? 1 : activeTab === "superadmins" ? 2 : 0)}
+                    disabled={activeTab === "superadmins"}
                     className="flex items-center justify-center gap-2 w-full sm:w-auto"
                   >
                     <Plus className="w-4 h-4" />
@@ -859,7 +902,6 @@ const EmployeeList = () => {
                 >
                   <option value={0}>Employee</option>
                   <option value={1}>Admin</option>
-                  <option value={2}>Super Admin</option>
                 </select>
               </div>
 

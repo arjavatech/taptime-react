@@ -7,12 +7,12 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { updateCompany, updateCustomer, updateCompanyAndCustomer, updateEmployeeWithData, fetchEmployeeData } from "../api.js";
 import { initializeUserSession, loadProfileData, isUserAuthenticated, logoutUser } from "./ProfilePageLogic.js";
-import { 
-  User, 
-  Building, 
-  Mail, 
-  Phone, 
-  MapPin, 
+import {
+  User,
+  Building,
+  Mail,
+  Phone,
+  MapPin,
   Camera,
   Save,
   Edit,
@@ -22,8 +22,8 @@ import {
 } from "lucide-react";
 
 const Profile = () => {
-  const [activeTab, setActiveTab] = useState("personal");
-  const [isEditing, setIsEditing] = useState({ personal: false, company: false });
+  const [activeTab, setActiveTab] = useState("company");
+  const [isEditing, setIsEditing] = useState({ personal: false, company: false, admin: false });
   const [isLoading, setIsLoading] = useState(true);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [userType, setUserType] = useState("");
@@ -39,8 +39,16 @@ const Profile = () => {
     state: "",
     zipCode: "",
     EName: "",
-    adminPin: "",
+    pin: "",
     decryptedPassword: "",
+  });
+
+  const [adminData, setAdminData] = useState({
+    firstName: "",
+    lastName: "",
+    phone: "",
+    email: "",
+    pin: ""
   });
 
   const [companyData, setCompanyData] = useState({
@@ -67,7 +75,7 @@ const Profile = () => {
     customerZip: "",
     email: "",
     phone: "",
-    adminPin: "",
+    pin: "",
     EName: "",
   });
 
@@ -79,7 +87,7 @@ const Profile = () => {
     setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
   };
 
-  const formatPhoneNumber = (value) => {
+  const formatphone_number = (value) => {
     const digits = value.replace(/\D/g, '').slice(0, 10);
     let formatted = '';
     if (digits.length > 6) {
@@ -94,9 +102,20 @@ const Profile = () => {
 
   const handlePersonalInputChange = (field, value) => {
     if (field === "phone") {
-      value = formatPhoneNumber(value);
+      value = formatphone_number(value);
     }
     setPersonalData(prev => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: "" }));
+    }
+  };
+
+  const handleAdminInputChange = (field, value) => {
+    if (field === "phone") {
+      value = formatphone_number(value);
+    }
+    setAdminData(prev => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: "" }));
@@ -106,11 +125,11 @@ const Profile = () => {
   const handleCompanyInputChange = (field, value) => {
     setCompanyData(prev => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
-    const errorField = field === "name" ? "companyName" : 
-                      field === "address" ? "companyStreet" :
-                      field === "city" ? "companyCity" :
-                      field === "state" ? "companyState" :
-                      field === "zipCode" ? "companyZip" : field;
+    const errorField = field === "name" ? "companyName" :
+      field === "address" ? "companyStreet" :
+        field === "city" ? "companyCity" :
+          field === "state" ? "companyState" :
+            field === "zipCode" ? "companyZip" : field;
     if (errors[errorField]) {
       setErrors(prev => ({ ...prev, [errorField]: "" }));
     }
@@ -155,27 +174,44 @@ const Profile = () => {
       }
 
       const { companyId, customerId, userType, adminDetails } = await initializeUserSession();
-      
+
       setCompanyId(companyId);
       setCustomerId(customerId);
       setUserType(userType);
 
       const formData = loadProfileData(adminDetails);
-      
+      console.log('FormData loaded:', formData);
+      console.log('Company data being set:', {
+        name: formData.companyName,
+        address: formData.companyStreet,
+        street2: formData.companyStreet2,
+        city: formData.companyCity,
+        state: formData.companyState,
+        zipCode: formData.companyZip
+      });
+
       // Map formData to existing state structure
       setPersonalData({
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
-        phone: formData.phone,
+        phone: formData.phone || "",
         address: formData.customerStreet,
         street2: formData.customerStreet2,
         city: formData.customerCity,
         state: formData.customerState,
         zipCode: formData.customerZip,
         EName: formData.EName,
-        adminPin: formData.adminPin,
+        pin: formData.adminPin,
         decryptedPassword: formData.decryptedPassword,
+      });
+
+      setAdminData({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone || "",
+        email: formData.email,
+        pin: formData.adminPin
       });
 
       setCompanyData({
@@ -251,11 +287,11 @@ const Profile = () => {
 
     // Admin PIN validation for Admin/SuperAdmin users
     if (userType === "Admin" || userType === "SuperAdmin") {
-      if (!personalData.adminPin.trim()) {
-        newErrors.adminPin = "Admin PIN is required";
+      if (!personalData.pin.trim()) {
+        newErrors.pin = "Admin PIN is required";
         isValid = false;
-      } else if (!/^\d{4,6}$/.test(personalData.adminPin)) {
-        newErrors.adminPin = "PIN must be 4-6 digits";
+      } else if (!/^\d{4,6}$/.test(personalData.pin)) {
+        newErrors.pin = "PIN must be 4-6 digits";
         isValid = false;
       }
 
@@ -364,7 +400,7 @@ const Profile = () => {
         localStorage.setItem("userName", `${personalData.firstName} ${personalData.lastName}`.trim());
         localStorage.setItem("adminMail", personalData.email);
         localStorage.setItem("phone", personalData.phone);
-        localStorage.setItem("phoneNumber", personalData.phone);
+        localStorage.setItem("phone_number", personalData.phone);
         localStorage.setItem("customerStreet", personalData.address);
         localStorage.setItem("customerStreet2", personalData.street2 || "");
         localStorage.setItem("customerCity", personalData.city);
@@ -375,26 +411,26 @@ const Profile = () => {
         // Admin/SuperAdmin: Update employee data
         const adminDetails = JSON.parse(localStorage.getItem("loggedAdmin") || "{}");
 
-        if (!adminDetails.EmpID) {
+        if (!adminDetails.emp_id) {
           showToast("Employee ID not found", "error");
           setIsLoading(false);
           return;
         }
 
         const employeeData = {
-          EmpID: adminDetails.EmpID,
-          CID: companyId,
-          FName: personalData.firstName,
+          emp_id: adminDetails.emp_id,
+          cid: companyId,
+          first_name: personalData.firstName,
           LName: personalData.lastName,
-          Pin: personalData.adminPin,
-          PhoneNumber: personalData.phone,
-          Email: personalData.email,
+          pin: personalData.pin,
+          phone_number: personalData.phone,
+          email: personalData.email,
           IsAdmin: userType === "Admin" ? 1 : 2,
           IsActive: true,
           LastModifiedBy: "Admin",
         };
 
-        await updateEmployeeWithData(adminDetails.EmpID, employeeData);
+        await updateEmployeeWithData(adminDetails.emp_id, employeeData);
 
         // Update localStorage and loggedAdmin
         localStorage.setItem("firstName", personalData.firstName);
@@ -402,16 +438,16 @@ const Profile = () => {
         localStorage.setItem("userName", `${personalData.firstName} ${personalData.lastName}`.trim());
         localStorage.setItem("adminMail", personalData.email);
         localStorage.setItem("phone", personalData.phone);
-        localStorage.setItem("phoneNumber", personalData.phone);
+        localStorage.setItem("phone_number", personalData.phone);
 
         // Update loggedAdmin object
         const updatedAdmin = {
           ...adminDetails,
-          FName: personalData.firstName,
+          first_name: personalData.firstName,
           LName: personalData.lastName,
-          Pin: personalData.adminPin,
-          Email: personalData.email,
-          PhoneNumber: personalData.phone
+          pin: personalData.pin,
+          email: personalData.email,
+          phone_number: personalData.phone
         };
         localStorage.setItem("loggedAdmin", JSON.stringify(updatedAdmin));
 
@@ -425,12 +461,12 @@ const Profile = () => {
 
         const customerData = {
           CustomerID: customerId,
-          CID: companyId,
-          FName: personalData.firstName,
+          cid: companyId,
+          first_name: personalData.firstName,
           LName: personalData.lastName,
           Address: `${personalData.address}--${personalData.street2 || ""}--${personalData.city}--${personalData.state}--${personalData.zipCode}`,
-          PhoneNumber: personalData.phone,
-          Email: personalData.email,
+          phone_number: personalData.phone,
+          email: personalData.email,
           IsActive: true,
           LastModifiedBy: "Admin",
         };
@@ -443,7 +479,7 @@ const Profile = () => {
         localStorage.setItem("userName", `${personalData.firstName} ${personalData.lastName}`.trim());
         localStorage.setItem("adminMail", personalData.email);
         localStorage.setItem("phone", personalData.phone);
-        localStorage.setItem("phoneNumber", personalData.phone);
+        localStorage.setItem("phone_number", personalData.phone);
         localStorage.setItem("customerStreet", personalData.address);
         localStorage.setItem("customerStreet2", personalData.street2 || "");
         localStorage.setItem("customerCity", personalData.city);
@@ -469,14 +505,18 @@ const Profile = () => {
     setIsLoading(true);
     try {
       const companyDataPayload = {
-        CID: companyId,
+        cid: companyId,
         UserName: localStorage.getItem("username"),
-        CName: companyData.name,
-        CAddress: `${companyData.address}--${companyData.street2 || ""}--${companyData.city}--${companyData.state}--${companyData.zipCode}`,
-        CLogo: companyData.logo || localStorage.getItem("companyLogo"),
-        Password: localStorage.getItem("password"),
-        ReportType: localStorage.getItem("reportType") || "Weekly",
-        LastModifiedBy: "Admin",
+        company_name: companyData.name,
+        company_address_line1 : companyData.address,
+        company_address_line2 : companyData.street2 || "",
+        company_city : companyData.city,
+        company_state : companyData.state,
+        company_zip_code : companyData.zipCode,
+        // company_address_line1: `${companyData.address}--${companyData.street2 || ""}--${companyData.city}--${companyData.state}--${companyData.zipCode}`,
+        company_logo: companyData.logo || localStorage.getItem("companyLogo"),
+        report_type: localStorage.getItem("reportType"),
+        last_modified_by: "Admin",
       };
 
       await updateCompany(companyId, companyDataPayload);
@@ -516,15 +556,23 @@ const Profile = () => {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
-        phone: formData.phone,
+        phone: formData.phone || "",
         address: formData.customerStreet,
         street2: formData.customerStreet2,
         city: formData.customerCity,
         state: formData.customerState,
         zipCode: formData.customerZip,
         EName: formData.EName,
-        adminPin: formData.adminPin,
+        pin: formData.adminPin,
         decryptedPassword: formData.decryptedPassword,
+      });
+
+      setAdminData({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone || "",
+        email: formData.email,
+        pin: formData.adminPin
       });
     } else if (type === "company") {
       setCompanyData({
@@ -553,7 +601,7 @@ const Profile = () => {
       customerZip: "",
       email: "",
       phone: "",
-      adminPin: "",
+      pin: "",
       EName: "",
     });
   };
@@ -565,11 +613,10 @@ const Profile = () => {
       {/* Toast Notification */}
       {toast.show && (
         <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2">
-          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${
-            toast.type === 'success' 
-              ? 'bg-green-50 border-green-200 text-green-800' 
+          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${toast.type === 'success'
+              ? 'bg-green-50 border-green-200 text-green-800'
               : 'bg-red-50 border-red-200 text-red-800'
-          }`}>
+            }`}>
             {toast.type === 'success' ? (
               <CheckCircle className="h-5 w-5 text-green-600" />
             ) : (
@@ -591,7 +638,7 @@ const Profile = () => {
         </div>
       )}
 
-      <div className="pt-20 pb-8 bg-gradient-to-br from-slate-50 to-blue-50">
+      <div className="pt-20 pb-8 bg-gradient-to-br from-slate-50 to-blue-50 flex-1">
         {/* Page Header */}
         <div className="border-b">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
@@ -614,17 +661,17 @@ const Profile = () => {
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <nav className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-8">
               {[
-                { key: "personal", label: "Personal Information", icon: User },
-                { key: "company", label: "Company Information", icon: Building }
+                ...(userType !== "Admin" && userType !== "SuperAdmin" ? [{ key: "personal", label: "Personal Information", icon: User }] : []),
+                { key: "company", label: "Company Information", icon: Building },
+                ...(userType === "Admin" || userType === "SuperAdmin" ? [{ key: "admin", label: userType === "SuperAdmin" ? "Super Admin Information" : "Admin Information", icon: User }] : [])
               ].map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}
                   onClick={() => setActiveTab(key)}
-                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
-                    activeTab === key
+                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === key
                       ? "border-primary text-primary"
                       : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
-                  }`}
+                    }`}
                 >
                   <Icon className="w-4 h-4" />
                   <span className="hidden sm:inline">{label}</span>
@@ -637,7 +684,7 @@ const Profile = () => {
 
         {/* Content */}
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-          {activeTab === "personal" && (
+          {activeTab === "personal" && userType !== "Admin" && userType !== "SuperAdmin" && (
             <Card>
               <CardHeader>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -662,7 +709,7 @@ const Profile = () => {
                   )}
                 </div>
               </CardHeader>
-              
+
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                   <div className="space-y-2">
@@ -696,7 +743,7 @@ const Profile = () => {
                   </div>
 
                   <div className="space-y-2 sm:col-span-2">
-                    <Label htmlFor="email">Email Address</Label>
+                    <Label htmlFor="email">email Address</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                       <Input
@@ -727,51 +774,10 @@ const Profile = () => {
                     {errors.phone && <p className="text-sm text-red-600">{errors.phone}</p>}
                   </div>
 
-                  {/* Admin/SuperAdmin specific fields */}
-                  {(userType === "Admin" || userType === "SuperAdmin") && (
-                    <>
-                      <div className="space-y-2 sm:col-span-2">
-                        <Label htmlFor="EName">Employee Name (Read-only)</Label>
-                        <div className="relative">
-                          <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                          <Input
-                            id="EName"
-                            value={personalData.EName}
-                            disabled={true}
-                            className="pl-10 bg-muted"
-                          />
-                        </div>
-                      </div>
 
-                      <div className="space-y-2">
-                        <Label htmlFor="adminPin">Admin PIN</Label>
-                        <Input
-                          id="adminPin"
-                          value={personalData.adminPin}
-                          onChange={(e) => handlePersonalInputChange("adminPin", e.target.value)}
-                          disabled={!isEditing.personal}
-                          className={errors.adminPin ? "border-red-500" : ""}
-                          maxLength={6}
-                          placeholder="4-6 digits"
-                        />
-                        {errors.adminPin && <p className="text-sm text-red-600">{errors.adminPin}</p>}
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="decryptedPassword">Password (Read-only)</Label>
-                        <Input
-                          id="decryptedPassword"
-                          type="password"
-                          value={personalData.decryptedPassword}
-                          disabled={true}
-                          className="bg-muted"
-                        />
-                      </div>
-                    </>
-                  )}
 
                   <div className="space-y-2">
-                    <Label htmlFor="address">Street Address Line 1</Label>
+                    <Label htmlFor="address">Street Address</Label>
                     <div className="relative">
                       <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                       <Input
@@ -783,21 +789,6 @@ const Profile = () => {
                       />
                     </div>
                     {errors.customerStreet && <p className="text-sm text-red-600">{errors.customerStreet}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="street2">Street Address Line 2</Label>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                      <Input
-                        id="street2"
-                        value={personalData.street2}
-                        onChange={(e) => handlePersonalInputChange("street2", e.target.value)}
-                        disabled={!isEditing.personal}
-                        className="pl-10"
-                        placeholder="Apartment, suite, unit, etc. (optional)"
-                      />
-                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -884,7 +875,7 @@ const Profile = () => {
                   )}
                 </div>
               </CardHeader>
-              
+
               <CardContent className="space-y-6">
                 {/* Company Logo */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
@@ -1010,6 +1001,129 @@ const Profile = () => {
                     </Button>
                     <Button
                       onClick={handleSaveCompany}
+                      className="flex-1 flex items-center justify-center gap-2 order-1 sm:order-2"
+                    >
+                      <Save className="w-4 h-4" />
+                      Save Changes
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {activeTab === "admin" && (userType === "Admin" || userType === "SuperAdmin") && (
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <User className="w-5 h-5" />
+                      {userType === "SuperAdmin" ? "Super Admin Information" : "Admin Information"}
+                    </CardTitle>
+                    <CardDescription>
+                      Manage admin and super admin details
+                    </CardDescription>
+                  </div>
+                  {!isEditing.admin && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsEditing(prev => ({ ...prev, admin: true }))}
+                      className="flex items-center gap-2 w-full sm:w-auto"
+                    >
+                      <Edit className="w-4 h-4" />
+                      Edit
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="adminFirstName">First Name</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                      <Input
+                        id="adminFirstName"
+                        value={adminData.firstName}
+                        onChange={(e) => handleAdminInputChange("firstName", e.target.value)}
+                        disabled={!isEditing.admin}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="adminLastName">Last Name</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                      <Input
+                        id="adminLastName"
+                        value={adminData.lastName}
+                        onChange={(e) => handleAdminInputChange("lastName", e.target.value)}
+                        disabled={!isEditing.admin}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="adminPhone">Phone Number</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                      <Input
+                        id="adminPhone"
+                        value={adminData.phone}
+                        onChange={(e) => handleAdminInputChange("phone", e.target.value)}
+                        disabled={!isEditing.admin}
+                        className="pl-10"
+                        placeholder="(123) 456-7890"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="adminemail">email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                      <Input
+                        id="adminemail"
+                        type="email"
+                        value={adminData.email}
+                        onChange={(e) => handleAdminInputChange("email", e.target.value)}
+                        disabled={!isEditing.admin}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="pin">PIN</Label>
+                    <Input
+                      id="pin"
+                      value={adminData.pin}
+                      onChange={(e) => handleAdminInputChange("pin", e.target.value)}
+                      disabled="True"
+                      className={errors.pin ? "border-red-500" : ""}
+                      maxLength={6}
+                      placeholder="4-6 digits"
+                    />
+                    {errors.pin && <p className="text-sm text-red-600">{errors.pin}</p>}
+                  </div>
+                </div>
+
+                {isEditing.admin && (
+                  <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
+                    <Button
+                      variant="outline"
+                      onClick={() => handleCancel("admin")}
+                      className="flex-1 order-2 sm:order-1"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleSavePersonal}
                       className="flex-1 flex items-center justify-center gap-2 order-1 sm:order-2"
                     >
                       <Save className="w-4 h-4" />

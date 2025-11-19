@@ -301,7 +301,7 @@ const Reports = () => {
         ...item,
         formattedCheckIn: item.CheckInTime ? convertToAmPm(item.CheckInTime) : "--",
         formattedCheckOut: item.CheckOutTime ? convertToAmPm(item.CheckOutTime) : "--",
-        timeWorked: item.TimeWorked || (item.CheckInTime && item.CheckOutTime
+        TimeWorked: item.TimeWorked || (item.CheckInTime && item.CheckOutTime
           ? calculateTimeWorked(item.CheckInTime, item.CheckOutTime) : "--"),
       }));
 
@@ -361,6 +361,11 @@ const Reports = () => {
       showToast("Start date must be before end date", "error");
       return;
     }
+
+    // Clear previous results before loading new data
+    setReportData([]);
+    setFilteredData([]);
+    setEmployees([]);
 
     setLoading(true);
     try {
@@ -789,12 +794,43 @@ const Reports = () => {
   }, [companyId, loadDevices, loadEmployeeList]);
 
   useEffect(() => {
-    if (activeTab === "today" && currentDate) {
-      viewCurrentDateReport(currentDate);
-    } else if (activeTab === "daywise" && selectedDate) {
+    // Clear selected dates when switching tabs
+    if (activeTab === "summary") {
+      setStartDate("");
+      setEndDate("");
+    } else if (activeTab === "salaried") {
+      // For Salaried Report, clear everything and wait for user to click Load Report
+      setReportData([]);
+      setFilteredData([]);
+      setSalariedReportData([]);
+    } else {
+      // For other tabs, clear and load data automatically
+      setReportData([]);
+      setFilteredData([]);
+      setEmployees([]);
+      setSalariedReportData([]);
+      
+      if (activeTab === "today" && currentDate) {
+        viewCurrentDateReport(currentDate);
+      } else if (activeTab === "daywise" && selectedDate) {
+        viewDatewiseReport(selectedDate);
+      }
+    }
+  }, [activeTab]); // Only depend on activeTab to prevent clearing when dates change
+
+  // Separate effect for handling date changes in daywise tab
+  useEffect(() => {
+    if (activeTab === "daywise" && selectedDate) {
       viewDatewiseReport(selectedDate);
     }
-  }, [activeTab, currentDate, selectedDate]);
+  }, [selectedDate]); // Only run when selectedDate changes
+
+  // Separate effect for handling current date changes in today tab
+  useEffect(() => {
+    if (activeTab === "today" && currentDate) {
+      viewCurrentDateReport(currentDate);
+    }
+  }, [currentDate]); // Only run when currentDate changes
 
   useEffect(() => {
     // Auto-calculate weeks when year/month changes for Weekly report
@@ -1385,7 +1421,7 @@ const Reports = () => {
                         key={type}
                         onClick={() => setSelectedReportType(type)}
                         variant={selectedReportType === type ? 'default' : 'outline'}
-                        className={`${selectedReportType === type ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-white hover:bg-gray-50'} text-sm`}
+                        className={`${selectedReportType === type ? 'bg-[#02066F] hover:bg-[#030974] text-white' : 'bg-white hover:bg-gray-50'} text-sm`}
                       >
                         {type}
                       </Button>
@@ -1471,7 +1507,7 @@ const Reports = () => {
                 <Button
                   onClick={loadSalariedReport}
                   disabled={loading}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  className="bg-[#02066F] hover:bg-[#030974] text-white"
                 >
                   {loading && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
                   {loading ? 'Loading...' : 'Load Report'}

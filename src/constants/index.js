@@ -7,7 +7,11 @@ export const STORAGE_KEYS = {
   COMPANY_ID: 'companyID',
   COMPANY_NAME: 'companyName',
   COMPANY_LOGO: 'companyLogo',
-  COMPANY_ADDRESS: 'companyAddress',
+  COMPANY_ADDRESS1: 'companyAddress1',
+  COMPANY_ADDRESS2: 'companyAddress2',
+  COMPANY_CITY: 'companyCity',
+  COMPANY_STATE: 'companyState',
+  COMPANY_ZIP: 'companyZip',
   ADMIN_MAIL: 'adminMail',
   ADMIN_TYPE: 'adminType',
   USER_NAME: 'userName',
@@ -19,7 +23,12 @@ export const STORAGE_KEYS = {
   ALL_ADMIN_DETAILS: 'allAdminDetails',
   USER_EMAIL: 'userEmail',
   USER_ID: 'userId',
-  AUTH_METHOD: 'authMethod'
+  AUTH_METHOD: 'authMethod',
+  CUSTOMER_ZIP_CODE: 'customerZipCode',
+  CUSTOMER_ADDRESS1: 'customerAddress1',
+  CUSTOMER_ADDRESS2: 'customerAddress2',
+  CUSTOMER_CITY: 'customerCity',
+  CUSTOMER_STATE: 'customerState'
 };
 
 export const VALIDATION_PATTERNS = {

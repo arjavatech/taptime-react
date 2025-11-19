@@ -205,7 +205,7 @@ const Login_new = () => {
         </div>
 
         {/* Right side - Login form */}
-        <div className="w-full md:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center py-12 px-6 sm:px-8 md:px-12 lg:px-20">
+        <div className="w-full md:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center py-12 px-6 mt-15 sm:px-8 md:px-12 lg:px-20">
           <div className="w-full max-w-md">
             {/* Logo (visible on mobile only) */}
             <div className="text-center mb-8 md:hidden">
