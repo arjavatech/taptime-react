@@ -1,4 +1,5 @@
 // Consolidated API module
+import { da } from 'intl-tel-input/i18n';
 import { supabase } from './config/supabase';
 import { ENCRYPTION_KEY, STORAGE_KEYS } from './constants';
 
@@ -120,8 +121,8 @@ export const googleSignInCheck = async (email) => {
       phoneNumber: data.phone_number,
       isVerified: data.is_verified,
       createdDate: data.created_date,
-      [STORAGE_KEYS.NO_OF_DEVICES]: '1',
-      [STORAGE_KEYS.NO_OF_EMPLOYEES]: '50',
+      [STORAGE_KEYS.NO_OF_DEVICES]: data.device_count,
+      [STORAGE_KEYS.NO_OF_EMPLOYEES]: data.employee_count,
       [STORAGE_KEYS.COMPANY_ADDRESS1]: data.company_address_line1,
       [STORAGE_KEYS.COMPANY_ADDRESS2]: data.company_address_line2,
       [STORAGE_KEYS.COMPANY_CITY]: data.company_city,
@@ -131,7 +132,9 @@ export const googleSignInCheck = async (email) => {
       [STORAGE_KEYS.CUSTOMER_ADDRESS1]: data.customer_address_line1,
       [STORAGE_KEYS.CUSTOMER_ADDRESS2]: data.customer_address_line2,
       [STORAGE_KEYS.CUSTOMER_CITY]: data.customer_city,
-      [STORAGE_KEYS.CUSTOMER_STATE]: data.customer_state
+      [STORAGE_KEYS.CUSTOMER_STATE]: data.customer_state,
+      [STORAGE_KEYS.COMPANY_ZIP_CODE]: data.company_zip_code,
+      last_modified_by: data.last_modified_by
       
 
     };
@@ -156,7 +159,7 @@ export const googleSignInCheck = async (email) => {
 
 export const registerUser = async (registrationData) => {
   try {
-    const data = await api.post(`${API_BASE}/customer/create`, registrationData);
+    const data = await api.post(`${API_BASE}/company/create`, registrationData);
     return { success: true, data };
   } catch (error) {
     console.error('Registration error:', error);
@@ -186,23 +189,6 @@ export const createEmployeeWithData = async (employeeData) => {
   }
 };
 
-export const updateEmployeeWithData = async (empId, employeeData) => {
-  const apiUrl = `${API_URLS.employee}/update/${empId}`;
-  
-  try {
-    const response = await fetch(apiUrl, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(employeeData)
-    });
-    
-    if (!response.ok) throw new Error(`Error: ${response.status}`);
-    return await response.json();
-  } catch (error) {
-    console.error("Update employee error:", error);
-    throw error;
-  }
-};
 
 export const deleteEmployeeById = async (empId) => {
   try {
@@ -407,14 +393,14 @@ export const getCustomerData = async (cid) => {
 
 
 // Company functions
-export const updateCompany = async (cid, companyData) => {
+export const updateProfile = async (cid, data) => {
   const apiUrl = `${API_URLS.company}/update/${cid}`;
   
   try {
     const response = await fetch(apiUrl, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(companyData)
+      body: JSON.stringify(data)
     });
     
     if (!response.ok) throw new Error(`Error: ${response.status}`);
@@ -425,42 +411,27 @@ export const updateCompany = async (cid, companyData) => {
   }
 };
 
-export const updateCustomer = async (customerId, customerData) => {
-  const apiUrl = `${API_URLS.customer}/update/${customerId}`;
-
+export const updateEmployeeWithData = async (cid, data) => {
+  const apiUrl = `${API_URLS.employee}/update/${cid}`;
+  
   try {
     const response = await fetch(apiUrl, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(customerData)
+      body: JSON.stringify(data)
     });
-
+    
     if (!response.ok) throw new Error(`Error: ${response.status}`);
     return await response.json();
   } catch (error) {
-    console.error("Update customer error:", error);
+    console.error("Update company error:", error);
     throw error;
   }
 };
 
-// Combined update for Owner admin type - updates both company and customer in one call
-export const updateCompanyAndCustomer = async (cid, combinedData) => {
-  const apiUrl = `${API_URLS.company}/update/${cid}`;
 
-  try {
-    const response = await fetch(apiUrl, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(combinedData)
-    });
 
-    if (!response.ok) throw new Error(`Error: ${response.status}`);
-    return await response.json();
-  } catch (error) {
-    console.error("Update company and customer error:", error);
-    throw error;
-  }
-};
+
 
 // Contact form
 export const submitContactForm = async (userData) => {

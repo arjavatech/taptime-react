@@ -28,7 +28,8 @@ export const STORAGE_KEYS = {
   CUSTOMER_ADDRESS1: 'customerAddress1',
   CUSTOMER_ADDRESS2: 'customerAddress2',
   CUSTOMER_CITY: 'customerCity',
-  CUSTOMER_STATE: 'customerState'
+  CUSTOMER_STATE: 'customerState',
+  COMPANY_ZIP_CODE: 'companyZipCode',
 };
 
 export const VALIDATION_PATTERNS = {

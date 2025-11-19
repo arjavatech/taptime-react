@@ -190,12 +190,15 @@ const Register = () => {
 
     try {
       const submitData = new FormData();
+
       Object.keys(formData).forEach(key => {
         if (formData[key] !== null && formData[key] !== '') {
           submitData.append(key, formData[key]);
         }
+
       });
 
+      submitData.append('last_modified_by', 'Admin');
       const response = await registerUser(submitData);
 
       if (response.success) {

@@ -5,8 +5,8 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { updateCompany, updateCustomer, updateCompanyAndCustomer, updateEmployeeWithData, fetchEmployeeData } from "../api.js";
-import { initializeUserSession, loadProfileData, isUserAuthenticated, logoutUser } from "./ProfilePageLogic.js";
+import { updateProfile } from "../api.js";
+import { initializeUserSession, loadProfileData,  logoutUser } from "./ProfilePageLogic.js";
 import {
   User,
   Building,
@@ -35,10 +35,9 @@ const Profile = () => {
     phone: "",
     address: "",
     street2: "",
-    city: "",
-    state: "",
+    customerCity: "",
+    customerState: "",
     zipCode: "",
-    EName: "",
     pin: "",
     decryptedPassword: "",
   });
@@ -57,7 +56,7 @@ const Profile = () => {
     street2: "",
     city: "",
     state: "",
-    zipCode: "",
+    companyZip: "",
     logo: ""
   });
 
@@ -76,11 +75,9 @@ const Profile = () => {
     email: "",
     phone: "",
     pin: "",
-    EName: "",
   });
 
   const [companyId, setCompanyId] = useState("");
-  const [customerId, setCustomerId] = useState("");
 
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
@@ -104,10 +101,24 @@ const Profile = () => {
     if (field === "phone") {
       value = formatphone_number(value);
     }
-    setPersonalData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: "" }));
+    
+    const fieldMap = {
+      "city": "customerCity",
+      "state": "state",
+      "zipCode": "zipCode",
+      "address": "address"
+    };
+    
+    const actualField = fieldMap[field] || field;
+    setPersonalData(prev => ({ ...prev, [actualField]: value }));
+    
+    const errorField = field === "address" ? "customerStreet" :
+      field === "city" ? "customerCity" :
+        field === "state" ? "customerState" :
+          field === "zipCode" ? "customerZip" : field;
+    
+    if (errors[errorField]) {
+      setErrors(prev => ({ ...prev, [errorField]: "" }));
     }
   };
 
@@ -116,7 +127,6 @@ const Profile = () => {
       value = formatphone_number(value);
     }
     setAdminData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: "" }));
     }
@@ -124,7 +134,6 @@ const Profile = () => {
 
   const handleCompanyInputChange = (field, value) => {
     setCompanyData(prev => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
     const errorField = field === "name" ? "companyName" :
       field === "address" ? "companyStreet" :
         field === "city" ? "companyCity" :
@@ -139,19 +148,17 @@ const Profile = () => {
     const file = event.target.files[0];
     if (!file) return;
 
-    // Validate file type
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     if (!validTypes.includes(file.type)) {
       showToast("Please upload a valid image file (JPEG, PNG, GIF, or WebP)", "error");
-      event.target.value = ''; // Reset file input
+      event.target.value = '';
       return;
     }
 
-    // Validate file size (2MB max)
-    const maxSize = 2 * 1024 * 1024; // 2MB in bytes
+    const maxSize = 2 * 1024 * 1024;
     if (file.size > maxSize) {
       showToast("Image size must be less than 2MB", "error");
-      event.target.value = ''; // Reset file input
+      event.target.value = '';
       return;
     }
 
@@ -164,7 +171,6 @@ const Profile = () => {
 
   useEffect(() => {
     const initializeProfile = async () => {
-      // Simplified authentication check - only verify essential companyID
       const companyIdCheck = localStorage.getItem("companyID");
 
       if (!companyIdCheck) {
@@ -173,24 +179,13 @@ const Profile = () => {
         return;
       }
 
-      const { companyId, customerId, userType, adminDetails } = await initializeUserSession();
+      const { companyId, userType, adminDetails } = await initializeUserSession();
 
       setCompanyId(companyId);
-      setCustomerId(customerId);
       setUserType(userType);
 
       const formData = loadProfileData(adminDetails);
-      console.log('FormData loaded:', formData);
-      console.log('Company data being set:', {
-        name: formData.companyName,
-        address: formData.companyStreet,
-        street2: formData.companyStreet2,
-        city: formData.companyCity,
-        state: formData.companyState,
-        zipCode: formData.companyZip
-      });
 
-      // Map formData to existing state structure
       setPersonalData({
         firstName: formData.firstName,
         lastName: formData.lastName,
@@ -198,10 +193,9 @@ const Profile = () => {
         phone: formData.phone || "",
         address: formData.customerStreet,
         street2: formData.customerStreet2,
-        city: formData.customerCity,
+        customerCity: formData.customerCity,
         state: formData.customerState,
         zipCode: formData.customerZip,
-        EName: formData.EName,
         pin: formData.adminPin,
         decryptedPassword: formData.decryptedPassword,
       });
@@ -230,6 +224,7 @@ const Profile = () => {
   }, []);
 
   const validatePersonalForm = () => {
+    console.log("Validating personal form with data:", personalData);
     let isValid = true;
     const newErrors = { ...errors };
 
@@ -242,65 +237,49 @@ const Profile = () => {
     newErrors.email = "";
     newErrors.phone = "";
 
-    if (!personalData.firstName.trim()) {
+    if (!personalData.firstName || !personalData.firstName.trim()) {
+      console.log("firstName validation failed:", personalData.firstName);
       newErrors.firstName = "Please fill out this field";
       isValid = false;
     }
 
-    if (!personalData.lastName.trim()) {
+    if (!personalData.lastName || !personalData.lastName.trim()) {
+      console.log("lastName validation failed:", personalData.lastName);
       newErrors.lastName = "Please fill out this field";
       isValid = false;
     }
 
-    if (!personalData.address.trim()) {
-      newErrors.customerStreet = "Please fill out this field";
-      isValid = false;
-    }
 
-    if (!personalData.city.trim()) {
-      newErrors.customerCity = "Please fill out this field";
-      isValid = false;
-    }
 
-    if (!personalData.state.trim()) {
-      newErrors.customerState = "Please fill out this field";
-      isValid = false;
-    }
-
-    if (!personalData.zipCode.trim()) {
-      newErrors.customerZip = "Please fill out this field";
-      isValid = false;
-    }
-
-    if (!personalData.email.trim()) {
+    if (!personalData.email || !personalData.email.trim()) {
+      console.log("email validation failed:", personalData.email);
       newErrors.email = "Please fill out this field";
       isValid = false;
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(personalData.email)) {
+      console.log("email format validation failed:", personalData.email);
       newErrors.email = "Valid email is required";
       isValid = false;
     }
 
     if (personalData.phone && !/^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/.test(personalData.phone)) {
+      console.log("phone format validation failed:", personalData.phone);
       newErrors.phone = "Please use format: (123) 456-7890";
       isValid = false;
     }
 
-    // Admin PIN validation for Admin/SuperAdmin users
     if (userType === "Admin" || userType === "SuperAdmin") {
-      if (!personalData.pin.trim()) {
+      if (!personalData.pin || !personalData.pin.trim()) {
+        console.log("pin validation failed:", personalData.pin);
         newErrors.pin = "Admin PIN is required";
         isValid = false;
       } else if (!/^\d{4,6}$/.test(personalData.pin)) {
+        console.log("pin format validation failed:", personalData.pin);
         newErrors.pin = "PIN must be 4-6 digits";
-        isValid = false;
-      }
-
-      if (!personalData.EName.trim()) {
-        newErrors.EName = "Employee name is required";
         isValid = false;
       }
     }
 
+    console.log("Validation result:", isValid, "Errors:", newErrors);
     setErrors(newErrors);
     return isValid;
   };
@@ -345,46 +324,49 @@ const Profile = () => {
   };
 
   const handleSavePersonal = async () => {
-    if (!validatePersonalForm()) return;
+    console.log("handleSavePersonal called");
+    if (!validatePersonalForm()) {
+      console.log("Validation failed");
+      return;
+    }
 
-    if (!companyId) return;
+    if (!companyId) {
+      showToast("Company ID not found", "error");
+      return;
+    }
 
     setIsLoading(true);
     try {
+      const updateData = {
+        company_name: companyData.name || "",
+        company_logo: companyData.logo || "",
+        report_type: localStorage.getItem("reportType") || "string",
+        company_address_line1: companyData.address || "",
+        company_address_line2: companyData.street2 || "",
+        company_city: companyData.city || "",
+        company_state: companyData.state || "",
+        company_zip_code: companyData.zipCode || "",
+        first_name: personalData.firstName || "",
+        last_name: personalData.lastName || "",
+        email: personalData.email || "",
+        phone_number: personalData.phone ? personalData.phone.replace(/\D/g, '') : "",
+        customer_address_line1: personalData.address || "",
+        customer_address_line2: personalData.street2 || "",
+        customer_city: personalData.customerCity || "",
+        customer_state: personalData.state || "",
+        customer_zip_code: personalData.zipCode || "",
+        is_verified: false,
+        device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
+        employee_count: parseInt(localStorage.getItem("noOfEmployees") || "30"),
+        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system"
+      };
+
+      console.log("Calling updateProfile API with:", { companyId, updateData });
+      const result = await updateProfile(companyId, updateData);
+      console.log("API Response:", result);
+
+      // Update localStorage after successful API call
       if (userType === "Owner") {
-        // Owner: Update both company and customer using combined API
-        const combinedData = {
-          // Company fields (snake_case)
-          company_name: companyData.name,
-          company_logo: companyData.logo || localStorage.getItem("companyLogo") || "",
-          report_type: localStorage.getItem("reportType") || "Weekly",
-          company_address_line1: companyData.address,
-          company_address_line2: companyData.street2 || "",
-          company_city: companyData.city,
-          company_state: companyData.state,
-          company_zip_code: companyData.zipCode,
-
-          // Customer fields (snake_case)
-          first_name: personalData.firstName,
-          last_name: personalData.lastName,
-          email: personalData.email,
-          phone_number: personalData.phone,
-          customer_address_line1: personalData.address,
-          customer_address_line2: personalData.street2 || "",
-          customer_city: personalData.city,
-          customer_state: personalData.state,
-          customer_zip_code: personalData.zipCode,
-
-          // Metadata
-          is_verified: localStorage.getItem("isVerified") === "true" || true,
-          device_count: parseInt(localStorage.getItem("NoOfDevices") || "1"),
-          employee_count: parseInt(localStorage.getItem("NoOfEmployees") || "30"),
-          last_modified_by: localStorage.getItem("adminMail") || "Admin"
-        };
-
-        await updateCompanyAndCustomer(companyId, combinedData);
-
-        // Update all localStorage values
         localStorage.setItem("companyName", companyData.name);
         localStorage.setItem("companyStreet", companyData.address);
         localStorage.setItem("companyStreet2", companyData.street2 || "");
@@ -394,67 +376,22 @@ const Profile = () => {
         if (companyData.logo) {
           localStorage.setItem("companyLogo", companyData.logo);
         }
+      }
 
-        localStorage.setItem("firstName", personalData.firstName);
-        localStorage.setItem("lastName", personalData.lastName);
-        localStorage.setItem("userName", `${personalData.firstName} ${personalData.lastName}`.trim());
-        localStorage.setItem("adminMail", personalData.email);
-        localStorage.setItem("phone", personalData.phone);
-        localStorage.setItem("phone_number", personalData.phone);
-        localStorage.setItem("customerStreet", personalData.address);
-        localStorage.setItem("customerStreet2", personalData.street2 || "");
-        localStorage.setItem("customerCity", personalData.city);
-        localStorage.setItem("customerState", personalData.state);
-        localStorage.setItem("customerZip", personalData.zipCode);
+      localStorage.setItem("firstName", personalData.firstName);
+      localStorage.setItem("lastName", personalData.lastName);
+      localStorage.setItem("userName", `${personalData.firstName} ${personalData.lastName}`.trim());
+      localStorage.setItem("adminMail", personalData.email);
+      localStorage.setItem("phone", personalData.phone);
+      localStorage.setItem("phone_number", personalData.phone);
+      localStorage.setItem("customerStreet", personalData.address);
+      localStorage.setItem("customerStreet2", personalData.street2 || "");
+      localStorage.setItem("customerCity", personalData.customerCity);
+      localStorage.setItem("customerState", personalData.state);
+      localStorage.setItem("customerZip", personalData.zipCode);
 
-      } else if (userType === "Admin" || userType === "SuperAdmin") {
-        // Admin/SuperAdmin: Update employee data
-        console.log('SuperAdmin/Admin update triggered for userType:', userType);
+      if (userType === "Admin" || userType === "SuperAdmin") {
         const adminDetails = JSON.parse(localStorage.getItem("loggedAdmin") || "{}");
-        console.log('Admin details from localStorage:', adminDetails);
-
-        if (!adminDetails.emp_id) {
-          console.error('No emp_id found in adminDetails');
-          showToast("Employee ID not found", "error");
-          setIsLoading(false);
-          return;
-        }
-
-        const employeeData = {
-          emp_id: adminDetails.emp_id,
-          cid: companyId,
-          first_name: personalData.firstName,
-          last_name: personalData.lastName,
-          pin: personalData.pin || adminDetails.pin || adminDetails.Pin || "",
-          phone_number: personalData.phone,
-          email: personalData.email,
-          admin_type: userType.toLowerCase(),
-          is_active: true,
-          last_modified_by: "Admin"
-        };
-
-        console.log('About to call updateEmployeeWithData with:', {
-          empId: adminDetails.emp_id,
-          employeeData: employeeData
-        });
-        
-        try {
-          const result = await updateEmployeeWithData(adminDetails.emp_id, employeeData);
-          console.log('updateEmployeeWithData result:', result);
-        } catch (apiError) {
-          console.error('updateEmployeeWithData failed:', apiError);
-          throw apiError;
-        }
-
-        // Update localStorage and loggedAdmin
-        localStorage.setItem("firstName", personalData.firstName);
-        localStorage.setItem("lastName", personalData.lastName);
-        localStorage.setItem("userName", `${personalData.firstName} ${personalData.lastName}`.trim());
-        localStorage.setItem("adminMail", personalData.email);
-        localStorage.setItem("phone", personalData.phone);
-        localStorage.setItem("phone_number", personalData.phone);
-
-        // Update loggedAdmin object
         const updatedAdmin = {
           ...adminDetails,
           first_name: personalData.firstName,
@@ -464,138 +401,61 @@ const Profile = () => {
           phone_number: personalData.phone
         };
         localStorage.setItem("loggedAdmin", JSON.stringify(updatedAdmin));
-
-      } else {
-        // Customer: Update customer data only
-        if (!customerId) {
-          showToast("Customer ID not found", "error");
-          setIsLoading(false);
-          return;
-        }
-
-        const customerData = {
-          CustomerID: customerId,
-          cid: companyId,
-          first_name: personalData.firstName,
-          LName: personalData.lastName,
-          Address: `${personalData.address}--${personalData.street2 || ""}--${personalData.city}--${personalData.state}--${personalData.zipCode}`,
-          phone_number: personalData.phone,
-          email: personalData.email,
-          IsActive: true,
-          LastModifiedBy: "Admin",
-        };
-
-        await updateCustomer(customerId, customerData);
-
-        // Update localStorage
-        localStorage.setItem("firstName", personalData.firstName);
-        localStorage.setItem("lastName", personalData.lastName);
-        localStorage.setItem("userName", `${personalData.firstName} ${personalData.lastName}`.trim());
-        localStorage.setItem("adminMail", personalData.email);
-        localStorage.setItem("phone", personalData.phone);
-        localStorage.setItem("phone_number", personalData.phone);
-        localStorage.setItem("customerStreet", personalData.address);
-        localStorage.setItem("customerStreet2", personalData.street2 || "");
-        localStorage.setItem("customerCity", personalData.city);
-        localStorage.setItem("customerState", personalData.state);
-        localStorage.setItem("customerZip", personalData.zipCode);
       }
 
       setIsEditing(prev => ({ ...prev, personal: false }));
       showToast("Personal information updated successfully!");
     } catch (error) {
-      console.error("Save Personal API Error:", error);
+      console.error("Save Personal Error:", error);
       showToast("Failed to update personal information", "error");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSaveAdmin = async () => {
-    console.log('Admin save button clicked with data:', adminData);
-    
-    if (!companyId) return;
-    
-    setIsLoading(true);
-    try {
-      const adminDetails = JSON.parse(localStorage.getItem("loggedAdmin") || "{}");
-      
-      if (!adminDetails.emp_id) {
-        showToast("Employee ID not found", "error");
-        setIsLoading(false);
-        return;
-      }
-      
-      const employeeData = {
-        emp_id: adminDetails.emp_id,
-        cid: companyId,
-        first_name: adminData.firstName,
-        last_name: adminData.lastName,
-        pin: adminData.pin || adminDetails.pin || adminDetails.Pin || "",
-        phone_number: adminData.phone,
-        email: adminData.email,
-        admin_type: userType.toLowerCase(),
-        is_active: true,
-        last_modified_by: `${adminData.firstName} ${adminData.lastName}`
-      };
-      
-      console.log('Calling updateEmployeeWithData with:', employeeData);
-      const result = await updateEmployeeWithData(adminDetails.emp_id, employeeData);
-      console.log('API result:', result);
-      
-      // Update localStorage
-      localStorage.setItem("firstName", adminData.firstName);
-      localStorage.setItem("lastName", adminData.lastName);
-      localStorage.setItem("userName", `${adminData.firstName} ${adminData.lastName}`.trim());
-      localStorage.setItem("adminMail", adminData.email);
-      localStorage.setItem("phone", adminData.phone);
-      localStorage.setItem("phone_number", adminData.phone);
-      
-      const updatedAdmin = {
-        ...adminDetails,
-        first_name: adminData.firstName,
-        last_name: adminData.lastName,
-        pin: adminData.pin,
-        email: adminData.email,
-        phone_number: adminData.phone
-      };
-      localStorage.setItem("loggedAdmin", JSON.stringify(updatedAdmin));
-      
-      setIsEditing(prev => ({ ...prev, admin: false }));
-      showToast("Admin information updated successfully!");
-    } catch (error) {
-      console.error("Admin save error:", error);
-      showToast("Failed to update admin information", "error");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleSaveCompany = async () => {
-    if (!validateCompanyForm()) return;
+    console.log("handleSaveCompany called");
+    if (!validateCompanyForm()) {
+      console.log("Validation failed");
+      return;
+    }
 
-    if (!companyId) return;
+    if (!companyId) {
+      showToast("Company ID not found", "error");
+      return;
+    }
 
     setIsLoading(true);
     try {
-      const companyDataPayload = {
-        cid: companyId,
-        UserName: localStorage.getItem("username"),
-        company_name: companyData.name,
-        company_address_line1 : companyData.address,
-        company_address_line2 : companyData.street2 || "",
-        company_city : companyData.city,
-        company_state : companyData.state,
-        company_zip_code : companyData.zipCode,
-        // company_address_line1: `${companyData.address}--${companyData.street2 || ""}--${companyData.city}--${companyData.state}--${companyData.zipCode}`,
-        company_logo: companyData.logo || localStorage.getItem("companyLogo"),
-        report_type: localStorage.getItem("reportType"),
-        last_modified_by: "Admin",
+      const updateData = {
+        company_name: companyData.name || "",
+        company_logo: companyData.logo || "",
+        report_type: localStorage.getItem("reportType") || "string",
+        company_address_line1: companyData.address || "",
+        company_address_line2: companyData.street2 || "",
+        company_city: companyData.city || "",
+        company_state: companyData.state || "",
+        company_zip_code: companyData.zipCode || "",
+        first_name: personalData.firstName || "",
+        last_name: personalData.lastName || "",
+        email: personalData.email || "",
+        phone_number: personalData.phone ? personalData.phone.replace(/\D/g, '') : "",
+        customer_address_line1: personalData.address || "",
+        customer_address_line2: personalData.street2 || "",
+        customer_city: personalData.customerCity || "",
+        customer_state: personalData.state || "",
+        customer_zip_code: personalData.zipCode || "",
+        is_verified: false,
+        device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
+        employee_count: parseInt(localStorage.getItem("noOfEmployees") || "30"),
+        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system"
       };
 
-      await updateCompany(companyId, companyDataPayload);
+      console.log("Calling updateProfile API with:", { companyId, updateData });
+      const result = await updateProfile(companyId, updateData);
+      console.log("API Response:", result);
 
-      // Update localStorage with separate address fields
+      // Update localStorage after successful API call
       localStorage.setItem("companyName", companyData.name);
       localStorage.setItem("companyStreet", companyData.address);
       localStorage.setItem("companyStreet2", companyData.street2 || "");
@@ -609,7 +469,7 @@ const Profile = () => {
       setIsEditing(prev => ({ ...prev, company: false }));
       showToast("Company information updated successfully!");
     } catch (error) {
-      console.error("Company API Error:", error);
+      console.error("Company Save Error:", error);
       showToast("Failed to update company information", "error");
     } finally {
       setIsLoading(false);
@@ -633,10 +493,9 @@ const Profile = () => {
         phone: formData.phone || "",
         address: formData.customerStreet,
         street2: formData.customerStreet2,
-        city: formData.customerCity,
+        customerCity: formData.customerCity,
         state: formData.customerState,
         zipCode: formData.customerZip,
-        EName: formData.EName,
         pin: formData.adminPin,
         decryptedPassword: formData.decryptedPassword,
       });
@@ -676,7 +535,6 @@ const Profile = () => {
       email: "",
       phone: "",
       pin: "",
-      EName: "",
     });
   };
 
@@ -869,7 +727,7 @@ const Profile = () => {
                     <Label htmlFor="city">City</Label>
                     <Input
                       id="city"
-                      value={personalData.city}
+                      value={personalData.customerCity}
                       onChange={(e) => handlePersonalInputChange("city", e.target.value)}
                       disabled={!isEditing.personal}
                       className={errors.customerCity ? "border-red-500" : ""}
@@ -1096,7 +954,7 @@ const Profile = () => {
                       {userType === "SuperAdmin" ? "Super Admin Information" : "Admin Information"}
                     </CardTitle>
                     <CardDescription>
-                      Manage {userType} details
+                      Manage admin and super admin details
                     </CardDescription>
                   </div>
                   {!isEditing.admin && (
@@ -1164,9 +1022,9 @@ const Profile = () => {
                       <Input
                         id="adminemail"
                         type="email"
-                        disabled="True"
                         value={adminData.email}
                         onChange={(e) => handleAdminInputChange("email", e.target.value)}
+                        disabled={!isEditing.admin}
                         className="pl-10"
                       />
                     </div>
@@ -1197,7 +1055,7 @@ const Profile = () => {
                       Cancel
                     </Button>
                     <Button
-                      onClick={handleSaveAdmin}
+                      onClick={handleSavePersonal}
                       className="flex-1 flex items-center justify-center gap-2 order-1 sm:order-2"
                     >
                       <Save className="w-4 h-4" />

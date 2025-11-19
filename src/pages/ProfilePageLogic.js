@@ -1,5 +1,4 @@
 import { fetchEmployeeData } from "../api.js";
-import { STORAGE_KEYS } from "../constants/index.js";
 
 // Login and authentication logic
 export const initializeUserSession = async () => {
@@ -26,12 +25,12 @@ export const initializeUserSession = async () => {
       if (matchedAdmin) {
         console.log('Matched admin before company merge:', matchedAdmin);
         console.log('Company fields in matched admin:', {
-          company_name: STORAGE_KEYS.COMPANY_NAME,
-          company_address_line1: STORAGE_KEYS.COMPANY_ADDRESS1,
-          company_address_line2: STORAGE_KEYS.COMPANY_ADDRESS2,
-          company_city: matchedAdmin.company_city,
-          company_state: matchedAdmin.company_state,
-          company_zip_code: matchedAdmin.company_zip_code
+          company_name: localStorage.getItem("companyName"),
+          company_address_line1: localStorage.getItem("companyAddress1"),
+          company_address_line2: localStorage.getItem("companyAddress2"),
+          company_city: localStorage.getItem("companyCity"),
+          company_state: localStorage.getItem("companyState"),
+          company_zip_code:localStorage.getItem("companyZipCode")
         });
 
         adminDetails = matchedAdmin;
@@ -68,12 +67,12 @@ export const initializeUserSession = async () => {
 // Load user profile data from localStorage (matching Profile.jsx structure)
 export const loadProfileData = (adminDetails) => {
   // Debug all localStorage company-related values
-  const companyAddress = localStorage.getItem("companyAddress1");
+  const companyAddress1 = localStorage.getItem("companyAddress1");
   console.log('All localStorage company values:', {
-    companyAddress: companyAddress,
+    companyAddress1: companyAddress1,
     companyName: localStorage.getItem("companyName"),
     companyLogo: localStorage.getItem("companyLogo"),
-    companyZip: localStorage.getItem("companyZip"),
+    companyZip: localStorage.getItem("companyZipCode"),
 
   });
 
@@ -81,10 +80,10 @@ export const loadProfileData = (adminDetails) => {
     // Company info
     companyName: localStorage.getItem("companyName") || "",
     companyStreet: localStorage.getItem("companyAddress1") || "",
-    companyStreet2: localStorage.getItem("companyStreet2") || "",
+    companyStreet2: localStorage.getItem("companyAddress2") || "",
     companyCity: localStorage.getItem("companyCity") || "",
     companyState: localStorage.getItem("companyState") || "",
-    companyZip: localStorage.getItem("companyZip") || "",
+    companyZip: localStorage.getItem("companyZipCode") || "",
     logo: localStorage.getItem("companyLogo") || "",
 
     // Customer/Admin personal info
@@ -101,10 +100,9 @@ export const loadProfileData = (adminDetails) => {
     customerZip: localStorage.getItem("customerZipCode") || "",
 
     // Admin fields
-    EName: "",
     adminPin: "",
-    decryptedPassword: "",
   };
+
 
 
 
@@ -118,7 +116,6 @@ export const loadProfileData = (adminDetails) => {
     formData.phone = adminDetails.phone_number || formData.phone
 
     // Admin specific fields
-    formData.EName = `${formData.firstName} ${formData.lastName}`.trim();
     formData.adminPin = adminDetails.pin || adminDetails.Pin || "";
 
     // Company data from adminDetails
@@ -154,7 +151,7 @@ export const loadProfileData = (adminDetails) => {
     localStorage.setItem("companyStreet2", formData.companyStreet2);
     localStorage.setItem("companyCity", formData.companyCity);
     localStorage.setItem("companyState", formData.companyState);
-    localStorage.setItem("companyZip", formData.companyZip);
+    localStorage.setItem("companyZipCode", formData.companyZip);
 
     localStorage.setItem("customerStreet", formData.customerStreet);
     localStorage.setItem("customerStreet2", formData.customerStreet2);
@@ -166,6 +163,8 @@ export const loadProfileData = (adminDetails) => {
       localStorage.setItem("companyLogo", formData.logo);
     }
   }
+
+  console.log(localStorage.getItem("companyAddress2"));
 
 
 

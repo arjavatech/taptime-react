@@ -328,19 +328,7 @@ const Device = () => {
                 <p className="text-sm text-muted-foreground mb-6">
                   Get started by adding your first device.
                 </p>
-                <Button onClick={openAddDevice} disabled={isAddLoading} className="flex items-center justify-center gap-2 w-full sm:w-auto">
-                  {isAddLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Adding...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="w-4 h-4" />
-                      Add Your First Device
-                    </>
-                  )}
-                </Button>
+               
               </CardContent>
             </Card>
           ) : (
