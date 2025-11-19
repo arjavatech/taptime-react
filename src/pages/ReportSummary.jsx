@@ -79,6 +79,7 @@ const Reports = () => {
   const [endDateHeader, setEndDateHeader] = useState("");
   const [selectedFrequency, setSelectedFrequency] = useState("");
   const [employees, setEmployees] = useState([]);
+  const [dateRangeReportLoaded, setDateRangeReportLoaded] = useState(false);
 
   // Weekly report specific
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -366,6 +367,7 @@ const Reports = () => {
     setReportData([]);
     setFilteredData([]);
     setEmployees([]);
+    setDateRangeReportLoaded(false);
 
     setLoading(true);
     try {
@@ -391,6 +393,7 @@ const Reports = () => {
       setEmployees(employeeData);
       setReportData(employeeData);
       setFilteredData(employeeData);
+      setDateRangeReportLoaded(true);
       showToast(`Loaded ${employeeData.length} employee records`);
       setCurrentPage(1);
     } catch (error) {
@@ -798,6 +801,7 @@ const Reports = () => {
     if (activeTab === "summary") {
       setStartDate("");
       setEndDate("");
+      setDateRangeReportLoaded(false);
     } else if (activeTab === "salaried") {
       // For Salaried Report, clear everything and wait for user to click Load Report
       setReportData([]);
@@ -1362,11 +1366,15 @@ const Reports = () => {
                 )}
               </CardHeader>
               <CardContent>
-                {filteredData.length === 0 ? (
+                {!dateRangeReportLoaded ? (
+                  <div className="text-center py-12">
+                    <BarChart3 className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                    <p className="text-gray-500 text-sm">Select dates above and click "Load Report" to view data.</p>
+                  </div>
+                ) : filteredData.length === 0 ? (
                   <div className="text-center py-12">
                     <BarChart3 className="w-12 h-12 mx-auto text-gray-400 mb-4" />
                     <p className="text-gray-500 text-sm">No records found for the selected date range.</p>
-                    <p className="text-gray-400 text-xs mt-2">Select dates above and click "Load Report" to view data.</p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">

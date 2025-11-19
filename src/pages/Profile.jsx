@@ -409,9 +409,12 @@ const Profile = () => {
 
       } else if (userType === "Admin" || userType === "SuperAdmin") {
         // Admin/SuperAdmin: Update employee data
+        console.log('SuperAdmin/Admin update triggered for userType:', userType);
         const adminDetails = JSON.parse(localStorage.getItem("loggedAdmin") || "{}");
+        console.log('Admin details from localStorage:', adminDetails);
 
         if (!adminDetails.emp_id) {
+          console.error('No emp_id found in adminDetails');
           showToast("Employee ID not found", "error");
           setIsLoading(false);
           return;
@@ -421,16 +424,27 @@ const Profile = () => {
           emp_id: adminDetails.emp_id,
           cid: companyId,
           first_name: personalData.firstName,
-          LName: personalData.lastName,
-          pin: personalData.pin,
+          last_name: personalData.lastName,
+          pin: personalData.pin || adminDetails.pin || adminDetails.Pin || "",
           phone_number: personalData.phone,
           email: personalData.email,
-          IsAdmin: userType === "Admin" ? 1 : 2,
-          IsActive: true,
-          LastModifiedBy: "Admin",
+          admin_type: userType.toLowerCase(),
+          is_active: true,
+          last_modified_by: "Admin"
         };
 
-        await updateEmployeeWithData(adminDetails.emp_id, employeeData);
+        console.log('About to call updateEmployeeWithData with:', {
+          empId: adminDetails.emp_id,
+          employeeData: employeeData
+        });
+        
+        try {
+          const result = await updateEmployeeWithData(adminDetails.emp_id, employeeData);
+          console.log('updateEmployeeWithData result:', result);
+        } catch (apiError) {
+          console.error('updateEmployeeWithData failed:', apiError);
+          throw apiError;
+        }
 
         // Update localStorage and loggedAdmin
         localStorage.setItem("firstName", personalData.firstName);
@@ -492,6 +506,66 @@ const Profile = () => {
     } catch (error) {
       console.error("Save Personal API Error:", error);
       showToast("Failed to update personal information", "error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveAdmin = async () => {
+    console.log('Admin save button clicked with data:', adminData);
+    
+    if (!companyId) return;
+    
+    setIsLoading(true);
+    try {
+      const adminDetails = JSON.parse(localStorage.getItem("loggedAdmin") || "{}");
+      
+      if (!adminDetails.emp_id) {
+        showToast("Employee ID not found", "error");
+        setIsLoading(false);
+        return;
+      }
+      
+      const employeeData = {
+        emp_id: adminDetails.emp_id,
+        cid: companyId,
+        first_name: adminData.firstName,
+        last_name: adminData.lastName,
+        pin: adminData.pin || adminDetails.pin || adminDetails.Pin || "",
+        phone_number: adminData.phone,
+        email: adminData.email,
+        admin_type: userType.toLowerCase(),
+        is_active: true,
+        last_modified_by: `${adminData.firstName} ${adminData.lastName}`
+      };
+      
+      console.log('Calling updateEmployeeWithData with:', employeeData);
+      const result = await updateEmployeeWithData(adminDetails.emp_id, employeeData);
+      console.log('API result:', result);
+      
+      // Update localStorage
+      localStorage.setItem("firstName", adminData.firstName);
+      localStorage.setItem("lastName", adminData.lastName);
+      localStorage.setItem("userName", `${adminData.firstName} ${adminData.lastName}`.trim());
+      localStorage.setItem("adminMail", adminData.email);
+      localStorage.setItem("phone", adminData.phone);
+      localStorage.setItem("phone_number", adminData.phone);
+      
+      const updatedAdmin = {
+        ...adminDetails,
+        first_name: adminData.firstName,
+        last_name: adminData.lastName,
+        pin: adminData.pin,
+        email: adminData.email,
+        phone_number: adminData.phone
+      };
+      localStorage.setItem("loggedAdmin", JSON.stringify(updatedAdmin));
+      
+      setIsEditing(prev => ({ ...prev, admin: false }));
+      showToast("Admin information updated successfully!");
+    } catch (error) {
+      console.error("Admin save error:", error);
+      showToast("Failed to update admin information", "error");
     } finally {
       setIsLoading(false);
     }
@@ -1022,7 +1096,7 @@ const Profile = () => {
                       {userType === "SuperAdmin" ? "Super Admin Information" : "Admin Information"}
                     </CardTitle>
                     <CardDescription>
-                      Manage admin and super admin details
+                      Manage {userType} details
                     </CardDescription>
                   </div>
                   {!isEditing.admin && (
@@ -1090,9 +1164,9 @@ const Profile = () => {
                       <Input
                         id="adminemail"
                         type="email"
+                        disabled="True"
                         value={adminData.email}
                         onChange={(e) => handleAdminInputChange("email", e.target.value)}
-                        disabled={!isEditing.admin}
                         className="pl-10"
                       />
                     </div>
@@ -1123,7 +1197,7 @@ const Profile = () => {
                       Cancel
                     </Button>
                     <Button
-                      onClick={handleSavePersonal}
+                      onClick={handleSaveAdmin}
                       className="flex-1 flex items-center justify-center gap-2 order-1 sm:order-2"
                     >
                       <Save className="w-4 h-4" />

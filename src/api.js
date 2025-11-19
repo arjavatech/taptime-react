@@ -187,10 +187,19 @@ export const createEmployeeWithData = async (employeeData) => {
 };
 
 export const updateEmployeeWithData = async (empId, employeeData) => {
+  const apiUrl = `${API_URLS.employee}/update/${empId}`;
+  
   try {
-    return await api.put(`${API_BASE}/employee/update/${empId}`, employeeData);
+    const response = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(employeeData)
+    });
+    
+    if (!response.ok) throw new Error(`Error: ${response.status}`);
+    return await response.json();
   } catch (error) {
-    console.error('Update employee error:', error);
+    console.error("Update employee error:", error);
     throw error;
   }
 };
@@ -396,26 +405,18 @@ export const getCustomerData = async (cid) => {
   }
 };
 
-export const updateCustomer = async (customerId, customerData) => {
-  try {
-    return await api.put(`${API_BASE}/customer/update/${customerId}`, customerData);
-  } catch (error) {
-    console.error('Update customer error:', error);
-    throw error;
-  }
-};
 
 // Company functions
 export const updateCompany = async (cid, companyData) => {
   const apiUrl = `${API_URLS.company}/update/${cid}`;
-
+  
   try {
     const response = await fetch(apiUrl, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(companyData)
     });
-
+    
     if (!response.ok) throw new Error(`Error: ${response.status}`);
     return await response.json();
   } catch (error) {
@@ -423,11 +424,40 @@ export const updateCompany = async (cid, companyData) => {
     throw error;
   }
 };
-export const updateCompanyAndCustomer = async (cid, combinedData) => {
+
+export const updateCustomer = async (customerId, customerData) => {
+  const apiUrl = `${API_URLS.customer}/update/${customerId}`;
+
   try {
-    return await api.put(`${API_BASE}/company/update_company_and_customer/${cid}`, combinedData);
+    const response = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(customerData)
+    });
+
+    if (!response.ok) throw new Error(`Error: ${response.status}`);
+    return await response.json();
   } catch (error) {
-    console.error('Update company and customer error:', error);
+    console.error("Update customer error:", error);
+    throw error;
+  }
+};
+
+// Combined update for Owner admin type - updates both company and customer in one call
+export const updateCompanyAndCustomer = async (cid, combinedData) => {
+  const apiUrl = `${API_URLS.company}/update/${cid}`;
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(combinedData)
+    });
+
+    if (!response.ok) throw new Error(`Error: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error("Update company and customer error:", error);
     throw error;
   }
 };

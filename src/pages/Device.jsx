@@ -408,6 +408,7 @@ const Device = () => {
                                   <Button
                                     variant="ghost"
                                     size="sm"
+                                    disabled="True"
                                     onClick={() => openEditModal(device)}
                                     className="h-8 w-8 p-0"
                                   >
