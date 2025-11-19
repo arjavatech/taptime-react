@@ -208,6 +208,7 @@ const Register = () => {
         first_name: formData.firstName,
         last_name: formData.lastName,
         email: formData.email,
+        report_type: 'Weekly',
         phone_number: phoneDigits,
         customer_address_line1: formData.customerStreet,
         customer_city: formData.customerCity,
