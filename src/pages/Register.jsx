@@ -62,10 +62,14 @@ const Register = () => {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setFormData(prev => ({
-        ...prev,
-        companyLogo: file
-      }));
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({
+          ...prev,
+          companyLogo: reader.result
+        }));
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -189,16 +193,36 @@ const Register = () => {
     setIsLoading(true);
 
     try {
-      const submitData = new FormData();
+      // Extract only digits from phone number
+      const phoneDigits = formData.phone.replace(/\D/g, '');
 
-      Object.keys(formData).forEach(key => {
-        if (formData[key] !== null && formData[key] !== '') {
-          submitData.append(key, formData[key]);
-        }
+      // Create plain object with proper field name mapping for API
+      const submitData = {
+        company_name: formData.companyName,
+        company_address_line1: formData.companyStreet,
+        company_city: formData.companyCity,
+        company_state: formData.companyState,
+        company_zip_code: formData.companyZip,
+        device_count: parseInt(formData.noOfDevices, 10),
+        employee_count: parseInt(formData.noOfEmployees, 10),
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        email: formData.email,
+        phone_number: phoneDigits,
+        customer_address_line1: formData.customerStreet,
+        customer_city: formData.customerCity,
+        customer_state: formData.customerState,
+        customer_zip_code: formData.customerZip,
+        password: formData.password,
+        last_modified_by: 'Admin'
+      };
 
-      });
+      // Add company logo if provided (as base64)
+      if (formData.companyLogo) {
+        submitData.company_logo = formData.companyLogo;
+      }
 
-      submitData.append('last_modified_by', 'Admin');
+      console.log('Submitting registration data:', submitData);
       const response = await registerUser(submitData);
 
       if (response.success) {
@@ -208,6 +232,7 @@ const Register = () => {
         showToast(response.message || 'Registration failed', 'error');
       }
     } catch (error) {
+      console.error('Registration error:', error);
       showToast('Registration failed. Please try again.', 'error');
     } finally {
       setIsLoading(false);

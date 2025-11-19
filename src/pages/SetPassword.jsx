@@ -101,7 +101,7 @@ const SetPassword = () => {
 
       // Redirect to login after 2 seconds
       setTimeout(() => {
-        navigate('/login_new', { replace: true });
+        navigate('/login', { replace: true });
       }, 2000);
 
     } catch (err) {

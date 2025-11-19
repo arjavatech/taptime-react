@@ -159,7 +159,7 @@ export const googleSignInCheck = async (email) => {
 
 export const registerUser = async (registrationData) => {
   try {
-    const data = await api.post(`${API_BASE}/company/create`, registrationData);
+    const data = await api.post(`${API_URLS.signUp}`, registrationData);
     return { success: true, data };
   } catch (error) {
     console.error('Registration error:', error);
