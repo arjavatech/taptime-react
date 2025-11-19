@@ -40,7 +40,7 @@ const Device = () => {
       return response.json();
     },
     delete: async (accessKey, companyId) => {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://postgresql-restless-waterfall-2105.fly.dev/'}/device/delete/${accessKey}/${companyId}/Admin`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://postgresql-restless-waterfall-2105.fly.dev'}/device/delete/${accessKey}/${companyId}/Admin`, {
         method: "PUT",
         headers: { Accept: "application/json" }
       });
