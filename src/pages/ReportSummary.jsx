@@ -161,6 +161,7 @@ const Reports = () => {
   };
 
   const viewCurrentDateReport = async (dateToUse = currentDate) => {
+    setLoading(true);
     try {
       const arr = await fetchDailyReport(companyId, dateToUse);
       console.log("Today's Report raw data:", arr.length, 'records');
@@ -193,6 +194,8 @@ const Reports = () => {
       updateSummaryStats(processedData);
     } catch (err) {
       console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1646,7 +1649,7 @@ const Reports = () => {
                           id="year"
                           value={selectedYear}
                           onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full h-10 border border-input bg-background text-foreground rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {[...Array(5)].map((_, i) => {
                             const year = new Date().getFullYear() - i;
@@ -1661,7 +1664,7 @@ const Reports = () => {
                           id="month"
                           value={selectedMonth}
                           onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full h-10 border border-input bg-background text-foreground rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           {['January', 'February', 'March', 'April', 'May', 'June',
                             'July', 'August', 'September', 'October', 'November', 'December']
@@ -1681,7 +1684,7 @@ const Reports = () => {
                         id="week"
                         value={selectedWeek !== null ? selectedWeek : ''}
                         onChange={(e) => setSelectedWeek(parseInt(e.target.value))}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full h-10 border border-input bg-background text-foreground rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                         disabled={availableWeeks.length === 0}
                       >
                         <option value="">Select Week</option>
@@ -1700,7 +1703,7 @@ const Reports = () => {
                         id="half"
                         value={selectedHalf}
                         onChange={(e) => setSelectedHalf(e.target.value)}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full h-10 border border-input bg-background text-foreground rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         <option value="first">First Half (1-15)</option>
                         <option value="second">Second Half (16-End)</option>
@@ -1867,10 +1870,17 @@ const Reports = () => {
                 </Button>
                 <Button
                   onClick={handleSaveEntry}
-                  disabled={addButtonDisabled}
+                  disabled={addButtonDisabled || loading}
                   className="flex-1 order-1 sm:order-2"
                 >
-                  Add Entry
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Adding...
+                    </>
+                  ) : (
+                    "Add Entry"
+                  )}
                 </Button>
               </div>
             </CardContent>

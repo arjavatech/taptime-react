@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '../components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/card';
 import { supabase } from '../config/supabase';
+import tabTimeLogo from '../assets/images/tap-time-logo.png';
 
 const SetPassword = () => {
   const [password, setPassword] = useState('');
@@ -114,171 +115,229 @@ const SetPassword = () => {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md shadow-xl">
-          <CardContent className="pt-6 text-center">
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CheckCircle className="h-12 w-12 text-green-600" />
+      <div className="min-h-screen flex flex-col md:flex-row">
+        {/* Left side - Brand section */}
+        <div className="hidden md:flex xl:w-1/2 md:w-1/2 bg-[#D9E9FB] flex-col justify-center items-center p-12">
+          <div className="w-full max-w-lg flex flex-col items-center text-center space-y-8">
+            <img
+              src={tabTimeLogo}
+              alt="Tap Time Logo"
+              className="w-48 xl:w-56 md:w-40 mx-auto"
+            />
+            <div className="space-y-4">
+              <h1 className="text-3xl xl:text-4xl md:text-3xl font-bold text-gray-800">
+                Employee Time Tracking
+              </h1>
+              <p className="text-lg text-gray-700 leading-relaxed">
+                One tap solution for simplifying and streamlining employee time
+                logging and reporting.
+              </p>
             </div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-2">
-              Welcome to Tap Time! 🎉
-            </h1>
-            <p className="text-gray-600 mb-6">
-              Your password has been set successfully. You can now access your account to manage employee time tracking.
-            </p>
-            <p className="text-sm text-gray-500">
-              Redirecting to login...
-            </p>
-          </CardContent>
-        </Card>
+            <div className="flex gap-8 text-gray-600 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span>Secure</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                <span>Fast</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+                <span>Reliable</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right side - Success message */}
+        <div className="w-full md:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center py-12 px-6 sm:px-8 md:px-12 lg:px-20">
+          <div className="w-full max-w-md">
+            <div className="text-center mb-8 md:hidden">
+              <img src={tabTimeLogo} alt="Tap Time Logo" className="mx-auto h-20 w-auto sm:h-25" />
+            </div>
+            <Card className="border-0 shadow-2xl">
+              <CardContent className="pt-6 text-center">
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="h-12 w-12 text-green-600" />
+                </div>
+                <h1 className="text-2xl font-bold text-gray-800 mb-2">
+                  Welcome to Tap Time! 🎉
+                </h1>
+                <p className="text-gray-600 mb-6">
+                  Your password has been set successfully. You can now access your account to manage employee time tracking.
+                </p>
+                <p className="text-sm text-gray-500">
+                  Redirecting to login...
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-4">
-          <div className="flex justify-center">
-            <img
-              src="/images/tap-time-logo.png"
-              alt="Tap Time Logo"
-              className="h-16 sm:h-20 w-auto max-w-full"
-            />
-          </div>
-          <div className="space-y-2">
-            <h1 className="text-2xl font-semibold text-gray-800">
+    <div className="min-h-screen flex flex-col md:flex-row">
+      {/* Left side - Brand section */}
+      <div className="hidden md:flex xl:w-1/2 md:w-1/2 bg-[#D9E9FB] flex-col justify-center items-center p-12">
+        <div className="w-full max-w-lg flex flex-col items-center text-center space-y-8">
+          <img
+            src={tabTimeLogo}
+            alt="Tap Time Logo"
+            className="w-48 xl:w-56 md:w-40 mx-auto"
+          />
+          <div className="space-y-4">
+            <h1 className="text-3xl xl:text-4xl md:text-3xl font-bold text-gray-800">
               Set Your Password
             </h1>
-            <p className="text-gray-600">
-              Welcome to Tap Time! Create a secure password to complete your account setup.
+            <p className="text-lg text-gray-700 leading-relaxed">
+              One tap solution for simplifying and streamlining employee time
+              logging and reporting.
             </p>
           </div>
-        </div>
-
-        <Card className="shadow-xl">
-          <CardHeader>
-            <CardTitle className="text-center">Create Password</CardTitle>
-          </CardHeader>
-
-          <CardContent>
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
-                {error}
-              </div>
-            )}
-
-            {loading && (
-              <div className="mb-4 text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#02066F] mx-auto mb-2"></div>
-                <p className="text-sm text-gray-600">Setting up your password...</p>
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  New Password
-                </label>
-                <div className="relative">
-                  <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    className="w-full pl-10 pr-12 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#02066F] focus:border-transparent transition-all"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Confirm Password
-                </label>
-                <div className="relative">
-                  <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Confirm your password"
-                    className="w-full pl-10 pr-12 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#02066F] focus:border-transparent transition-all"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Password Requirements */}
-              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                <h4 className="text-sm font-semibold text-gray-800 mb-2">
-                  Password Requirements:
-                </h4>
-                {requirements.map((req, index) => (
-                  <div
-                    key={index}
-                    className={`flex items-center gap-2 text-sm ${
-                      req.valid ? 'text-green-600' : 'text-gray-500'
-                    }`}
-                  >
-                    {req.valid ? (
-                      <CheckCircle className="h-4 w-4" />
-                    ) : (
-                      <XCircle className="h-4 w-4" />
-                    )}
-                    {req.label}
-                  </div>
-                ))}
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full bg-[#02066F] hover:bg-[#030974] text-white font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={!allRequirementsMet || loading || !sessionReady}
-              >
-                {loading ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                    Setting Password...
-                  </div>
-                ) : !sessionReady ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
-                    Authenticating...
-                  </div>
-                ) : (
-                  'Set Password'
-                )}
-              </Button>
-            </form>
-
-            <div className="mt-6 pt-6 border-t border-gray-200 text-center">
-              <p className="text-sm text-gray-500">
-                Need help? Contact your administrator
-              </p>
+          <div className="flex gap-8 text-gray-600 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span>Secure</span>
             </div>
-          </CardContent>
-        </Card>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+              <span>Fast</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+              <span>Reliable</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
-        {/* Footer */}
-        <div className="text-center text-sm text-gray-500">
-          <p>© 2024 Tap Time. All rights reserved.</p>
+      {/* Right side - Set Password form */}
+      <div className="w-full md:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center py-12 px-6 sm:px-8 md:px-12 lg:px-20">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8 md:hidden">
+            <img src={tabTimeLogo} alt="Tap Time Logo" className="mx-auto h-20 w-auto sm:h-25" />
+          </div>
+
+          <Card className="border-0 shadow-2xl">
+            <CardHeader className="space-y-1 text-center">
+              <CardTitle className="text-2xl font-bold">Set Your Password</CardTitle>
+              <CardDescription>
+                Create a secure password to complete your account setup
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="space-y-6">
+              {error && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
+                  {error}
+                </div>
+              )}
+
+
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    New Password
+                  </label>
+                  <div className="relative">
+                    <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      className="w-full pl-10 pr-12 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                      disabled={loading || !sessionReady}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Confirm Password
+                  </label>
+                  <div className="relative">
+                    <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirm your password"
+                      className="w-full pl-10 pr-12 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                      disabled={loading || !sessionReady}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Password Requirements */}
+                <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                  <h4 className="text-sm font-semibold text-foreground mb-2">
+                    Password Requirements:
+                  </h4>
+                  {requirements.map((req, index) => (
+                    <div
+                      key={index}
+                      className={`flex items-center gap-2 text-sm ${
+                        req.valid ? 'text-green-600' : 'text-muted-foreground'
+                      }`}
+                    >
+                      {req.valid ? (
+                        <CheckCircle className="h-4 w-4" />
+                      ) : (
+                        <XCircle className="h-4 w-4" />
+                      )}
+                      {req.label}
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full bg-[#01005a] hover:bg-[#01005a]/90"
+                  size="lg"
+                  disabled={!allRequirementsMet || loading || !sessionReady}
+                >
+                  {loading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                      Setting Password...
+                    </div>
+                  ) : !sessionReady ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                      Authenticating...
+                    </div>
+                  ) : (
+                    'Set Password'
+                  )}
+                </Button>
+              </form>
+
+              <div className="text-center text-sm">
+                <span className="text-muted-foreground">Need help? Contact your administrator</span>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
