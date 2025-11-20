@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
-import { Button } from './button';
-import { Card, CardHeader, CardTitle, CardContent } from './card';
-import { supabase } from '../../config/supabase';
+import { Button } from '../components/ui/button';
+import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/card';
+import { supabase } from '../config/supabase';
 
 const SetPassword = () => {
   const [password, setPassword] = useState('');
@@ -101,7 +101,7 @@ const SetPassword = () => {
 
       // Redirect to login after 2 seconds
       setTimeout(() => {
-        navigate('/login_new', { replace: true });
+        navigate('/login', { replace: true });
       }, 2000);
 
     } catch (err) {
@@ -286,3 +286,4 @@ const SetPassword = () => {
 };
 
 export default SetPassword;
+
