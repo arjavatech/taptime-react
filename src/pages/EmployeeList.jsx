@@ -482,7 +482,7 @@ const EmployeeList = () => {
               {(adminType !== "Admin") && (
                 <Button
                   onClick={() => openAddModal(activeTab === "admins" ? 1 : activeTab === "superadmins" ? 2 : 0)}
-                  disabled={activeTab === "superadmins"}
+                  disabled={activeTab === "superadmins" && adminType !== "Owner"}
                   className="flex items-center justify-center gap-2 w-full sm:w-auto"
                 >
                   <Plus className="w-4 h-4" />
@@ -679,7 +679,7 @@ const EmployeeList = () => {
                   <div className="flex justify-center">
                     <Button
                       onClick={() => openAddModal(activeTab === "admins" ? 1 : activeTab === "superadmins" ? 2 : 0)}
-                      disabled={activeTab === "superadmins"}
+                      disabled={activeTab === "superadmins" && adminType !== "Owner"}
                       className="flex items-center justify-center gap-2 w-full sm:w-auto"
                     >
                       <Plus className="w-4 h-4" />
@@ -970,6 +970,7 @@ const EmployeeList = () => {
                 >
                   <option value={0}>Employee</option>
                   <option value={1}>Admin</option>
+                  {adminType === "Owner" && <option value={2}>Super Admin</option>}
                 </select>
               </div>
 

@@ -380,9 +380,9 @@ const Profile = () => {
       console.log("Current personalData state:", personalData);
       console.log("Update data being sent:", updateData);
 
-      // console.log("Updating personal profile:", { companyId, userType, timestamp: new Date().toISOString() });
-      // const result = await updateProfile(companyId, updateData);
-      // console.log("Personal profile update successful:", result);
+      console.log("Updating personal profile:", { companyId, userType, timestamp: new Date().toISOString() });
+      const result = await updateProfile(companyId, updateData);
+      console.log("Personal profile update successful:", result);
 
       // Update localStorage after successful API call
       if (userType === "Owner") {
@@ -397,17 +397,17 @@ const Profile = () => {
         }
       }
 
-      // localStorage.setItem("firstName", personalData.firstName);
-      // localStorage.setItem("lastName", personalData.lastName);
-      // localStorage.setItem("userName", `${personalData.firstName} ${personalData.lastName}`.trim());
-      // localStorage.setItem("adminMail", personalData.email);
-      // localStorage.setItem("phone", personalData.phone);
-      // localStorage.setItem("phone_number", personalData.phone);
-      // localStorage.setItem("customerStreet", personalData.address);
-      // localStorage.setItem("customerStreet2", personalData.street2 || "");
-      // localStorage.setItem("customerCity", personalData.customerCity);
-      // localStorage.setItem("customerState", personalData.customerState);
-      // localStorage.setItem("customerZip", personalData.customerZip);
+      localStorage.setItem("firstName", personalData.firstName);
+      localStorage.setItem("lastName", personalData.lastName);
+      localStorage.setItem("userName", `${personalData.firstName} ${personalData.lastName}`.trim());
+      localStorage.setItem("adminMail", personalData.email);
+      localStorage.setItem("phone", personalData.phone);
+      localStorage.setItem("phone_number", personalData.phone);
+      localStorage.setItem("customerStreet", personalData.address);
+      localStorage.setItem("customerStreet2", personalData.street2 || "");
+      localStorage.setItem("customerCity", personalData.customerCity);
+      localStorage.setItem("customerState", personalData.customerState);
+      localStorage.setItem("customerZip", personalData.customerZip);
 
 
 
@@ -457,15 +457,15 @@ const Profile = () => {
       };
 
       console.log("Admin update data being sent:", updateData);
-      // const result = await updateProfile(companyId, updateData);
-      // console.log("Admin profile update successful:", result);
+      const result = await updateProfile(companyId, updateData);
+      console.log("Admin profile update successful:", result);
 
-      // localStorage.setItem("firstName", adminData.firstName);
-      // localStorage.setItem("lastName", adminData.lastName);
-      // localStorage.setItem("userName", `${adminData.firstName} ${adminData.lastName}`.trim());
-      // localStorage.setItem("adminMail", adminData.email);
-      // localStorage.setItem("phone", adminData.phone);
-      // localStorage.setItem("phone_number", adminData.phone);
+      localStorage.setItem("firstName", adminData.firstName);
+      localStorage.setItem("lastName", adminData.lastName);
+      localStorage.setItem("userName", `${adminData.firstName} ${adminData.lastName}`.trim());
+      localStorage.setItem("adminMail", adminData.email);
+      localStorage.setItem("phone", adminData.phone);
+      localStorage.setItem("phone_number", adminData.phone);
 
       setIsEditing(prev => ({ ...prev, admin: false }));
       showToast("Admin information updated successfully!");
@@ -516,19 +516,19 @@ const Profile = () => {
       };
 
       console.log("Calling updateProfile API with:", { companyId, updateData });
-      // const result = await updateProfile(companyId, updateData);
-      // console.log("API Response:", result);
+      const result = await updateProfile(companyId, updateData);
+      console.log("API Response:", result);
 
-      // // Update localStorage after successful API call
-      // localStorage.setItem("companyName", companyData.name);
-      // localStorage.setItem("companyStreet", companyData.address);
-      // localStorage.setItem("companyStreet2", companyData.street2 || "");
-      // localStorage.setItem("companyCity", companyData.city);
-      // localStorage.setItem("companyState", companyData.state);
-      // localStorage.setItem("companyZip", companyData.zipCode);
-      // if (companyData.logo) {
-      //   localStorage.setItem("companyLogo", companyData.logo);
-      // }
+      // Update localStorage after successful API call
+      localStorage.setItem("companyName", companyData.name);
+      localStorage.setItem("companyStreet", companyData.address);
+      localStorage.setItem("companyStreet2", companyData.street2 || "");
+      localStorage.setItem("companyCity", companyData.city);
+      localStorage.setItem("companyState", companyData.state);
+      localStorage.setItem("companyZip", companyData.zipCode);
+      if (companyData.logo) {
+        localStorage.setItem("companyLogo", companyData.logo);
+      }
       
 
       setIsEditing(prev => ({ ...prev, company: false }));
