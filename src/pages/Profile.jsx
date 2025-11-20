@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { updateProfile } from "../api.js";
-import { initializeUserSession, loadProfileData,  logoutUser } from "./ProfilePageLogic.js";
+import { initializeUserSession, loadProfileData, logoutUser } from "./ProfilePageLogic.js";
 import {
   User,
   Building,
@@ -37,9 +37,8 @@ const Profile = () => {
     street2: "",
     customerCity: "",
     customerState: "",
-    zipCode: "",
+    customerZip: "",
     pin: "",
-    decryptedPassword: "",
   });
 
   const [adminData, setAdminData] = useState({
@@ -98,35 +97,50 @@ const Profile = () => {
   };
 
   const handlePersonalInputChange = (field, value) => {
+    console.log(`Personal input change - Field: ${field}, Value: ${value}`);
+    console.log('Current activeTab:', activeTab);
+    console.log('Current isEditing.personal:', isEditing.personal);
+    
     if (field === "phone") {
       value = formatphone_number(value);
     }
-    
+
     const fieldMap = {
       "city": "customerCity",
-      "state": "state",
-      "zipCode": "zipCode",
+      "state": "customerState",
+      "zipCode": "customerZip",
       "address": "address"
     };
-    
+
     const actualField = fieldMap[field] || field;
-    setPersonalData(prev => ({ ...prev, [actualField]: value }));
+    console.log(`Mapping ${field} to ${actualField} with value: ${value}`);
     
+    setPersonalData(prev => {
+      const newData = { ...prev, [actualField]: value };
+      console.log('Updated personalData:', newData);
+      return newData;
+    });
+
     const errorField = field === "address" ? "customerStreet" :
       field === "city" ? "customerCity" :
         field === "state" ? "customerState" :
           field === "zipCode" ? "customerZip" : field;
-    
+
     if (errors[errorField]) {
       setErrors(prev => ({ ...prev, [errorField]: "" }));
     }
   };
 
   const handleAdminInputChange = (field, value) => {
+    console.log(`Admin input change - Field: ${field}, Value: ${value}`);
     if (field === "phone") {
       value = formatphone_number(value);
     }
-    setAdminData(prev => ({ ...prev, [field]: value }));
+    setAdminData(prev => {
+      const newData = { ...prev, [field]: value };
+      console.log('Updated adminData:', newData);
+      return newData;
+    });
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: "" }));
     }
@@ -185,6 +199,7 @@ const Profile = () => {
       setUserType(userType);
 
       const formData = loadProfileData(adminDetails);
+      console.log("Loaded form data:", formData);
 
       setPersonalData({
         firstName: formData.firstName,
@@ -199,6 +214,7 @@ const Profile = () => {
         pin: formData.adminPin,
         decryptedPassword: formData.decryptedPassword,
       });
+     
 
       setAdminData({
         firstName: formData.firstName,
@@ -340,7 +356,7 @@ const Profile = () => {
       const updateData = {
         company_name: companyData.name || "",
         company_logo: companyData.logo || "",
-        report_type: localStorage.getItem("reportType") || "string",
+        report_type: localStorage.getItem("reportType"),
         company_address_line1: companyData.address || "",
         company_address_line2: companyData.street2 || "",
         company_city: companyData.city || "",
@@ -353,17 +369,20 @@ const Profile = () => {
         customer_address_line1: personalData.address || "",
         customer_address_line2: personalData.street2 || "",
         customer_city: personalData.customerCity || "",
-        customer_state: personalData.state || "",
-        customer_zip_code: personalData.zipCode || "",
-        is_verified: false,
+        customer_state: personalData.customerState || "",
+        customer_zip_code: personalData.customerZip || "",
+        is_verified: localStorage.getItem("isVerified") === "true",
         device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
         employee_count: parseInt(localStorage.getItem("noOfEmployees") || "30"),
         last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system"
       };
 
-      console.log("Calling updateProfile API with:", { companyId, updateData });
-      const result = await updateProfile(companyId, updateData);
-      console.log("API Response:", result);
+      console.log("Current personalData state:", personalData);
+      console.log("Update data being sent:", updateData);
+
+      // console.log("Updating personal profile:", { companyId, userType, timestamp: new Date().toISOString() });
+      // const result = await updateProfile(companyId, updateData);
+      // console.log("Personal profile update successful:", result);
 
       // Update localStorage after successful API call
       if (userType === "Owner") {
@@ -378,36 +397,81 @@ const Profile = () => {
         }
       }
 
-      localStorage.setItem("firstName", personalData.firstName);
-      localStorage.setItem("lastName", personalData.lastName);
-      localStorage.setItem("userName", `${personalData.firstName} ${personalData.lastName}`.trim());
-      localStorage.setItem("adminMail", personalData.email);
-      localStorage.setItem("phone", personalData.phone);
-      localStorage.setItem("phone_number", personalData.phone);
-      localStorage.setItem("customerStreet", personalData.address);
-      localStorage.setItem("customerStreet2", personalData.street2 || "");
-      localStorage.setItem("customerCity", personalData.customerCity);
-      localStorage.setItem("customerState", personalData.state);
-      localStorage.setItem("customerZip", personalData.zipCode);
+      // localStorage.setItem("firstName", personalData.firstName);
+      // localStorage.setItem("lastName", personalData.lastName);
+      // localStorage.setItem("userName", `${personalData.firstName} ${personalData.lastName}`.trim());
+      // localStorage.setItem("adminMail", personalData.email);
+      // localStorage.setItem("phone", personalData.phone);
+      // localStorage.setItem("phone_number", personalData.phone);
+      // localStorage.setItem("customerStreet", personalData.address);
+      // localStorage.setItem("customerStreet2", personalData.street2 || "");
+      // localStorage.setItem("customerCity", personalData.customerCity);
+      // localStorage.setItem("customerState", personalData.customerState);
+      // localStorage.setItem("customerZip", personalData.customerZip);
 
-      if (userType === "Admin" || userType === "SuperAdmin") {
-        const adminDetails = JSON.parse(localStorage.getItem("loggedAdmin") || "{}");
-        const updatedAdmin = {
-          ...adminDetails,
-          first_name: personalData.firstName,
-          LName: personalData.lastName,
-          pin: personalData.pin,
-          email: personalData.email,
-          phone_number: personalData.phone
-        };
-        localStorage.setItem("loggedAdmin", JSON.stringify(updatedAdmin));
-      }
+
 
       setIsEditing(prev => ({ ...prev, personal: false }));
       showToast("Personal information updated successfully!");
     } catch (error) {
       console.error("Save Personal Error:", error);
       showToast("Failed to update personal information", "error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveAdmin = async () => {
+    console.log("handleSaveAdmin called");
+    console.log("Current adminData state:", adminData);
+    
+    if (!companyId) {
+      showToast("Company ID not found", "error");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const updateData = {
+        company_name: companyData.name || "",
+        company_logo: companyData.logo || "",
+        report_type: localStorage.getItem("reportType"),
+        company_address_line1: companyData.address || "",
+        company_address_line2: companyData.street2 || "",
+        company_city: companyData.city || "",
+        company_state: companyData.state || "",
+        company_zip_code: companyData.zipCode || "",
+        first_name: adminData.firstName || "",
+        last_name: adminData.lastName || "",
+        email: adminData.email || "",
+        phone_number: adminData.phone ? adminData.phone.replace(/\D/g, '') : "",
+        customer_address_line1: personalData.address || "",
+        customer_address_line2:personalData.street2 || "",
+        customer_city: personalData.customerCity,
+        customer_state: personalData.customerState || "",
+        customer_zip_code: personalData.customerZip || "",
+        is_verified: localStorage.getItem("isVerified") === "true",
+        device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
+        employee_count: parseInt(localStorage.getItem("noOfEmployees") || "30"),
+        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system"
+      };
+
+      console.log("Admin update data being sent:", updateData);
+      // const result = await updateProfile(companyId, updateData);
+      // console.log("Admin profile update successful:", result);
+
+      // localStorage.setItem("firstName", adminData.firstName);
+      // localStorage.setItem("lastName", adminData.lastName);
+      // localStorage.setItem("userName", `${adminData.firstName} ${adminData.lastName}`.trim());
+      // localStorage.setItem("adminMail", adminData.email);
+      // localStorage.setItem("phone", adminData.phone);
+      // localStorage.setItem("phone_number", adminData.phone);
+
+      setIsEditing(prev => ({ ...prev, admin: false }));
+      showToast("Admin information updated successfully!");
+    } catch (error) {
+      console.error("Save Admin Error:", error);
+      showToast("Failed to update admin information", "error");
     } finally {
       setIsLoading(false);
     }
@@ -443,8 +507,8 @@ const Profile = () => {
         customer_address_line1: personalData.address || "",
         customer_address_line2: personalData.street2 || "",
         customer_city: personalData.customerCity || "",
-        customer_state: personalData.state || "",
-        customer_zip_code: personalData.zipCode || "",
+        customer_state: personalData.customerState || "",
+        customer_zip_code: personalData.customerZip || "",
         is_verified: false,
         device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
         employee_count: parseInt(localStorage.getItem("noOfEmployees") || "30"),
@@ -452,19 +516,20 @@ const Profile = () => {
       };
 
       console.log("Calling updateProfile API with:", { companyId, updateData });
-      const result = await updateProfile(companyId, updateData);
-      console.log("API Response:", result);
+      // const result = await updateProfile(companyId, updateData);
+      // console.log("API Response:", result);
 
-      // Update localStorage after successful API call
-      localStorage.setItem("companyName", companyData.name);
-      localStorage.setItem("companyStreet", companyData.address);
-      localStorage.setItem("companyStreet2", companyData.street2 || "");
-      localStorage.setItem("companyCity", companyData.city);
-      localStorage.setItem("companyState", companyData.state);
-      localStorage.setItem("companyZip", companyData.zipCode);
-      if (companyData.logo) {
-        localStorage.setItem("companyLogo", companyData.logo);
-      }
+      // // Update localStorage after successful API call
+      // localStorage.setItem("companyName", companyData.name);
+      // localStorage.setItem("companyStreet", companyData.address);
+      // localStorage.setItem("companyStreet2", companyData.street2 || "");
+      // localStorage.setItem("companyCity", companyData.city);
+      // localStorage.setItem("companyState", companyData.state);
+      // localStorage.setItem("companyZip", companyData.zipCode);
+      // if (companyData.logo) {
+      //   localStorage.setItem("companyLogo", companyData.logo);
+      // }
+      
 
       setIsEditing(prev => ({ ...prev, company: false }));
       showToast("Company information updated successfully!");
@@ -480,10 +545,7 @@ const Profile = () => {
     setIsEditing(prev => ({ ...prev, [type]: false }));
 
     // Reload original data from localStorage
-    const adminDetails = userType === "Admin" || userType === "SuperAdmin"
-      ? JSON.parse(localStorage.getItem("loggedAdmin") || "{}")
-      : null;
-    const formData = loadProfileData(adminDetails);
+    const formData = loadProfileData(null);
 
     if (type === "personal") {
       setPersonalData({
@@ -546,8 +608,8 @@ const Profile = () => {
       {toast.show && (
         <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2">
           <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${toast.type === 'success'
-              ? 'bg-green-50 border-green-200 text-green-800'
-              : 'bg-red-50 border-red-200 text-red-800'
+            ? 'bg-green-50 border-green-200 text-green-800'
+            : 'bg-red-50 border-red-200 text-red-800'
             }`}>
             {toast.type === 'success' ? (
               <CheckCircle className="h-5 w-5 text-green-600" />
@@ -601,8 +663,8 @@ const Profile = () => {
                   key={key}
                   onClick={() => setActiveTab(key)}
                   className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === key
-                      ? "border-primary text-primary"
-                      : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
                     }`}
                 >
                   <Icon className="w-4 h-4" />
@@ -1036,7 +1098,7 @@ const Profile = () => {
                       id="pin"
                       value={adminData.pin}
                       onChange={(e) => handleAdminInputChange("pin", e.target.value)}
-                      disabled="True"
+                      disabled={true}
                       className={errors.pin ? "border-red-500" : ""}
                       maxLength={6}
                       placeholder="4-6 digits"
@@ -1055,7 +1117,7 @@ const Profile = () => {
                       Cancel
                     </Button>
                     <Button
-                      onClick={handleSavePersonal}
+                      onClick={handleSaveAdmin}
                       className="flex-1 flex items-center justify-center gap-2 order-1 sm:order-2"
                     >
                       <Save className="w-4 h-4" />

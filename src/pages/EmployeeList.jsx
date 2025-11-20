@@ -29,7 +29,12 @@ import {
   Grid3X3,
   Table,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  ChevronDown,
+  Check
 } from "lucide-react";
 
 const EmployeeList = () => {
@@ -84,7 +89,7 @@ const EmployeeList = () => {
 
   // Sorting and pagination state
   const [sortConfig, setSortConfig] = useState({
-    key: "pin",
+    key: null,
     direction: "asc",
   });
 
@@ -134,6 +139,20 @@ const EmployeeList = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [viewMode]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      const dropdown = document.getElementById('sort-dropdown');
+      const button = event.target.closest('button');
+      if (dropdown && !dropdown.contains(event.target) && !button?.closest('[data-sort-button]')) {
+        dropdown.classList.add('hidden');
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Fetch all employee data using centralized API
   const loadEmployeeData = useCallback(async () => {
@@ -187,6 +206,10 @@ const EmployeeList = () => {
       } else if (sortConfig.key === "name") {
         aValue = `${a.first_name} ${a.last_name}`.toLowerCase();
         bValue = `${b.first_name} ${b.last_name}`.toLowerCase();
+        return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+      } else if (sortConfig.key === "contact") {
+        aValue = (a.email || a.phone_number || "").toLowerCase();
+        bValue = (b.email || b.phone_number || "").toLowerCase();
         return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
       } else if (sortConfig.key === "role") {
         return sortConfig.direction === "asc" ? a.is_admin - b.is_admin : b.is_admin - a.is_admin;
@@ -558,23 +581,66 @@ const EmployeeList = () => {
               />
             </div>
             <div className="flex items-center gap-2 justify-between sm:justify-start">
-              <select
-                value={`${sortConfig.key}-${sortConfig.direction}`}
-                onChange={(e) => {
-                  const [key, direction] = e.target.value.split('-');
-                  setSortConfig({ key, direction });
-                }}
-                className="px-3 py-2 border border-input bg-background rounded-md text-sm flex-1 sm:flex-none"
-              >
-                <option value="name-asc">Name A-Z</option>
-                <option value="name-desc">Name Z-A</option>
-                <option value="pin-asc">PIN A-Z</option>
-                <option value="pin-desc">PIN Z-A</option>
-                <option value="role-asc">Role: Employee First</option>
-                <option value="role-desc">Role: Admin First</option>
-                <option value="status-asc">Status: Inactive First</option>
-                <option value="status-desc">Status: Active First</option>
-              </select>
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  className="px-3 py-2 h-auto text-sm flex items-center gap-2 min-w-[140px] justify-between"
+                  onClick={() => document.getElementById('sort-dropdown').classList.toggle('hidden')}
+                  data-sort-button
+                >
+                  <div className="flex items-center gap-2">
+                    {sortConfig.direction === 'asc' ? (
+                      <ArrowUp className="w-4 h-4 text-green-600" />
+                    ) : (
+                      <ArrowDown className="w-4 h-4 text-blue-600" />
+                    )}
+                    <span>
+                      {sortConfig.key ? (
+                        sortConfig.key === 'name' ? 'Sort By Name' :
+                        sortConfig.key === 'pin' ? 'Sort By PIN' :
+                        sortConfig.key === 'contact' ? 'Sort By Contact' : 'Sort'
+                      ) : 'Sort'}
+                    </span>
+                  </div>
+                  <ChevronDown className="w-4 h-4" />
+                </Button>
+                <div
+                  id="sort-dropdown"
+                  className="absolute top-full left-0 mt-1 w-48 bg-background border border-input rounded-md shadow-lg z-10 hidden"
+                >
+                  {[
+                    { key: 'name', direction: 'asc', label: 'Sort By Name A-Z', icon: ArrowUp },
+                    { key: 'name', direction: 'desc', label: 'Sort By Name Z-A', icon: ArrowDown },
+                    { key: 'pin', direction: 'asc', label: 'Sort By PIN A-Z', icon: ArrowUp },
+                    { key: 'pin', direction: 'desc', label: 'Sort By PIN Z-A', icon: ArrowDown },
+                    { key: 'contact', direction: 'asc', label: 'Sort By Contact A-Z', icon: ArrowUp },
+                    { key: 'contact', direction: 'desc', label: 'Sort By Contact Z-A', icon: ArrowDown }
+                  ].map(({ key, direction, label, icon: Icon }) => (
+                    <button
+                      key={`${key}-${direction}`}
+                      onClick={() => {
+                        setSortConfig({ key, direction });
+                        document.getElementById('sort-dropdown').classList.add('hidden');
+                      }}
+                      className={`w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center justify-between transition-colors ${
+                        sortConfig.key === key && sortConfig.direction === direction
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-foreground'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Icon className={`w-4 h-4 ${
+                          direction === 'asc' ? 'text-green-600' : 'text-blue-600'
+                        }`} />
+                        {label}
+                      </div>
+                      {sortConfig.key === key && sortConfig.direction === direction && (
+                        <Check className="w-4 h-4" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="flex items-center gap-1 border rounded-lg p-1">
                 <Button
                   variant={viewMode === "table" ? "default" : "ghost"}
@@ -610,14 +676,16 @@ const EmployeeList = () => {
                   {searchQuery ? "Try adjusting your search criteria." : "Get started by adding your first employee."}
                 </p>
                 {!searchQuery && (
-                  <Button
-                    onClick={() => openAddModal(activeTab === "admins" ? 1 : activeTab === "superadmins" ? 2 : 0)}
-                    disabled={activeTab === "superadmins"}
-                    className="flex items-center justify-center gap-2 w-full sm:w-auto"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add {activeTab === "admins" ? "Admin" : activeTab === "superadmins" ? "Super Admin" : "Employee"}
-                  </Button>
+                  <div className="flex justify-center">
+                    <Button
+                      onClick={() => openAddModal(activeTab === "admins" ? 1 : activeTab === "superadmins" ? 2 : 0)}
+                      disabled={activeTab === "superadmins"}
+                      className="flex items-center justify-center gap-2 w-full sm:w-auto"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add {activeTab === "admins" ? "Admin" : activeTab === "superadmins" ? "Super Admin" : "Employee"}
+                    </Button>
+                  </div>
                 )}
               </CardContent>
             </Card>

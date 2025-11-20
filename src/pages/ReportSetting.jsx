@@ -24,14 +24,18 @@ import {
   Loader2,
   Search,
   Grid3X3,
-  Table
+  Table,
+  ArrowUp,
+  ArrowDown,
+  ChevronDown,
+  Check
 } from "lucide-react";
 
 const ReportSetting = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [emailSettings, setEmailSettings] = useState([]);
   const [allEmailSettings, setAllEmailSettings] = useState([]);
-  const [viewSettings, setViewSettings] = useState(["Weekly"]);
+  const [viewSettings, setViewSettings] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewEditModal, setShowViewEditModal] = useState(false);
@@ -49,7 +53,7 @@ const ReportSetting = () => {
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState("table");
-  const [sortConfig, setSortConfig] = useState({ key: "email", direction: "asc" });
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
 
   const frequencies = ["Daily", "Weekly", "Biweekly", "Monthly", "Bimonthly"];
 
@@ -87,17 +91,18 @@ const ReportSetting = () => {
     
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(setting =>
-        setting.email?.toLowerCase().includes(query) ||
-        formatFrequencies(setting).join(', ').toLowerCase().includes(query)
-      );
+      filtered = filtered.filter(setting => {
+        const email = (setting.email || setting.company_reporter_email || "").toLowerCase();
+        const frequencies = formatFrequencies(setting).join(', ').toLowerCase();
+        return email.includes(query) || frequencies.includes(query);
+      });
     }
     
     filtered.sort((a, b) => {
       let aValue, bValue;
       if (sortConfig.key === "email") {
-        aValue = a.email?.toLowerCase() || "";
-        bValue = b.email?.toLowerCase() || "";
+        aValue = (a.email || a.company_reporter_email || "").toLowerCase();
+        bValue = (b.email || b.company_reporter_email || "").toLowerCase();
         return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
       } else if (sortConfig.key === "frequency") {
         aValue = formatFrequencies(a).join(', ').toLowerCase();
@@ -310,10 +315,6 @@ const ReportSetting = () => {
       localStorage.setItem("reportType", tempViewSettings.join(","));
       setViewSettings([...tempViewSettings]);
       setViewFrequencies([...tempViewSettings]);
-      
-      localStorage.setItem('reportViewSettings', JSON.stringify(tempViewSettings));
-      window.dispatchEvent(new CustomEvent('reportSettingsUpdated'));
-      
       showToast("View settings updated successfully!");
       closeModals();
     } catch (error) {
@@ -352,6 +353,20 @@ const ReportSetting = () => {
     if (window.innerWidth < 1024) {
       setViewMode("grid");
     }
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      const dropdown = document.getElementById('sort-dropdown');
+      const button = event.target.closest('button');
+      if (dropdown && !dropdown.contains(event.target) && !button?.closest('[data-sort-button]')) {
+        dropdown.classList.add('hidden');
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   return (
@@ -418,26 +433,70 @@ const ReportSetting = () => {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
                   placeholder="Search email settings..."
-                  value={searchQuery}
+                  value={searchQuery || ""}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 text-sm"
                 />
               </div>
               
               <div className="flex items-center gap-2 justify-between sm:justify-start">
-                <select
-                  value={`${sortConfig.key}-${sortConfig.direction}`}
-                  onChange={(e) => {
-                    const [key, direction] = e.target.value.split('-');
-                    setSortConfig({ key, direction });
-                  }}
-                  className="px-3 py-2 border border-input bg-background rounded-md text-sm flex-1 sm:flex-none"
-                >
-                  <option value="email-asc">Email A-Z</option>
-                  <option value="email-desc">Email Z-A</option>
-                  <option value="frequency-asc">Frequency A-Z</option>
-                  <option value="frequency-desc">Frequency Z-A</option>
-                </select>
+                <div className="relative">
+                  <Button
+                    variant="outline"
+                    className="px-3 py-2 h-auto text-sm flex items-center gap-2 min-w-[140px] justify-between"
+                    onClick={() => document.getElementById('sort-dropdown').classList.toggle('hidden')}
+                    data-sort-button
+                  >
+                    <div className="flex items-center gap-2">
+                      {sortConfig.direction === 'asc' ? (
+                        <ArrowUp className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <ArrowDown className="w-4 h-4 text-blue-600" />
+                      )}
+                      <span>
+                        {sortConfig.key ? (
+                          sortConfig.key === 'email' ? 'Sort By Email' :
+                          sortConfig.key === 'frequency' ? 'Sort By Frequency' : 'Sort'
+                        ) : 'Sort'}
+                      </span>
+                    </div>
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
+                  <div
+                    id="sort-dropdown"
+                    className="absolute top-full left-0 mt-1 w-48 bg-background border border-input rounded-md shadow-lg z-10 hidden"
+                  >
+                    {[
+                      { key: 'email', direction: 'asc', label: 'Sort By Email A-Z', icon: ArrowUp },
+                      { key: 'email', direction: 'desc', label: 'Sort By Email Z-A', icon: ArrowDown },
+                      { key: 'frequency', direction: 'asc', label: 'Sort By Frequency A-Z', icon: ArrowUp },
+                      { key: 'frequency', direction: 'desc', label: 'Sort By Frequency Z-A', icon: ArrowDown }
+                    ].map(({ key, direction, label, icon: Icon }) => (
+                      <button
+                        key={`${key}-${direction}`}
+                        onClick={() => {
+                          setSortConfig({ key, direction });
+                          document.getElementById('sort-dropdown').classList.add('hidden');
+                        }}
+                        className={`w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center justify-between transition-colors ${
+                          sortConfig.key === key && sortConfig.direction === direction
+                            ? 'bg-primary/10 text-primary'
+                            : 'text-foreground'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Icon className={`w-4 h-4 ${
+                            direction === 'asc' ? 'text-green-600' : 'text-blue-600'
+                          }`} />
+                          {label}
+                        </div>
+                        {sortConfig.key === key && sortConfig.direction === direction && (
+                          <Check className="w-4 h-4" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 
                 <div className="flex items-center gap-1 border rounded-lg p-1">
                   <Button
@@ -481,10 +540,12 @@ const ReportSetting = () => {
                     {searchQuery ? "Try adjusting your search criteria." : "Get started by adding your first email setting."}
                   </p>
                   {!searchQuery && (
-                    <Button onClick={openAddModal} className="flex items-center justify-center gap-2 w-full sm:w-auto">
-                      <Plus className="w-4 h-4" />
-                      Add Email Setting
-                    </Button>
+                    <div className="flex justify-center">
+                      <Button onClick={openAddModal} className="flex items-center justify-center gap-2 w-full sm:w-auto">
+                        <Plus className="w-4 h-4" />
+                        Add Email Setting
+                      </Button>
+                    </div>
                   )}
                 </div>
               ) : (
@@ -499,7 +560,7 @@ const ReportSetting = () => {
                                 <Mail className="w-4 h-4 text-primary" />
                               </div>
                               <div className="min-w-0 flex-1">
-                                <CardTitle className="text-base sm:text-lg truncate">{setting.email}</CardTitle>
+                                <CardTitle className="text-base sm:text-lg truncate">{setting.email || setting.company_reporter_email}</CardTitle>
                                 <CardDescription className="text-xs sm:text-sm">Email Setting</CardDescription>
                               </div>
                             </div>
@@ -592,56 +653,54 @@ const ReportSetting = () => {
           </Card>
 
           {/* View Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                Report View Settings
-              </CardTitle>
-              <CardDescription>
-                Configure default report frequencies for viewing
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="min-w-full border border-gray-300 rounded-lg">
-                  <thead className="bg-[#02066F] text-white">
-                    <tr>
-                      <th className="px-2 sm:px-4 py-2 sm:py-3 text-center font-semibold text-xs sm:text-sm border-r border-white/20">Current Frequencies</th>
-                      <th className="px-2 sm:px-4 py-2 sm:py-3 text-center font-semibold text-xs sm:text-sm">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    <tr className="hover:bg-gray-50">
-                      <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
-                        <div className="flex gap-1 sm:gap-2 justify-center flex-wrap">
-                          {viewSettings.length === 0 ? (
-                            <span className="text-muted-foreground text-xs sm:text-sm">No frequencies selected</span>
-                          ) : (
-                            viewSettings.map((freq) => (
+          {viewSettings.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  Report View Settings
+                </CardTitle>
+                <CardDescription>
+                  Configure default report frequencies for viewing
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full border border-gray-300 rounded-lg">
+                    <thead className="bg-[#02066F] text-white">
+                      <tr>
+                        <th className="px-2 sm:px-4 py-2 sm:py-3 text-center font-semibold text-xs sm:text-sm border-r border-white/20">Current Frequencies</th>
+                        <th className="px-2 sm:px-4 py-2 sm:py-3 text-center font-semibold text-xs sm:text-sm">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      <tr className="hover:bg-gray-50">
+                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
+                          <div className="flex gap-1 sm:gap-2 justify-center flex-wrap">
+                            {viewSettings.map((freq) => (
                               <span key={freq} className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-green-100 text-green-800 text-xs rounded-full">
                                 {freq}
                               </span>
-                            ))
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={openViewEditModal}
-                          className="h-7 w-7 sm:h-8 sm:w-8 p-0"
-                        >
-                          <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={openViewEditModal}
+                            className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                          >
+                            <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                          </Button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 

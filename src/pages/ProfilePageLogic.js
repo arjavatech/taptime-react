@@ -23,23 +23,20 @@ export const initializeUserSession = async () => {
       );
 
       if (matchedAdmin) {
-        console.log('Matched admin before company merge:', matchedAdmin);
-        console.log('Company fields in matched admin:', {
-          company_name: localStorage.getItem("companyName"),
-          company_address_line1: localStorage.getItem("companyAddress1"),
-          company_address_line2: localStorage.getItem("companyAddress2"),
-          company_city: localStorage.getItem("companyCity"),
-          company_state: localStorage.getItem("companyState"),
-          company_zip_code:localStorage.getItem("companyZipCode")
-        });
+        console.log('Admin matched successfully:', { email: adminMail, type: userType });
 
         adminDetails = matchedAdmin;
 
-        localStorage.setItem("loggedAdmin", JSON.stringify(adminDetails));
+
       }
     } catch (error) {
-      console.error("Error fetching admin details:", error);
-      console.log('Full employee data response:', employeeData);
+      console.error("Failed to fetch admin details:", {
+        message: error.message,
+        userType,
+        adminMail,
+        timestamp: new Date().toISOString()
+      });
+      adminDetails = null;
     }
   } else if (storedAdmin) {
     adminDetails = JSON.parse(storedAdmin);
@@ -67,15 +64,7 @@ export const initializeUserSession = async () => {
 // Load user profile data from localStorage (matching Profile.jsx structure)
 export const loadProfileData = (adminDetails) => {
   // Debug all localStorage company-related values
-  const companyAddress1 = localStorage.getItem("companyAddress1");
-  console.log('All localStorage company values:', {
-    companyAddress1: companyAddress1,
-    companyName: localStorage.getItem("companyName"),
-    companyLogo: localStorage.getItem("companyLogo"),
-    companyZip: localStorage.getItem("companyZipCode"),
-
-  });
-
+  
   let formData = {
     // Company info
     companyName: localStorage.getItem("companyName") || "",
@@ -98,16 +87,16 @@ export const loadProfileData = (adminDetails) => {
     customerCity: localStorage.getItem("customerCity") || "",
     customerState: localStorage.getItem("customerState") || "",
     customerZip: localStorage.getItem("customerZipCode") || "",
+    
 
     // Admin fields
     adminPin: "",
   };
 
 
-
-
   if (adminDetails) {
     console.log('AdminDetails received:', adminDetails);
+    console.log(localStorage.getItem("reportType"))
 
     // Personal info from adminDetails - use actual data or fallbacks
     formData.firstName = adminDetails.first_name || adminDetails.FName || formData.firstName
@@ -138,37 +127,36 @@ export const loadProfileData = (adminDetails) => {
       formData.logo = adminDetails.company_logo;
     }
 
-    // Update localStorage with all data
-    localStorage.setItem("firstName", formData.firstName);
-    localStorage.setItem("lastName", formData.lastName);
-    localStorage.setItem("adminMail", formData.email);
-    localStorage.setItem("phone_number", formData.phone);
-    localStorage.setItem("phone", formData.phone);
-    localStorage.setItem("userName", `${formData.firstName} ${formData.lastName}`.trim());
-
-    localStorage.setItem("companyName", formData.companyName);
-    localStorage.setItem("companyStreet", formData.companyStreet);
-    localStorage.setItem("companyStreet2", formData.companyStreet2);
-    localStorage.setItem("companyCity", formData.companyCity);
-    localStorage.setItem("companyState", formData.companyState);
-    localStorage.setItem("companyZipCode", formData.companyZip);
-
-    localStorage.setItem("customerStreet", formData.customerStreet);
-    localStorage.setItem("customerStreet2", formData.customerStreet2);
-    localStorage.setItem("customerCity", formData.customerCity);
-    localStorage.setItem("customerState", formData.customerState);
-    localStorage.setItem("customerZip", formData.customerZip);
-
+    // Batch localStorage updates
+    const updates = {
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      adminMail: formData.email,
+      phone_number: formData.phone,
+      phone: formData.phone,
+      userName: `${formData.firstName} ${formData.lastName}`.trim(),
+      companyName: formData.companyName,
+      companyStreet: formData.companyStreet,
+      companyStreet2: formData.companyStreet2,
+      companyCity: formData.companyCity,
+      companyState: formData.companyState,
+      companyZipCode: formData.companyZip,
+      customerStreet: formData.customerStreet,
+      customerStreet2: formData.customerStreet2,
+      customerCity: formData.customerCity,
+      customerState: formData.customerState,
+      customerZip: formData.customerZip
+    };
+    
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value) localStorage.setItem(key, value);
+    });
+    
     if (formData.logo) {
       localStorage.setItem("companyLogo", formData.logo);
     }
   }
 
-  console.log(localStorage.getItem("companyAddress2"));
-
-
-
-  console.log('Final formData:', formData);
 
   return formData;
 };
@@ -199,7 +187,7 @@ export const logoutUser = () => {
   localStorage.removeItem("companyID");
   localStorage.removeItem("customerID");
   localStorage.removeItem("adminType");
-  localStorage.removeItem("loggedAdmin");
+
   localStorage.removeItem("adminMail");
   localStorage.removeItem("username");
   localStorage.removeItem("password");

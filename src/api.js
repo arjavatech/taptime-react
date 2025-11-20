@@ -144,7 +144,9 @@ export const googleSignInCheck = async (email) => {
 
     Object.entries(storeData).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
+        console.log(`Storing in localStorage: ${key} = ${value}`);
         localStorage.setItem(key, value);
+        
       }
     });
 

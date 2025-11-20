@@ -8,9 +8,9 @@ import { Label } from "../components/ui/label";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Loader2, Eye, EyeOff, CheckCircle, XCircle, Mail, Lock } from "lucide-react";
-import tabtimelogo from "../assets/images/tap-time-logo.png";
+import tabTimeLogo from "../assets/images/tap-time-logo.png";
 
-const Login_new = () => {
+const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
@@ -99,8 +99,7 @@ const Login_new = () => {
       }
 
       if (data?.user) {
-        localStorage.setItem("userEmail", data.user.email);
-        localStorage.setItem("userId", data.user.id);
+
 
         const userName = data.user.user_metadata?.full_name || data.user.user_metadata?.name || email.split('@')[0];
         const userPicture = data.user.user_metadata?.avatar_url || data.user.user_metadata?.picture || '';
@@ -174,7 +173,7 @@ const Login_new = () => {
           <div className="w-full max-w-lg flex flex-col items-center text-center space-y-8">
             {/* Brand Logo */}
             <img
-              src={tabtimelogo}
+              src={tabTimeLogo}
               alt="Tap-Time Logo"
               className="w-48 xl:w-56 md:w-40 mx-auto"
             />
@@ -209,7 +208,7 @@ const Login_new = () => {
           <div className="w-full max-w-md">
             {/* Logo (visible on mobile only) */}
             <div className="text-center mb-8 md:hidden">
-              <img src={tabtimelogo} alt="TabTime Logo" className="mx-auto h-20 w-auto sm:h-25" />
+              <img src={tabTimeLogo} alt="TabTime Logo" className="mx-auto h-20 w-auto sm:h-25" />
             </div>
 
             <Card className="border-0 shadow-2xl">
@@ -351,4 +350,4 @@ const Login_new = () => {
   );
 };
 
-export default Login_new;
+export default Login;

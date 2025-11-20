@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { fetchEmployeeData, fetchDevices, fetchDailyReport, fetchDateRangeReport, createDailyReportEntry, updateDailyReportEntry } from "../api.js";
-import { getLocalDateString, getLocalDateTimeString } from "../utils";
+import { getLocalDateString } from "../utils";
 import {
   Calendar,
   Download,
@@ -22,7 +22,11 @@ import {
   AlertCircle,
   Loader2,
   Grid3X3,
-  Table
+  Table,
+  ArrowUp,
+  ArrowDown,
+  ChevronDown,
+  Check
 } from "lucide-react";
 
 const Reports = () => {
@@ -33,17 +37,13 @@ const Reports = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [sortConfig, setSortConfig] = useState({ key: "name", direction: "asc" });
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [viewMode, setViewMode] = useState("table");
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   
   // Common state
   const [devices, setDevices] = useState([]);
   const [selectedDevice, setSelectedDevice] = useState(null);
-  const [adminType, setAdminType] = useState("");
-  const [deviceID, setDeviceID] = useState("");
-  const [availableFrequencies, setAvailableFrequencies] = useState([]);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [newEntry, setNewEntry] = useState({
     EmployeeID: "",
@@ -75,9 +75,6 @@ const Reports = () => {
   // Salaried report specific
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [startDateHeader, setStartDateHeader] = useState("");
-  const [endDateHeader, setEndDateHeader] = useState("");
-  const [selectedFrequency, setSelectedFrequency] = useState("");
   const [employees, setEmployees] = useState([]);
   const [dateRangeReportLoaded, setDateRangeReportLoaded] = useState(false);
 
@@ -600,13 +597,20 @@ const Reports = () => {
         bValue = b.Pin || "";
         return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
       } else if (sortConfig.key === "time") {
-        aValue = a.TimeWorked || "0:00";
-        bValue = b.TimeWorked || "0:00";
-        return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+        // Convert time format "HH:MM" to minutes for proper numerical sorting
+        const timeToMinutes = (timeStr) => {
+          if (!timeStr || timeStr === "--" || timeStr === "0:00") return 0;
+          const [hours, minutes] = timeStr.split(':').map(Number);
+          return (hours || 0) * 60 + (minutes || 0);
+        };
+        aValue = timeToMinutes(a.TimeWorked || "0:00");
+        bValue = timeToMinutes(b.TimeWorked || "0:00");
+        return sortConfig.direction === "asc" ? aValue - bValue : bValue - aValue;
       } else if (sortConfig.key === "checkin") {
-        aValue = a.CheckInTime || "";
-        bValue = b.CheckInTime || "";
-        return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+        // Convert check-in time to Date objects for proper chronological sorting
+        aValue = a.CheckInTime ? new Date(a.CheckInTime).getTime() : 0;
+        bValue = b.CheckInTime ? new Date(b.CheckInTime).getTime() : 0;
+        return sortConfig.direction === "asc" ? aValue - bValue : bValue - aValue;
       }
       return 0;
     });
@@ -903,6 +907,20 @@ const Reports = () => {
     }
   }, []);
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      const dropdown = document.getElementById('sort-dropdown');
+      const button = event.target.closest('button');
+      if (dropdown && !dropdown.contains(event.target) && !button?.closest('[data-sort-button]')) {
+        dropdown.classList.add('hidden');
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
@@ -1099,7 +1117,7 @@ const Reports = () => {
               <div className="relative flex-1 max-w-full sm:max-w-md">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
-                  placeholder="Search employees..."
+                  placeholder="Search reports..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10 text-sm"
@@ -1107,23 +1125,66 @@ const Reports = () => {
               </div>
               
               <div className="flex items-center gap-2 justify-between sm:justify-start">
-                <select
-                  value={`${sortConfig.key}-${sortConfig.direction}`}
-                  onChange={(e) => {
-                    const [key, direction] = e.target.value.split('-');
-                    setSortConfig({ key, direction });
-                  }}
-                  className="px-3 py-2 border border-input bg-background rounded-md text-sm flex-1 sm:flex-none"
-                >
-                  <option value="name-asc">Name A-Z</option>
-                  <option value="name-desc">Name Z-A</option>
-                  <option value="pin-asc">PIN A-Z</option>
-                  <option value="pin-desc">PIN Z-A</option>
-                  <option value="checkin-asc">Check-in: Early First</option>
-                  <option value="checkin-desc">Check-in: Late First</option>
-                  <option value="time-asc">Time: Low to High</option>
-                  <option value="time-desc">Time: High to Low</option>
-                </select>
+                <div className="relative">
+                  <Button
+                    variant="outline"
+                    className="px-3 py-2 h-auto text-sm flex items-center gap-2 min-w-[140px] justify-between"
+                    onClick={() => document.getElementById('sort-dropdown').classList.toggle('hidden')}
+                    data-sort-button
+                  >
+                    <div className="flex items-center gap-2">
+                      {sortConfig.direction === 'asc' ? (
+                        <ArrowUp className="w-4 h-4 text-green-600" />
+                      ) : (
+                        <ArrowDown className="w-4 h-4 text-blue-600" />
+                      )}
+                      <span>
+                        {sortConfig.key ? (
+                          sortConfig.key === 'name' ? 'Sort By Name' :
+                          sortConfig.key === 'pin' ? 'Sort By PIN' :
+                          sortConfig.key === 'checkin' ? 'Sort By Check-in' :
+                          sortConfig.key === 'time' ? 'Time' : 'Sort'
+                        ) : 'Sort'}
+                      </span>
+                    </div>
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
+                  <div
+                    id="sort-dropdown"
+                    className="absolute top-full left-0 mt-1 w-48 bg-background border border-input rounded-md shadow-lg z-10 hidden"
+                  >
+                    {[
+                      { key: 'name', direction: 'asc', label: 'Sort By Name A-Z', icon: ArrowUp },
+                      { key: 'name', direction: 'desc', label: 'Sort By Name Z-A', icon: ArrowDown },
+                      { key: 'pin', direction: 'asc', label: 'Sort By PIN A-Z', icon: ArrowUp },
+                      { key: 'pin', direction: 'desc', label: 'Sort By PIN Z-A', icon: ArrowDown },
+                     
+                    ].map(({ key, direction, label, icon: Icon }) => (
+                      <button
+                        key={`${key}-${direction}`}
+                        onClick={() => {
+                          setSortConfig({ key, direction });
+                          document.getElementById('sort-dropdown').classList.add('hidden');
+                        }}
+                        className={`w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center justify-between transition-colors ${
+                          sortConfig.key === key && sortConfig.direction === direction
+                            ? 'bg-primary/10 text-primary'
+                            : 'text-foreground'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Icon className={`w-4 h-4 ${
+                            direction === 'asc' ? 'text-green-600' : 'text-blue-600'
+                          }`} />
+                          {label}
+                        </div>
+                        {sortConfig.key === key && sortConfig.direction === direction && (
+                          <Check className="w-4 h-4" />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 
                 <div className="flex items-center gap-1 border rounded-lg p-1">
                   <Button

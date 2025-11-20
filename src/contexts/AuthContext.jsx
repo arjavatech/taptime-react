@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import { supabase } from '../config/supabase';
-import { googleSignInCheck, getTimeZone, getCustomerData } from '../api.js';
+import { googleSignInCheck, getTimeZone } from '../api.js';
 
 const AuthContext = createContext({});
 
@@ -96,13 +96,27 @@ export const AuthProvider = ({ children }) => {
       sessionStorage.clear();
 
       const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-
-      // Clear any additional localStorage items if needed
+      
+      // Always clear localStorage regardless of Supabase logout success/failure
       localStorage.clear();
+      
+      // If there's a 403 error, it's likely due to an expired session
+      // We can safely ignore this since we've already cleared local storage
+      if (error && error.status !== 403) {
+        throw error;
+      }
 
       return { error: null };
     } catch (error) {
+      // Even if logout fails, clear local storage to ensure user is logged out locally
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // For 403 errors, treat as successful logout since session is already invalid
+      if (error.status === 403) {
+        return { error: null };
+      }
+      
       return { error };
     }
   };
@@ -157,7 +171,6 @@ export const AuthProvider = ({ children }) => {
       await getTimeZone(companyID);
 
       // Step 4: Fetch customer data
-      await getCustomerData(companyID);
 
       return { success: true, companyID };
     } catch (error) {
