@@ -325,9 +325,12 @@ const Reports = () => {
         }
       }
 
-      console.log('Day-wise report processed data:', processedData.length, 'records');
-      setReportData(processedData);
-      setFilteredData([...processedData]);
+      // Consolidate multiple entries per employee into single rows
+      const consolidatedData = consolidateDaywiseReport(processedData);
+      console.log('Day-wise report consolidated:', consolidatedData.length, 'unique employees from', processedData.length, 'records');
+
+      setReportData(consolidatedData);
+      setFilteredData([...consolidatedData]);
       updateSummaryStats(processedData);
       setCurrentPage(1);
     } catch (err) {
@@ -366,6 +369,92 @@ const Reports = () => {
       details.totalHoursWorked = `${hours}:${mins.toString().padStart(2, "0")}`;
     }
     return employeeTimes;
+  };
+
+  const consolidateDaywiseReport = (data) => {
+    const consolidated = {};
+
+    data.forEach(entry => {
+      const { Name, Pin, CheckInTime, CheckOutTime, TimeWorked, Type, EmpID, DeviceID } = entry;
+      if (!Name || !Pin) return;
+
+      if (!consolidated[Pin]) {
+        // Initialize entry for this employee
+        consolidated[Pin] = {
+          Name,
+          Pin,
+          EmpID,
+          DeviceID,
+          earliestCheckIn: CheckInTime,
+          latestCheckOut: CheckOutTime,
+          totalMinutes: 0,
+          types: new Set(),
+          hasIncompleteEntry: false
+        };
+      }
+
+      // Track all unique types
+      if (Type) {
+        consolidated[Pin].types.add(Type);
+      }
+
+      // Find earliest check-in
+      if (CheckInTime) {
+        const currentCheckIn = new Date(CheckInTime);
+        const earliestCheckIn = new Date(consolidated[Pin].earliestCheckIn);
+        if (currentCheckIn < earliestCheckIn) {
+          consolidated[Pin].earliestCheckIn = CheckInTime;
+        }
+      }
+
+      // Find latest check-out
+      if (CheckOutTime) {
+        if (!consolidated[Pin].latestCheckOut) {
+          consolidated[Pin].latestCheckOut = CheckOutTime;
+        } else {
+          const currentCheckOut = new Date(CheckOutTime);
+          const latestCheckOut = new Date(consolidated[Pin].latestCheckOut);
+          if (currentCheckOut > latestCheckOut) {
+            consolidated[Pin].latestCheckOut = CheckOutTime;
+          }
+        }
+      } else {
+        // Mark if any entry doesn't have checkout
+        consolidated[Pin].hasIncompleteEntry = true;
+      }
+
+      // Calculate time worked for this entry
+      if (CheckInTime && CheckOutTime) {
+        const checkInDate = new Date(CheckInTime);
+        const checkOutDate = new Date(CheckOutTime);
+        const timeDifferenceInMinutes = Math.floor(
+          (Number(checkOutDate) - Number(checkInDate)) / 1000 / 60
+        );
+        consolidated[Pin].totalMinutes += timeDifferenceInMinutes;
+      }
+    });
+
+    // Convert to array format with proper formatting
+    return Object.values(consolidated).map(employee => {
+      const hours = Math.floor(employee.totalMinutes / 60);
+      const mins = employee.totalMinutes % 60;
+      const totalTimeWorked = `${hours}:${mins.toString().padStart(2, "0")}`;
+      const typesArray = Array.from(employee.types);
+
+      return {
+        Name: employee.Name,
+        Pin: employee.Pin,
+        EmpID: employee.EmpID,
+        DeviceID: employee.DeviceID,
+        CheckInTime: employee.earliestCheckIn,
+        CheckOutTime: employee.hasIncompleteEntry ? null : employee.latestCheckOut,
+        formattedCheckIn: employee.earliestCheckIn ? convertToAmPm(employee.earliestCheckIn) : "--",
+        formattedCheckOut: (employee.hasIncompleteEntry || !employee.latestCheckOut) ? "--" : convertToAmPm(employee.latestCheckOut),
+        TimeWorked: totalTimeWorked,
+        Type: typesArray.join(", "), // Comma-separated types
+        Status: employee.hasIncompleteEntry ? "In Progress" : "Completed"
+      };
+    });
   };
 
   const loadSummaryReport = async () => {
