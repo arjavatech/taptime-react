@@ -6,11 +6,11 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { 
-  fetchEmployeeData, 
-  createEmployeeWithData, 
-  updateEmployeeWithData, 
-  deleteEmployeeById 
+import {
+  fetchEmployeeData,
+  createEmployeeWithData,
+  updateEmployeeWithData,
+  deleteEmployeeById
 } from "../api.js";
 import {
   Plus,
@@ -95,7 +95,7 @@ const EmployeeList = () => {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [paginatedEmployees, setPaginatedEmployees] = useState([]);
-  
+
   const getItemsPerPage = () => {
     return (viewMode === "grid" || window.innerWidth < 1024) ? 6 : 10;
   };
@@ -220,7 +220,7 @@ const EmployeeList = () => {
     });
 
     setFilteredEmployees(filtered);
-    
+
     // Update counts
     const adminList = allEmployees.filter((emp) => emp.is_admin === 1);
     const superAdminList = allEmployees.filter((emp) => emp.is_admin === 2);
@@ -267,6 +267,7 @@ const EmployeeList = () => {
   // Modal handlers
   const openAddModal = (adminLevel = 0) => {
     setEditingEmployee(null);
+    setErrors({ first_name: "", last_name: "", phone_number: "", email: "" });
     setFormData({
       pin: "",
       first_name: "",
@@ -283,6 +284,7 @@ const EmployeeList = () => {
 
   const openEditModal = (employee) => {
     setEditingEmployee(employee);
+    setErrors({ first_name: "", last_name: "", phone_number: "", email: "" });
     setFormData({
       pin: employee.pin,
       first_name: employee.first_name,
@@ -406,12 +408,24 @@ const EmployeeList = () => {
         await createEmployeeWithData(formData);
         showToast("Employee added successfully!");
       }
-      
+
       setShowAddModal(false);
       setEditingEmployee(null);
       loadEmployeeData();
     } catch (error) {
-      showToast(editingEmployee ? "Failed to update employee" : "Failed to add employee", "error");
+      let errorMessage;
+
+      // Check for 409 conflict (duplicate email/phone)
+      if (error.response?.status === 409) {
+        errorMessage = `Email ${formData.email} already exists`;
+      } else {
+        errorMessage = `Email ${formData.email} already exists` ||
+          (editingEmployee ? "Failed to update employee" : "Failed to add employee");
+      }
+
+      setShowAddModal(false);
+      setEditingEmployee(null);
+      showToast(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage), "error");
     } finally {
       setIsAddLoading(false);
     }
@@ -442,11 +456,10 @@ const EmployeeList = () => {
       {/* Toast Notification */}
       {toast.show && (
         <div className="fixed top-4 left-4 right-4 sm:right-4 sm:left-auto z-50 animate-in slide-in-from-top-2">
-          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${
-            toast.type === 'success'
+          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${toast.type === 'success'
               ? 'bg-green-50 border-green-200 text-green-800'
               : 'bg-red-50 border-red-200 text-red-800'
-          }`}>
+            }`}>
             {toast.type === 'success' ? (
               <CheckCircle className="h-5 w-5 text-green-600" />
             ) : (
@@ -546,11 +559,10 @@ const EmployeeList = () => {
                 <button
                   key={key}
                   onClick={() => setActiveTab(key)}
-                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center gap-1 sm:gap-2 whitespace-nowrap ${
-                    activeTab === key
+                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center gap-1 sm:gap-2 whitespace-nowrap ${activeTab === key
                       ? "border-primary text-primary"
                       : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
-                  }`}
+                    }`}
                 >
                   <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
                   <span className="hidden sm:inline">{label}</span>
@@ -597,8 +609,8 @@ const EmployeeList = () => {
                     <span>
                       {sortConfig.key ? (
                         sortConfig.key === 'name' ? 'Sort By Name' :
-                        sortConfig.key === 'pin' ? 'Sort By PIN' :
-                        sortConfig.key === 'contact' ? 'Sort By Contact' : 'Sort'
+                          sortConfig.key === 'pin' ? 'Sort By PIN' :
+                            sortConfig.key === 'contact' ? 'Sort By Contact' : 'Sort'
                       ) : 'Sort'}
                     </span>
                   </div>
@@ -622,16 +634,14 @@ const EmployeeList = () => {
                         setSortConfig({ key, direction });
                         document.getElementById('sort-dropdown').classList.add('hidden');
                       }}
-                      className={`w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center justify-between transition-colors ${
-                        sortConfig.key === key && sortConfig.direction === direction
+                      className={`w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center justify-between transition-colors ${sortConfig.key === key && sortConfig.direction === direction
                           ? 'bg-primary/10 text-primary'
                           : 'text-foreground'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-2">
-                        <Icon className={`w-4 h-4 ${
-                          direction === 'asc' ? 'text-green-600' : 'text-blue-600'
-                        }`} />
+                        <Icon className={`w-4 h-4 ${direction === 'asc' ? 'text-green-600' : 'text-blue-600'
+                          }`} />
                         {label}
                       </div>
                       {sortConfig.key === key && sortConfig.direction === direction && (
@@ -753,9 +763,8 @@ const EmployeeList = () => {
                       <div className="pt-2 border-t">
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
                           <span>Status</span>
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            employee.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
+                          <span className={`px-2 py-1 rounded-full text-xs ${employee.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            }`}>
                             {employee.is_active ? 'Active' : 'Inactive'}
                           </span>
                         </div>
@@ -803,9 +812,8 @@ const EmployeeList = () => {
                             </div>
                           </td>
                           <td className="p-4">
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              employee.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                            }`}>
+                            <span className={`px-2 py-1 rounded-full text-xs ${employee.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                              }`}>
                               {employee.is_active ? 'Active' : 'Inactive'}
                             </span>
                           </td>

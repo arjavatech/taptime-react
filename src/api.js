@@ -352,7 +352,7 @@ export const deleteReportEmail = async (email, companyId) => {
   }
 };
 
-export const createReportObject = (email, companyId, selectedValues) => {
+export const createReportObject = (email, companyId, deviceId, selectedValues) => {
   const reportFlags = {
     is_daily_report_active: selectedValues.includes('Daily'),
     is_weekly_report_active: selectedValues.includes('Weekly'),

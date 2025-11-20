@@ -92,7 +92,7 @@ const ReportSetting = () => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(setting => {
-        const email = (setting.email || setting.company_reporter_email || "").toLowerCase();
+        const email = (setting.email || setting.company_reporter_email || "").trim().toLowerCase();
         const frequencies = formatFrequencies(setting).join(', ').toLowerCase();
         return email.includes(query) || frequencies.includes(query);
       });
@@ -101,8 +101,8 @@ const ReportSetting = () => {
     filtered.sort((a, b) => {
       let aValue, bValue;
       if (sortConfig.key === "email") {
-        aValue = (a.email || a.company_reporter_email || "").toLowerCase();
-        bValue = (b.email || b.company_reporter_email || "").toLowerCase();
+        aValue = (a.email || a.company_reporter_email || "").trim().toLowerCase();
+        bValue = (b.email || b.company_reporter_email || "").trim().toLowerCase();
         return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
       } else if (sortConfig.key === "frequency") {
         aValue = formatFrequencies(a).join(', ').toLowerCase();
@@ -171,8 +171,9 @@ const ReportSetting = () => {
 
   const openEditModal = (setting) => {
     setCurrentSetting(setting);
-    setCurrentEmail(setting.email?.trim() || "");
-    setNewEmail(setting.email?.trim() || "");
+    const email = (setting.email || setting.company_reporter_email || "").trim();
+    setCurrentEmail(email);
+    setNewEmail(email);
     const frequencies = [];
     if (setting.is_daily_report_active) frequencies.push("Daily");
     if (setting.is_weekly_report_active) frequencies.push("Weekly");
@@ -192,8 +193,9 @@ const ReportSetting = () => {
   };
 
   const openDeleteModal = (setting) => {
+    console.log("Opening delete modal for setting:", setting);
     setCurrentSetting(setting);
-    setCurrentEmail(setting.email);
+    setCurrentEmail((setting.email || setting.company_reporter_email || "").trim());
     setShowDeleteModal(true);
   };
 
@@ -242,8 +244,9 @@ const ReportSetting = () => {
     }
 
     const deviceId = "";
-    const reportData = createReportObject(newEmail, company_id, deviceId, newFrequencies);
+    const reportData = createReportObject(newEmail.trim(), company_id, deviceId, newFrequencies);
 
+    setIsLoading(true);
     try {
       await createReportEmail(reportData);
       showToast("Email setting added successfully!");
@@ -252,6 +255,8 @@ const ReportSetting = () => {
     } catch (error) {
       console.error("Error saving report settings:", error);
       showToast("Failed to save email setting", "error");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -260,8 +265,9 @@ const ReportSetting = () => {
 
     const company_id = localStorage.getItem("companyID") || "";
     const deviceId = "";
-    const reportData = createReportObject(newEmail, company_id, deviceId, editFrequencies);
+    const reportData = createReportObject(newEmail.trim(), company_id, deviceId, editFrequencies);
 
+    setIsLoading(true);
     try {
       await updateReportEmail(currentEmail, company_id, reportData);
       showToast("Email setting updated successfully!");
@@ -270,12 +276,15 @@ const ReportSetting = () => {
     } catch (error) {
       console.error("Error updating report settings:", error);
       showToast("Failed to update email setting", "error");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const deleteReportSettings = async () => {
     const company_id = localStorage.getItem("companyID") || "";
 
+    setIsLoading(true);
     try {
       await deleteReportEmail(currentEmail, company_id);
       showToast("Email setting deleted successfully!");
@@ -284,6 +293,8 @@ const ReportSetting = () => {
     } catch (error) {
       console.error("Error deleting report settings:", error);
       showToast("Failed to delete email setting", "error");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -560,7 +571,7 @@ const ReportSetting = () => {
                                 <Mail className="w-4 h-4 text-primary" />
                               </div>
                               <div className="min-w-0 flex-1">
-                                <CardTitle className="text-base sm:text-lg truncate">{setting.email || setting.company_reporter_email}</CardTitle>
+                                <CardTitle className="text-base sm:text-lg truncate">{(setting.email || setting.company_reporter_email || "").trim()}</CardTitle>
                                 <CardDescription className="text-xs sm:text-sm">Email Setting</CardDescription>
                               </div>
                             </div>
@@ -612,7 +623,7 @@ const ReportSetting = () => {
                       <tbody className="divide-y divide-gray-200">
                         {getFilteredAndSortedSettings().map((setting, index) => (
                           <tr key={index} className="hover:bg-gray-50">
-                            <td className="px-2 sm:px-4 py-2 sm:py-3 text-center font-medium text-xs sm:text-sm">{setting.company_reporter_email}</td>
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 text-center font-medium text-xs sm:text-sm">{(setting.company_reporter_email || "").trim()}</td>
                             <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
                               <div className="flex gap-1 sm:gap-2 justify-center flex-wrap">
                                 {formatFrequencies(setting).map((freq) => (
@@ -761,9 +772,17 @@ const ReportSetting = () => {
                 </Button>
                 <Button
                   onClick={saveReportSettings}
+                  disabled={isLoading}
                   className="flex-1 order-1 sm:order-2"
                 >
-                  Save Setting
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Setting"
+                  )}
                 </Button>
               </div>
             </CardContent>
@@ -828,9 +847,17 @@ const ReportSetting = () => {
                 </Button>
                 <Button
                   onClick={updateReportSettings}
+                  disabled={isLoading}
                   className="flex-1 order-1 sm:order-2"
                 >
-                  Update Setting
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Update Setting"
+                  )}
                 </Button>
               </div>
             </CardContent>
@@ -880,9 +907,17 @@ const ReportSetting = () => {
                 </Button>
                 <Button
                   onClick={updateViewSettings}
+                  disabled={isLoading}
                   className="flex-1 order-1 sm:order-2"
                 >
-                  Update Settings
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    "Update Settings"
+                  )}
                 </Button>
               </div>
             </CardContent>
@@ -900,7 +935,7 @@ const ReportSetting = () => {
                 Delete Email Setting
               </CardTitle>
               <CardDescription className="text-sm">
-                Are you sure you want to delete the email setting for "{currentSetting?.email}"? This action cannot be undone.
+                Are you sure you want to delete the email setting for "{currentEmail}"? This action cannot be undone.
               </CardDescription>
             </CardHeader>
             
@@ -916,9 +951,17 @@ const ReportSetting = () => {
                 <Button
                   variant="destructive"
                   onClick={deleteReportSettings}
+                  disabled={isLoading}
                   className="flex-1 order-1 sm:order-2"
                 >
-                  Delete Setting
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    "Delete Setting"
+                  )}
                 </Button>
               </div>
             </CardContent>
