@@ -97,6 +97,7 @@ const EmployeeList = () => {
   const [paginatedEmployees, setPaginatedEmployees] = useState([]);
 
   const getItemsPerPage = () => {
+    if (window.innerWidth < 640) return 5;
     return (viewMode === "grid" || window.innerWidth < 1024) ? 6 : 10;
   };
 
@@ -967,20 +968,6 @@ const EmployeeList = () => {
                   {errors.email && <p className="text-xs text-red-600">{errors.email}</p>}
                 </div>
               )}
-
-              <div className="space-y-2">
-                <Label htmlFor="role" className="text-sm font-medium">Role</Label>
-                <select
-                  id="role"
-                  value={formData.is_admin}
-                  onChange={(e) => setFormData(prev => ({ ...prev, is_admin: parseInt(e.target.value) }))}
-                  className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
-                >
-                  <option value={0}>Employee</option>
-                  <option value={1}>Admin</option>
-                  {adminType === "Owner" && <option value={2}>Super Admin</option>}
-                </select>
-              </div>
 
               <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <Button

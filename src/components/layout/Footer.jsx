@@ -53,27 +53,27 @@ const Footer = () => {
 
   return (
     <footer className="bg-primary text-primary-foreground">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
           
           {/* Company Info */}
-          <div className="lg:col-span-2">
-            <div className="mb-6">
-              <img src={icodeLogoWhite} alt="Tap Time Logo" className="w-32 h-auto mb-4" />
+          <div className="sm:col-span-2 lg:col-span-2">
+            <div className="mb-4 sm:mb-6">
+              <img src={icodeLogoWhite} alt="Tap Time Logo" className="w-28 sm:w-32 h-auto mb-3 sm:mb-4" />
             </div>
-            <p className="text-gray-200 text-base leading-relaxed mb-6 max-w-md">
+            <p className="text-gray-200 text-sm sm:text-base leading-relaxed mb-4 sm:mb-6 max-w-md">
               Powered by Arjava Technologies - Your trusted partner for innovative employee time tracking solutions that streamline workforce management.
             </p>
-            <div className="flex space-x-4">
+            <div className="flex space-x-3 sm:space-x-4">
               {socialLinks.map((social, i) => (
                 <a 
                   key={i} 
                   href={social.href} 
                   target="_blank" 
                   rel="noopener noreferrer" 
-                  className="w-10 h-10 bg-opacity-10 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-opacity-20 hover:scale-110 transition-all duration-300 group"
+                  className="w-9 h-9 sm:w-10 sm:h-10 bg-opacity-10 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-opacity-20 hover:scale-110 transition-all duration-300 group"
                 >
-                  <img src={social.src} alt={social.alt} className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                  <img src={social.src} alt={social.alt} className="w-4 h-4 sm:w-5 sm:h-5 group-hover:scale-110 transition-transform" />
                 </a>
               ))}
             </div>
@@ -81,8 +81,8 @@ const Footer = () => {
 
           {/* Quick Links */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
-            <ul className="space-y-3">
+            <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Quick Links</h3>
+            <ul className="space-y-2 sm:space-y-3">
               {quickLinks.map((link) => (
                 <li key={link.text}>
                   {link.action ? (
@@ -114,10 +114,10 @@ const Footer = () => {
 
           {/* Contact Info */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Contact Info</h3>
-            <div className="space-y-3">
-              <div className="flex items-start space-x-3">
-                <MapPin className="w-5 h-5 mt-0.5 text-primary-foreground/60" />
+            <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Contact Info</h3>
+            <div className="space-y-2 sm:space-y-3">
+              <div className="flex items-start space-x-2 sm:space-x-3">
+                <MapPin className="w-4 h-4 sm:w-5 sm:h-5 mt-0.5 text-primary-foreground/60 flex-shrink-0" />
                 <div className="text-sm text-primary-foreground/80">
                   <p>Arjava Technologies</p>
                   <p>2135 204th PL NE</p>
@@ -125,8 +125,8 @@ const Footer = () => {
                 </div>
               </div>
               
-              <div className="flex items-center space-x-3">
-                <Phone className="w-5 h-5 text-primary-foreground/60" />
+              <div className="flex items-center space-x-2 sm:space-x-3">
+                <Phone className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground/60 flex-shrink-0" />
                 <a 
                   href="tel:+15413712950" 
                   className="text-sm text-primary-foreground/80 hover:text-primary-foreground transition-colors"
@@ -135,8 +135,8 @@ const Footer = () => {
                 </a>
               </div>
               
-              <div className="flex items-center space-x-3">
-                <Mail className="w-5 h-5 text-primary-foreground/60" />
+              <div className="flex items-center space-x-2 sm:space-x-3">
+                <Mail className="w-4 h-4 sm:w-5 sm:h-5 text-primary-foreground/60 flex-shrink-0" />
                 <a 
                   href="mailto:contact@tap-time.com" 
                   className="text-sm text-primary-foreground/80 hover:text-primary-foreground transition-colors"
@@ -149,15 +149,15 @@ const Footer = () => {
         </div>
 
         {/* Bottom Section */}
-        <div className="border-t border-primary-foreground/20 mt-8 pt-8">
-          <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-            <p className="text-sm text-primary-foreground/60">
+        <div className="border-t border-primary-foreground/20 mt-6 sm:mt-8 pt-6 sm:pt-8">
+          <div className="flex flex-col sm:flex-row justify-between items-center space-y-3 sm:space-y-0 text-center sm:text-left">
+            <p className="text-xs sm:text-sm text-primary-foreground/60">
               © {currentYear} TapTime by Arjava Technologies. All rights reserved.
             </p>
-            <div className="flex space-x-6">
+            <div className="flex space-x-4 sm:space-x-6">
               <button 
                 onClick={() => setShowPrivacyModal(true)}
-                className="text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors"
+                className="text-xs sm:text-sm text-primary-foreground/60 hover:text-primary-foreground transition-colors"
               >
                 Privacy Policy
               </button>

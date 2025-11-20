@@ -117,23 +117,23 @@ const SetPassword = () => {
     return (
       <div className="min-h-screen flex flex-col md:flex-row">
         {/* Left side - Brand section */}
-        <div className="hidden md:flex xl:w-1/2 md:w-1/2 bg-[#D9E9FB] flex-col justify-center items-center p-12">
-          <div className="w-full max-w-lg flex flex-col items-center text-center space-y-8">
+        <div className="hidden md:flex md:w-1/2 lg:w-1/2 xl:w-1/2 bg-[#D9E9FB] flex-col justify-center items-center p-6 md:p-8 lg:p-12 md:min-h-screen">
+          <div className="w-full max-w-lg flex flex-col items-center text-center space-y-6 lg:space-y-8">
             <img
               src={tabTimeLogo}
               alt="Tap Time Logo"
-              className="w-48 xl:w-56 md:w-40 mx-auto"
+              className="w-32 md:w-36 lg:w-48 xl:w-56 mx-auto"
             />
-            <div className="space-y-4">
-              <h1 className="text-3xl xl:text-4xl md:text-3xl font-bold text-gray-800">
+            <div className="space-y-3 lg:space-y-4">
+              <h1 className="text-2xl md:text-2xl lg:text-3xl xl:text-4xl font-bold text-gray-800">
                 Employee Time Tracking
               </h1>
-              <p className="text-lg text-gray-700 leading-relaxed">
+              <p className="text-sm md:text-base lg:text-lg text-gray-700 leading-relaxed px-4">
                 One tap solution for simplifying and streamlining employee time
                 logging and reporting.
               </p>
             </div>
-            <div className="flex gap-8 text-gray-600 text-sm">
+            <div className="flex gap-4 md:gap-6 lg:gap-8 text-gray-600 text-xs md:text-sm">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                 <span>Secure</span>
@@ -151,23 +151,23 @@ const SetPassword = () => {
         </div>
 
         {/* Right side - Success message */}
-        <div className="w-full md:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center py-12 px-6 sm:px-8 md:px-12 lg:px-20">
+        <div className="w-full md:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-20 md:min-h-screen">
           <div className="w-full max-w-md">
-            <div className="text-center mb-8 md:hidden">
-              <img src={tabTimeLogo} alt="Tap Time Logo" className="mx-auto h-20 w-auto sm:h-25" />
+            <div className="text-center mb-6 sm:mb-8 md:hidden">
+              <img src={tabTimeLogo} alt="Tap Time Logo" className="mx-auto h-16 sm:h-20 w-auto" />
             </div>
-            <Card className="border-0 shadow-2xl">
-              <CardContent className="pt-6 text-center">
-                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CheckCircle className="h-12 w-12 text-green-600" />
+            <Card className="border-0 shadow-xl sm:shadow-2xl">
+              <CardContent className="pt-6 sm:pt-8 p-4 sm:p-6 text-center">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                  <CheckCircle className="h-10 w-10 sm:h-12 sm:w-12 text-green-600" />
                 </div>
-                <h1 className="text-2xl font-bold text-gray-800 mb-2">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">
                   Welcome to Tap Time! 🎉
                 </h1>
-                <p className="text-gray-600 mb-6">
+                <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
                   Your password has been set successfully. You can now access your account to manage employee time tracking.
                 </p>
-                <p className="text-sm text-gray-500">
+                <p className="text-xs sm:text-sm text-gray-500">
                   Redirecting to login...
                 </p>
               </CardContent>
@@ -181,23 +181,23 @@ const SetPassword = () => {
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
       {/* Left side - Brand section */}
-      <div className="hidden md:flex xl:w-1/2 md:w-1/2 bg-[#D9E9FB] flex-col justify-center items-center p-12">
-        <div className="w-full max-w-lg flex flex-col items-center text-center space-y-8">
+      <div className="hidden md:flex md:w-1/2 lg:w-1/2 xl:w-1/2 bg-[#D9E9FB] flex-col justify-center items-center p-6 md:p-8 lg:p-12 md:min-h-screen">
+        <div className="w-full max-w-lg flex flex-col items-center text-center space-y-6 lg:space-y-8">
           <img
             src={tabTimeLogo}
             alt="Tap Time Logo"
-            className="w-48 xl:w-56 md:w-40 mx-auto"
+            className="w-32 md:w-36 lg:w-48 xl:w-56 mx-auto"
           />
-          <div className="space-y-4">
-            <h1 className="text-3xl xl:text-4xl md:text-3xl font-bold text-gray-800">
+          <div className="space-y-3 lg:space-y-4">
+            <h1 className="text-2xl md:text-2xl lg:text-3xl xl:text-4xl font-bold text-gray-800">
               Set Your Password
             </h1>
-            <p className="text-lg text-gray-700 leading-relaxed">
+            <p className="text-sm md:text-base lg:text-lg text-gray-700 leading-relaxed px-4">
               One tap solution for simplifying and streamlining employee time
               logging and reporting.
             </p>
           </div>
-          <div className="flex gap-8 text-gray-600 text-sm">
+          <div className="flex gap-4 md:gap-6 lg:gap-8 text-gray-600 text-xs md:text-sm">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
               <span>Secure</span>
@@ -215,23 +215,23 @@ const SetPassword = () => {
       </div>
 
       {/* Right side - Set Password form */}
-      <div className="w-full md:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center py-12 px-6 sm:px-8 md:px-12 lg:px-20">
+      <div className="w-full md:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-20 md:min-h-screen">
         <div className="w-full max-w-md">
-          <div className="text-center mb-8 md:hidden">
-            <img src={tabTimeLogo} alt="Tap Time Logo" className="mx-auto h-20 w-auto sm:h-25" />
+          <div className="text-center mb-6 sm:mb-8 md:hidden">
+            <img src={tabTimeLogo} alt="Tap Time Logo" className="mx-auto h-16 sm:h-20 w-auto" />
           </div>
 
-          <Card className="border-0 shadow-2xl">
-            <CardHeader className="space-y-1 text-center">
-              <CardTitle className="text-2xl font-bold">Set Your Password</CardTitle>
-              <CardDescription>
+          <Card className="border-0 shadow-xl sm:shadow-2xl">
+            <CardHeader className="space-y-1 text-center px-4 sm:px-6 py-4 sm:py-6">
+              <CardTitle className="text-xl sm:text-2xl font-bold">Set Your Password</CardTitle>
+              <CardDescription className="text-sm sm:text-base">
                 Create a secure password to complete your account setup
               </CardDescription>
             </CardHeader>
 
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4 sm:space-y-6 px-4 sm:px-6 pb-6 sm:pb-8">
               {error && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
+                <div className="p-2.5 sm:p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-xs sm:text-sm">
                   {error}
                 </div>
               )}
@@ -290,21 +290,21 @@ const SetPassword = () => {
                 </div>
 
                 {/* Password Requirements */}
-                <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                  <h4 className="text-sm font-semibold text-foreground mb-2">
+                <div className="bg-muted/50 rounded-lg p-3 sm:p-4 space-y-1.5 sm:space-y-2">
+                  <h4 className="text-xs sm:text-sm font-semibold text-foreground mb-1.5 sm:mb-2">
                     Password Requirements:
                   </h4>
                   {requirements.map((req, index) => (
                     <div
                       key={index}
-                      className={`flex items-center gap-2 text-sm ${
+                      className={`flex items-center gap-2 text-xs sm:text-sm ${
                         req.valid ? 'text-green-600' : 'text-muted-foreground'
                       }`}
                     >
                       {req.valid ? (
-                        <CheckCircle className="h-4 w-4" />
+                        <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
                       ) : (
-                        <XCircle className="h-4 w-4" />
+                        <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
                       )}
                       {req.label}
                     </div>
@@ -333,7 +333,7 @@ const SetPassword = () => {
                 </Button>
               </form>
 
-              <div className="text-center text-sm">
+              <div className="text-center text-xs sm:text-sm">
                 <span className="text-muted-foreground">Need help? Contact your administrator</span>
               </div>
             </CardContent>

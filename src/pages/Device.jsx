@@ -259,18 +259,18 @@ const Device = () => {
 
       {/* Toast Notification */}
       {toast.show && (
-        <div className="fixed top-4 left-4 right-4 sm:right-4 sm:left-auto z-50 animate-in slide-in-from-top-2">
-          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${
+        <div className="fixed top-20 sm:top-24 left-4 right-4 sm:right-4 sm:left-auto z-50 animate-in slide-in-from-top-2">
+          <div className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg shadow-lg border ${
             toast.type === 'success' 
               ? 'bg-green-50 border-green-200 text-green-800' 
               : 'bg-red-50 border-red-200 text-red-800'
           }`}>
             {toast.type === 'success' ? (
-              <CheckCircle className="h-5 w-5 text-green-600" />
+              <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 flex-shrink-0" />
             ) : (
-              <AlertCircle className="h-5 w-5 text-red-600" />
+              <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600 flex-shrink-0" />
             )}
-            <span className="font-medium text-sm">{toast.message}</span>
+            <span className="font-medium text-xs sm:text-sm">{toast.message}</span>
           </div>
         </div>
       )}
@@ -286,14 +286,14 @@ const Device = () => {
         </div>
       )}
 
-      <div className="pt-20 pb-8 flex-grow bg-gradient-to-br from-slate-50 to-blue-50">
+      <div className="pt-16 sm:pt-20 pb-6 sm:pb-8 flex-grow bg-gradient-to-br from-slate-50 to-blue-50">
         {/* Page Header */}
         <div className="border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 md:py-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4">
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-foreground">Device Management</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">Device Management</h1>
+                <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
                   Manage and monitor your registered devices
                 </p>
               </div>
@@ -319,13 +319,13 @@ const Device = () => {
         </div>
 
         {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
           {devices.length === 0 ? (
-            <Card className="text-center py-8 sm:py-12">
+            <Card className="text-center py-6 sm:py-8 md:py-12">
               <CardContent>
-                <Tablet className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-4" />
-                <h3 className="text-base sm:text-lg font-medium text-foreground mb-2">No devices registered</h3>
-                <p className="text-sm text-muted-foreground mb-6">
+                <Tablet className="mx-auto h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-muted-foreground mb-3 sm:mb-4" />
+                <h3 className="text-sm sm:text-base md:text-lg font-medium text-foreground mb-2">No devices registered</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground mb-4 sm:mb-6">
                   Get started by adding your first device.
                 </p>
                 <div className="flex justify-center">
@@ -360,40 +360,40 @@ const Device = () => {
                       <table className="w-full">
                         <thead>
                           <tr className="border-b">
-                            <th className="text-left py-3 px-4 font-medium text-muted-foreground">Device</th>
-                            <th className="text-left py-3 px-4 font-medium text-muted-foreground">Branch</th>
-                            <th className="text-left py-3 px-4 font-medium text-muted-foreground">Time Zone</th>
-                            <th className="text-left py-3 px-4 font-medium text-muted-foreground">Access Key</th>
-                            <th className="text-center py-3 px-4 font-medium text-muted-foreground">Actions</th>
+                            <th className="text-left py-2 sm:py-3 px-2 sm:px-4 font-medium text-xs sm:text-sm text-muted-foreground">Device</th>
+                            <th className="text-left py-2 sm:py-3 px-2 sm:px-4 font-medium text-xs sm:text-sm text-muted-foreground">Branch</th>
+                            <th className="text-left py-2 sm:py-3 px-2 sm:px-4 font-medium text-xs sm:text-sm text-muted-foreground">Time Zone</th>
+                            <th className="text-left py-2 sm:py-3 px-2 sm:px-4 font-medium text-xs sm:text-sm text-muted-foreground">Access Key</th>
+                            <th className="text-center py-2 sm:py-3 px-2 sm:px-4 font-medium text-xs sm:text-sm text-muted-foreground">Actions</th>
                           </tr>
                         </thead>
                         <tbody>
                           {devices.map((device) => (
                             <tr key={device.AccessKey || device.access_key} className="border-b hover:bg-muted/50">
-                              <td className="py-3 px-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                                    <Tablet className="w-4 h-4 text-primary" />
+                              <td className="py-2 sm:py-3 px-2 sm:px-4">
+                                <div className="flex items-center gap-2 sm:gap-3">
+                                  <div className="w-7 h-7 sm:w-8 sm:h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <Tablet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
                                   </div>
-                                  <div>
-                                    <div className="font-medium">
+                                  <div className="min-w-0">
+                                    <div className="font-medium text-xs sm:text-sm truncate">
                                       {device.device_name}
                                     </div>
-                                    <div className="text-sm text-muted-foreground">ID: {device.device_id}</div>
+                                    <div className="text-xs text-muted-foreground truncate">ID: {device.device_id}</div>
                                   </div>
                                 </div>
                               </td>
-                              <td className="py-3 px-4">
-                                <span className="font-medium">
+                              <td className="py-2 sm:py-3 px-2 sm:px-4">
+                                <span className="font-medium text-xs sm:text-sm">
                                   {device.branch_name === "Not Registered" ? "Not Set" : device.branch_name}
                                 </span>
                               </td>
-                              <td className="py-3 px-4">
-                                <span className="font-medium">
+                              <td className="py-2 sm:py-3 px-2 sm:px-4">
+                                <span className="font-medium text-xs sm:text-sm">
                                   {device.timezone === "Not Registered" ? "Not Set" : device.timezone}
                                 </span>
                               </td>
-                              <td className="py-3 px-4">
+                              <td className="py-2 sm:py-3 px-2 sm:px-4">
                                 <div className="flex items-center gap-2 max-w-xs">
                                   <code className="flex-1 px-2 py-1 bg-muted rounded text-sm font-mono truncate">
                                     {maskAccessKey(device.access_key)}
@@ -410,8 +410,8 @@ const Device = () => {
                                 </div>
                               </td>
                            
-                              <td className="py-3 px-4">
-                                <div className="flex items-center justify-center gap-2">
+                              <td className="py-2 sm:py-3 px-2 sm:px-4">
+                                <div className="flex items-center justify-center gap-1 sm:gap-2">
                                   <Button
                                     variant="ghost"
                                     size="sm"
@@ -441,17 +441,17 @@ const Device = () => {
               </div>
 
               {/* Mobile Card View */}
-              <div className="md:hidden space-y-4">
+              <div className="md:hidden space-y-3 sm:space-y-4">
                 {devices.map((device) => (
                   <Card key={device.AccessKey || device.access_key} className="hover:shadow-lg transition-shadow">
-                    <CardHeader className="pb-3">
+                    <CardHeader className="pb-2 sm:pb-3 p-3 sm:p-6">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <Tablet className="w-4 h-4 text-primary" />
+                          <div className="w-7 h-7 sm:w-8 sm:h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <Tablet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <CardTitle className="text-base truncate">
+                            <CardTitle className="text-sm sm:text-base truncate">
                               {device.device_name === "Not Registered" ? "Pending Setup" : device.device_name}
                             </CardTitle>
                             <CardDescription className="text-xs truncate">
@@ -480,8 +480,8 @@ const Device = () => {
                       </div>
                     </CardHeader>
                     
-                    <CardContent className="space-y-3 pt-0">
-                      <div className="space-y-2">
+                    <CardContent className="space-y-2 sm:space-y-3 pt-0 p-3 sm:p-6">
+                      <div className="space-y-1.5 sm:space-y-2">
                         <div className="flex items-center gap-2 text-xs">
                           <Clock className="w-3 h-3 text-muted-foreground flex-shrink-0" />
                           <span className="text-muted-foreground">Time Zone:</span>
@@ -526,10 +526,10 @@ const Device = () => {
           
           {/* Device Limit Info */}
           {devices.length > 0 && (
-            <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-center">
-                <AlertCircle className="h-5 w-5 text-blue-400" />
-                <div className="ml-3">
+            <div className="mt-4 sm:mt-6 bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+              <div className="flex items-start sm:items-center gap-2 sm:gap-3">
+                <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-blue-400 flex-shrink-0 mt-0.5 sm:mt-0" />
+                <div>
                   {devices.length >= maxDevices ? (
                     <p className="text-sm text-blue-800">
                       You have reached the device registration limit ({devices.length}/{maxDevices}). 
@@ -551,18 +551,18 @@ const Device = () => {
 
       {/* Add/Edit Device Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-          <Card className="w-full max-w-md mx-4">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg sm:text-xl">{editingDevice ? "Edit Device" : "Add New Device"}</CardTitle>
-              <CardDescription className="text-sm">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader className="pb-3 sm:pb-4 p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg md:text-xl">{editingDevice ? "Edit Device" : "Add New Device"}</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
                 {editingDevice ? "Update device information" : "Configure a new device for your system"}
               </CardDescription>
             </CardHeader>
             
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="deviceName" className="text-sm font-medium">Device Name *</Label>
+            <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6">
+              <div className="space-y-1.5 sm:space-y-2">
+                <Label htmlFor="deviceName" className="text-xs sm:text-sm font-medium">Device Name *</Label>
                 <Input
                   id="deviceName"
                   placeholder="Enter device name"
@@ -572,8 +572,8 @@ const Device = () => {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="branchName" className="text-sm font-medium">Branch Name</Label>
+              <div className="space-y-1.5 sm:space-y-2">
+                <Label htmlFor="branchName" className="text-xs sm:text-sm font-medium">Branch Name</Label>
                 <Input
                   id="branchName"
                   placeholder="Enter branch name"
@@ -583,8 +583,8 @@ const Device = () => {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="timeZone" className="text-sm font-medium">Time Zone</Label>
+              <div className="space-y-1.5 sm:space-y-2">
+                <Label htmlFor="timeZone" className="text-xs sm:text-sm font-medium">Time Zone</Label>
                 <select
                   id="timeZone"
                   value={formData.timeZone}
@@ -598,7 +598,7 @@ const Device = () => {
                 </select>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-3 sm:pt-4">
                 <Button
                   variant="outline"
                   onClick={() => setShowAddModal(false)}
@@ -628,20 +628,20 @@ const Device = () => {
 
       {/* Super Admin Approval Modal */}
       {showApprovalModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-          <Card className="w-full max-w-md mx-4">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-orange-600 text-lg">
-                <AlertCircle className="w-5 h-5" />
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader className="pb-3 sm:pb-4 p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-orange-600 text-base sm:text-lg">
+                <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                 Device Limit Reached
               </CardTitle>
-              <CardDescription className="text-sm">
+              <CardDescription className="text-xs sm:text-sm">
                 You have reached the maximum device limit ({maxDevices}). Please contact support to add more devices.
               </CardDescription>
             </CardHeader>
             
-            <CardContent>
-              <div className="flex flex-col gap-3">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex flex-col gap-2 sm:gap-3">
                 <Button
                   onClick={() => setShowApprovalModal(false)}
                   className="w-full"
@@ -656,20 +656,20 @@ const Device = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && deviceToDelete && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-          <Card className="w-full max-w-md mx-4">
-            <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-destructive text-lg">
-                <AlertCircle className="w-5 h-5" />
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader className="pb-3 sm:pb-4 p-4 sm:p-6">
+              <CardTitle className="flex items-center gap-2 text-destructive text-base sm:text-lg">
+                <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                 Delete Device
               </CardTitle>
-              <CardDescription className="text-sm">
+              <CardDescription className="text-xs sm:text-sm">
                 Are you sure you want to delete "{deviceToDelete.device_name}"? This action cannot be undone.
               </CardDescription>
             </CardHeader>
             
-            <CardContent>
-              <div className="flex flex-col sm:flex-row gap-3">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                 <Button
                   variant="outline"
                   onClick={() => setShowDeleteModal(false)}

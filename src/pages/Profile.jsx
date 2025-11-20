@@ -632,7 +632,7 @@ const Profile = () => {
         </div>
       )}
 
-      <div className="pt-20 pb-8 bg-gradient-to-br from-slate-50 to-blue-50 flex-1">
+      <div className="pt-16 sm:pt-20 pb-8 bg-gradient-to-br from-slate-50 to-blue-50 flex-1">
         {/* Page Header */}
         <div className="border-b">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
@@ -653,7 +653,7 @@ const Profile = () => {
         {/* Tabs */}
         <div className="border-b">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <nav className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-8">
+            <nav className="flex space-x-2 sm:space-x-8 overflow-x-auto scrollbar-hide -mb-px">
               {[
                 ...(userType !== "Admin" && userType !== "SuperAdmin" ? [{ key: "personal", label: "Personal Information", icon: User }] : []),
                 { key: "company", label: "Company Information", icon: Building },
@@ -662,14 +662,13 @@ const Profile = () => {
                 <button
                   key={key}
                   onClick={() => setActiveTab(key)}
-                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === key
+                  className={`py-3 sm:py-4 px-3 sm:px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center gap-2 whitespace-nowrap flex-shrink-0 ${activeTab === key
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
                     }`}
                 >
                   <Icon className="w-4 h-4" />
-                  <span className="hidden sm:inline">{label}</span>
-                  <span className="sm:hidden">{key === "personal" ? "Personal" : "Company"}</span>
+                  <span>{label}</span>
                 </button>
               ))}
             </nav>

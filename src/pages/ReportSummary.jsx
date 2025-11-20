@@ -37,6 +37,18 @@ const Reports = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  const getItemsPerPage = () => {
+    if (window.innerWidth < 640) return 5;
+    return (viewMode === "grid" || window.innerWidth < 1024) ? 6 : 10;
+  };
+
+  const getPaginatedData = () => {
+    const items = getItemsPerPage();
+    const startIndex = (currentPage - 1) * items;
+    const endIndex = startIndex + items;
+    return filteredData.slice(startIndex, endIndex);
+  };
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [viewMode, setViewMode] = useState("table");
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
@@ -994,6 +1006,10 @@ const Reports = () => {
   }, [reportData, tableData, searchQuery, sortConfig, activeTab]);
 
   useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, sortConfig, viewMode, activeTab]);
+
+  useEffect(() => {
     if (window.innerWidth < 650) {
       setViewMode("grid");
     }
@@ -1056,13 +1072,13 @@ const Reports = () => {
                   View and analyze employee time tracking data
                 </p>
               </div>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                <Button variant="outline" onClick={downloadCSV} className="flex items-center justify-center gap-2 w-full sm:w-auto">
+              <div className="flex flex-row items-center gap-2">
+                <Button variant="outline" onClick={downloadCSV} className="flex items-center justify-center gap-2 flex-1 sm:flex-initial sm:w-auto">
                   <Download className="w-4 h-4" />
                   <span className="hidden sm:inline">Export CSV</span>
                   <span className="sm:hidden">CSV</span>
                 </Button>
-                <Button variant="outline" onClick={downloadPDF} className="flex items-center justify-center gap-2 w-full sm:w-auto">
+                <Button variant="outline" onClick={downloadPDF} className="flex items-center justify-center gap-2 flex-1 sm:flex-initial sm:w-auto">
                   <FileText className="w-4 h-4" />
                   <span className="hidden sm:inline">Export PDF</span>
                   <span className="sm:hidden">PDF</span>
@@ -1180,6 +1196,7 @@ const Reports = () => {
                     id="endDate"
                     type="date"
                     value={endDate}
+                    min={startDate || undefined}
                     max={new Date().toISOString().split('T')[0]}
                     onChange={(e) => setEndDate(e.target.value)}
                     className="w-full"
@@ -1335,10 +1352,11 @@ const Reports = () => {
                       No entries found for today. Click "Add Entry" to get started.
                     </p>
                   </div>
-                ) : (
+) : (
                   viewMode === "grid" ? (
+                    <>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                      {filteredData.map((record, index) => (
+                      {getPaginatedData().map((record, index) => (
                         <Card key={index} className="hover:shadow-lg transition-shadow">
                           <CardHeader className="pb-3">
                             <div className="flex items-start justify-between gap-2">
@@ -1376,6 +1394,41 @@ const Reports = () => {
                         </Card>
                       ))}
                     </div>
+                    {(() => {
+                      const items = getItemsPerPage();
+                      return filteredData.length > items && (
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+                          <div className="text-xs sm:text-sm text-muted-foreground order-2 sm:order-1 text-center sm:text-left">
+                            <span className="hidden sm:inline">Showing {((currentPage - 1) * items) + 1} to {Math.min(currentPage * items, filteredData.length)} of {filteredData.length} records</span>
+                            <span className="sm:hidden">{((currentPage - 1) * items) + 1}-{Math.min(currentPage * items, filteredData.length)} of {filteredData.length}</span>
+                          </div>
+                          <div className="flex items-center gap-2 order-1 sm:order-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                              disabled={currentPage === 1}
+                              className="h-8 w-8 sm:h-9 sm:w-9 p-0"
+                            >
+                              <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 rotate-90" />
+                            </Button>
+                            <span className="text-xs sm:text-sm font-medium px-2 sm:px-3">
+                              {currentPage} of {Math.ceil(filteredData.length / items)}
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredData.length / items)))}
+                              disabled={currentPage === Math.ceil(filteredData.length / items)}
+                              className="h-8 w-8 sm:h-9 sm:w-9 p-0"
+                            >
+                              <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 -rotate-90" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    </>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="min-w-full border border-gray-300 rounded-lg">
@@ -1468,10 +1521,11 @@ const Reports = () => {
                       No records found for the selected date.
                     </p>
                   </div>
-                ) : (
+) : (
                   viewMode === "grid" ? (
+                    <>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                      {filteredData.map((record, index) => (
+                      {getPaginatedData().map((record, index) => (
                         <Card key={index} className="hover:shadow-lg transition-shadow">
                           <CardHeader className="pb-3">
                             <div className="flex items-start justify-between gap-2">
@@ -1510,6 +1564,41 @@ const Reports = () => {
                         </Card>
                       ))}
                     </div>
+                    {(() => {
+                      const items = getItemsPerPage();
+                      return filteredData.length > items && (
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+                          <div className="text-xs sm:text-sm text-muted-foreground order-2 sm:order-1 text-center sm:text-left">
+                            <span className="hidden sm:inline">Showing {((currentPage - 1) * items) + 1} to {Math.min(currentPage * items, filteredData.length)} of {filteredData.length} records</span>
+                            <span className="sm:hidden">{((currentPage - 1) * items) + 1}-{Math.min(currentPage * items, filteredData.length)} of {filteredData.length}</span>
+                          </div>
+                          <div className="flex items-center gap-2 order-1 sm:order-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                              disabled={currentPage === 1}
+                              className="h-8 w-8 sm:h-9 sm:w-9 p-0"
+                            >
+                              <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 rotate-90" />
+                            </Button>
+                            <span className="text-xs sm:text-sm font-medium px-2 sm:px-3">
+                              {currentPage} of {Math.ceil(filteredData.length / items)}
+                            </span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredData.length / items)))}
+                              disabled={currentPage === Math.ceil(filteredData.length / items)}
+                              className="h-8 w-8 sm:h-9 sm:w-9 p-0"
+                            >
+                              <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 -rotate-90" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    </>
                   ) : (
                     <div className="overflow-x-auto">
                       <table className="min-w-full border border-gray-300 rounded-lg">

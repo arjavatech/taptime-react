@@ -241,15 +241,15 @@ const Register = () => {
   };
 
   const renderStep1 = () => (
-    <Card className="border-0 shadow-2xl">
-      <CardHeader className="space-y-1 text-center bg-primary text-primary-foreground rounded-t-xl">
-        <CardTitle className="text-2xl font-bold">Company Information</CardTitle>
-        <CardDescription className="text-primary-foreground/80">
+    <Card className="border-0 shadow-xl sm:shadow-2xl">
+      <CardHeader className="space-y-1 text-center bg-primary text-primary-foreground rounded-t-xl px-4 sm:px-6 py-4 sm:py-6">
+        <CardTitle className="text-xl sm:text-2xl font-bold">Company Information</CardTitle>
+        <CardDescription className="text-primary-foreground/80 text-sm sm:text-base">
           Tell us about your company
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-6 p-8">
+      <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6 md:p-8">
         <form onSubmit={handleNext} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="companyName">Company Name *</Label>
@@ -364,7 +364,7 @@ const Register = () => {
           </Button>
         </form>
 
-        <div className="text-center text-sm">
+        <div className="text-center text-xs sm:text-sm">
           <span className="text-muted-foreground">Already have an account? </span>
           <Link to="/login" className="text-primary hover:underline font-medium">
             Sign in
@@ -375,15 +375,15 @@ const Register = () => {
   );
 
   const renderStep2 = () => (
-    <Card className="border-0 shadow-2xl">
-      <CardHeader className="space-y-1 text-center bg-primary text-primary-foreground rounded-t-xl">
-        <CardTitle className="text-2xl font-bold">Personal Information</CardTitle>
-        <CardDescription className="text-primary-foreground/80">
+    <Card className="border-0 shadow-xl sm:shadow-2xl">
+      <CardHeader className="space-y-1 text-center bg-primary text-primary-foreground rounded-t-xl px-4 sm:px-6 py-4 sm:py-6">
+        <CardTitle className="text-xl sm:text-2xl font-bold">Personal Information</CardTitle>
+        <CardDescription className="text-primary-foreground/80 text-sm sm:text-base">
           Tell us about yourself
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-6 p-8">
+      <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6 md:p-8">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -553,7 +553,7 @@ const Register = () => {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <Button type="button" variant="outline" onClick={handleBack} className="flex-1 py-2.5" size="lg">
               Back
             </Button>
@@ -563,7 +563,7 @@ const Register = () => {
           </div>
         </form>
 
-        <div className="text-center text-sm">
+        <div className="text-center text-xs sm:text-sm">
           <span className="text-muted-foreground">Already have an account? </span>
           <Link to="/login" className="text-primary hover:underline font-medium">
             Sign in
@@ -580,41 +580,41 @@ const Register = () => {
 
       {/* Toast Notification */}
       {toast.show && (
-        <div className="fixed top-24 right-4 z-50 animate-in slide-in-from-top-2">
-          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${toast.type === 'success'
+        <div className="fixed top-20 sm:top-24 right-4 left-4 sm:left-auto sm:right-4 z-50 animate-in slide-in-from-top-2">
+          <div className={`flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 rounded-lg shadow-lg border ${toast.type === 'success'
             ? 'bg-green-50 border-green-200 text-green-800'
             : 'bg-red-50 border-red-200 text-red-800'
             }`}>
             {toast.type === 'success' ? (
-              <CheckCircle className="h-5 w-5 text-green-600" />
+              <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 flex-shrink-0" />
             ) : (
-              <XCircle className="h-5 w-5 text-red-600" />
+              <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600 flex-shrink-0" />
             )}
-            <span className="font-medium text-sm">{toast.message}</span>
+            <span className="font-medium text-xs sm:text-sm">{toast.message}</span>
           </div>
         </div>
       )}
 
-      <div className="min-h-screen flex flex-col md:flex-row pt-20 md:pt-0">
+      <div className="min-h-screen flex flex-col md:flex-row pt-16 md:pt-0">
         {/* Left side - Brand section (hidden on mobile) */}
-        <div className="hidden md:flex xl:w-1/2 md:w-1/2 bg-[#D9E9FB] flex-col justify-center items-center p-12 md:pt-32">
-          <div className="w-full max-w-lg flex flex-col items-center text-center space-y-8">
+        <div className="hidden md:flex md:w-1/2 lg:w-1/2 xl:w-1/2 bg-[#D9E9FB] flex-col justify-center items-center p-6 md:p-8 lg:p-12 md:min-h-screen">
+          <div className="w-full max-w-lg flex flex-col items-center text-center space-y-6 lg:space-y-8">
             {/* Brand Logo */}
             <img
               src={tabtimelogo}
               alt="Tap-Time Logo"
-              className="w-48 xl:w-56 md:w-40 mx-auto"
+              className="w-32 md:w-36 lg:w-48 xl:w-56 mx-auto"
             />
-            <div className="space-y-4">
-              <h1 className="text-3xl xl:text-4xl md:text-3xl font-bold text-gray-800">
+            <div className="space-y-3 lg:space-y-4">
+              <h1 className="text-2xl md:text-2xl lg:text-3xl xl:text-4xl font-bold text-gray-800">
                 Employee Time Tracking
               </h1>
-              <p className="text-lg text-gray-700 leading-relaxed">
+              <p className="text-sm md:text-base lg:text-lg text-gray-700 leading-relaxed px-4">
                 One tap solution for simplifying and streamlining employee time
                 logging and reporting.
               </p>
             </div>
-            <div className="flex gap-8 text-gray-600 text-sm">
+            <div className="flex gap-4 md:gap-6 lg:gap-8 text-gray-600 text-xs md:text-sm">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                 <span>Secure</span>
@@ -632,23 +632,23 @@ const Register = () => {
         </div>
 
         {/* Right side - Registration form */}
-        <div className="w-full md:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center mt-12 py-12 px-6 sm:px-8 md:px-12 lg:px-20">
+        <div className="w-full md:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center py-8 sm:py-12 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-20 md:min-h-screen">
           <div className="w-full max-w-md">
             {/* Logo (visible on mobile only) */}
-            <div className="text-center mb-8 md:hidden">
-              <img src={tabtimelogo} alt="TabTime Logo" className="mx-auto h-20 w-auto sm:h-25" />
+            <div className="text-center mb-6 sm:mb-8 md:hidden">
+              <img src={tabtimelogo} alt="TabTime Logo" className="mx-auto h-16 sm:h-20 w-auto" />
             </div>
 
             {/* Progress Indicator */}
-            <div className="flex items-center justify-center mb-8">
-            <div className="flex items-center space-x-4">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+            <div className="flex items-center justify-center mb-6 sm:mb-8">
+            <div className="flex items-center space-x-3 sm:space-x-4">
+              <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-medium ${currentStep >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
                 }`}>
                 1
               </div>
-              <div className={`w-16 h-1 rounded ${currentStep >= 2 ? 'bg-primary' : 'bg-muted'
+              <div className={`w-12 sm:w-16 h-1 rounded ${currentStep >= 2 ? 'bg-primary' : 'bg-muted'
                 }`} />
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+              <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-medium ${currentStep >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
                 }`}>
                 2
               </div>
@@ -657,8 +657,8 @@ const Register = () => {
 
           {currentStep === 1 ? renderStep1() : renderStep2()}
 
-            <div className="text-center mt-8">
-              <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
+            <div className="text-center mt-6 sm:mt-8">
+              <Link to="/" className="text-xs sm:text-sm text-muted-foreground hover:text-foreground">
                 ← Back to home
               </Link>
             </div>

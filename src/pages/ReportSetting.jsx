@@ -54,6 +54,12 @@ const ReportSetting = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState("table");
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const getItemsPerPage = () => {
+    if (window.innerWidth < 640) return 5;
+    return (viewMode === "grid" || window.innerWidth < 1024) ? 6 : 10;
+  };
 
   const frequencies = ["Daily", "Weekly", "Biweekly", "Monthly", "Bimonthly"];
 
@@ -113,6 +119,14 @@ const ReportSetting = () => {
     });
     
     return filtered;
+  };
+
+  const getPaginatedSettings = () => {
+    const filtered = getFilteredAndSortedSettings();
+    const itemsPerPage = getItemsPerPage();
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filtered.slice(startIndex, endIndex);
   };
 
   const loadViewSetting = () => {
@@ -366,6 +380,10 @@ const ReportSetting = () => {
     }
   }, []);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, sortConfig, viewMode]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -561,8 +579,9 @@ const ReportSetting = () => {
                 </div>
               ) : (
                 viewMode === "grid" ? (
+                  <>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                    {getFilteredAndSortedSettings().map((setting, index) => (
+                    {getPaginatedSettings().map((setting, index) => (
                       <Card key={index} className="hover:shadow-lg transition-shadow">
                         <CardHeader className="pb-3">
                           <div className="flex items-start justify-between gap-2">
@@ -610,6 +629,42 @@ const ReportSetting = () => {
                       </Card>
                     ))}
                   </div>
+                  {(() => {
+                    const itemsPerPage = getItemsPerPage();
+                    const totalItems = getFilteredAndSortedSettings().length;
+                    return totalItems > itemsPerPage && (
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+                        <div className="text-xs sm:text-sm text-muted-foreground order-2 sm:order-1 text-center sm:text-left">
+                          <span className="hidden sm:inline">Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} settings</span>
+                          <span className="sm:hidden">{((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems}</span>
+                        </div>
+                        <div className="flex items-center gap-2 order-1 sm:order-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                            className="h-8 w-8 sm:h-9 sm:w-9 p-0"
+                          >
+                            <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 rotate-90" />
+                          </Button>
+                          <span className="text-xs sm:text-sm font-medium px-2 sm:px-3">
+                            {currentPage} of {Math.ceil(totalItems / itemsPerPage)}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(totalItems / itemsPerPage)))}
+                            disabled={currentPage === Math.ceil(totalItems / itemsPerPage)}
+                            className="h-8 w-8 sm:h-9 sm:w-9 p-0"
+                          >
+                            <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 -rotate-90" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  </>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="min-w-full border border-gray-300 rounded-lg">

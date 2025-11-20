@@ -6,30 +6,30 @@ const PrivacyPolicyModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-background rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-background rounded-lg shadow-2xl w-full max-w-[95vw] sm:max-w-3xl lg:max-w-4xl max-h-[95vh] sm:max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b text-foreground">
-          <h2 className="text-2xl font-bold">Privacy Policy</h2>
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b text-foreground">
+          <h2 className="text-xl sm:text-2xl font-bold">Privacy Policy</h2>
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="space-y-4 text-foreground">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+          <div className="space-y-3 sm:space-y-4 text-sm sm:text-base text-foreground">
             <p>Last updated: October 1, 2024</p>
             <p>This Privacy Policy describes Our policies and procedures on the collection, use and disclosure of Your information when You use the Service and tells You about Your privacy rights and how the law protects You.</p>
             <p>We use Your Personal data to provide and improve the Service. By using the Service, You agree to the collection and use of information in accordance with this Privacy Policy.</p>
             
-            <h2 className="text-xl font-semibold">Interpretation and Definitions</h2>
-            <h3 className="text-lg font-semibold">Interpretation</h3>
+            <h2 className="text-lg sm:text-xl font-semibold">Interpretation and Definitions</h2>
+            <h3 className="text-base sm:text-lg font-semibold">Interpretation</h3>
             <p>The words of which the initial letter is capitalized have meanings defined under the following conditions. The following definitions shall have the same meaning regardless of whether they appear in singular or in plural.</p>
             
-            <h3 className="text-lg font-semibold">Definitions</h3>
+            <h3 className="text-base sm:text-lg font-semibold">Definitions</h3>
             <p>For the purposes of this Privacy Policy:</p>
-            <ul className="pl-6 space-y-2">
+            <ul className="pl-4 sm:pl-6 space-y-2">
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span><p><strong>Account</strong> means a unique account created for You to access our Service or parts of our Service.</p></li>
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span><p><strong>Affiliate</strong> means an entity that controls, is controlled by or is under common control with a party, where "control" means ownership of 50% or more of the shares, equity interest or other securities entitled to vote for election of directors or other managing authority.</p></li>
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span><p><strong>Business</strong>, for the purpose of CCPA/CPRA, refers to the Company as the legal entity that collects Consumers' personal information and determines the purposes and means of the processing of Consumers' personal information.</p></li>
@@ -50,23 +50,23 @@ const PrivacyPolicyModal = ({ isOpen, onClose }) => {
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span><p><strong>You</strong> means the individual accessing or using the Service, or the company, or other legal entity on behalf of which such individual is accessing or using the Service, as applicable. Under GDPR, You can be referred to as the Data Subject or as the User as you are the individual using the Service.</p></li>
             </ul>
 
-            <h2 className="text-xl font-semibold">Collecting and Using Your Personal Data</h2>
-            <h3 className="text-lg font-semibold">Types of Data Collected</h3>
-            <h4 className="text-base font-semibold">Personal Data</h4>
+            <h2 className="text-lg sm:text-xl font-semibold">Collecting and Using Your Personal Data</h2>
+            <h3 className="text-base sm:text-lg font-semibold">Types of Data Collected</h3>
+            <h4 className="text-sm sm:text-base font-semibold">Personal Data</h4>
             <p>While using Our Service, We may ask You to provide Us with certain personally identifiable information that can be used to contact or identify You. Personally identifiable information may include, but is not limited to:</p>
-            <ul className="pl-6 space-y-2">
-                <li className="flex gap-2"><span className="text-lg leading-none">•</span><h6 className="font-semibold">Email address</h6></li>
-                <li className="flex gap-2"><span className="text-lg leading-none">•</span><div><h6 className="font-semibold">Camera Access</h6><p>Our application(Tap-Time) requires access to the device's camera to enable facial recognition. This feature is used solely for client-side operations, such as user authentication or personalization. Images and facial recognition data captured by the camera are stored only on the local device and are not transmitted or stored on our servers. No camera data is shared with third parties or stored externally, ensuring the security and privacy of your information.</p></div></li>
-                <li className="flex gap-2"><span className="text-lg leading-none">•</span><h6 className="font-semibold">Usage Data</h6></li>
+            <ul className="pl-4 sm:pl-6 space-y-2">
+                <li className="flex gap-2"><span className="text-base sm:text-lg leading-none">•</span><h6 className="font-semibold">Email address</h6></li>
+                <li className="flex gap-2"><span className="text-base sm:text-lg leading-none">•</span><div><h6 className="font-semibold">Camera Access</h6><p>Our application(Tap-Time) requires access to the device's camera to enable facial recognition. This feature is used solely for client-side operations, such as user authentication or personalization. Images and facial recognition data captured by the camera are stored only on the local device and are not transmitted or stored on our servers. No camera data is shared with third parties or stored externally, ensuring the security and privacy of your information.</p></div></li>
+                <li className="flex gap-2"><span className="text-base sm:text-lg leading-none">•</span><h6 className="font-semibold">Usage Data</h6></li>
             </ul>
 
-            <h4 className="text-base font-semibold">Usage Data</h4>
+            <h4 className="text-sm sm:text-base font-semibold">Usage Data</h4>
             <p>Usage Data is collected automatically when using the Service.</p>
             <p>Usage Data may include information such as Your Device's Internet Protocol address (e.g. IP address), browser type, browser version, the pages of our Service that You visit, the time and date of Your visit, the time spent on those pages, unique device identifiers and other diagnostic data.</p>
             <p>When You access the Service by or through a mobile device, We may collect certain information automatically, including, but not limited to, the type of mobile device You use, Your mobile device unique ID, the IP address of Your mobile device, Your mobile operating system, the type of mobile Internet browser You use, unique device identifiers and other diagnostic data.</p>
             <p>We may also collect information that Your browser sends whenever You visit our Service or when You access the Service by or through a mobile device.</p>
 
-            <h4 className="text-base font-semibold">Tracking Technologies and Cookies</h4>
+            <h4 className="text-sm sm:text-base font-semibold">Tracking Technologies and Cookies</h4>
             <p>We use Cookies and similar tracking technologies to track the activity on Our Service and store certain information. Tracking technologies used are beacons, tags, and scripts to collect and track information and to improve and analyze Our Service. The technologies We use may include:</p>
             <ul className="pl-6 space-y-2">
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span><p><strong>Cookies or Browser Cookies.</strong> A cookie is a small file placed on Your Device. You can instruct Your browser to refuse all Cookies or to indicate when a Cookie is being sent. However, if You do not accept Cookies, You may not be able to use some parts of our Service. Unless you have adjusted Your browser setting so that it will refuse Cookies, our Service may use Cookies.</p></li>
@@ -82,7 +82,7 @@ const PrivacyPolicyModal = ({ isOpen, onClose }) => {
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span><div><p><strong>Targeting and Advertising Cookies</strong></p><p>Type: Persistent Cookies</p><p>Administered by: Third-Parties</p><p>Purpose: These Cookies track your browsing habits to enable Us to show advertising which is more likely to be of interest to You.</p></div></li>
             </ul>
 
-            <h3 className="text-lg font-semibold">Use of Your Personal Data</h3>
+            <h3 className="text-base sm:text-lg font-semibold">Use of Your Personal Data</h3>
             <p>The Company may use Personal Data for the following purposes:</p>
             <ul className="pl-6 space-y-2">
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span><p><strong>To provide and maintain our Service</strong>, including to monitor the usage of our Service.</p></li>
@@ -104,31 +104,31 @@ const PrivacyPolicyModal = ({ isOpen, onClose }) => {
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span><p><strong>With Your consent</strong>: We may disclose Your personal information for any other purpose with Your consent.</p></li>
             </ul>
 
-            <h3 className="text-lg font-semibold">Retention of Your Personal Data</h3>
+            <h3 className="text-base sm:text-lg font-semibold">Retention of Your Personal Data</h3>
             <p>The Company will retain Your Personal Data only for as long as is necessary for the purposes set out in this Privacy Policy. We will retain and use Your Personal Data to the extent necessary to comply with our legal obligations, resolve disputes, and enforce our legal agreements and policies.</p>
             <p>The Company will also retain Usage Data for internal analysis purposes. Usage Data is generally retained for a shorter period of time, except when this data is used to strengthen the security or to improve the functionality of Our Service, or We are legally obligated to retain this data for longer time periods.</p>
 
-            <h3 className="text-lg font-semibold">Transfer of Your Personal Data</h3>
+            <h3 className="text-base sm:text-lg font-semibold">Transfer of Your Personal Data</h3>
             <p>Your information, including Personal Data, is processed at the Company's operating offices and in any other places where the parties involved in the processing are located. It means that this information may be transferred to — and maintained on — computers located outside of Your state, province, country or other governmental jurisdiction where the data protection laws may differ than those from Your jurisdiction.</p>
             <p>Your consent to this Privacy Policy followed by Your submission of such information represents Your agreement to that transfer.</p>
             <p>The Company will take all steps reasonably necessary to ensure that Your data is treated securely and in accordance with this Privacy Policy and no transfer of Your Personal Data will take place to an organization or a country unless there are adequate controls in place including the security of Your data and other personal information.</p>
 
-            <h3 className="text-lg font-semibold">Delete Your Personal Data</h3>
+            <h3 className="text-base sm:text-lg font-semibold">Delete Your Personal Data</h3>
             <p>You have the right to delete or request that We assist in deleting the Personal Data that We have collected about You.</p>
             <p>Our Service may give You the ability to delete certain information about You from within the Service.</p>
             <p>You may update, amend, or delete Your information at any time by signing in to Your Account, if you have one, and visiting the account settings section that allows you to manage Your personal information. You may also contact Us to request access to, correct, or delete any personal information that You have provided to Us.</p>
             <p>Please note, however, that We may need to retain certain information when we have a legal obligation or lawful basis to do so.</p>
 
-            <h3 className="text-lg font-semibold">Disclosure of Your Personal Data</h3>
-            <h4 className="text-base font-semibold">Business Transactions</h4>
+            <h3 className="text-base sm:text-lg font-semibold">Disclosure of Your Personal Data</h3>
+            <h4 className="text-sm sm:text-base font-semibold">Business Transactions</h4>
             <p>If the Company is involved in a merger, acquisition or asset sale, Your Personal Data may be transferred. We will provide notice before Your Personal Data is transferred and becomes subject to a different Privacy Policy.</p>
 
-            <h4 className="text-base font-semibold">Law enforcement</h4>
+            <h4 className="text-sm sm:text-base font-semibold">Law enforcement</h4>
             <p>Under certain circumstances, the Company may be required to disclose Your Personal Data if required to do so by law or in response to valid requests by public authorities (e.g. a court or a government agency).</p>
             
-            <h4 className="text-base font-semibold">Other legal requirements</h4>
+            <h4 className="text-sm sm:text-base font-semibold">Other legal requirements</h4>
             <p>The Company may disclose Your Personal Data in the good faith belief that such action is necessary to:</p>
-            <ul className="pl-6">
+            <ul className="pl-4 sm:pl-6">
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span>Comply with a legal obligation</li>
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span>Protect and defend the rights or property of the Company</li>
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span>Prevent or investigate possible wrongdoing in connection with the Service</li>
@@ -136,20 +136,20 @@ const PrivacyPolicyModal = ({ isOpen, onClose }) => {
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span>Protect against legal liability</li>
             </ul>
 
-            <h3 className="text-base font-semibold">Security of Your Personal Data</h3>
+            <h3 className="text-sm sm:text-base font-semibold">Security of Your Personal Data</h3>
             <p>The security of Your Personal Data is important to Us, but remember that no method of transmission over the Internet, or method of electronic storage is 100% secure. While We strive to use commercially acceptable means to protect Your Personal Data, We cannot guarantee its absolute security.</p>
 
-            <h2 className="text-xl font-semibold">Detailed Information on the Processing of Your Personal Data</h2>
+            <h2 className="text-lg sm:text-xl font-semibold">Detailed Information on the Processing of Your Personal Data</h2>
             <p>The Service Providers We use may have access to Your Personal Data. These third-party vendors collect, store, use, process and transfer information about Your activity on Our Service in accordance with their Privacy Policies.</p>
 
-            <h3 className="text-lg font-semibold">Analytics</h3>
+            <h3 className="text-base sm:text-lg font-semibold">Analytics</h3>
             <p>We may use third-party Service providers to monitor and analyze the use of our Service.</p>
             <ul className="pl-6 space-y-2">
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span><div><p><strong>Google Analytics</strong></p><p>Google Analytics is a web analytics service offered by Google that tracks and reports website traffic. For more information on the privacy practices of Google, please visit: <a href="https://policies.google.com/privacy" target="_blank" className="text-blue-600 hover:underline">https://policies.google.com/privacy</a></p></div></li>
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span><div><p><strong>Firebase</strong></p><p>Firebase is an analytics service provided by Google Inc. For more information: <a href="https://policies.google.com/privacy" target="_blank" className="text-blue-600 hover:underline">https://policies.google.com/privacy</a></p></div></li>
             </ul>
 
-            <h3 className="text-lg font-semibold">Advertising</h3>
+            <h3 className="text-base sm:text-lg font-semibold">Advertising</h3>
             <p>We may process Personal Data under the following conditions:</p>
             <ul className="pl-6 space-y-2">
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span><p><strong>Consent:</strong> You have given Your consent for processing Personal Data for one or more specific purposes.</p></li>
@@ -160,7 +160,7 @@ const PrivacyPolicyModal = ({ isOpen, onClose }) => {
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span><p><strong>Legitimate interests:</strong> Processing Personal Data is necessary for the purposes of the legitimate interests pursued by the Company.</p></li>
             </ul>
 
-            <h3 className="text-lg font-semibold">Your Rights under the GDPR</h3>
+            <h3 className="text-base sm:text-lg font-semibold">Your Rights under the GDPR</h3>
             <p>The Company undertakes to respect the confidentiality of Your Personal Data and to guarantee You can exercise Your rights.</p>
             <p>You have the right under this Privacy Policy, and by law if You are within the EU, to:</p>
             <ul className="pl-6 space-y-2">
@@ -172,14 +172,14 @@ const PrivacyPolicyModal = ({ isOpen, onClose }) => {
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span><p><strong>Withdraw Your consent.</strong> You have the right to withdraw Your consent on using your Personal Data.</p></li>
             </ul>
 
-            <h3 className="text-lg font-semibold">Exercising of Your GDPR Data Protection Rights</h3>
+            <h3 className="text-base sm:text-lg font-semibold">Exercising of Your GDPR Data Protection Rights</h3>
             <p>You may exercise Your rights of access, rectification, cancellation and opposition by contacting Us. Please note that we may ask You to verify Your identity before responding to such requests.</p>
             <p>You have the right to complain to a Data Protection Authority about Our collection and use of Your Personal Data.</p>
 
-            <h2 className="text-xl font-semibold">CCPA/CPRA Privacy Notice</h2>
+            <h2 className="text-lg sm:text-xl font-semibold">CCPA/CPRA Privacy Notice</h2>
             <p>This privacy notice section for California residents supplements the information contained in Our Privacy Policy and it applies solely to all visitors, users, and others who reside in the State of California.</p>
 
-            <h3 className="text-lg font-semibold">Categories of Personal Information Collected</h3>
+            <h3 className="text-base sm:text-lg font-semibold">Categories of Personal Information Collected</h3>
             <p>We collect information that identifies, relates to, describes, references, is capable of being associated with, or could reasonably be linked, directly or indirectly, with a particular Consumer or Device.</p>
             <ul className="pl-6 space-y-2">
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span><div><p><strong>Category A: Identifiers.</strong></p><p>Examples: A real name, alias, postal address, unique personal identifier, online identifier, Internet Protocol address, email address, account name.</p><p>Collected: Yes.</p></div></li>
@@ -188,7 +188,7 @@ const PrivacyPolicyModal = ({ isOpen, onClose }) => {
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span><div><p><strong>Category L: Sensitive personal information.</strong></p><p>Examples: Account login and password information, geolocation data.</p><p>Collected: Yes.</p></div></li>
             </ul>
 
-            <h3 className="text-lg font-semibold">Your Rights under the CCPA/CPRA</h3>
+            <h3 className="text-base sm:text-lg font-semibold">Your Rights under the CCPA/CPRA</h3>
             <p>The CCPA/CPRA provides California residents with specific rights regarding their personal information. If You are a resident of California, You have the following rights:</p>
             <ul className="pl-6 space-y-2">
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span><p><strong>The right to notice.</strong> You have the right to be notified which categories of Personal Data are being collected.</p></li>
@@ -199,32 +199,32 @@ const PrivacyPolicyModal = ({ isOpen, onClose }) => {
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span><p><strong>The right not to be discriminated against.</strong> You have the right not to be discriminated against for exercising any of Your consumer's rights.</p></li>
             </ul>
 
-            <h2 className="text-xl font-semibold">"Do Not Track" Policy as Required by California Online Privacy Protection Act (CalOPPA)</h2>
+            <h2 className="text-lg sm:text-xl font-semibold">"Do Not Track" Policy as Required by California Online Privacy Protection Act (CalOPPA)</h2>
             <p>Our Service does not respond to Do Not Track signals.</p>
             <p>However, some third party websites do keep track of Your browsing activities. If You are visiting such websites, You can set Your preferences in Your web browser to inform websites that You do not want to be tracked.</p>
 
-            <h2 className="text-xl font-semibold">Your California Privacy Rights (California's Shine the Light law)</h2>
+            <h2 className="text-lg sm:text-xl font-semibold">Your California Privacy Rights (California's Shine the Light law)</h2>
             <p>Under California Civil Code Section 1798 (California's Shine the Light law), California residents with an established business relationship with us can request information once a year about sharing their Personal Data with third parties for the third parties' direct marketing purposes.</p>
 
-            <h2 className="text-xl font-semibold">California Privacy Rights for Minor Users</h2>
+            <h2 className="text-lg sm:text-xl font-semibold">California Privacy Rights for Minor Users</h2>
             <p>California Business and Professions Code Section 22581 allows California residents under the age of 18 who are registered users of online sites, services or applications to request and obtain removal of content or information they have publicly posted.</p>
 
-            <h2 className="text-xl font-semibold">Children's Privacy</h2>
+            <h2 className="text-lg sm:text-xl font-semibold">Children's Privacy</h2>
             <p>Our Service does not address anyone under the age of 13. We do not knowingly collect personally identifiable information from anyone under the age of 13. If You are a parent or guardian and You are aware that Your child has provided Us with Personal Data, please contact Us. If We become aware that We have collected Personal Data from anyone under the age of 13 without verification of parental consent, We take steps to remove that information from Our servers.</p>
             <p>If We need to rely on consent as a legal basis for processing Your information and Your country requires consent from a parent, We may require Your parent's consent before We collect and use that information.</p>
 
-            <h2 className="text-xl font-semibold">Links to Other Websites</h2>
+            <h2 className="text-lg sm:text-xl font-semibold">Links to Other Websites</h2>
             <p>Our Service may contain links to other websites that are not operated by Us. If You click on a third party link, You will be directed to that third party's site. We strongly advise You to review the Privacy Policy of every site You visit.</p>
             <p>We have no control over and assume no responsibility for the content, privacy policies or practices of any third party sites or services.</p>
 
-            <h2 className="text-xl font-semibold">Changes to this Privacy Policy</h2>
+            <h2 className="text-lg sm:text-xl font-semibold">Changes to this Privacy Policy</h2>
             <p>We may update Our Privacy Policy from time to time. We will notify You of any changes by posting the new Privacy Policy on this page.</p>
             <p>We will let You know via email and/or a prominent notice on Our Service, prior to the change becoming effective and update the "Last updated" date at the top of this Privacy Policy.</p>
             <p>You are advised to review this Privacy Policy periodically for any changes. Changes to this Privacy Policy are effective when they are posted on this page.</p>
 
-            <h2 className="text-xl font-semibold">Contact Us</h2>
+            <h2 className="text-lg sm:text-xl font-semibold">Contact Us</h2>
             <p>If you have any questions about this Privacy Policy, you can <a href="https://tap-time.com/index.html#contact" target="_blank" className="text-blue-600 hover:underline">Connect Us</a></p>
-            <div className="bg-muted p-4 rounded-lg mt-2">
+            <div className="bg-muted p-3 sm:p-4 rounded-lg mt-2 text-sm sm:text-base">
                 <p><strong>Arjava Technologies</strong></p>
                 <p>2135 204th PL NE</p>
                 <p>Sammamish, WA 98074</p>
@@ -235,7 +235,7 @@ const PrivacyPolicyModal = ({ isOpen, onClose }) => {
         </div>
 
         {/* Footer */}
-        <div className="border-t p-6">
+        <div className="border-t p-4 sm:p-6">
           <Button onClick={onClose} className="w-full sm:w-auto">
             Close
           </Button>
