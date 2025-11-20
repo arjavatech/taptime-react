@@ -136,6 +136,11 @@ const Reports = () => {
       viewCurrentDateReport(currentDate);
     } else if (activeTab === "daywise" && selectedDate) {
       viewDatewiseReport(selectedDate);
+    } else if (activeTab === "summary" && startDate && endDate && dateRangeReportLoaded) {
+      loadSummaryReport();
+    } else if (activeTab === "salaried" && salariedReportData.length > 0) {
+      // Reload salaried report if data was previously loaded
+      loadSalariedReport();
     }
   };
 
@@ -161,6 +166,7 @@ const Reports = () => {
   const viewCurrentDateReport = async (dateToUse = currentDate) => {
     try {
       const arr = await fetchDailyReport(companyId, dateToUse);
+      console.log("Today's Report raw data:", arr.length, 'records');
 
       if (!arr.length) {
         setTableData([]);
@@ -175,10 +181,16 @@ const Reports = () => {
         checkoutTime: "",
       }));
 
-      if (selectedDevice && selectedDevice.DeviceID) {
-        processedData = processedData.filter(item => item.DeviceID === selectedDevice.DeviceID);
+      // Only filter by device if explicitly selected (skip if it's the default first device or filter would remove all data)
+      if (selectedDevice && selectedDevice.DeviceID && devices.length > 1) {
+        const filteredByDevice = processedData.filter(item => item.DeviceID === selectedDevice.DeviceID);
+        // Only apply filter if it returns results, otherwise show all data
+        if (filteredByDevice.length > 0) {
+          processedData = filteredByDevice;
+        }
       }
 
+      console.log("Today's Report processed data:", processedData.length, 'records');
       setTableData(processedData);
       setFilteredData([...processedData]);
       updateSummaryStats(processedData);
@@ -298,6 +310,7 @@ const Reports = () => {
     try {
       const data = await fetchDailyReport(companyId, dateValue);
       const records = Array.isArray(data) ? data : [];
+      console.log('Day-wise report raw data:', records.length, 'records');
       let processedData = records.map(item => ({
         ...item,
         formattedCheckIn: item.CheckInTime ? convertToAmPm(item.CheckInTime) : "--",
@@ -306,10 +319,16 @@ const Reports = () => {
           ? calculateTimeWorked(item.CheckInTime, item.CheckOutTime) : "--"),
       }));
 
-      if (selectedDevice && selectedDevice.DeviceID) {
-        processedData = processedData.filter(item => item.DeviceID === selectedDevice.DeviceID);
+      // Only filter by device if explicitly selected (skip if it's the default first device or filter would remove all data)
+      if (selectedDevice && selectedDevice.DeviceID && devices.length > 1) {
+        const filteredByDevice = processedData.filter(item => item.DeviceID === selectedDevice.DeviceID);
+        // Only apply filter if it returns results, otherwise show all data
+        if (filteredByDevice.length > 0) {
+          processedData = filteredByDevice;
+        }
       }
 
+      console.log('Day-wise report processed data:', processedData.length, 'records');
       setReportData(processedData);
       setFilteredData([...processedData]);
       updateSummaryStats(processedData);
@@ -374,10 +393,18 @@ const Reports = () => {
       const data = await fetchDateRangeReport(companyId, startDate, endDate);
 
       let filteredData = Array.isArray(data) ? data : [];
+      console.log('Date Range Report raw data:', filteredData.length, 'records');
 
-      // Apply device filter if selected
-      if (selectedDevice && selectedDevice.DeviceID) {
-        filteredData = filteredData.filter(item => item.DeviceID === selectedDevice.DeviceID);
+      // Apply device filter if selected (with smart fallback like day-wise report)
+      if (selectedDevice && selectedDevice.DeviceID && devices.length > 1) {
+        const filteredByDevice = filteredData.filter(item => item.DeviceID === selectedDevice.DeviceID);
+        // Only apply filter if it returns results, otherwise show all data
+        if (filteredByDevice.length > 0) {
+          filteredData = filteredByDevice;
+          console.log('Filtered by device:', filteredData.length, 'records');
+        } else {
+          console.log('Device filter would remove all data, showing all records');
+        }
       }
 
       // Calculate total hours per employee
@@ -390,6 +417,7 @@ const Reports = () => {
         hoursWorked: empData.totalHoursWorked || "0:00" // For backward compatibility
       }));
 
+      console.log('Date Range Report processed data:', employeeData.length, 'employees');
       setEmployees(employeeData);
       setReportData(employeeData);
       setFilteredData(employeeData);
@@ -507,10 +535,18 @@ const Reports = () => {
     try {
       const data = await fetchDateRangeReport(companyId, dateRange.start, dateRange.end);
       let filteredData = Array.isArray(data) ? data : [];
+      console.log('Salaried Report raw data:', filteredData.length, 'records');
 
-      // Apply device filter if selected
-      if (selectedDevice && selectedDevice.DeviceID) {
-        filteredData = filteredData.filter(item => item.DeviceID === selectedDevice.DeviceID);
+      // Apply device filter if selected (with smart fallback like day-wise report)
+      if (selectedDevice && selectedDevice.DeviceID && devices.length > 1) {
+        const filteredByDevice = filteredData.filter(item => item.DeviceID === selectedDevice.DeviceID);
+        // Only apply filter if it returns results, otherwise show all data
+        if (filteredByDevice.length > 0) {
+          filteredData = filteredByDevice;
+          console.log('Filtered by device:', filteredData.length, 'records');
+        } else {
+          console.log('Device filter would remove all data, showing all records');
+        }
       }
 
       // Calculate total hours per employee
@@ -523,6 +559,7 @@ const Reports = () => {
         hoursWorked: empData.totalHoursWorked || "0:00"
       }));
 
+      console.log('Salaried Report processed data:', employeeData.length, 'employees');
       setSalariedReportData(employeeData);
       setReportData(employeeData);
       setFilteredData(employeeData);
@@ -541,7 +578,8 @@ const Reports = () => {
 
   const filterData = () => {
     let filtered = activeTab === "today" ? tableData : reportData;
-    
+    console.log('filterData called - activeTab:', activeTab, 'source data length:', filtered.length);
+
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(record =>
@@ -572,7 +610,8 @@ const Reports = () => {
       }
       return 0;
     });
-    
+
+    console.log('filterData result:', filtered.length, 'records');
     setFilteredData(filtered);
   };
 
@@ -799,26 +838,27 @@ const Reports = () => {
   useEffect(() => {
     // Clear selected dates when switching tabs
     if (activeTab === "summary") {
-      setStartDate("");
-      setEndDate("");
-      setDateRangeReportLoaded(false);
+      // Don't clear dates or loaded flag - preserve data when switching back to summary tab
+      // User can manually clear by changing dates if needed
     } else if (activeTab === "salaried") {
       // For Salaried Report, clear everything and wait for user to click Load Report
       setReportData([]);
       setFilteredData([]);
       setSalariedReportData([]);
-    } else {
-      // For other tabs, clear and load data automatically
+    } else if (activeTab === "today") {
+      // For Today's Report, clear and load data
       setReportData([]);
       setFilteredData([]);
       setEmployees([]);
       setSalariedReportData([]);
-      
-      if (activeTab === "today" && currentDate) {
+      if (currentDate) {
         viewCurrentDateReport(currentDate);
-      } else if (activeTab === "daywise" && selectedDate) {
-        viewDatewiseReport(selectedDate);
       }
+    } else if (activeTab === "daywise") {
+      // For daywise, let the separate useEffect handle loading
+      // Just clear other report data
+      setEmployees([]);
+      setSalariedReportData([]);
     }
   }, [activeTab]); // Only depend on activeTab to prevent clearing when dates change
 
@@ -827,7 +867,7 @@ const Reports = () => {
     if (activeTab === "daywise" && selectedDate) {
       viewDatewiseReport(selectedDate);
     }
-  }, [selectedDate]); // Only run when selectedDate changes
+  }, [activeTab, selectedDate]); // Run when either activeTab or selectedDate changes
 
   // Separate effect for handling current date changes in today tab
   useEffect(() => {
@@ -835,6 +875,14 @@ const Reports = () => {
       viewCurrentDateReport(currentDate);
     }
   }, [currentDate]); // Only run when currentDate changes
+
+  // Separate effect for handling date changes in summary tab
+  useEffect(() => {
+    if (activeTab === "summary" && startDate && endDate && dateRangeReportLoaded) {
+      // Auto-reload when dates change after initial load
+      loadSummaryReport();
+    }
+  }, [startDate, endDate]); // Run when dates change
 
   useEffect(() => {
     // Auto-calculate weeks when year/month changes for Weekly report
