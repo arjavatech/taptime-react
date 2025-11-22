@@ -5,14 +5,14 @@ import { ENCRYPTION_KEY, STORAGE_KEYS } from './constants';
 
 
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://postgresql-holy-firefly-3725.fly.dev').replace(/\/$/, '');
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://postgresql-restless-waterfall-2105.fly.dev').replace(/\/$/, '');
 export const API_URLS = {
-  employee: 'https://postgresql-holy-firefly-3725.fly.dev/employee',
-  company: 'https://postgresql-holy-firefly-3725.fly.dev/company',
-  customer: 'https://postgresql-holy-firefly-3725.fly.dev/customer',
-  device: 'https://postgresql-holy-firefly-3725.fly.dev/device',
-  loginCheck: 'https://postgresql-holy-firefly-3725.fly.dev/employee/login_check',
-  signUp: 'https://postgresql-holy-firefly-3725.fly.dev/auth/sign_up'
+  employee: 'https://postgresql-restless-waterfall-2105.fly.dev/employee',
+  company: 'https://postgresql-restless-waterfall-2105.fly.dev/company',
+  customer: 'https://postgresql-restless-waterfall-2105.fly.dev/customer',
+  device: 'https://postgresql-restless-waterfall-2105.fly.dev/device',
+  loginCheck: 'https://postgresql-restless-waterfall-2105.fly.dev/employee/login_check',
+  signUp: 'https://postgresql-restless-waterfall-2105.fly.dev/auth/sign_up'
 };
 
 // HTTP client

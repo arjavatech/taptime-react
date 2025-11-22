@@ -140,7 +140,7 @@ const ContactUs = () => {
 
   // API call
   const callContactUsCreateAPiData = async () => {
-    const apiLink = `https://postgresql-holy-firefly-3725.fly.dev/contact-us/create`;
+    const apiLink = `https://postgresql-restless-waterfall-2105.fly.dev/contact-us/create`;
     const requestID = uuidv4();
     const cid = localStorage.getItem("companyID") || "";
 

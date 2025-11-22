@@ -23,12 +23,12 @@ const Device = () => {
   // Device API functions
   const deviceApi = {
     getAll: async (companyId) => {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://postgresql-holy-firefly-3725.fly.dev'}/device/get_all/${companyId}`);
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://postgresql-restless-waterfall-2105.fly.dev'}/device/get_all/${companyId}`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       return response.json();
     },
     create: async (deviceData) => {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://postgresql-holy-firefly-3725.fly.dev'}/device/create`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://postgresql-restless-waterfall-2105.fly.dev'}/device/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify(deviceData)
@@ -40,7 +40,7 @@ const Device = () => {
       return response.json();
     },
     delete: async (accessKey, companyId) => {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://postgresql-holy-firefly-3725.fly.dev'}/device/delete/${accessKey}/${companyId}/Admin`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://postgresql-restless-waterfall-2105.fly.dev'}/device/delete/${accessKey}/${companyId}/Admin`, {
         method: "PUT",
         headers: { Accept: "application/json" }
       });

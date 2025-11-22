@@ -111,7 +111,7 @@ VALIDATION_PATTERNS.EMAIL.test(email);
 
 ```env
 # Required
-VITE_API_BASE_URL=https://postgresql-holy-firefly-3725.fly.dev/
+VITE_API_BASE_URL=https://postgresql-restless-waterfall-2105.fly.dev/
 VITE_SUPABASE_URL=your-supabase-url
 VITE_SUPABASE_ANON_KEY=your-supabase-key
 
