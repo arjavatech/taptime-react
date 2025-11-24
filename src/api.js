@@ -159,9 +159,30 @@ export const googleSignInCheck = async (email) => {
 
 
 
-export const registerUser = async (registrationData) => {
+export const registerUser = async (signupData, companyLogoFile = null) => {
   try {
-    const data = await api.post(`${API_URLS.signUp}`, registrationData);
+    const formData = new FormData();
+
+    // Add signup_data as JSON string
+    formData.append('signup_data', JSON.stringify(signupData));
+
+    // Add company_logo file if provided
+    if (companyLogoFile) {
+      formData.append('company_logo', companyLogoFile);
+    }
+
+    const response = await fetch(`${API_URLS.signUp}`, {
+      method: 'POST',
+      body: formData
+      // Note: Don't set Content-Type header - browser will set it automatically with boundary
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
     return { success: true, data };
   } catch (error) {
     console.error('Registration error:', error);

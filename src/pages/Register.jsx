@@ -1,22 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { registerUser } from '../api.js';
 import Header from "../components/layout/Header";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { Eye, EyeOff, Mail, Lock, User, Building, Phone, MapPin, CheckCircle, XCircle } from "lucide-react";
+import { Mail, User, Building, Phone, MapPin, CheckCircle, XCircle } from "lucide-react";
 import tabtimelogo from "../assets/images/tap-time-logo.png";
+import RegistrationSuccessModal from "../components/ui/RegistrationSuccessModal";
 
 
 const Register = () => {
-  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: '' });
+  const [logoFileName, setLogoFileName] = useState('');
+  const [logoFile, setLogoFile] = useState(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // Error states for Step 1
   const [companyNameError, setCompanyNameError] = useState('');
@@ -36,8 +37,6 @@ const Register = () => {
   const [customerCityError, setCustomerCityError] = useState('');
   const [customerStateError, setCustomerStateError] = useState('');
   const [customerZipError, setCustomerZipError] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [confirmPasswordError, setConfirmPasswordError] = useState('');
 
   // Form data state
   const [formData, setFormData] = useState({
@@ -47,7 +46,7 @@ const Register = () => {
     companyCity: '',
     companyState: '',
     companyZip: '',
-    noOfDevices: '',
+    noOfDevices: '1',
     noOfEmployees: '',
     firstName: '',
     lastName: '',
@@ -56,9 +55,7 @@ const Register = () => {
     customerStreet: '',
     customerCity: '',
     customerState: '',
-    customerZip: '',
-    password: '',
-    confirmPassword: ''
+    customerZip: ''
   });
 
   const showToast = (message, type) => {
@@ -83,15 +80,26 @@ const Register = () => {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      setLogoFileName(file.name);
+      setLogoFile(file); // Store the actual File object for upload
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData(prev => ({
           ...prev,
-          companyLogo: reader.result
+          companyLogo: reader.result // Keep base64 for preview
         }));
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoFileName('');
+    setLogoFile(null);
+    setFormData(prev => ({
+      ...prev,
+      companyLogo: null
+    }));
   };
 
   const handlePhoneChange = (e) => {
@@ -114,7 +122,7 @@ const Register = () => {
   };
 
   const validateStep1 = () => {
-    const { companyName, companyStreet, companyCity, companyState, companyZip, noOfDevices, noOfEmployees } = formData;
+    const { companyName, companyStreet, companyCity, companyState, companyZip, noOfEmployees } = formData;
 
     // Clear previous errors
     setCompanyNameError('');
@@ -147,10 +155,7 @@ const Register = () => {
       setCompanyZipError('Zip code is required');
       hasErrors = true;
     }
-    if (!noOfDevices || Number(noOfDevices) <= 0) {
-      setNoOfDevicesError('Number of devices must be greater than 0');
-      hasErrors = true;
-    }
+    // noOfDevices is hardcoded to 1, no validation needed
     if (!noOfEmployees || Number(noOfEmployees) <= 0) {
       setNoOfEmployeesError('Number of employees must be greater than 0');
       hasErrors = true;
@@ -160,7 +165,7 @@ const Register = () => {
   };
 
   const validateStep2 = () => {
-    const { firstName, lastName, email, phone, customerStreet, customerCity, customerState, customerZip, password, confirmPassword } = formData;
+    const { firstName, lastName, email, phone, customerStreet, customerCity, customerState, customerZip } = formData;
 
     // Clear previous errors
     setFirstNameError('');
@@ -171,8 +176,6 @@ const Register = () => {
     setCustomerCityError('');
     setCustomerStateError('');
     setCustomerZipError('');
-    setPasswordError('');
-    setConfirmPasswordError('');
 
     let hasErrors = false;
 
@@ -209,20 +212,6 @@ const Register = () => {
     }
     if (!customerZip.trim()) {
       setCustomerZipError('Zip code is required');
-      hasErrors = true;
-    }
-    if (!password.trim()) {
-      setPasswordError('Password is required');
-      hasErrors = true;
-    } else if (password.length < 6) {
-      setPasswordError('Password must be at least 6 characters');
-      hasErrors = true;
-    }
-    if (!confirmPassword.trim()) {
-      setConfirmPasswordError('Please confirm your password');
-      hasErrors = true;
-    } else if (password !== confirmPassword) {
-      setConfirmPasswordError('Passwords do not match');
       hasErrors = true;
     }
 
@@ -269,21 +258,15 @@ const Register = () => {
         customer_city: formData.customerCity,
         customer_state: formData.customerState,
         customer_zip_code: formData.customerZip,
-        password: formData.password,
         last_modified_by: 'Admin'
       };
 
-      // Add company logo if provided (as base64)
-      if (formData.companyLogo) {
-        submitData.company_logo = formData.companyLogo;
-      }
-
       console.log('Submitting registration data:', submitData);
-      const response = await registerUser(submitData);
+      // Pass signup data and logo file separately - API uses multipart/form-data
+      const response = await registerUser(submitData, logoFile);
 
       if (response.success) {
-        showToast('Registration successful! Redirecting to login...', 'success');
-        setTimeout(() => navigate('/login'), 2000);
+        setShowSuccessModal(true);
       } else {
         showToast(response.message || 'Registration failed', 'error');
       }
@@ -327,13 +310,34 @@ const Register = () => {
 
           <div className="space-y-2">
             <Label htmlFor="companyLogo">Company Logo</Label>
-            <Input
-              id="companyLogo"
-              name="companyLogo"
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-            />
+            {formData.companyLogo ? (
+              <div className="flex items-center gap-3 p-3 border rounded-md bg-gray-50">
+                <img
+                  src={formData.companyLogo}
+                  alt="Company Logo Preview"
+                  className="w-12 h-12 object-cover rounded"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-700 truncate">{logoFileName}</p>
+                  <p className="text-xs text-gray-500">Image selected</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRemoveLogo}
+                  className="text-red-500 hover:text-red-700 text-sm font-medium"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <Input
+                id="companyLogo"
+                name="companyLogo"
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+              />
+            )}
           </div>
 
           <div className="space-y-2">
@@ -414,13 +418,10 @@ const Register = () => {
                 type="text"
                 placeholder="Devices"
                 value={formData.noOfDevices}
-                onChange={handleInputChange}
-                className={noOfDevicesError ? 'border-red-500 focus:border-red-500' : ''}
-                required
+                disabled
+                readOnly
+                className="bg-gray-100 cursor-not-allowed text-gray-600"
               />
-              {noOfDevicesError && (
-                <p className="text-red-600 text-xs mt-1">{noOfDevicesError}</p>
-              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="noOfEmployees">Number of Employees *</Label>
@@ -613,60 +614,6 @@ const Register = () => {
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Password *</Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input
-                id="password"
-                name="password"
-                type={showPassword ? "text" : "password"}
-                placeholder="Create a password"
-                value={formData.password}
-                onChange={handleInputChange}
-                className={`pl-10 pr-10 ${passwordError ? 'border-red-500 focus:border-red-500' : ''}`}
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-            {passwordError && (
-              <p className="text-red-600 text-xs mt-1">{passwordError}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm Password *</Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input
-                id="confirmPassword"
-                name="confirmPassword"
-                type={showConfirmPassword ? "text" : "password"}
-                placeholder="Confirm your password"
-                value={formData.confirmPassword}
-                onChange={handleInputChange}
-                className={`pl-10 pr-10 ${confirmPasswordError ? 'border-red-500 focus:border-red-500' : ''}`}
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-            {confirmPasswordError && (
-              <p className="text-red-600 text-xs mt-1">{confirmPasswordError}</p>
-            )}
-          </div>
-
           <div className="flex flex-col sm:flex-row gap-4">
             <Button type="button" variant="outline" onClick={handleBack} className="flex-1 py-2.5" size="lg">
               Back
@@ -780,6 +727,9 @@ const Register = () => {
           </div>
         </div>
       </div>
+
+      {/* Registration Success Modal */}
+      <RegistrationSuccessModal isOpen={showSuccessModal} />
     </>
   );
 };
