@@ -12,24 +12,24 @@ import {
   deleteReportEmail,
   createReportObject
 } from "../api.js";
-import { 
-  Settings, 
-  Mail, 
-  Plus, 
-  Edit, 
-  Trash2, 
+import {
+  Settings,
+  Mail,
+  Plus,
+  Edit,
+  Trash2,
   Calendar,
   CheckCircle,
   AlertCircle,
   Loader2,
   Search,
-  Grid3X3,
-  Table,
   ArrowUp,
   ArrowDown,
   ChevronDown,
   Check
 } from "lucide-react";
+import { HamburgerIcon } from "../components/icons/HamburgerIcon";
+import { GridIcon } from "../components/icons/GridIcon";
 
 const ReportSetting = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -516,7 +516,7 @@ const ReportSetting = () => {
                     onClick={() => setViewMode("table")}
                     className="h-8 w-8 p-0"
                   >
-                    <Table className="w-4 h-4" />
+                    <HamburgerIcon className="w-4 h-4" />
                   </Button>
                   <Button
                     variant={viewMode === "grid" ? "default" : "ghost"}
@@ -524,7 +524,7 @@ const ReportSetting = () => {
                     onClick={() => setViewMode("grid")}
                     className="h-8 w-8 p-0"
                   >
-                    <Grid3X3 className="w-4 h-4" />
+                    <GridIcon className="w-4 h-4" />
                   </Button>
                 </div>
               </div>

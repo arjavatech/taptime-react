@@ -26,8 +26,6 @@ import {
   AlertCircle,
   CheckCircle,
   Loader2,
-  Grid3X3,
-  Table,
   ChevronLeft,
   ChevronRight,
   ArrowUpDown,
@@ -36,6 +34,8 @@ import {
   ChevronDown,
   Check
 } from "lucide-react";
+import { HamburgerIcon } from "../components/icons/HamburgerIcon";
+import { GridIcon } from "../components/icons/GridIcon";
 
 const EmployeeList = () => {
   // Data state
@@ -658,7 +658,7 @@ const EmployeeList = () => {
                   onClick={() => setViewMode("table")}
                   className="h-8 w-8 p-0"
                 >
-                  <Table className="w-4 h-4" />
+                  <HamburgerIcon className="w-4 h-4" />
                 </Button>
                 <Button
                   variant={viewMode === "grid" ? "default" : "ghost"}
@@ -666,7 +666,7 @@ const EmployeeList = () => {
                   onClick={() => setViewMode("grid")}
                   className="h-8 w-8 p-0"
                 >
-                  <Grid3X3 className="w-4 h-4" />
+                  <GridIcon className="w-4 h-4" />
                 </Button>
               </div>
             </div>
