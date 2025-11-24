@@ -361,6 +361,10 @@ const Login = () => {
                                   setEmailError("");
                                   setPasswordError("");
                                 }}
+                                onCopy={(e) => e.preventDefault()}
+                                onPaste={(e) => e.preventDefault()}
+                                onCut={(e) => e.preventDefault()}
+                                onContextMenu={(e) => e.preventDefault()}
                                 className={`pl-7 pr-7 h-8 text-xs ${
                                   passwordError ? 'border-red-500 focus:border-red-500' : ''
                                 }`}
