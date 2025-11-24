@@ -228,7 +228,7 @@ const PrivacyPolicyModal = ({ isOpen, onClose }) => {
                 <p><strong>Arjava Technologies</strong></p>
                 <p>2135 204th PL NE</p>
                 <p>Sammamish, WA 98074</p>
-                <p>Phone: (541) 371-2950</p>
+                <p>Phone: +1 (425) 999-9719</p>
                 <p>Email: contact@tap-time.com</p>
             </div>
           </div>

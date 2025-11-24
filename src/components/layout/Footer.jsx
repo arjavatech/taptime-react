@@ -28,7 +28,7 @@ const Footer = () => {
     { href: "/", text: "Home" },
     { href: "/login", text: "Login" },
     { href: "/register", text: "Register" },
-    { href: "#contact", text: "Contact Us" },
+    { href: "/contact-us", text: "Contact Us" },
     { action: () => setShowPrivacyModal(true), text: "Privacy Policy" }
   ]
 
@@ -131,7 +131,7 @@ const Footer = () => {
                   href="tel:+15413712950" 
                   className="text-sm text-primary-foreground/80 hover:text-primary-foreground transition-colors"
                 >
-                  (541) 371-2950
+                  +1 (425) 999-9719
                 </a>
               </div>
               

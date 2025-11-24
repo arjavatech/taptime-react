@@ -103,27 +103,6 @@ const Header = () => {
   };
   const toggleDropdown = () => setDropdownOpen(!dropdownOpen);
 
-  const handleContactClick = (e) => {
-    e.preventDefault();
-    setSidebarOpen(false);
-    if (location.pathname !== "/") {
-      navigate("/");
-      setTimeout(() => scrollToContact(), 100);
-    } else {
-      scrollToContact();
-    }
-  };
-
-  const scrollToContact = () => {
-    const contactSection = document.getElementById("contact");
-    if (contactSection) {
-      const headerOffset = 70;
-      const elementPosition = contactSection.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-      window.scrollTo({ top: offsetPosition, behavior: "smooth" });
-    }
-  };
-
   const handleLogout = async () => {
     // Clear both Supabase session AND localStorage
     await signOut();
@@ -135,7 +114,7 @@ const Header = () => {
     { to: "/", label: "Home" },
     { to: "/login", label: "Login" },
     { to: "/register", label: "Register" },
-    { href: "#contact", label: "Contact Us", onClick: handleContactClick },
+    { to: "/contact-us", label: "Contact Us" },
   ];
 
   const authenticatedNavItems = [

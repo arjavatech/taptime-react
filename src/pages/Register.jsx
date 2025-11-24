@@ -18,6 +18,27 @@ const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: '' });
 
+  // Error states for Step 1
+  const [companyNameError, setCompanyNameError] = useState('');
+  const [companyStreetError, setCompanyStreetError] = useState('');
+  const [companyCityError, setCompanyCityError] = useState('');
+  const [companyStateError, setCompanyStateError] = useState('');
+  const [companyZipError, setCompanyZipError] = useState('');
+  const [noOfDevicesError, setNoOfDevicesError] = useState('');
+  const [noOfEmployeesError, setNoOfEmployeesError] = useState('');
+
+  // Error states for Step 2
+  const [firstNameError, setFirstNameError] = useState('');
+  const [lastNameError, setLastNameError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [customerStreetError, setCustomerStreetError] = useState('');
+  const [customerCityError, setCustomerCityError] = useState('');
+  const [customerStateError, setCustomerStateError] = useState('');
+  const [customerZipError, setCustomerZipError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
+
   // Form data state
   const [formData, setFormData] = useState({
     companyName: '',
@@ -95,83 +116,117 @@ const Register = () => {
   const validateStep1 = () => {
     const { companyName, companyStreet, companyCity, companyState, companyZip, noOfDevices, noOfEmployees } = formData;
 
+    // Clear previous errors
+    setCompanyNameError('');
+    setCompanyStreetError('');
+    setCompanyCityError('');
+    setCompanyStateError('');
+    setCompanyZipError('');
+    setNoOfDevicesError('');
+    setNoOfEmployeesError('');
+
+    let hasErrors = false;
+
     if (!companyName.trim()) {
-      showToast('Company name is required', 'error');
-      return false;
+      setCompanyNameError('Company name is required');
+      hasErrors = true;
     }
     if (!companyStreet.trim()) {
-      showToast('Street address is required', 'error');
-      return false;
+      setCompanyStreetError('Street address is required');
+      hasErrors = true;
     }
     if (!companyCity.trim()) {
-      showToast('City is required', 'error');
-      return false;
+      setCompanyCityError('City is required');
+      hasErrors = true;
     }
     if (!companyState.trim()) {
-      showToast('State is required', 'error');
-      return false;
+      setCompanyStateError('State is required');
+      hasErrors = true;
     }
     if (!companyZip.trim()) {
-      showToast('Zip code is required', 'error');
-      return false;
+      setCompanyZipError('Zip code is required');
+      hasErrors = true;
     }
     if (!noOfDevices || Number(noOfDevices) <= 0) {
-      showToast('Number of devices must be greater than 0', 'error');
-      return false;
+      setNoOfDevicesError('Number of devices must be greater than 0');
+      hasErrors = true;
     }
     if (!noOfEmployees || Number(noOfEmployees) <= 0) {
-      showToast('Number of employees must be greater than 0', 'error');
-      return false;
+      setNoOfEmployeesError('Number of employees must be greater than 0');
+      hasErrors = true;
     }
 
-    return true;
+    return !hasErrors;
   };
 
   const validateStep2 = () => {
     const { firstName, lastName, email, phone, customerStreet, customerCity, customerState, customerZip, password, confirmPassword } = formData;
 
+    // Clear previous errors
+    setFirstNameError('');
+    setLastNameError('');
+    setEmailError('');
+    setPhoneError('');
+    setCustomerStreetError('');
+    setCustomerCityError('');
+    setCustomerStateError('');
+    setCustomerZipError('');
+    setPasswordError('');
+    setConfirmPasswordError('');
+
+    let hasErrors = false;
+
     if (!firstName.trim()) {
-      showToast('First name is required', 'error');
-      return false;
+      setFirstNameError('First name is required');
+      hasErrors = true;
     }
     if (!lastName.trim()) {
-      showToast('Last name is required', 'error');
-      return false;
+      setLastNameError('Last name is required');
+      hasErrors = true;
     }
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      showToast('Valid email address is required', 'error');
-      return false;
+    if (!email.trim()) {
+      setEmailError('Email is required');
+      hasErrors = true;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailError('Please enter a valid email address');
+      hasErrors = true;
     }
     if (!phone.trim()) {
-      showToast('Phone number is required', 'error');
-      return false;
+      setPhoneError('Phone number is required');
+      hasErrors = true;
     }
     if (!customerStreet.trim()) {
-      showToast('Street address is required', 'error');
-      return false;
+      setCustomerStreetError('Street address is required');
+      hasErrors = true;
     }
     if (!customerCity.trim()) {
-      showToast('City is required', 'error');
-      return false;
+      setCustomerCityError('City is required');
+      hasErrors = true;
     }
     if (!customerState.trim()) {
-      showToast('State is required', 'error');
-      return false;
+      setCustomerStateError('State is required');
+      hasErrors = true;
     }
     if (!customerZip.trim()) {
-      showToast('Zip code is required', 'error');
-      return false;
+      setCustomerZipError('Zip code is required');
+      hasErrors = true;
     }
-    if (!password.trim() || password.length < 6) {
-      showToast('Password must be at least 6 characters', 'error');
-      return false;
+    if (!password.trim()) {
+      setPasswordError('Password is required');
+      hasErrors = true;
+    } else if (password.length < 6) {
+      setPasswordError('Password must be at least 6 characters');
+      hasErrors = true;
     }
-    if (password !== confirmPassword) {
-      showToast('Passwords do not match', 'error');
-      return false;
+    if (!confirmPassword.trim()) {
+      setConfirmPasswordError('Please confirm your password');
+      hasErrors = true;
+    } else if (password !== confirmPassword) {
+      setConfirmPasswordError('Passwords do not match');
+      hasErrors = true;
     }
 
-    return true;
+    return !hasErrors;
   };
 
   const handleNext = (e) => {
@@ -261,10 +316,13 @@ const Register = () => {
                 placeholder="Enter company name"
                 value={formData.companyName}
                 onChange={handleInputChange}
-                className="pl-10"
+                className={`pl-10 ${companyNameError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
             </div>
+            {companyNameError && (
+              <p className="text-red-600 text-xs mt-1">{companyNameError}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -288,10 +346,13 @@ const Register = () => {
                 placeholder="Enter street address"
                 value={formData.companyStreet}
                 onChange={handleInputChange}
-                className="pl-10"
+                className={`pl-10 ${companyStreetError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
             </div>
+            {companyStreetError && (
+              <p className="text-red-600 text-xs mt-1">{companyStreetError}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -303,8 +364,12 @@ const Register = () => {
                 placeholder="City"
                 value={formData.companyCity}
                 onChange={handleInputChange}
+                className={companyCityError ? 'border-red-500 focus:border-red-500' : ''}
                 required
               />
+              {companyCityError && (
+                <p className="text-red-600 text-xs mt-1">{companyCityError}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="companyState">State *</Label>
@@ -314,8 +379,12 @@ const Register = () => {
                 placeholder="State"
                 value={formData.companyState}
                 onChange={handleInputChange}
+                className={companyStateError ? 'border-red-500 focus:border-red-500' : ''}
                 required
               />
+              {companyStateError && (
+                <p className="text-red-600 text-xs mt-1">{companyStateError}</p>
+              )}
             </div>
           </div>
 
@@ -328,8 +397,12 @@ const Register = () => {
               placeholder="Enter zip code"
               value={formData.companyZip}
               onChange={handleInputChange}
+              className={companyZipError ? 'border-red-500 focus:border-red-500' : ''}
               required
             />
+            {companyZipError && (
+              <p className="text-red-600 text-xs mt-1">{companyZipError}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -342,8 +415,12 @@ const Register = () => {
                 placeholder="Devices"
                 value={formData.noOfDevices}
                 onChange={handleInputChange}
+                className={noOfDevicesError ? 'border-red-500 focus:border-red-500' : ''}
                 required
               />
+              {noOfDevicesError && (
+                <p className="text-red-600 text-xs mt-1">{noOfDevicesError}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="noOfEmployees">Number of Employees *</Label>
@@ -354,8 +431,12 @@ const Register = () => {
                 placeholder="Employees"
                 value={formData.noOfEmployees}
                 onChange={handleInputChange}
+                className={noOfEmployeesError ? 'border-red-500 focus:border-red-500' : ''}
                 required
               />
+              {noOfEmployeesError && (
+                <p className="text-red-600 text-xs mt-1">{noOfEmployeesError}</p>
+              )}
             </div>
           </div>
 
@@ -396,10 +477,13 @@ const Register = () => {
                   placeholder="First name"
                   value={formData.firstName}
                   onChange={handleInputChange}
-                  className="pl-10"
+                  className={`pl-10 ${firstNameError ? 'border-red-500 focus:border-red-500' : ''}`}
                   required
                 />
               </div>
+              {firstNameError && (
+                <p className="text-red-600 text-xs mt-1">{firstNameError}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="lastName">Last Name *</Label>
@@ -411,10 +495,13 @@ const Register = () => {
                   placeholder="Last name"
                   value={formData.lastName}
                   onChange={handleInputChange}
-                  className="pl-10"
+                  className={`pl-10 ${lastNameError ? 'border-red-500 focus:border-red-500' : ''}`}
                   required
                 />
               </div>
+              {lastNameError && (
+                <p className="text-red-600 text-xs mt-1">{lastNameError}</p>
+              )}
             </div>
           </div>
 
@@ -429,10 +516,13 @@ const Register = () => {
                 placeholder="name@company.com"
                 value={formData.email}
                 onChange={handleInputChange}
-                className="pl-10"
+                className={`pl-10 ${emailError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
             </div>
+            {emailError && (
+              <p className="text-red-600 text-xs mt-1">{emailError}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -446,10 +536,13 @@ const Register = () => {
                 placeholder="(123) 456-7890"
                 value={formData.phone}
                 onChange={handlePhoneChange}
-                className="pl-10"
+                className={`pl-10 ${phoneError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
             </div>
+            {phoneError && (
+              <p className="text-red-600 text-xs mt-1">{phoneError}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -462,10 +555,13 @@ const Register = () => {
                 placeholder="Enter street address"
                 value={formData.customerStreet}
                 onChange={handleInputChange}
-                className="pl-10"
+                className={`pl-10 ${customerStreetError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
             </div>
+            {customerStreetError && (
+              <p className="text-red-600 text-xs mt-1">{customerStreetError}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -477,8 +573,12 @@ const Register = () => {
                 placeholder="City"
                 value={formData.customerCity}
                 onChange={handleInputChange}
+                className={customerCityError ? 'border-red-500 focus:border-red-500' : ''}
                 required
               />
+              {customerCityError && (
+                <p className="text-red-600 text-xs mt-1">{customerCityError}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="customerState">State *</Label>
@@ -488,8 +588,12 @@ const Register = () => {
                 placeholder="State"
                 value={formData.customerState}
                 onChange={handleInputChange}
+                className={customerStateError ? 'border-red-500 focus:border-red-500' : ''}
                 required
               />
+              {customerStateError && (
+                <p className="text-red-600 text-xs mt-1">{customerStateError}</p>
+              )}
             </div>
           </div>
 
@@ -501,8 +605,12 @@ const Register = () => {
               placeholder="Enter zip code"
               value={formData.customerZip}
               onChange={handleInputChange}
+              className={customerZipError ? 'border-red-500 focus:border-red-500' : ''}
               required
             />
+            {customerZipError && (
+              <p className="text-red-600 text-xs mt-1">{customerZipError}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -516,7 +624,7 @@ const Register = () => {
                 placeholder="Create a password"
                 value={formData.password}
                 onChange={handleInputChange}
-                className="pl-10 pr-10"
+                className={`pl-10 pr-10 ${passwordError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
               <button
@@ -527,6 +635,9 @@ const Register = () => {
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+            {passwordError && (
+              <p className="text-red-600 text-xs mt-1">{passwordError}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -540,7 +651,7 @@ const Register = () => {
                 placeholder="Confirm your password"
                 value={formData.confirmPassword}
                 onChange={handleInputChange}
-                className="pl-10 pr-10"
+                className={`pl-10 pr-10 ${confirmPasswordError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
               <button
@@ -551,6 +662,9 @@ const Register = () => {
                 {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+            {confirmPasswordError && (
+              <p className="text-red-600 text-xs mt-1">{confirmPasswordError}</p>
+            )}
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4">
@@ -639,7 +753,7 @@ const Register = () => {
               <img src={tabtimelogo} alt="TabTime Logo" className="mx-auto h-20 w-auto sm:h-25" />
             </div>
 
-            {/* Progress Indicator */}
+            {/* Progress Indicator
             <div className="flex items-center justify-center mb-8">
             <div className="flex items-center space-x-4">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
@@ -654,6 +768,7 @@ const Register = () => {
               </div>
             </div>
           </div>
+           */}
 
           {currentStep === 1 ? renderStep1() : renderStep2()}
 

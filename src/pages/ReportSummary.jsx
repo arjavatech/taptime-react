@@ -328,12 +328,10 @@ const Reports = () => {
         }
       }
 
-      // Consolidate multiple entries per employee into single rows
-      const consolidatedData = consolidateDaywiseReport(processedData);
-      console.log('Day-wise report consolidated:', consolidatedData.length, 'unique employees from', processedData.length, 'records');
+      console.log('Day-wise report processed:', processedData.length, 'records');
 
-      setReportData(consolidatedData);
-      setFilteredData([...consolidatedData]);
+      setReportData(processedData);
+      setFilteredData([...processedData]);
       updateSummaryStats(processedData);
       setCurrentPage(1);
     } catch (err) {
