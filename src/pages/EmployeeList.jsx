@@ -621,12 +621,12 @@ const EmployeeList = () => {
                   className="absolute top-full left-0 mt-1 w-48 bg-background border border-input rounded-md shadow-lg z-10 hidden"
                 >
                   {[
-                    { key: 'name', direction: 'asc', label: 'Sort By Name A-Z', icon: ArrowUp },
-                    { key: 'name', direction: 'desc', label: 'Sort By Name Z-A', icon: ArrowDown },
-                    { key: 'pin', direction: 'asc', label: 'Sort By PIN A-Z', icon: ArrowUp },
-                    { key: 'pin', direction: 'desc', label: 'Sort By PIN Z-A', icon: ArrowDown },
-                    { key: 'contact', direction: 'asc', label: 'Sort By Contact A-Z', icon: ArrowUp },
-                    { key: 'contact', direction: 'desc', label: 'Sort By Contact Z-A', icon: ArrowDown }
+                    { key: 'name', direction: 'asc', label: 'Sort By Name', icon: ArrowUp },
+                    { key: 'name', direction: 'desc', label: 'Sort By Name', icon: ArrowDown },
+                    { key: 'pin', direction: 'asc', label: 'Sort By PIN', icon: ArrowUp },
+                    { key: 'pin', direction: 'desc', label: 'Sort By PIN', icon: ArrowDown },
+                    { key: 'contact', direction: 'asc', label: 'Sort By Contact', icon: ArrowUp },
+                    { key: 'contact', direction: 'desc', label: 'Sort By Contact', icon: ArrowDown }
                   ].map(({ key, direction, label, icon: Icon }) => (
                     <button
                       key={`${key}-${direction}`}

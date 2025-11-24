@@ -208,7 +208,7 @@ const ContactUs = () => {
 
           <div className="grid lg:grid-cols-2 gap-12">
             {/* Contact Info */}
-            <div className="flex">
+            <div className="flex center">
               <div className="bg-white rounded-lg shadow-sm border p-8 flex-1 flex flex-col">
                 <h2 className="text-2xl font-semibold text-gray-900 mb-6">Get in Touch</h2>
 
@@ -227,29 +227,6 @@ const ContactUs = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-[#02066F] rounded-lg flex items-center justify-center">
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Response Time</h3>
-                      <p className="text-gray-600">Within 24 hours</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-[#02066F] rounded-lg flex items-center justify-center">
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 4v10m6-10v10" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Support Hours</h3>
-                      <p className="text-gray-600">Mon-Fri, 9AM-6PM EST</p>
-                    </div>
-                  </div>
 
                   <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 bg-[#02066F] rounded-lg flex items-center justify-center">
@@ -259,7 +236,7 @@ const ContactUs = () => {
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900">Phone</h3>
-                      <p className="text-gray-600">+1 (555) 123-4567</p>
+                      <p className="text-gray-600">+1 (425) 999-9719</p>
                     </div>
                   </div>
 

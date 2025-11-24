@@ -53,6 +53,7 @@ const Reports = () => {
     CheckOutTime: ""
   });
   const [employeeList, setEmployeeList] = useState([]);
+  const [checkinDisabled, setCheckinDisabled] = useState(true);
   const [checkoutDisabled, setCheckoutDisabled] = useState(true);
   const [addButtonDisabled, setAddButtonDisabled] = useState(true);
   const [formErrors, setFormErrors] = useState({
@@ -839,18 +840,56 @@ const Reports = () => {
       checkinTime: "",
       checkoutTime: ""
     });
+    setCheckinDisabled(true);
     setCheckoutDisabled(true);
     setAddButtonDisabled(true);
   };
 
+  const handleDateChange = (value) => {
+    setNewEntry({ ...newEntry, Date: value });
+    if (value) {
+      setCheckinDisabled(false);
+      // If check-in time already exists, enable checkout
+      if (newEntry.CheckInTime) {
+        setCheckoutDisabled(false);
+      }
+    } else {
+      setCheckinDisabled(true);
+      setCheckoutDisabled(true);
+      setAddButtonDisabled(true);
+    }
+  };
+
   const handleCheckinTimeChange = (value) => {
     setNewEntry({ ...newEntry, CheckInTime: value });
-    if (value) {
+    if (value && newEntry.Date) {
       setCheckoutDisabled(false);
       setAddButtonDisabled(false);
     } else {
       setCheckoutDisabled(true);
       setAddButtonDisabled(true);
+    }
+  };
+
+  const handleModalCheckoutTimeChange = (value) => {
+    setNewEntry({ ...newEntry, CheckOutTime: value });
+
+    // Validate if both times are present
+    if (value && newEntry.CheckInTime && newEntry.Date) {
+      const checkinDateTime = new Date(`${newEntry.Date}T${newEntry.CheckInTime}:00`);
+      const checkoutDateTime = new Date(`${newEntry.Date}T${value}:00`);
+
+      if (checkoutDateTime <= checkinDateTime) {
+        setFormErrors({
+          ...formErrors,
+          checkoutTime: "Checkout time must be greater than check-in time"
+        });
+      } else {
+        setFormErrors({
+          ...formErrors,
+          checkoutTime: ""
+        });
+      }
     }
   };
 
@@ -869,6 +908,17 @@ const Reports = () => {
     if (!newEntry.EmployeeID || !newEntry.Type || !newEntry.Date || !newEntry.CheckInTime) {
       showToast("Please fill in all required fields", "error");
       return;
+    }
+
+    // If checkout time is provided, validate it's greater than check-in
+    if (newEntry.CheckOutTime) {
+      const checkinDateTime = new Date(`${newEntry.Date}T${newEntry.CheckInTime}:00`);
+      const checkoutDateTime = new Date(`${newEntry.Date}T${newEntry.CheckOutTime}:00`);
+
+      if (checkoutDateTime <= checkinDateTime) {
+        showToast("Checkout time must be greater than check-in time", "error");
+        return;
+      }
     }
 
     const selectedEmployee = employeeList.find(emp => emp.pin === newEntry.EmployeeID);
@@ -1244,11 +1294,11 @@ const Reports = () => {
                     className="absolute top-full left-0 mt-1 w-48 bg-background border border-input rounded-md shadow-lg z-10 hidden"
                   >
                     {[
-                      { key: 'name', direction: 'asc', label: 'Sort By Name A-Z', icon: ArrowUp },
-                      { key: 'name', direction: 'desc', label: 'Sort By Name Z-A', icon: ArrowDown },
-                      { key: 'pin', direction: 'asc', label: 'Sort By PIN A-Z', icon: ArrowUp },
-                      { key: 'pin', direction: 'desc', label: 'Sort By PIN Z-A', icon: ArrowDown },
-                     
+                      { key: 'name', direction: 'asc', label: 'Sort By Name', icon: ArrowUp },
+                      { key: 'name', direction: 'desc', label: 'Sort By Name', icon: ArrowDown },
+                      { key: 'pin', direction: 'asc', label: 'Sort By PIN', icon: ArrowUp },
+                      { key: 'pin', direction: 'desc', label: 'Sort By PIN', icon: ArrowDown },
+
                     ].map(({ key, direction, label, icon: Icon }) => (
                       <button
                         key={`${key}-${direction}`}
@@ -1813,12 +1863,12 @@ const Reports = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="date" className="text-sm font-medium">Date</Label>
+                <Label htmlFor="date" className="text-sm font-medium">Date *</Label>
                 <Input
                   id="date"
                   type="date"
                   value={newEntry.Date}
-                  onChange={(e) => setNewEntry({ ...newEntry, Date: e.target.value })}
+                  onChange={(e) => handleDateChange(e.target.value)}
                   max={getTodayDate()}
                   className="text-sm"
                 />
@@ -1829,13 +1879,14 @@ const Reports = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="checkinTime" className="text-sm font-medium">Check-in Time</Label>
+                  <Label htmlFor="checkinTime" className="text-sm font-medium">Check-in Time *</Label>
                   <Input
                     id="checkinTime"
                     type="time"
                     value={newEntry.CheckInTime}
                     onChange={(e) => handleCheckinTimeChange(e.target.value)}
-                    className="text-sm"
+                    disabled={checkinDisabled}
+                    className="text-sm disabled:bg-muted"
                   />
                   {formErrors.checkinTime && (
                     <p className="text-red-500 text-sm mt-1">{formErrors.checkinTime}</p>
@@ -1848,8 +1899,9 @@ const Reports = () => {
                     id="checkoutTime"
                     type="time"
                     value={newEntry.CheckOutTime}
-                    onChange={(e) => setNewEntry({ ...newEntry, CheckOutTime: e.target.value })}
+                    onChange={(e) => handleModalCheckoutTimeChange(e.target.value)}
                     disabled={checkoutDisabled}
+                    min={newEntry.CheckInTime || undefined}
                     className="text-sm disabled:bg-muted"
                   />
                   {formErrors.checkoutTime && (

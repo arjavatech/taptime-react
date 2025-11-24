@@ -478,10 +478,10 @@ const ReportSetting = () => {
                     className="absolute top-full left-0 mt-1 w-48 bg-background border border-input rounded-md shadow-lg z-10 hidden"
                   >
                     {[
-                      { key: 'email', direction: 'asc', label: 'Sort By Email A-Z', icon: ArrowUp },
-                      { key: 'email', direction: 'desc', label: 'Sort By Email Z-A', icon: ArrowDown },
-                      { key: 'frequency', direction: 'asc', label: 'Sort By Frequency A-Z', icon: ArrowUp },
-                      { key: 'frequency', direction: 'desc', label: 'Sort By Frequency Z-A', icon: ArrowDown }
+                      { key: 'email', direction: 'asc', label: 'Sort By Email', icon: ArrowUp },
+                      { key: 'email', direction: 'desc', label: 'Sort By Email', icon: ArrowDown },
+                      { key: 'frequency', direction: 'asc', label: 'Sort By Frequency', icon: ArrowUp },
+                      { key: 'frequency', direction: 'desc', label: 'Sort By Frequency', icon: ArrowDown }
                     ].map(({ key, direction, label, icon: Icon }) => (
                       <button
                         key={`${key}-${direction}`}
