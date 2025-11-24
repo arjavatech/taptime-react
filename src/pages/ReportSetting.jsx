@@ -669,10 +669,10 @@ const ReportSetting = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="w-5 h-5" />
-                  Report View Settings
+                  Email Consolidated Report Settings
                 </CardTitle>
                 <CardDescription>
-                  Configure default report frequencies for viewing
+                  (Only owner can view this report frequency)
                 </CardDescription>
               </CardHeader>
               <CardContent>
