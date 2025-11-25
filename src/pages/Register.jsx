@@ -75,8 +75,12 @@ const Register = () => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     
-    // Only allow numbers for device, employee count, and zip code fields
-    if ((name === 'noOfDevices' || name === 'noOfEmployees' || name === 'companyZip' || name === 'customerZip') && value && !/^\d+$/.test(value)) {
+    // Only allow numbers for device and employee count fields
+    if ((name === 'noOfDevices' || name === 'noOfEmployees') && value && !/^\d+$/.test(value)) {
+      return;
+    }
+    // Restrict zip codes to 5 digits only
+    if ((name === 'companyZip' || name === 'customerZip') && value && !/^\d{0,5}$/.test(value)) {
       return;
     }
     
@@ -486,6 +490,7 @@ const Register = () => {
               value={formData.companyZip}
               onChange={handleInputChange}
               className={companyZipError ? 'border-red-500 focus:border-red-500' : ''}
+              maxLength={5}
               required
             />
             {companyZipError && (
@@ -724,6 +729,7 @@ const Register = () => {
               value={formData.customerZip}
               onChange={handleInputChange}
               className={customerZipError ? 'border-red-500 focus:border-red-500' : ''}
+              maxLength={5}
               required
             />
             {customerZipError && (

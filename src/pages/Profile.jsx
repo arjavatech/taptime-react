@@ -41,7 +41,7 @@ const Profile = () => {
     street2: "",
     customerCity: "",
     customerState: "",
-    customerZip: "",
+    zipCode: "",
     pin: "",
   });
 
@@ -109,15 +109,18 @@ const Profile = () => {
     console.log(`Personal input change - Field: ${field}, Value: ${value}`);
     console.log('Current activeTab:', activeTab);
     console.log('Current isEditing.personal:', isEditing.personal);
-    
+
     if (field === "phone") {
       value = formatphone_number(value);
     }
 
+    // Restrict zipCode to 5 digits only
+    if (field === "zipCode" && value && !/^\d{0,5}$/.test(value)) {
+      return;
+    }
+
     const fieldMap = {
       "city": "customerCity",
-      "state": "customerState",
-      "zipCode": "customerZip",
       "address": "address"
     };
 
@@ -156,6 +159,10 @@ const Profile = () => {
   };
 
   const handleCompanyInputChange = (field, value) => {
+    // Restrict zipCode to 5 digits only
+    if (field === "zipCode" && value && !/^\d{0,5}$/.test(value)) {
+      return;
+    }
     setCompanyData(prev => ({ ...prev, [field]: value }));
     const errorField = field === "name" ? "companyName" :
       field === "address" ? "companyStreet" :
@@ -244,7 +251,7 @@ const Profile = () => {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
-        phone: formData.phone || "",
+        phone: formatphone_number(formData.phone || ""),
         address: formData.customerStreet,
         street2: formData.customerStreet2,
         customerCity: formData.customerCity,
@@ -330,6 +337,11 @@ const Profile = () => {
       isValid = false;
     }
 
+    if (personalData.zipCode && personalData.zipCode.length !== 5) {
+      newErrors.customerZip = "Zip code must be exactly 5 digits";
+      isValid = false;
+    }
+
     if (userType === "Admin" || userType === "SuperAdmin") {
       if (!personalData.pin || !personalData.pin.trim()) {
         console.log("pin validation failed:", personalData.pin);
@@ -380,6 +392,9 @@ const Profile = () => {
     if (!companyData.zipCode.trim()) {
       newErrors.companyZip = "Please fill out this field";
       isValid = false;
+    } else if (companyData.zipCode.length !== 5) {
+      newErrors.companyZip = "Zip code must be exactly 5 digits";
+      isValid = false;
     }
 
     setErrors(newErrors);
@@ -417,8 +432,8 @@ const Profile = () => {
         customer_address_line1: personalData.address || "",
         customer_address_line2: personalData.street2 || "",
         customer_city: personalData.customerCity || "",
-        customer_state: personalData.customerState || "",
-        customer_zip_code: personalData.customerZip || "",
+        customer_state: personalData.state || "",
+        customer_zip_code: personalData.zipCode || "",
         is_verified: localStorage.getItem("isVerified") === "true",
         device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
         employee_count: parseInt(localStorage.getItem("noOfEmployees") || "30"),
@@ -508,8 +523,8 @@ const Profile = () => {
         customer_address_line1: personalData.address || "",
         customer_address_line2:personalData.street2 || "",
         customer_city: personalData.customerCity,
-        customer_state: personalData.customerState || "",
-        customer_zip_code: personalData.customerZip || "",
+        customer_state: personalData.state || "",
+        customer_zip_code: personalData.zipCode || "",
         is_verified: localStorage.getItem("isVerified") === "true",
         device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
         employee_count: parseInt(localStorage.getItem("noOfEmployees") || "30"),
@@ -573,8 +588,8 @@ const Profile = () => {
         customer_address_line1: personalData.address || "",
         customer_address_line2: personalData.street2 || "",
         customer_city: personalData.customerCity || "",
-        customer_state: personalData.customerState || "",
-        customer_zip_code: personalData.customerZip || "",
+        customer_state: personalData.state || "",
+        customer_zip_code: personalData.zipCode || "",
         is_verified: true,
         device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
         employee_count: parseInt(localStorage.getItem("noOfEmployees") || "30"),
@@ -890,6 +905,7 @@ const Profile = () => {
                       onChange={(e) => handlePersonalInputChange("zipCode", e.target.value)}
                       disabled={!isEditing.personal}
                       className={errors.customerZip ? "border-red-500" : ""}
+                      maxLength={5}
                     />
                     {errors.customerZip && <p className="text-sm text-red-600">{errors.customerZip}</p>}
                   </div>
@@ -1077,6 +1093,7 @@ const Profile = () => {
                       onChange={(e) => handleCompanyInputChange("zipCode", e.target.value)}
                       disabled={!isEditing.company}
                       className={errors.companyZip ? "border-red-500" : ""}
+                      maxLength={5}
                     />
                     {errors.companyZip && <p className="text-sm text-red-600">{errors.companyZip}</p>}
                   </div>
