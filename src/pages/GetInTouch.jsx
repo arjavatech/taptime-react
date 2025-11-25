@@ -6,8 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Input } from "../components/ui/input"
 import { Textarea } from "../components/ui/textarea"
 import { Label } from "../components/ui/label"
-import { Loader2 } from "lucide-react"
-import CenterLoadingOverlay from "../components/ui/CenterLoadingOverlay"
+import { Loader2, CheckCircle, AlertCircle } from "lucide-react"
 
 const GetInTouch = () => {
   const [formData, setFormData] = useState({
@@ -19,15 +18,8 @@ const GetInTouch = () => {
     message: ""
   })
   const [loading, setLoading] = useState(false)
-  const [centerLoading, setCenterLoading] = useState({ show: false, message: "" })
-
-  const showCenterLoading = (message) => {
-    setCenterLoading({ show: true, message })
-  }
-
-  const hideCenterLoading = () => {
-    setCenterLoading({ show: false, message: "" })
-  }
+  const [submitSuccess, setSubmitSuccess] = useState("")
+  const [submitError, setSubmitError] = useState("")
 
   const handleInputChange = (e) => {
     setFormData({
@@ -38,14 +30,15 @@ const GetInTouch = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setSubmitSuccess("")
+    setSubmitError("")
     setLoading(true)
 
     try {
       // Simulate form submission - you can add actual API call here
       await new Promise(resolve => setTimeout(resolve, 1000))
       console.log("Form submitted:", formData)
-      showCenterLoading("Sending message...")
-      setTimeout(() => hideCenterLoading(), 800)
+
       setFormData({
         firstName: "",
         lastName: "",
@@ -54,9 +47,13 @@ const GetInTouch = () => {
         company: "",
         message: ""
       })
+
+      setSubmitSuccess("Message sent successfully!")
+      setTimeout(() => setSubmitSuccess(""), 3000)
     } catch (error) {
       console.error("Error submitting form:", error)
-      // Error handled silently
+      setSubmitError("Failed to send message. Please try again.")
+      setTimeout(() => setSubmitError(""), 3000)
     } finally {
       setLoading(false)
     }
@@ -66,20 +63,6 @@ const GetInTouch = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
-      <CenterLoadingOverlay show={centerLoading.show} message={centerLoading.message} />
-
-
-
-      {/* Loading Overlay */}
-      {loading && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-lg p-6 shadow-xl">
-            <div className="flex items-center space-x-3">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Contact Section */}
       <section className="pt-24 pb-16 px-4 sm:px-6 lg:px-8 flex-grow bg-muted/30">
@@ -171,6 +154,19 @@ const GetInTouch = () => {
                     required
                   />
                 </div>
+
+                {submitSuccess && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-md flex items-start gap-2">
+                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-green-600">{submitSuccess}</p>
+                  </div>
+                )}
+                {submitError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-red-600">{submitError}</p>
+                  </div>
+                )}
 
                 <Button type="submit" size="lg" className="w-full" disabled={loading}>
                   {loading ? (
