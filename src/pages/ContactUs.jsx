@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import Header from "../components/layout/Header";
 import Footer from "../components/layout/Footer";
 import { Loader2 } from "lucide-react";
+import CenterLoadingOverlay from "../components/ui/CenterLoadingOverlay";
 
 const ContactUs = () => {
   // Form fields
@@ -10,16 +11,14 @@ const ContactUs = () => {
   const [cemail, setCemail] = useState("");
   const [question, setQuestion] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [showOverlay, setShowOverlay] = useState(false);
-
   // Error messages
   const [errorName, setErrorName] = useState("");
   const [errorEmail, setErrorEmail] = useState("");
   const [errorTextarea, setErrorTextarea] = useState("");
   const [errorPhone, setErrorPhone] = useState("");
 
-  // Modal states
-  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  // Loading state
+  const [centerLoading, setCenterLoading] = useState({ show: false, message: "" });
 
   // Regular expressions
   const isAlpha = /^[a-zA-Z\s]+$/;
@@ -119,17 +118,16 @@ const ContactUs = () => {
       isPhoneNumberValid &&
       isRequiredFieldsValid
     ) {
-      setShowOverlay(true);
+      setCenterLoading({ show: true, message: "Sending message..." });
       try {
         await callContactUsCreateAPiData();
-        setToast({ show: true, message: 'Message sent successfully!', type: 'success' });
-        setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+        setTimeout(() => {
+          setCenterLoading({ show: false, message: "" });
+        }, 800);
       } catch (error) {
         console.error("Form submission failed:", error);
-        setToast({ show: true, message: 'Failed to send message', type: 'error' });
-        setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+        setCenterLoading({ show: false, message: "" });
       }
-      setShowOverlay(false);
     } else {
       // Trigger validation messages for required fields
       if (cname.trim() === "") setErrorName("Name is required");
@@ -185,16 +183,7 @@ const ContactUs = () => {
     <div className="min-h-screen flex flex-col">
       <Header isAuthenticated={true} />
 
-      {/* Loading Overlay */}
-      {showOverlay && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-lg p-6 shadow-xl">
-            <div className="flex items-center space-x-3">
-              <Loader2 className="w-6 h-6 animate-spin text-[#02066F]" />
-            </div>
-          </div>
-        </div>
-      )}
+      <CenterLoadingOverlay show={centerLoading.show} message={centerLoading.message} />
 
       <section className="flex-grow bg-gray-50 px-4 sm:px-6 pt-25 pb-16">
         <div className="max-w-6xl mx-auto">
@@ -348,10 +337,10 @@ const ContactUs = () => {
 
                   <button
                     type="submit"
-                    disabled={showOverlay}
+                    disabled={centerLoading.show}
                     className="w-full bg-[#02066F] text-white py-3 px-6 rounded-lg font-medium hover:bg-[#030974] focus:ring-2 focus:ring-[#02066F] focus:ring-offset-2 disabled:opacity-50 transition-colors"
                   >
-                    {showOverlay ? (
+                    {centerLoading.show ? (
                       <div className="flex items-center justify-center">
                         <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -370,29 +359,7 @@ const ContactUs = () => {
         </div>
       </section>
 
-      {/* Toast Notification */}
-      {toast.show && (
-        <div className="fixed top-6 right-6 z-50 animate-in slide-in-from-top-2 duration-300">
-          <div className={`flex items-center gap-4 px-6 py-4 rounded-xl shadow-2xl border backdrop-blur-sm ${toast.type === 'success'
-              ? 'bg-green-50/95 border-green-200 text-green-800'
-              : 'bg-red-50/95 border-red-200 text-red-800'
-            }`}>
-            <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${toast.type === 'success' ? 'bg-green-100' : 'bg-red-100'
-              }`}>
-              {toast.type === 'success' ? (
-                <svg className="h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                </svg>
-              ) : (
-                <svg className="h-5 w-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              )}
-            </div>
-            <span className="font-semibold text-base">{toast.message}</span>
-          </div>
-        </div>
-      )}
+
 
       <Footer variant="authenticated" />
     </div>

@@ -3,23 +3,29 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from './card';
 import { Button } from './button';
 import { CheckCircle, Mail } from 'lucide-react';
+import { useModalClose } from '../../hooks/useModalClose';
 
-const RegistrationSuccessModal = ({ isOpen }) => {
+const RegistrationSuccessModal = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
-
-  if (!isOpen) return null;
-
+  
   const handleGoToLogin = () => {
     navigate('/login');
   };
+  
+  const handleClose = onClose || handleGoToLogin;
+  
+  // Handle outside click and ESC key
+  useModalClose(isOpen, handleClose, 'registration-success-modal')
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
+      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={handleClose} />
 
       {/* Modal */}
-      <Card className="relative z-10 w-full max-w-md border-0 shadow-2xl">
+      <Card id="registration-success-modal" className="relative z-10 w-full max-w-md border-0 shadow-2xl">
         <CardHeader className="text-center pb-2">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
             <CheckCircle className="h-10 w-10 text-green-600" />

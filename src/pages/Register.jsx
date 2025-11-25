@@ -9,15 +9,16 @@ import { Label } from "../components/ui/label";
 import { Mail, User, Building, Phone, MapPin, CheckCircle, XCircle } from "lucide-react";
 import tabtimelogo from "../assets/images/tap-time-logo.png";
 import RegistrationSuccessModal from "../components/ui/RegistrationSuccessModal";
+import CenterLoadingOverlay from "../components/ui/CenterLoadingOverlay";
 
 
 const Register = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-  const [toast, setToast] = useState({ show: false, message: '', type: '' });
   const [logoFileName, setLogoFileName] = useState('');
   const [logoFile, setLogoFile] = useState(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [centerLoading, setCenterLoading] = useState({ show: false, message: "" });
 
   // Error states for Step 1
   const [companyNameError, setCompanyNameError] = useState('');
@@ -58,9 +59,12 @@ const Register = () => {
     customerZip: ''
   });
 
-  const showToast = (message, type) => {
-    setToast({ show: true, message, type });
-    setTimeout(() => setToast({ show: false, message: '', type: '' }), 4000);
+  const showCenterLoading = (message) => {
+    setCenterLoading({ show: true, message });
+  };
+
+  const hideCenterLoading = () => {
+    setCenterLoading({ show: false, message: "" });
   };
 
   const handleInputChange = (e) => {
@@ -70,6 +74,21 @@ const Register = () => {
     if ((name === 'noOfDevices' || name === 'noOfEmployees' || name === 'companyZip' || name === 'customerZip') && value && !/^\d+$/.test(value)) {
       return;
     }
+    
+    // Clear errors when user types
+    if (name === 'companyName') setCompanyNameError('');
+    if (name === 'companyStreet') setCompanyStreetError('');
+    if (name === 'companyCity') setCompanyCityError('');
+    if (name === 'companyState') setCompanyStateError('');
+    if (name === 'companyZip') setCompanyZipError('');
+    if (name === 'noOfEmployees') setNoOfEmployeesError('');
+    if (name === 'firstName') setFirstNameError('');
+    if (name === 'lastName') setLastNameError('');
+    if (name === 'email') setEmailError('');
+    if (name === 'customerStreet') setCustomerStreetError('');
+    if (name === 'customerCity') setCustomerCityError('');
+    if (name === 'customerState') setCustomerStateError('');
+    if (name === 'customerZip') setCustomerZipError('');
     
     setFormData(prev => ({
       ...prev,
@@ -115,6 +134,7 @@ const Register = () => {
       formatted = `(${digits}`;
     }
 
+    setPhoneError('');
     setFormData(prev => ({
       ...prev,
       phone: formatted
@@ -266,13 +286,42 @@ const Register = () => {
       const response = await registerUser(submitData, logoFile);
 
       if (response.success) {
-        setShowSuccessModal(true);
+        showCenterLoading('Processing registration...');
+        setTimeout(() => {
+          hideCenterLoading();
+          setShowSuccessModal(true);
+        }, 800);
       } else {
-        showToast(response.message || 'Registration failed', 'error');
+        const errorMessage = response.error || response.message || 'Registration failed';
+        
+        if (errorMessage.includes('email') && errorMessage.includes('already')) {
+          setEmailError('This email address is already registered');
+        } else if (errorMessage.includes('company') && errorMessage.includes('exists')) {
+          setCompanyNameError('Company name already exists');
+        } else if (errorMessage.includes('validation')) {
+          setEmailError('Please check your information and try again');
+        } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+          setEmailError('Network error. Please check your connection and try again');
+        } else {
+          setEmailError(errorMessage);
+        }
       }
     } catch (error) {
       console.error('Registration error:', error);
-      showToast('Registration failed. Please try again.', 'error');
+      
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        setEmailError('Network error. Please check your internet connection and try again');
+      } else if (error.message.includes('timeout')) {
+        setEmailError('Request timeout. Please try again');
+      } else if (error.message.includes('400')) {
+        setEmailError('Invalid data provided. Please check your information');
+      } else if (error.message.includes('409')) {
+        setEmailError('Email or company name already exists');
+      } else if (error.message.includes('500')) {
+        setEmailError('Server error. Please try again later');
+      } else {
+        setEmailError('Registration failed. Please try again');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -639,22 +688,7 @@ const Register = () => {
       {/* Header Navigation */}
       <Header />
 
-      {/* Toast Notification */}
-      {toast.show && (
-        <div className="fixed top-24 right-4 z-50 animate-in slide-in-from-top-2">
-          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${toast.type === 'success'
-            ? 'bg-green-50 border-green-200 text-green-800'
-            : 'bg-red-50 border-red-200 text-red-800'
-            }`}>
-            {toast.type === 'success' ? (
-              <CheckCircle className="h-5 w-5 text-green-600" />
-            ) : (
-              <XCircle className="h-5 w-5 text-red-600" />
-            )}
-            <span className="font-medium text-sm">{toast.message}</span>
-          </div>
-        </div>
-      )}
+      <CenterLoadingOverlay show={centerLoading.show} message={centerLoading.message} />
 
       <div className="min-h-screen flex flex-col md:flex-row pt-20 md:pt-0">
         {/* Left side - Brand section (hidden on mobile) */}

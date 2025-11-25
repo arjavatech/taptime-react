@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { HamburgerIcon } from "../components/icons/HamburgerIcon";
 import { GridIcon } from "../components/icons/GridIcon";
+import { useModalClose } from "../hooks/useModalClose";
 
 const Reports = () => {
   const [activeTab, setActiveTab] = useState("today");
@@ -39,7 +40,7 @@ const Reports = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [viewMode, setViewMode] = useState("table");
-  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+
   
   // Common state
   const [devices, setDevices] = useState([]);
@@ -96,10 +97,12 @@ const Reports = () => {
     totalRecords: 0,
     totalHours: "0.0"
   });
+  
+  // Handle modal close events
+  useModalClose(showModal, () => setShowModal(false), 'add-entry-modal');
 
   const showToast = (message, type = "success") => {
-    setToast({ show: true, message, type });
-    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
+    // Toast notifications removed
   };
 
   // Helper function to get today's date in YYYY-MM-DD format (local timezone)
@@ -1065,26 +1068,11 @@ const Reports = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
-      {/* Toast Notification */}
-      {toast.show && (
-        <div className="fixed top-4 left-4 right-4 sm:right-4 sm:left-auto z-50 animate-in slide-in-from-top-2">
-          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${toast.type === 'success'
-              ? 'bg-green-50 border-green-200 text-green-800'
-              : 'bg-red-50 border-red-200 text-red-800'
-            }`}>
-            {toast.type === 'success' ? (
-              <CheckCircle className="h-5 w-5 text-green-600" />
-            ) : (
-              <AlertCircle className="h-5 w-5 text-red-600" />
-            )}
-            <span className="font-medium text-sm">{toast.message}</span>
-          </div>
-        </div>
-      )}
+
 
       {/* Loading Overlay */}
       {loading && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
           <div className="bg-white rounded-lg p-6 shadow-xl">
             <div className="flex items-center space-x-3">
               <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -1809,8 +1797,8 @@ const Reports = () => {
 
       {/* Add Entry Modal */}
       {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-          <Card className="w-full max-w-md max-h-[90vh] mx-4">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={() => setShowModal(false)}>
+          <Card id="add-entry-modal" className="w-full max-w-md max-h-[90vh] mx-4" onClick={(e) => e.stopPropagation()}>
             <CardHeader className="pb-4">
               <CardTitle className="text-lg sm:text-xl">
                 Add Entry

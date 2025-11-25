@@ -6,7 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Input } from "../components/ui/input"
 import { Textarea } from "../components/ui/textarea"
 import { Label } from "../components/ui/label"
-import { CheckCircle, AlertCircle, Loader2 } from "lucide-react"
+import { Loader2 } from "lucide-react"
+import CenterLoadingOverlay from "../components/ui/CenterLoadingOverlay"
 
 const GetInTouch = () => {
   const [formData, setFormData] = useState({
@@ -18,11 +19,14 @@ const GetInTouch = () => {
     message: ""
   })
   const [loading, setLoading] = useState(false)
-  const [toast, setToast] = useState({ show: false, message: "", type: "success" })
+  const [centerLoading, setCenterLoading] = useState({ show: false, message: "" })
 
-  const showToast = (message, type = "success") => {
-    setToast({ show: true, message, type })
-    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000)
+  const showCenterLoading = (message) => {
+    setCenterLoading({ show: true, message })
+  }
+
+  const hideCenterLoading = () => {
+    setCenterLoading({ show: false, message: "" })
   }
 
   const handleInputChange = (e) => {
@@ -40,7 +44,8 @@ const GetInTouch = () => {
       // Simulate form submission - you can add actual API call here
       await new Promise(resolve => setTimeout(resolve, 1000))
       console.log("Form submitted:", formData)
-      showToast("Message sent successfully! We'll get back to you soon.", "success")
+      showCenterLoading("Sending message...")
+      setTimeout(() => hideCenterLoading(), 800)
       setFormData({
         firstName: "",
         lastName: "",
@@ -51,7 +56,7 @@ const GetInTouch = () => {
       })
     } catch (error) {
       console.error("Error submitting form:", error)
-      showToast("Failed to send message. Please try again.", "error")
+      // Error handled silently
     } finally {
       setLoading(false)
     }
@@ -61,22 +66,9 @@ const GetInTouch = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
-      {/* Toast Notification */}
-      {toast.show && (
-        <div className="fixed top-4 left-4 right-4 sm:right-4 sm:left-auto z-50 animate-in slide-in-from-top-2">
-          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${toast.type === 'success'
-              ? 'bg-green-50 border-green-200 text-green-800'
-              : 'bg-red-50 border-red-200 text-red-800'
-            }`}>
-            {toast.type === 'success' ? (
-              <CheckCircle className="h-5 w-5 text-green-600" />
-            ) : (
-              <AlertCircle className="h-5 w-5 text-red-600" />
-            )}
-            <span className="font-medium text-sm">{toast.message}</span>
-          </div>
-        </div>
-      )}
+      <CenterLoadingOverlay show={centerLoading.show} message={centerLoading.message} />
+
+
 
       {/* Loading Overlay */}
       {loading && (

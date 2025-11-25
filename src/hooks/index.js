@@ -23,3 +23,6 @@ export const useApi = (apiFunction) => {
 
   return { data, loading, error, execute };
 };
+
+// Export modal close hook
+export { useModalClose } from './useModalClose';

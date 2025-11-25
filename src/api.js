@@ -205,7 +205,21 @@ export const fetchEmployeeData = async () => {
 
 export const createEmployeeWithData = async (employeeData) => {
   try {
-    return await api.post(`${API_BASE}/employee/create`, employeeData);
+    const response = await fetch(`${API_BASE}/employee/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(employeeData)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const error = new Error(errorData.detail || `HTTP ${response.status}`);
+      error.detail = errorData.detail;
+      error.status = response.status;
+      throw error;
+    }
+
+    return await response.json();
   } catch (error) {
     console.error('Create employee error:', error);
     throw error;

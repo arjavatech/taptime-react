@@ -20,13 +20,15 @@ import {
   AlertCircle,
   Loader2
 } from "lucide-react";
+import CenterLoadingOverlay from "../components/ui/CenterLoadingOverlay";
+import { useModalClose } from "../hooks/useModalClose";
 
 const Profile = () => {
   const [activeTab, setActiveTab] = useState("company");
   const [isEditing, setIsEditing] = useState({ personal: false, company: false, admin: false });
   const [isLoading, setIsLoading] = useState(true);
-  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [userType, setUserType] = useState("");
+  const [centerLoading, setCenterLoading] = useState({ show: false, message: "" });
 
   const [personalData, setPersonalData] = useState({
     firstName: "",
@@ -77,10 +79,16 @@ const Profile = () => {
   });
 
   const [companyId, setCompanyId] = useState("");
+  
+  // Handle modal close events for loading overlay
+  useModalClose(isLoading, () => {}, 'profile-loading-modal');
 
-  const showToast = (message, type = "success") => {
-    setToast({ show: true, message, type });
-    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+  const showCenterLoading = (message) => {
+    setCenterLoading({ show: true, message });
+  };
+
+  const hideCenterLoading = () => {
+    setCenterLoading({ show: false, message: "" });
   };
 
   const formatphone_number = (value) => {
@@ -164,14 +172,14 @@ const Profile = () => {
 
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     if (!validTypes.includes(file.type)) {
-      showToast("Please upload a valid image file (JPEG, PNG, GIF, or WebP)", "error");
+      // Error handled silently
       event.target.value = '';
       return;
     }
 
     const maxSize = 2 * 1024 * 1024;
     if (file.size > maxSize) {
-      showToast("Image size must be less than 2MB", "error");
+      // Error handled silently
       event.target.value = '';
       return;
     }
@@ -347,11 +355,10 @@ const Profile = () => {
     }
 
     if (!companyId) {
-      showToast("Company ID not found", "error");
       return;
     }
 
-    setIsLoading(true);
+    showCenterLoading("Updating personal information...");
     try {
       const updateData = {
         company_name: companyData.name || "",
@@ -377,12 +384,7 @@ const Profile = () => {
         last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system"
       };
 
-      console.log("Current personalData state:", personalData);
-      console.log("Update data being sent:", updateData);
-
-      console.log("Updating personal profile:", { companyId, userType, timestamp: new Date().toISOString() });
       const result = await updateProfile(companyId, updateData);
-      console.log("Personal profile update successful:", result);
 
       // Update localStorage after successful API call
       if (userType === "Owner") {
@@ -409,15 +411,12 @@ const Profile = () => {
       localStorage.setItem("customerState", personalData.customerState);
       localStorage.setItem("customerZip", personalData.customerZip);
 
-
-
+      hideCenterLoading();
       setIsEditing(prev => ({ ...prev, personal: false }));
-      showToast("Personal information updated successfully!");
     } catch (error) {
       console.error("Save Personal Error:", error);
-      showToast("Failed to update personal information", "error");
-    } finally {
-      setIsLoading(false);
+      hideCenterLoading();
+      setIsEditing(prev => ({ ...prev, personal: false }));
     }
   };
 
@@ -426,11 +425,10 @@ const Profile = () => {
     console.log("Current adminData state:", adminData);
     
     if (!companyId) {
-      showToast("Company ID not found", "error");
       return;
     }
 
-    setIsLoading(true);
+    showCenterLoading("Updating admin information...");
     try {
       const updateData = {
         company_name: companyData.name || "",
@@ -456,9 +454,7 @@ const Profile = () => {
         last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system"
       };
 
-      console.log("Admin update data being sent:", updateData);
       const result = await updateProfile(companyId, updateData);
-      console.log("Admin profile update successful:", result);
 
       localStorage.setItem("firstName", adminData.firstName);
       localStorage.setItem("lastName", adminData.lastName);
@@ -467,13 +463,12 @@ const Profile = () => {
       localStorage.setItem("phone", adminData.phone);
       localStorage.setItem("phone_number", adminData.phone);
 
+      hideCenterLoading();
       setIsEditing(prev => ({ ...prev, admin: false }));
-      showToast("Admin information updated successfully!");
     } catch (error) {
       console.error("Save Admin Error:", error);
-      showToast("Failed to update admin information", "error");
-    } finally {
-      setIsLoading(false);
+      hideCenterLoading();
+      setIsEditing(prev => ({ ...prev, admin: false }));
     }
   };
 
@@ -485,11 +480,10 @@ const Profile = () => {
     }
 
     if (!companyId) {
-      showToast("Company ID not found", "error");
       return;
     }
 
-    setIsLoading(true);
+    showCenterLoading("Updating company information...");
     try {
       const updateData = {
         company_name: companyData.name || "",
@@ -515,9 +509,7 @@ const Profile = () => {
         last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system"
       };
 
-      console.log("Calling updateProfile API with:", { companyId, updateData });
       const result = await updateProfile(companyId, updateData);
-      console.log("API Response:", result);
 
       // Update localStorage after successful API call
       localStorage.setItem("companyName", companyData.name);
@@ -529,21 +521,17 @@ const Profile = () => {
       if (companyData.logo) {
         localStorage.setItem("companyLogo", companyData.logo);
       }
-      
 
+      hideCenterLoading();
       setIsEditing(prev => ({ ...prev, company: false }));
-      showToast("Company information updated successfully!");
     } catch (error) {
       console.error("Company Save Error:", error);
-      showToast("Failed to update company information", "error");
-    } finally {
-      setIsLoading(false);
+      hideCenterLoading();
+      setIsEditing(prev => ({ ...prev, company: false }));
     }
   };
 
-  const handleCancel = async (type) => {
-    setIsEditing(prev => ({ ...prev, [type]: false }));
-
+  const handleCancel = (type) => {
     // Reload original data from localStorage
     const formData = loadProfileData(null);
 
@@ -579,6 +567,14 @@ const Profile = () => {
         zipCode: formData.companyZip,
         logo: formData.logo
       });
+    } else if (type === "admin") {
+      setAdminData({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone || "",
+        email: formData.email,
+        pin: formData.adminPin
+      });
     }
 
     // Reset errors
@@ -598,33 +594,21 @@ const Profile = () => {
       phone: "",
       pin: "",
     });
+    
+    // Exit edit mode
+    setIsEditing(prev => ({ ...prev, [type]: false }));
   };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
-      {/* Toast Notification */}
-      {toast.show && (
-        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2">
-          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${toast.type === 'success'
-            ? 'bg-green-50 border-green-200 text-green-800'
-            : 'bg-red-50 border-red-200 text-red-800'
-            }`}>
-            {toast.type === 'success' ? (
-              <CheckCircle className="h-5 w-5 text-green-600" />
-            ) : (
-              <AlertCircle className="h-5 w-5 text-red-600" />
-            )}
-            <span className="font-medium text-sm">{toast.message}</span>
-          </div>
-        </div>
-      )}
+      <CenterLoadingOverlay show={centerLoading.show} message={centerLoading.message} />
 
       {/* Loading Overlay */}
       {isLoading && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-lg p-6 shadow-xl">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <div id="profile-loading-modal" className="bg-white rounded-lg p-6 shadow-xl">
             <div className="flex items-center space-x-3">
               <Loader2 className="w-6 h-6 animate-spin text-primary" />
             </div>

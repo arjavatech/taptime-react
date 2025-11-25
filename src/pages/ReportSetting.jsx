@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { HamburgerIcon } from "../components/icons/HamburgerIcon";
 import { GridIcon } from "../components/icons/GridIcon";
+import { useModalClose } from "../hooks/useModalClose";
 
 const ReportSetting = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -50,16 +51,21 @@ const ReportSetting = () => {
   const [emailError, setEmailError] = useState("");
   const [frequencyError, setFrequencyError] = useState("");
   const [viewFrequencies, setViewFrequencies] = useState([]);
-  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState("table");
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
 
   const frequencies = ["Daily", "Weekly", "Biweekly", "Monthly", "Bimonthly"];
+  
+  // Handle modal close events
+  useModalClose(showAddModal, () => setShowAddModal(false), 'report-add-modal');
+  useModalClose(showEditModal, () => setShowEditModal(false), 'report-edit-modal');
+  useModalClose(showViewEditModal, () => setShowViewEditModal(false), 'report-view-edit-modal');
+  useModalClose(showDeleteModal, () => setShowDeleteModal(false), 'report-delete-modal');
 
   const showToast = (message, type = "success") => {
-    setToast({ show: true, message, type });
-    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
+    // Toast notifications removed
   };
 
   const loadReportSettings = async () => {
@@ -384,27 +390,11 @@ const ReportSetting = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
-      {/* Toast Notification */}
-      {toast.show && (
-        <div className="fixed top-4 left-4 right-4 sm:right-4 sm:left-auto z-50 animate-in slide-in-from-top-2">
-          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${
-            toast.type === 'success' 
-              ? 'bg-green-50 border-green-200 text-green-800' 
-              : 'bg-red-50 border-red-200 text-red-800'
-          }`}>
-            {toast.type === 'success' ? (
-              <CheckCircle className="h-5 w-5 text-green-600" />
-            ) : (
-              <AlertCircle className="h-5 w-5 text-red-600" />
-            )}
-            <span className="font-medium text-sm">{toast.message}</span>
-          </div>
-        </div>
-      )}
+
 
       {/* Loading Overlay */}
       {isLoading && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
           <div className="bg-white rounded-lg p-6 shadow-xl">
             <div className="flex items-center space-x-3">
               <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -717,8 +707,8 @@ const ReportSetting = () => {
 
       {/* Add Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-          <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto mx-4">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={() => setShowAddModal(false)}>
+          <Card id="report-add-modal" className="w-full max-w-md max-h-[90vh] overflow-y-auto mx-4" onClick={(e) => e.stopPropagation()}>
             <CardHeader className="pb-4">
               <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
                 <Plus className="w-5 h-5" />
@@ -792,8 +782,8 @@ const ReportSetting = () => {
 
       {/* Edit Modal */}
       {showEditModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-          <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto mx-4">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={() => setShowEditModal(false)}>
+          <Card id="report-edit-modal" className="w-full max-w-md max-h-[90vh] overflow-y-auto mx-4" onClick={(e) => e.stopPropagation()}>
             <CardHeader className="pb-4">
               <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
                 <Edit className="w-5 h-5" />
@@ -867,8 +857,8 @@ const ReportSetting = () => {
 
       {/* View Edit Modal */}
       {showViewEditModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-          <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto mx-4">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={() => setShowViewEditModal(false)}>
+          <Card id="report-view-edit-modal" className="w-full max-w-md max-h-[90vh] overflow-y-auto mx-4" onClick={(e) => e.stopPropagation()}>
             <CardHeader className="pb-4">
               <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
                 <Calendar className="w-5 h-5" />
@@ -927,8 +917,8 @@ const ReportSetting = () => {
 
       {/* Delete Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-          <Card className="w-full max-w-md mx-4">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={() => setShowDeleteModal(false)}>
+          <Card id="report-delete-modal" className="w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-destructive text-lg">
                 <AlertCircle className="w-5 h-5" />
