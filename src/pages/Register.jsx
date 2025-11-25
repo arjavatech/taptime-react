@@ -6,7 +6,7 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { Mail, User, Building, Phone, MapPin, CheckCircle, XCircle } from "lucide-react";
+import { Mail, User, Building, Phone, MapPin, CheckCircle, XCircle, X } from "lucide-react";
 import tabtimelogo from "../assets/images/tap-time-logo.png";
 import RegistrationSuccessModal from "../components/ui/RegistrationSuccessModal";
 import CenterLoadingOverlay from "../components/ui/CenterLoadingOverlay";
@@ -56,8 +56,13 @@ const Register = () => {
     customerStreet: '',
     customerCity: '',
     customerState: '',
-    customerZip: ''
+    customerZip: '',
+    employmentType: 'General Employee'
   });
+
+  // Employment type tag input states
+  const [employmentTypes, setEmploymentTypes] = useState(['General Employee']);
+  const [employmentTypeInput, setEmploymentTypeInput] = useState('');
 
   const showCenterLoading = (message) => {
     setCenterLoading({ show: true, message });
@@ -138,6 +143,35 @@ const Register = () => {
     setFormData(prev => ({
       ...prev,
       phone: formatted
+    }));
+  };
+
+  const handleEmploymentTypeKeyDown = (e) => {
+    if (e.key === ',' || e.key === 'Enter') {
+      e.preventDefault();
+      const value = employmentTypeInput.trim();
+
+      if (value && !employmentTypes.includes(value)) {
+        const newTypes = [...employmentTypes, value];
+        setEmploymentTypes(newTypes);
+        setFormData(prev => ({
+          ...prev,
+          employmentType: newTypes.join(',')
+        }));
+      }
+      setEmploymentTypeInput('');
+    }
+  };
+
+  const handleRemoveEmploymentType = (typeToRemove) => {
+    // Don't allow removing if it's the last one
+    if (employmentTypes.length === 1) return;
+
+    const newTypes = employmentTypes.filter(type => type !== typeToRemove);
+    setEmploymentTypes(newTypes);
+    setFormData(prev => ({
+      ...prev,
+      employmentType: newTypes.join(',')
     }));
   };
 
@@ -269,6 +303,7 @@ const Register = () => {
         company_zip_code: formData.companyZip,
         device_count: parseInt(formData.noOfDevices, 10),
         employee_count: parseInt(formData.noOfEmployees, 10),
+        employment_type: formData.employmentType,
         first_name: formData.firstName,
         last_name: formData.lastName,
         email: formData.email,
@@ -488,6 +523,39 @@ const Register = () => {
                 <p className="text-red-600 text-xs mt-1">{noOfEmployeesError}</p>
               )}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="employmentType">Employment Types</Label>
+            <div className="border rounded-md p-2 min-h-[42px] flex flex-wrap gap-2 items-center focus-within:ring-2 focus-within:ring-primary focus-within:border-primary">
+              {employmentTypes.map((type, index) => (
+                <span
+                  key={index}
+                  className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary text-sm rounded-md"
+                >
+                  {type}
+                  {employmentTypes.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveEmploymentType(type)}
+                      className="hover:text-red-500 focus:outline-none"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </span>
+              ))}
+              <input
+                type="text"
+                id="employmentType"
+                value={employmentTypeInput}
+                onChange={(e) => setEmploymentTypeInput(e.target.value)}
+                onKeyDown={handleEmploymentTypeKeyDown}
+                placeholder={employmentTypes.length === 0 ? "Type and press comma to add" : "Add more..."}
+                className="flex-1 min-w-[120px] outline-none text-sm bg-transparent"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">Type employment type and press comma to add. Default: General Employee</p>
           </div>
 
           <Button type="submit" className="w-full" size="lg">

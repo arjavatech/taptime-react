@@ -18,7 +18,8 @@ import {
   Edit,
   CheckCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  X
 } from "lucide-react";
 import { useModalClose } from "../hooks/useModalClose";
 
@@ -59,10 +60,15 @@ const Profile = () => {
     city: "",
     state: "",
     companyZip: "",
-    logo: ""
+    logo: "",
+    employmentType: "General Employee"
   });
 
   const [logoFile, setLogoFile] = useState(null);
+
+  // Employment type tag input states
+  const [employmentTypes, setEmploymentTypes] = useState(['General Employee']);
+  const [employmentTypeInput, setEmploymentTypeInput] = useState('');
 
   const [errors, setErrors] = useState({
     companyName: "",
@@ -190,6 +196,32 @@ const Profile = () => {
     reader.readAsDataURL(file);
   };
 
+  const handleEmploymentTypeKeyDown = (e) => {
+    if (e.key === ',' || e.key === 'Enter') {
+      e.preventDefault();
+      const value = employmentTypeInput.trim();
+      if (value && !employmentTypes.includes(value)) {
+        const newTypes = [...employmentTypes, value];
+        setEmploymentTypes(newTypes);
+        setCompanyData(prev => ({
+          ...prev,
+          employmentType: newTypes.join(',')
+        }));
+      }
+      setEmploymentTypeInput('');
+    }
+  };
+
+  const handleRemoveEmploymentType = (typeToRemove) => {
+    if (employmentTypes.length === 1) return;
+    const newTypes = employmentTypes.filter(type => type !== typeToRemove);
+    setEmploymentTypes(newTypes);
+    setCompanyData(prev => ({
+      ...prev,
+      employmentType: newTypes.join(',')
+    }));
+  };
+
   useEffect(() => {
     const initializeProfile = async () => {
       const companyIdCheck = localStorage.getItem("companyID");
@@ -231,6 +263,9 @@ const Profile = () => {
         pin: formData.adminPin
       });
 
+      // Load employment type from localStorage
+      const storedEmploymentType = localStorage.getItem("employmentType") || "General Employee";
+
       setCompanyData({
         name: formData.companyName,
         address: formData.companyStreet,
@@ -238,8 +273,13 @@ const Profile = () => {
         city: formData.companyCity,
         state: formData.companyState,
         zipCode: formData.companyZip,
-        logo: formData.logo
+        logo: formData.logo,
+        employmentType: storedEmploymentType
       });
+
+      // Initialize employmentTypes array from stored CSV
+      setEmploymentTypes(storedEmploymentType.split(',').filter(t => t.trim()));
+
       setIsLoading(false);
     };
 
@@ -525,6 +565,7 @@ const Profile = () => {
         company_city: companyData.city || "",
         company_state: companyData.state || "",
         company_zip_code: companyData.zipCode || "",
+        employment_type: companyData.employmentType || "General Employee",
         first_name: personalData.firstName || "",
         last_name: personalData.lastName || "",
         email: personalData.email || "",
@@ -534,7 +575,7 @@ const Profile = () => {
         customer_city: personalData.customerCity || "",
         customer_state: personalData.customerState || "",
         customer_zip_code: personalData.customerZip || "",
-        is_verified: false,
+        is_verified: true,
         device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
         employee_count: parseInt(localStorage.getItem("noOfEmployees") || "30"),
         last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system"
@@ -560,6 +601,7 @@ const Profile = () => {
       localStorage.setItem("companyCity", companyData.city);
       localStorage.setItem("companyState", companyData.state);
       localStorage.setItem("companyZip", companyData.zipCode);
+      localStorage.setItem("employmentType", companyData.employmentType);
       if (companyData.logo) {
         localStorage.setItem("companyLogo", companyData.logo);
       }
@@ -1037,6 +1079,43 @@ const Profile = () => {
                       className={errors.companyZip ? "border-red-500" : ""}
                     />
                     {errors.companyZip && <p className="text-sm text-red-600">{errors.companyZip}</p>}
+                  </div>
+
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label htmlFor="employmentType">Employment Types</Label>
+                    <div className={`border rounded-md p-2 min-h-[42px] flex flex-wrap gap-2 items-center ${isEditing.company ? 'focus-within:ring-2 focus-within:ring-primary focus-within:border-primary' : 'bg-muted'}`}>
+                      {employmentTypes.map((type, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary text-sm rounded-md"
+                        >
+                          {type}
+                          {isEditing.company && employmentTypes.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveEmploymentType(type)}
+                              className="hover:text-red-500 focus:outline-none"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </span>
+                      ))}
+                      {isEditing.company && (
+                        <input
+                          type="text"
+                          id="employmentType"
+                          value={employmentTypeInput}
+                          onChange={(e) => setEmploymentTypeInput(e.target.value)}
+                          onKeyDown={handleEmploymentTypeKeyDown}
+                          placeholder="Add more..."
+                          className="flex-1 min-w-[120px] outline-none text-sm bg-transparent"
+                        />
+                      )}
+                    </div>
+                    {isEditing.company && (
+                      <p className="text-xs text-muted-foreground">Type employment type and press comma to add</p>
+                    )}
                   </div>
                 </div>
 

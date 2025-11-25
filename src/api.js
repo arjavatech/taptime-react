@@ -134,6 +134,7 @@ export const googleSignInCheck = async (email) => {
       [STORAGE_KEYS.CUSTOMER_CITY]: data.customer_city,
       [STORAGE_KEYS.CUSTOMER_STATE]: data.customer_state,
       [STORAGE_KEYS.COMPANY_ZIP_CODE]: data.company_zip_code,
+      employmentType: data.employment_type,
       last_modified_by: data.last_modified_by
       
 

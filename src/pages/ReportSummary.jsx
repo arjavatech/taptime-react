@@ -94,6 +94,7 @@ const Reports = () => {
   const [selectedHalf, setSelectedHalf] = useState('first');
   const [availableWeeks, setAvailableWeeks] = useState([]);
   const [salariedReportData, setSalariedReportData] = useState([]);
+  const [employmentTypes, setEmploymentTypes] = useState([]);
 
   // Summary stats
   const [summaryStats, setSummaryStats] = useState({
@@ -1025,6 +1026,12 @@ const Reports = () => {
       loadDevices();
       loadEmployeeList();
       setCurrentDate(getTodayDate());
+
+      // Load employment types from localStorage
+      const storedEmploymentTypes = localStorage.getItem("employmentType");
+      if (storedEmploymentTypes) {
+        setEmploymentTypes(storedEmploymentTypes.split(",").map(t => t.trim()).filter(t => t));
+      }
     }
   }, [companyId, loadDevices, loadEmployeeList]);
 
@@ -1886,20 +1893,17 @@ const Reports = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="type" className="text-sm font-medium">Type</Label>
+                <Label htmlFor="type" className="text-sm font-medium">Employment Type</Label>
                 <select
                   id="type"
                   value={newEntry.Type}
                   onChange={(e) => setNewEntry({ ...newEntry, Type: e.target.value })}
                   className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
                 >
-                  <option value="">Select Type</option>
-                  <option value="Belt">Belt</option>
-                  <option value="Path">Path</option>
-                  <option value="Camp">Camp</option>
-                  <option value="External">Off site</option>
-                  <option value="Trial">Trial</option>
-                  <option value="Reception">Reception</option>
+                  <option value="">Select Employment Type</option>
+                  {employmentTypes.map((type, index) => (
+                    <option key={index} value={type}>{type}</option>
+                  ))}
                 </select>
                 {formErrors.type && (
                   <p className="text-red-500 text-sm mt-1">{formErrors.type}</p>
