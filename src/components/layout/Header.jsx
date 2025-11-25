@@ -13,6 +13,7 @@ const Header = () => {
   const [showHomeModal, setShowHomeModal] = useState(false);
   const [userType, setUserType] = useState("");
   const [showProfileSidebar, setShowProfileSidebar] = useState(false);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showReportsDropdown, setShowReportsDropdown] = useState(false);
   const [showMobileReportsDropdown, setShowMobileReportsDropdown] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(window.innerWidth <= 996);
@@ -82,6 +83,17 @@ const Header = () => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [dropdownOpen, showReportsDropdown]);
+
+  useEffect(() => {
+    const handleEscKey = (event) => {
+      if (event.key === 'Escape') {
+        if (showProfileSidebar) setShowProfileSidebar(false);
+        if (showProfileDropdown) setShowProfileDropdown(false);
+      }
+    };
+    document.addEventListener('keydown', handleEscKey);
+    return () => document.removeEventListener('keydown', handleEscKey);
+  }, [showProfileSidebar, showProfileDropdown]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -221,7 +233,15 @@ const Header = () => {
               <div className="relative ml-3">
                 <button
                   className="flex items-center text-base rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#02066F]"
-                  onClick={() => setShowProfileSidebar(!showProfileSidebar)}
+                  onClick={() => {
+                    if (window.innerWidth >= 1024) {
+                      setShowProfileDropdown(!showProfileDropdown);
+                      setShowProfileSidebar(false);
+                    } else {
+                      setShowProfileSidebar(!showProfileSidebar);
+                      setShowProfileDropdown(false);
+                    }
+                  }}
                 >
                   {userProfile.picture ? (
                     <img
@@ -236,6 +256,24 @@ const Header = () => {
                     </div>
                   )}
                 </button>
+                
+                {/* Desktop Inline Profile */}
+                {showProfileDropdown && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowProfileDropdown(false)}></div>
+                    <div className="hidden lg:block absolute -top-3 left-full ml-5 z-50">
+                      <div className="flex flex-col items-start space-y-2">
+                        <span className="text-sm font-medium text-gray-900">{userProfile.email}</span>
+                        <button
+                          onClick={() => { setShowModal(true); setShowProfileDropdown(false); }}
+                          className="px-3 py-1.5 bg-gradient-to-r from-[#01005a] to-[#01005a]/90 text-white text-sm font-medium rounded-lg hover:brightness-105 transition-all duration-200"
+                        >
+                          Logout
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </nav>
@@ -316,7 +354,7 @@ const Header = () => {
             {isAuthenticated && (
               <div className="px-4 pb-4">
                 <button 
-                  className="w-full px-3 py-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md font-medium text-left text-base" 
+                  className="w-full px-3 py-2 text-[#02066F] hover:text-[#030974] hover:bg-blue-50 rounded-md font-medium text-left text-base" 
                   onClick={() => { setShowModal(true); setSidebarOpen(false); }}
                 >
                   Logout
@@ -328,11 +366,11 @@ const Header = () => {
       )}
       </header>
 
-      {/* Profile Sidebar */}
+      {/* Mobile Profile Sidebar */}
       {isAuthenticated && showProfileSidebar && (
         <>
-          <div className="fixed inset-0 bg-opacity-50 z-40" onClick={() => setShowProfileSidebar(false)}></div>
-          <div className="fixed top-0 right-0 h-full w-80 bg-white shadow-xl z-50 border-l">
+          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 animate-in fade-in-0 duration-200" onClick={() => setShowProfileSidebar(false)}></div>
+          <div className="fixed top-0 right-0 h-full w-80 bg-white shadow-xl z-50 border-l animate-in slide-in-from-right-0 duration-300">
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <h3 className="text-lg font-semibold text-gray-900">Profile</h3>
               <button onClick={() => setShowProfileSidebar(false)} className="text-gray-400 hover:text-gray-600">
@@ -342,11 +380,11 @@ const Header = () => {
               </button>
             </div>
             <div className="px-6 py-6">
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-4 mb-6">
                 {userProfile.picture ? (
                   <img className="h-16 w-16 rounded-full object-cover" src={userProfile.picture} alt="Profile" />
                 ) : (
-                  <div className="h-16 w-16 rounded-full bg-[#02066F] flex items-center justify-center">
+                  <div className="h-16 w-16 rounded-full bg-[#01005a] flex items-center justify-center">
                     <span className="text-xl font-bold text-white">{userProfile.fallback}</span>
                   </div>
                 )}
@@ -355,17 +393,15 @@ const Header = () => {
                   <p className="text-sm text-gray-500">{userProfile.email}</p>
                 </div>
               </div>
-              <div className="mt-8">
-                <button
-                  onClick={() => { setShowModal(true); setShowProfileSidebar(false); }}
-                  className="w-full flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                >
-                  <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
-                  Logout
-                </button>
-              </div>
+              <button
+                onClick={() => { setShowModal(true); setShowProfileSidebar(false); }}
+                className="w-full flex items-center justify-center px-4 py-2 bg-gradient-to-r from-[#01005a] to-[#01005a]/90 text-white font-medium rounded-lg hover:brightness-105 transition-all duration-200"
+              >
+                <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Logout
+              </button>
             </div>
           </div>
         </>
