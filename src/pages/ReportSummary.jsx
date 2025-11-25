@@ -64,12 +64,16 @@ const Reports = () => {
     checkinTime: "",
     checkoutTime: ""
   });
+  const [modalSuccess, setModalSuccess] = useState("");
+  const [modalError, setModalError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const companyId = localStorage.getItem("companyID");
 
   // Today's report specific
   const [tableData, setTableData] = useState([]);
   const [currentDate, setCurrentDate] = useState("");
   const [checkoutTimes, setCheckoutTimes] = useState({});
+  const [checkoutErrors, setCheckoutErrors] = useState({});
 
   // Day wise report specific
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -221,11 +225,39 @@ const Reports = () => {
   };
 
   // Checkout functionality
-  const handleCheckoutTimeChange = (rowKey, value) => {
+  const handleCheckoutTimeChange = (rowKey, value, checkInTime) => {
     setCheckoutTimes(prev => ({
       ...prev,
       [rowKey]: value
     }));
+
+    // Real-time validation
+    if (value) {
+      const checkinDate = new Date(checkInTime);
+      const checkInDateString = getLocalDateString(checkinDate);
+      const checkoutDateTime = new Date(`${checkInDateString}T${value}:00`);
+
+      if (checkoutDateTime <= checkinDate) {
+        setCheckoutErrors(prev => ({
+          ...prev,
+          [rowKey]: "Checkout time must be greater than check-in time"
+        }));
+      } else {
+        // Clear error if valid
+        setCheckoutErrors(prev => {
+          const updated = { ...prev };
+          delete updated[rowKey];
+          return updated;
+        });
+      }
+    } else {
+      // Clear error if time is cleared
+      setCheckoutErrors(prev => {
+        const updated = { ...prev };
+        delete updated[rowKey];
+        return updated;
+      });
+    }
   };
 
   const handleCheckout = async (row) => {
@@ -829,6 +861,8 @@ const Reports = () => {
 
   const closeModal = () => {
     setShowModal(false);
+    setModalSuccess("");
+    setModalError("");
     setNewEntry({
       EmployeeID: "",
       Type: "",
@@ -909,7 +943,8 @@ const Reports = () => {
   const handleSaveEntry = async () => {
     // Validation
     if (!newEntry.EmployeeID || !newEntry.Type || !newEntry.Date || !newEntry.CheckInTime) {
-      showToast("Please fill in all required fields", "error");
+      setModalError("Please fill in all required fields");
+      setTimeout(() => setModalError(""), 3000);
       return;
     }
 
@@ -919,18 +954,23 @@ const Reports = () => {
       const checkoutDateTime = new Date(`${newEntry.Date}T${newEntry.CheckOutTime}:00`);
 
       if (checkoutDateTime <= checkinDateTime) {
-        showToast("Checkout time must be greater than check-in time", "error");
+        setModalError("Checkout time must be greater than check-in time");
+        setTimeout(() => setModalError(""), 3000);
         return;
       }
     }
 
     const selectedEmployee = employeeList.find(emp => emp.pin === newEntry.EmployeeID);
     if (!selectedEmployee) {
-      showToast("Selected employee not found", "error");
+      setModalError("Selected employee not found");
+      setTimeout(() => setModalError(""), 3000);
       return;
     }
 
-    setLoading(true);
+    setModalSuccess("");
+    setModalError("");
+    setIsSubmitting(true);
+
     try {
       // Calculate time worked: if no checkout time, set to "0:00"
       const timeWorked = newEntry.CheckOutTime
@@ -964,13 +1004,19 @@ const Reports = () => {
         await viewDatewiseReport(selectedDate);
       }
 
-      showToast("Entry saved successfully!");
-      closeModal();
+      setModalSuccess("Entry added successfully!");
+      setTimeout(() => {
+        setModalSuccess("");
+        closeModal();
+      }, 3000);
     } catch (error) {
       console.error("Error saving entry:", error);
-      showToast("Failed to save entry. Please try again.", "error");
+      setModalError(error.message || "Failed to save entry. Please try again.");
+      setTimeout(() => {
+        setModalError("");
+      }, 3000);
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -1430,6 +1476,7 @@ const Reports = () => {
                             const rowKey = `${record.Pin}-${record.CheckInTime}`;
                             const hasCheckout = record.CheckOutTime;
                             const selectedTime = checkoutTimes[rowKey];
+                            const checkoutError = checkoutErrors[rowKey];
 
                             // Get minimum time (check-in time) for time picker
                             const checkInTime = new Date(record.CheckInTime);
@@ -1444,13 +1491,22 @@ const Reports = () => {
                                   {hasCheckout ? (
                                     formatTime(record.CheckOutTime)
                                   ) : (
-                                    <input
-                                      type="time"
-                                      value={selectedTime || ''}
-                                      onChange={(e) => handleCheckoutTimeChange(rowKey, e.target.value)}
-                                      min={minTime}
-                                      className="border border-gray-300 rounded px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    />
+                                    <div className="flex flex-col items-center">
+                                      <input
+                                        type="time"
+                                        value={selectedTime || ''}
+                                        onChange={(e) => handleCheckoutTimeChange(rowKey, e.target.value, record.CheckInTime)}
+                                        min={minTime}
+                                        className={`border rounded px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 ${
+                                          checkoutError
+                                            ? 'border-red-500 focus:ring-red-500'
+                                            : 'border-gray-300 focus:ring-blue-500'
+                                        }`}
+                                      />
+                                      {checkoutError && (
+                                        <span className="text-red-500 text-xs mt-1">{checkoutError}</span>
+                                      )}
+                                    </div>
                                   )}
                                 </td>
                                 <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
@@ -1461,9 +1517,9 @@ const Reports = () => {
                                 <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
                                   <Button
                                     onClick={() => handleCheckout(record)}
-                                    disabled={hasCheckout || !selectedTime}
+                                    disabled={hasCheckout || !selectedTime || checkoutError}
                                     size="sm"
-                                    className={`text-xs ${hasCheckout || !selectedTime ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+                                    className={`text-xs ${hasCheckout || !selectedTime || checkoutError ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
                                   >
                                     {hasCheckout ? 'Checked Out' : 'Check Out'}
                                   </Button>
@@ -1898,6 +1954,19 @@ const Reports = () => {
                 </div>
               </div>
 
+              {modalSuccess && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-md flex items-start gap-2">
+                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-green-600">{modalSuccess}</p>
+                </div>
+              )}
+              {modalError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-600">{modalError}</p>
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <Button
                   variant="outline"
@@ -1908,10 +1977,10 @@ const Reports = () => {
                 </Button>
                 <Button
                   onClick={handleSaveEntry}
-                  disabled={addButtonDisabled || loading}
+                  disabled={addButtonDisabled || isSubmitting || modalSuccess}
                   className="flex-1 order-1 sm:order-2"
                 >
-                  {loading ? (
+                  {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Adding...
