@@ -2,8 +2,7 @@ import React, { useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import Header from "../components/layout/Header";
 import Footer from "../components/layout/Footer";
-import { Loader2 } from "lucide-react";
-import CenterLoadingOverlay from "../components/ui/CenterLoadingOverlay";
+import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
 
 const ContactUs = () => {
   // Form fields
@@ -17,8 +16,10 @@ const ContactUs = () => {
   const [errorTextarea, setErrorTextarea] = useState("");
   const [errorPhone, setErrorPhone] = useState("");
 
-  // Loading state
-  const [centerLoading, setCenterLoading] = useState({ show: false, message: "" });
+  // Loading and response states
+  const [submitSuccess, setSubmitSuccess] = useState("");
+  const [submitError, setSubmitError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Regular expressions
   const isAlpha = /^[a-zA-Z\s]+$/;
@@ -101,6 +102,10 @@ const ContactUs = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Clear previous messages
+    setSubmitSuccess("");
+    setSubmitError("");
+
     // Validate all fields
     const isNameValid = validCName();
     const isEmailValid = validCEmail();
@@ -118,15 +123,25 @@ const ContactUs = () => {
       isPhoneNumberValid &&
       isRequiredFieldsValid
     ) {
-      setCenterLoading({ show: true, message: "Sending message..." });
+      setIsSubmitting(true);
       try {
         await callContactUsCreateAPiData();
+        setSubmitSuccess("Message sent successfully!");
+
+        // Clear success message after 3 seconds
         setTimeout(() => {
-          setCenterLoading({ show: false, message: "" });
-        }, 800);
+          setSubmitSuccess("");
+        }, 3000);
       } catch (error) {
         console.error("Form submission failed:", error);
-        setCenterLoading({ show: false, message: "" });
+        setSubmitError(error.message || "Failed to send message. Please try again.");
+
+        // Clear error message after 3 seconds
+        setTimeout(() => {
+          setSubmitError("");
+        }, 3000);
+      } finally {
+        setIsSubmitting(false);
       }
     } else {
       // Trigger validation messages for required fields
@@ -182,8 +197,6 @@ const ContactUs = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Header isAuthenticated={true} />
-
-      <CenterLoadingOverlay show={centerLoading.show} message={centerLoading.message} />
 
       <section className="flex-grow bg-gray-50 px-4 sm:px-6 pt-25 pb-16">
         <div className="max-w-6xl mx-auto">
@@ -335,17 +348,27 @@ const ContactUs = () => {
                     </div>
                   </div>
 
+                  {submitSuccess && (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-sm text-green-600">{submitSuccess}</p>
+                    </div>
+                  )}
+                  {submitError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+                      <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-sm text-red-600">{submitError}</p>
+                    </div>
+                  )}
+
                   <button
                     type="submit"
-                    disabled={centerLoading.show}
+                    disabled={isSubmitting}
                     className="w-full bg-[#02066F] text-white py-3 px-6 rounded-lg font-medium hover:bg-[#030974] focus:ring-2 focus:ring-[#02066F] focus:ring-offset-2 disabled:opacity-50 transition-colors"
                   >
-                    {centerLoading.show ? (
+                    {isSubmitting ? (
                       <div className="flex items-center justify-center">
-                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
+                        <Loader2 className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" />
                         Sending...
                       </div>
                     ) : (
