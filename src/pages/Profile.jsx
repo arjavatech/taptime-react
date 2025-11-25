@@ -20,7 +20,6 @@ import {
   AlertCircle,
   Loader2
 } from "lucide-react";
-import CenterLoadingOverlay from "../components/ui/CenterLoadingOverlay";
 import { useModalClose } from "../hooks/useModalClose";
 
 const Profile = () => {
@@ -28,7 +27,9 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState({ personal: false, company: false, admin: false });
   const [isLoading, setIsLoading] = useState(true);
   const [userType, setUserType] = useState("");
-  const [centerLoading, setCenterLoading] = useState({ show: false, message: "" });
+  const [saveSuccess, setSaveSuccess] = useState("");
+  const [saveError, setSaveError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   const [personalData, setPersonalData] = useState({
     firstName: "",
@@ -61,6 +62,8 @@ const Profile = () => {
     logo: ""
   });
 
+  const [logoFile, setLogoFile] = useState(null);
+
   const [errors, setErrors] = useState({
     companyName: "",
     companyStreet: "",
@@ -82,14 +85,6 @@ const Profile = () => {
   
   // Handle modal close events for loading overlay
   useModalClose(isLoading, () => {}, 'profile-loading-modal');
-
-  const showCenterLoading = (message) => {
-    setCenterLoading({ show: true, message });
-  };
-
-  const hideCenterLoading = () => {
-    setCenterLoading({ show: false, message: "" });
-  };
 
   const formatphone_number = (value) => {
     const digits = value.replace(/\D/g, '').slice(0, 10);
@@ -184,6 +179,10 @@ const Profile = () => {
       return;
     }
 
+    // Store the file for upload
+    setLogoFile(file);
+
+    // Create preview for display
     const reader = new FileReader();
     reader.onload = (e) => {
       setCompanyData(prev => ({ ...prev, logo: e.target.result }));
@@ -358,11 +357,13 @@ const Profile = () => {
       return;
     }
 
-    showCenterLoading("Updating personal information...");
+    setSaveSuccess("");
+    setSaveError("");
+    setIsSaving(true);
+
     try {
-      const updateData = {
+      const companyDataPayload = {
         company_name: companyData.name || "",
-        company_logo: companyData.logo || "",
         report_type: localStorage.getItem("reportType"),
         company_address_line1: companyData.address || "",
         company_address_line2: companyData.street2 || "",
@@ -384,7 +385,18 @@ const Profile = () => {
         last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system"
       };
 
-      const result = await updateProfile(companyId, updateData);
+      const formData = new FormData();
+      formData.append('company_data', JSON.stringify(companyDataPayload));
+
+      // Only add logo file if it has been changed
+      if (logoFile) {
+        formData.append('company_logo', logoFile);
+      }
+
+      const result = await updateProfile(companyId, formData);
+
+      // Reset logoFile after successful save
+      setLogoFile(null);
 
       // Update localStorage after successful API call
       if (userType === "Owner") {
@@ -411,24 +423,34 @@ const Profile = () => {
       localStorage.setItem("customerState", personalData.customerState);
       localStorage.setItem("customerZip", personalData.customerZip);
 
-      hideCenterLoading();
-      setIsEditing(prev => ({ ...prev, personal: false }));
+      setSaveSuccess("Personal information updated successfully!");
+      setTimeout(() => {
+        setSaveSuccess("");
+        setIsEditing(prev => ({ ...prev, personal: false }));
+      }, 3000);
     } catch (error) {
       console.error("Save Personal Error:", error);
-      hideCenterLoading();
-      setIsEditing(prev => ({ ...prev, personal: false }));
+      setSaveError(error.message || "Failed to update personal information");
+      setTimeout(() => {
+        setSaveError("");
+      }, 3000);
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleSaveAdmin = async () => {
     console.log("handleSaveAdmin called");
     console.log("Current adminData state:", adminData);
-    
+
     if (!companyId) {
       return;
     }
 
-    showCenterLoading("Updating admin information...");
+    setSaveSuccess("");
+    setSaveError("");
+    setIsSaving(true);
+
     try {
       const updateData = {
         company_name: companyData.name || "",
@@ -463,12 +485,19 @@ const Profile = () => {
       localStorage.setItem("phone", adminData.phone);
       localStorage.setItem("phone_number", adminData.phone);
 
-      hideCenterLoading();
-      setIsEditing(prev => ({ ...prev, admin: false }));
+      setSaveSuccess("Admin information updated successfully!");
+      setTimeout(() => {
+        setSaveSuccess("");
+        setIsEditing(prev => ({ ...prev, admin: false }));
+      }, 3000);
     } catch (error) {
       console.error("Save Admin Error:", error);
-      hideCenterLoading();
-      setIsEditing(prev => ({ ...prev, admin: false }));
+      setSaveError(error.message || "Failed to update admin information");
+      setTimeout(() => {
+        setSaveError("");
+      }, 3000);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -483,11 +512,13 @@ const Profile = () => {
       return;
     }
 
-    showCenterLoading("Updating company information...");
+    setSaveSuccess("");
+    setSaveError("");
+    setIsSaving(true);
+
     try {
-      const updateData = {
+      const companyDataPayload = {
         company_name: companyData.name || "",
-        company_logo: companyData.logo || "",
         report_type: localStorage.getItem("reportType") || "string",
         company_address_line1: companyData.address || "",
         company_address_line2: companyData.street2 || "",
@@ -509,7 +540,18 @@ const Profile = () => {
         last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system"
       };
 
-      const result = await updateProfile(companyId, updateData);
+      const formData = new FormData();
+      formData.append('company_data', JSON.stringify(companyDataPayload));
+
+      // Only add logo file if it has been changed
+      if (logoFile) {
+        formData.append('company_logo', logoFile);
+      }
+
+      const result = await updateProfile(companyId, formData);
+
+      // Reset logoFile after successful save
+      setLogoFile(null);
 
       // Update localStorage after successful API call
       localStorage.setItem("companyName", companyData.name);
@@ -522,12 +564,19 @@ const Profile = () => {
         localStorage.setItem("companyLogo", companyData.logo);
       }
 
-      hideCenterLoading();
-      setIsEditing(prev => ({ ...prev, company: false }));
+      setSaveSuccess("Company information updated successfully!");
+      setTimeout(() => {
+        setSaveSuccess("");
+        setIsEditing(prev => ({ ...prev, company: false }));
+      }, 3000);
     } catch (error) {
       console.error("Company Save Error:", error);
-      hideCenterLoading();
-      setIsEditing(prev => ({ ...prev, company: false }));
+      setSaveError(error.message || "Failed to update company information");
+      setTimeout(() => {
+        setSaveError("");
+      }, 3000);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -602,8 +651,6 @@ const Profile = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
-
-      <CenterLoadingOverlay show={centerLoading.show} message={centerLoading.message} />
 
       {/* Loading Overlay */}
       {isLoading && (
@@ -807,22 +854,47 @@ const Profile = () => {
                 </div>
 
                 {isEditing.personal && (
-                  <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
-                    <Button
-                      variant="outline"
-                      onClick={() => handleCancel("personal")}
-                      className="flex-1 order-2 sm:order-1"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleSavePersonal}
-                      className="flex-1 flex items-center justify-center gap-2 order-1 sm:order-2"
-                    >
-                      <Save className="w-4 h-4" />
-                      Save Changes
-                    </Button>
-                  </div>
+                  <>
+                    {saveSuccess && (
+                      <div className="p-3 bg-green-50 border border-green-200 rounded-md flex items-start gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-green-600">{saveSuccess}</p>
+                      </div>
+                    )}
+                    {saveError && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                        <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-red-600">{saveError}</p>
+                      </div>
+                    )}
+
+                    <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
+                      <Button
+                        variant="outline"
+                        onClick={() => handleCancel("personal")}
+                        className="flex-1 order-2 sm:order-1"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleSavePersonal}
+                        disabled={isSaving || saveSuccess}
+                        className="flex-1 flex items-center justify-center gap-2 order-1 sm:order-2"
+                      >
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4" />
+                            Save Changes
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -969,22 +1041,47 @@ const Profile = () => {
                 </div>
 
                 {isEditing.company && (
-                  <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
-                    <Button
-                      variant="outline"
-                      onClick={() => handleCancel("company")}
-                      className="flex-1 order-2 sm:order-1"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleSaveCompany}
-                      className="flex-1 flex items-center justify-center gap-2 order-1 sm:order-2"
-                    >
-                      <Save className="w-4 h-4" />
-                      Save Changes
-                    </Button>
-                  </div>
+                  <>
+                    {saveSuccess && (
+                      <div className="p-3 bg-green-50 border border-green-200 rounded-md flex items-start gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-green-600">{saveSuccess}</p>
+                      </div>
+                    )}
+                    {saveError && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                        <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-red-600">{saveError}</p>
+                      </div>
+                    )}
+
+                    <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
+                      <Button
+                        variant="outline"
+                        onClick={() => handleCancel("company")}
+                        className="flex-1 order-2 sm:order-1"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleSaveCompany}
+                        disabled={isSaving || saveSuccess}
+                        className="flex-1 flex items-center justify-center gap-2 order-1 sm:order-2"
+                      >
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4" />
+                            Save Changes
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -1092,22 +1189,47 @@ const Profile = () => {
                 </div>
 
                 {isEditing.admin && (
-                  <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
-                    <Button
-                      variant="outline"
-                      onClick={() => handleCancel("admin")}
-                      className="flex-1 order-2 sm:order-1"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleSaveAdmin}
-                      className="flex-1 flex items-center justify-center gap-2 order-1 sm:order-2"
-                    >
-                      <Save className="w-4 h-4" />
-                      Save Changes
-                    </Button>
-                  </div>
+                  <>
+                    {saveSuccess && (
+                      <div className="p-3 bg-green-50 border border-green-200 rounded-md flex items-start gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-green-600">{saveSuccess}</p>
+                      </div>
+                    )}
+                    {saveError && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                        <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-red-600">{saveError}</p>
+                      </div>
+                    )}
+
+                    <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
+                      <Button
+                        variant="outline"
+                        onClick={() => handleCancel("admin")}
+                        className="flex-1 order-2 sm:order-1"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleSaveAdmin}
+                        disabled={isSaving || saveSuccess}
+                        className="flex-1 flex items-center justify-center gap-2 order-1 sm:order-2"
+                      >
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4" />
+                            Save Changes
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>

@@ -432,14 +432,18 @@ export const getCustomerData = async (cid) => {
 // Company functions
 export const updateProfile = async (cid, data) => {
   const apiUrl = `${API_URLS.company}/update/${cid}`;
-  
+
   try {
+    // Check if data is FormData (for company update with file)
+    const isFormData = data instanceof FormData;
+
     const response = await fetch(apiUrl, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+      // Don't set Content-Type for FormData - browser sets it with boundary
+      headers: isFormData ? {} : { 'Content-Type': 'application/json' },
+      body: isFormData ? data : JSON.stringify(data)
     });
-    
+
     if (!response.ok) throw new Error(`Error: ${response.status}`);
     return await response.json();
   } catch (error) {
