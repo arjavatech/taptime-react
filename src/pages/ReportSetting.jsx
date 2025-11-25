@@ -51,6 +51,9 @@ const ReportSetting = () => {
   const [emailError, setEmailError] = useState("");
   const [frequencyError, setFrequencyError] = useState("");
   const [viewFrequencies, setViewFrequencies] = useState([]);
+  const [modalError, setModalError] = useState("");
+  const [modalSuccess, setModalSuccess] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState("table");
@@ -172,6 +175,8 @@ const ReportSetting = () => {
     setNewFrequencies([]);
     setEmailError("");
     setFrequencyError("");
+    setModalError("");
+    setModalSuccess("");
     setShowAddModal(true);
   };
 
@@ -190,6 +195,8 @@ const ReportSetting = () => {
     setCurrentFrequencies([...frequencies]);
     setEmailError("");
     setFrequencyError("");
+    setModalError("");
+    setModalSuccess("");
     setShowEditModal(true);
   };
 
@@ -202,6 +209,8 @@ const ReportSetting = () => {
     console.log("Opening delete modal for setting:", setting);
     setCurrentSetting(setting);
     setCurrentEmail((setting.email || setting.company_reporter_email || "").trim());
+    setModalError("");
+    setModalSuccess("");
     setShowDeleteModal(true);
   };
 
@@ -245,24 +254,29 @@ const ReportSetting = () => {
     if (typeof window === "undefined") return;
     const company_id = localStorage.getItem("companyID") || "";
     if (!company_id) {
-      showToast("Missing company ID", "error");
+      setModalError("Missing company ID");
       return;
     }
 
     const deviceId = "";
     const reportData = createReportObject(newEmail.trim(), company_id, deviceId, newFrequencies);
 
-    setIsLoading(true);
+    setModalError("");
+    setIsSubmitting(true);
     try {
       await createReportEmail(reportData);
-      showToast("Email setting added successfully!");
-      closeModals();
-      loadReportSettings();
+      setModalSuccess("Email setting added successfully!");
+
+      setTimeout(() => {
+        setShowAddModal(false);
+        setModalSuccess("");
+        loadReportSettings();
+      }, 3000);
     } catch (error) {
       console.error("Error saving report settings:", error);
-      showToast("Failed to save email setting", "error");
+      setModalError(error.message || "Failed to save email setting");
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -273,34 +287,44 @@ const ReportSetting = () => {
     const deviceId = "";
     const reportData = createReportObject(newEmail.trim(), company_id, deviceId, editFrequencies);
 
-    setIsLoading(true);
+    setModalError("");
+    setIsSubmitting(true);
     try {
       await updateReportEmail(currentEmail, company_id, reportData);
-      showToast("Email setting updated successfully!");
-      closeModals();
-      loadReportSettings();
+      setModalSuccess("Email setting updated successfully!");
+
+      setTimeout(() => {
+        setShowEditModal(false);
+        setModalSuccess("");
+        loadReportSettings();
+      }, 3000);
     } catch (error) {
       console.error("Error updating report settings:", error);
-      showToast("Failed to update email setting", "error");
+      setModalError(error.message || "Failed to update email setting");
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
   const deleteReportSettings = async () => {
     const company_id = localStorage.getItem("companyID") || "";
 
-    setIsLoading(true);
+    setModalError("");
+    setIsSubmitting(true);
     try {
       await deleteReportEmail(currentEmail, company_id);
-      showToast("Email setting deleted successfully!");
-      closeModals();
-      loadReportSettings();
+      setModalSuccess("Email setting deleted successfully!");
+
+      setTimeout(() => {
+        setShowDeleteModal(false);
+        setModalSuccess("");
+        loadReportSettings();
+      }, 3000);
     } catch (error) {
       console.error("Error deleting report settings:", error);
-      showToast("Failed to delete email setting", "error");
+      setModalError(error.message || "Failed to delete email setting");
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -751,21 +775,38 @@ const ReportSetting = () => {
                 </div>
                 {frequencyError && <p className="text-sm text-red-600">{frequencyError}</p>}
               </div>
-              
+
+              {/* Success message */}
+              {modalSuccess && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-md flex items-start gap-2">
+                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-green-600">{modalSuccess}</p>
+                </div>
+              )}
+
+              {/* Error message */}
+              {modalError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-600">{modalError}</p>
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <Button
                   variant="outline"
                   onClick={closeModals}
                   className="flex-1 order-2 sm:order-1"
+                  disabled={isSubmitting || modalSuccess}
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={saveReportSettings}
-                  disabled={isLoading}
+                  disabled={isSubmitting || modalSuccess}
                   className="flex-1 order-1 sm:order-2"
                 >
-                  {isLoading ? (
+                  {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Saving...
@@ -826,7 +867,20 @@ const ReportSetting = () => {
                 </div>
                 {frequencyError && <p className="text-sm text-red-600">{frequencyError}</p>}
               </div>
-              
+
+              {modalSuccess && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-md flex items-start gap-2">
+                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-green-600">{modalSuccess}</p>
+                </div>
+              )}
+              {modalError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-600">{modalError}</p>
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <Button
                   variant="outline"
@@ -837,10 +891,10 @@ const ReportSetting = () => {
                 </Button>
                 <Button
                   onClick={updateReportSettings}
-                  disabled={isLoading}
+                  disabled={isSubmitting || modalSuccess}
                   className="flex-1 order-1 sm:order-2"
                 >
-                  {isLoading ? (
+                  {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Updating...
@@ -920,7 +974,7 @@ const ReportSetting = () => {
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={() => setShowDeleteModal(false)}>
           <Card id="report-delete-modal" className="w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
             <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-destructive text-lg">
+              <CardTitle className="flex items-center gap-2 text-lg" style={{ color: '#01005a' }}>
                 <AlertCircle className="w-5 h-5" />
                 Delete Email Setting
               </CardTitle>
@@ -928,8 +982,21 @@ const ReportSetting = () => {
                 Are you sure you want to delete the email setting for "{currentEmail}"? This action cannot be undone.
               </CardDescription>
             </CardHeader>
-            
-            <CardContent>
+
+            <CardContent className="space-y-4">
+              {modalSuccess && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-md flex items-start gap-2">
+                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-green-600">{modalSuccess}</p>
+                </div>
+              )}
+              {modalError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-600">{modalError}</p>
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
                   variant="outline"
@@ -939,12 +1006,11 @@ const ReportSetting = () => {
                   Cancel
                 </Button>
                 <Button
-                  variant="destructive"
                   onClick={deleteReportSettings}
-                  disabled={isLoading}
-                  className="flex-1 order-1 sm:order-2"
+                  disabled={isSubmitting || modalSuccess}
+                  className="flex-1 order-1 sm:order-2 bg-[#01005a] hover:bg-[#01005a]/90 text-white"
                 >
-                  {isLoading ? (
+                  {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Deleting...
