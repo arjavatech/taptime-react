@@ -22,6 +22,8 @@ import {
   X
 } from "lucide-react";
 import { useModalClose, useZipLookup } from "../hooks";
+import { PhoneInput } from 'react-international-phone';
+import 'react-international-phone/style.css';
 
 const Profile = () => {
   const [activeTab, setActiveTab] = useState("company");
@@ -151,10 +153,6 @@ const Profile = () => {
     console.log('Current activeTab:', activeTab);
     console.log('Current isEditing.personal:', isEditing.personal);
 
-    if (field === "phone") {
-      value = formatphone_number(value);
-    }
-
     // Restrict zipCode to 5 digits only
     if (field === "zipCode" && value && !/^\d{0,5}$/.test(value)) {
       return;
@@ -186,9 +184,6 @@ const Profile = () => {
 
   const handleAdminInputChange = (field, value) => {
     console.log(`Admin input change - Field: ${field}, Value: ${value}`);
-    if (field === "phone") {
-      value = formatphone_number(value);
-    }
     setAdminData(prev => {
       const newData = { ...prev, [field]: value };
       console.log('Updated adminData:', newData);
@@ -372,10 +367,13 @@ const Profile = () => {
       isValid = false;
     }
 
-    if (personalData.phone && !/^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/.test(personalData.phone)) {
-      console.log("phone format validation failed:", personalData.phone);
-      newErrors.phone = "Please use format: (123) 456-7890";
-      isValid = false;
+    if (personalData.phone) {
+      const digits = personalData.phone.replace(/\D/g, '');
+      if (digits.length < 10) {
+        console.log("phone format validation failed:", personalData.phone);
+        newErrors.phone = "Invalid phone number format";
+        isValid = false;
+      }
     }
 
     if (personalData.zipCode && personalData.zipCode.length !== 5) {
@@ -883,17 +881,23 @@ const Profile = () => {
 
                   <div className="space-y-2">
                     <Label htmlFor="phone">Phone Number</Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                      <Input
-                        id="phone"
-                        value={personalData.phone}
-                        onChange={(e) => handlePersonalInputChange("phone", e.target.value)}
-                        disabled={!isEditing.personal}
-                        className={`pl-10 ${errors.phone ? "border-red-500" : ""}`}
-                        placeholder="(123) 456-7890"
-                      />
-                    </div>
+                    <PhoneInput
+                      defaultCountry="us"
+                      value={personalData.phone}
+                      onChange={(phone) => handlePersonalInputChange("phone", phone)}
+                      disabled={!isEditing.personal}
+                      forceDialCode={true}
+                      className={errors.phone ? 'phone-input-error' : ''}
+                      inputClassName="w-full"
+                      style={{
+                        '--react-international-phone-border-radius': '0.375rem',
+                        '--react-international-phone-border-color': errors.phone ? '#ef4444' : '#e5e7eb',
+                        '--react-international-phone-background-color': '#ffffff',
+                        '--react-international-phone-text-color': '#000000',
+                        '--react-international-phone-selected-dropdown-item-background-color': '#f3f4f6',
+                        '--react-international-phone-height': '2.5rem'
+                      }}
+                    />
                     {errors.phone && <p className="text-sm text-red-600">{errors.phone}</p>}
                   </div>
 
@@ -1292,17 +1296,22 @@ const Profile = () => {
 
                   <div className="space-y-2">
                     <Label htmlFor="adminPhone">Phone Number</Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                      <Input
-                        id="adminPhone"
-                        value={adminData.phone}
-                        onChange={(e) => handleAdminInputChange("phone", e.target.value)}
-                        disabled={!isEditing.admin}
-                        className="pl-10"
-                        placeholder="(123) 456-7890"
-                      />
-                    </div>
+                    <PhoneInput
+                      defaultCountry="us"
+                      value={adminData.phone}
+                      onChange={(phone) => handleAdminInputChange("phone", phone)}
+                      disabled={!isEditing.admin}
+                      forceDialCode={true}
+                      inputClassName="w-full"
+                      style={{
+                        '--react-international-phone-border-radius': '0.375rem',
+                        '--react-international-phone-border-color': '#e5e7eb',
+                        '--react-international-phone-background-color': '#ffffff',
+                        '--react-international-phone-text-color': '#000000',
+                        '--react-international-phone-selected-dropdown-item-background-color': '#f3f4f6',
+                        '--react-international-phone-height': '2.5rem'
+                      }}
+                    />
                   </div>
 
                   <div className="space-y-2">

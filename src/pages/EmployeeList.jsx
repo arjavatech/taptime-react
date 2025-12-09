@@ -38,6 +38,8 @@ import { HamburgerIcon } from "../components/icons/HamburgerIcon";
 import { GridIcon } from "../components/icons/GridIcon";
 import CenterLoadingOverlay from "../components/ui/CenterLoadingOverlay";
 import { useModalClose } from "../hooks/useModalClose";
+import { PhoneInput } from 'react-international-phone';
+import 'react-international-phone/style.css';
 
 const EmployeeList = () => {
   // Data state
@@ -353,40 +355,33 @@ const EmployeeList = () => {
     setShowDeleteModal(true);
   };
 
-  // Format phone number display
+  // Format phone number display with country code
   const formatPhoneNumber = useCallback((phone) => {
     if (!phone) return "";
-    let value = phone.replace(/\D/g, "");
-    if (value.length > 6) {
-      value = `(${value.slice(0, 3)}) ${value.slice(3, 6)}-${value.slice(
-        6,
-        10
-      )}`;
-    } else if (value.length > 3) {
-      value = `(${value.slice(0, 3)}) ${value.slice(3)}`;
-    } else {
-      value = `(${value}`;
+    
+    const digits = phone.replace(/\D/g, "");
+    
+    if (digits.length > 10 || (digits.length === 11 && digits.startsWith('1'))) {
+      const countryCode = digits.slice(0, -10);
+      const areaCode = digits.slice(-10, -7);
+      const firstPart = digits.slice(-7, -4);
+      const lastPart = digits.slice(-4);
+      return `+${countryCode} (${areaCode}) ${firstPart}-${lastPart}`;
     }
-    return value;
+    
+    if (digits.length === 10) {
+      return `+1 (${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+    }
+    
+    return phone;
   }, []);
 
   // Handle phone input with auto-formatting
-  const handlePhoneInput = useCallback((e) => {
-    let value = e.target.value.replace(/\D/g, "");
-    if (value.length > 10) value = value.slice(0, 10);
-
-    if (value.length > 6) {
-      value = `(${value.slice(0, 3)}) ${value.slice(3, 6)}-${value.slice(6)}`;
-    } else if (value.length > 3) {
-      value = `(${value.slice(0, 3)}) ${value.slice(3)}`;
-    } else if (value.length > 0) {
-      value = `(${value}`;
-    }
-
-    setFormData((prev) => ({ ...prev, phone_number: value }));
+  const handlePhoneInput = useCallback((phone) => {
+    setFormData((prev) => ({ ...prev, phone_number: phone }));
 
     // Auto-generate PIN from last 4 digits
-    const digits = value.replace(/\D/g, "");
+    const digits = phone.replace(/\D/g, '').replace(/^1/, '');
     if (digits.length >= 4) {
       setFormData((prev) => ({ ...prev, pin: digits.slice(-4) }));
     }
@@ -416,13 +411,15 @@ const EmployeeList = () => {
     }
 
     // Phone validation
-    const phoneRegex = /^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/;
     if (!formData.phone_number) {
       newErrors.phone_number = "Phone number is required";
       isValid = false;
-    } else if (!phoneRegex.test(formData.phone_number)) {
-      newErrors.phone_number = "Invalid phone number format";
-      isValid = false;
+    } else {
+      const digits = formData.phone_number.replace(/\D/g, '');
+      if (digits.length < 10) {
+        newErrors.phone_number = "Invalid phone number format";
+        isValid = false;
+      }
     }
 
     // Email validation for admins/superadmins
@@ -829,7 +826,7 @@ const EmployeeList = () => {
                       {employee.phone_number && (
                         <div className="flex items-center gap-2 text-xs sm:text-sm">
                           <Phone className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
-                          <span>{formatPhoneNumber(employee.phone_number)}</span>
+                          <span className="font-mono">{formatPhoneNumber(employee.phone_number)}</span>
                         </div>
                       )}
 
@@ -881,7 +878,7 @@ const EmployeeList = () => {
                           <td className="p-4">
                             <div className="text-sm space-y-1">
                               {employee.email && <div>{employee.email}</div>}
-                              {employee.phone_number && <div className="text-muted-foreground">{formatPhoneNumber(employee.phone_number)}</div>}
+                              {employee.phone_number && <div className="text-muted-foreground font-mono">{formatPhoneNumber(employee.phone_number)}</div>}
                             </div>
                           </td>
                           <td className="p-4">
@@ -1002,12 +999,21 @@ const EmployeeList = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="phone" className="text-sm font-medium">Phone Number</Label>
-                <Input
-                  id="phone"
-                  placeholder="(123) 456-7890"
+                <PhoneInput
+                  defaultCountry="us"
                   value={formData.phone_number}
                   onChange={handlePhoneInput}
-                  className="text-sm"
+                  forceDialCode={true}
+                  className={errors.phone_number ? 'phone-input-error' : ''}
+                  inputClassName="w-full"
+                  style={{
+                    '--react-international-phone-border-radius': '0.375rem',
+                    '--react-international-phone-border-color': errors.phone_number ? '#ef4444' : '#e5e7eb',
+                    '--react-international-phone-background-color': '#ffffff',
+                    '--react-international-phone-text-color': '#000000',
+                    '--react-international-phone-selected-dropdown-item-background-color': '#f3f4f6',
+                    '--react-international-phone-height': '2.5rem'
+                  }}
                 />
                 {errors.phone_number && <p className="text-xs text-red-600">{errors.phone_number}</p>}
               </div>

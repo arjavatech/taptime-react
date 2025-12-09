@@ -11,6 +11,8 @@ import { Mail, User, Building, Phone, MapPin, CheckCircle, XCircle, X, Loader2 }
 import tabtimelogo from "../assets/images/tap-time-logo.png";
 import RegistrationSuccessModal from "../components/ui/RegistrationSuccessModal";
 import CenterLoadingOverlay from "../components/ui/CenterLoadingOverlay";
+import { PhoneInput } from 'react-international-phone';
+import 'react-international-phone/style.css';
 
 
 const Register = () => {
@@ -156,23 +158,11 @@ const Register = () => {
     }));
   };
 
-  const handlePhoneChange = (e) => {
-    const value = e.target.value;
-    const digits = value.replace(/\D/g, '').slice(0, 10);
-    let formatted = '';
-
-    if (digits.length > 6) {
-      formatted = `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-    } else if (digits.length > 3) {
-      formatted = `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-    } else if (digits.length > 0) {
-      formatted = `(${digits}`;
-    }
-
+  const handlePhoneChange = (phone) => {
     setPhoneError('');
     setFormData(prev => ({
       ...prev,
-      phone: formatted
+      phone: phone
     }));
   };
 
@@ -322,7 +312,7 @@ const Register = () => {
 
     try {
       // Extract only digits from phone number
-      const phoneDigits = formData.phone.replace(/\D/g, '');
+      const phoneDigits = formData.phone.replace(/\D/g, '').replace(/^1/, '');
 
       // Create plain object with proper field name mapping for API
       const submitData = {
@@ -681,19 +671,23 @@ const Register = () => {
 
           <div className="space-y-2">
             <Label htmlFor="phone">Phone Number *</Label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input
-                id="phone"
-                name="phone"
-                type="tel"
-                placeholder="(123) 456-7890"
-                value={formData.phone}
-                onChange={handlePhoneChange}
-                className={`pl-10 ${phoneError ? 'border-red-500 focus:border-red-500' : ''}`}
-                required
-              />
-            </div>
+            <PhoneInput
+              defaultCountry="us"
+              value={formData.phone}
+              onChange={handlePhoneChange}
+              disableDialCodePrefill={false}
+              forceDialCode={true}
+              className={phoneError ? 'phone-input-error' : ''}
+              inputClassName="w-full"
+              style={{
+                '--react-international-phone-border-radius': '0.375rem',
+                '--react-international-phone-border-color': phoneError ? '#ef4444' : '#e5e7eb',
+                '--react-international-phone-background-color': '#ffffff',
+                '--react-international-phone-text-color': '#000000',
+                '--react-international-phone-selected-dropdown-item-background-color': '#f3f4f6',
+                '--react-international-phone-height': '2.5rem'
+              }}
+            />
             {phoneError && (
               <p className="text-red-600 text-xs mt-1">{phoneError}</p>
             )}

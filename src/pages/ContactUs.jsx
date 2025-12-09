@@ -3,6 +3,8 @@ import { v4 as uuidv4 } from "uuid";
 import Header from "../components/layout/Header";
 import Footer from "../components/layout/Footer";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { PhoneInput } from 'react-international-phone';
+import 'react-international-phone/style.css';
 
 const ContactUs = () => {
   // Form fields
@@ -68,31 +70,16 @@ const ContactUs = () => {
     }
   };
 
-  const formatPhoneNumber = (e) => {
-    let value = e.target.value.replace(/\D/g, "");
-
-    if (value.length > 3 && value.length <= 6) {
-      value = `(${value.slice(0, 3)}) ${value.slice(3)}`;
-    } else if (value.length > 6) {
-      value = `(${value.slice(0, 3)}) ${value.slice(3, 6)}-${value.slice(
-        6,
-        10
-      )}`;
-    } else if (value.length > 3) {
-      value = `(${value.slice(0, 3)}) ${value.slice(3)}`;
-    }
-
-    setPhoneNumber(value);
-  };
-
   const validatePhoneNumber = () => {
     if (phoneNumber.trim() === "") {
       setErrorPhone("");
       return false;
-    } else if (!phoneRegex.test(phoneNumber)) {
-      setErrorPhone("Please use format: (123) 456-7890");
-      return false;
     } else {
+      const digits = phoneNumber.replace(/\D/g, '');
+      if (digits.length < 10) {
+        setErrorPhone("Invalid phone number format");
+        return false;
+      }
       setErrorPhone("");
       return true;
     }
@@ -308,14 +295,22 @@ const ContactUs = () => {
                     <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-2">
                       Phone Number (Optional)
                     </label>
-                    <input
-                      type="tel"
-                      id="phoneNumber"
+                    <PhoneInput
+                      defaultCountry="us"
                       value={phoneNumber}
-                      onChange={formatPhoneNumber}
+                      onChange={setPhoneNumber}
                       onBlur={validatePhoneNumber}
-                      placeholder="(123) 456-7890"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#02066F] focus:border-[#02066F] transition-colors"
+                      forceDialCode={true}
+                      className={errorPhone ? 'phone-input-error' : ''}
+                      inputClassName="w-full"
+                      style={{
+                        '--react-international-phone-border-radius': '0.5rem',
+                        '--react-international-phone-border-color': errorPhone ? '#ef4444' : '#d1d5db',
+                        '--react-international-phone-background-color': '#ffffff',
+                        '--react-international-phone-text-color': '#000000',
+                        '--react-international-phone-selected-dropdown-item-background-color': '#f3f4f6',
+                        '--react-international-phone-height': '3rem'
+                      }}
                     />
                     {errorPhone && (
                       <p className="text-red-500 text-sm mt-1">{errorPhone}</p>
