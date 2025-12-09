@@ -69,13 +69,6 @@ const HomePage = () => {
     }
   ]
 
-  const stats = [
-    { number: "10K+", label: "Active Users" },
-    { number: "99.9%", label: "Uptime" },
-    { number: "50+", label: "Companies" },
-    { number: "24/7", label: "Support" }
-  ]
-
   return (
     <div className="min-h-screen bg-background">
       <Header />

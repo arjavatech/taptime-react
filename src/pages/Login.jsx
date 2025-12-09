@@ -167,6 +167,19 @@ const Login = () => {
     }
   };
 
+  // Check if OAuth callback is currently being processed
+  const isProcessingOAuthCallback = sessionStorage.getItem('pending_oauth_callback') === 'true' && session && user;
+
+  // If processing OAuth callback, show loading overlay instead of login form
+  if (isProcessingOAuthCallback) {
+    return (
+      <>
+        <Header />
+        <CenterLoadingOverlay show={true} message="Completing sign in..." />
+      </>
+    );
+  }
+
   return (
     <>
       {/* Header Navigation */}
