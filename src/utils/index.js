@@ -13,3 +13,6 @@ export const getLocalDateTimeString = (date = new Date()) => {
   const seconds = String(date.getSeconds()).padStart(2, '0');
   return `${dateStr}T${hours}:${minutes}:${seconds}`;
 };
+
+// Export ZIP code lookup utility
+export { lookupZipCode } from './zipLookup';

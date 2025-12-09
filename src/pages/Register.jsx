@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { registerUser } from '../api.js';
+import { useZipLookup } from '../hooks';
 import Header from "../components/layout/Header";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { Mail, User, Building, Phone, MapPin, CheckCircle, XCircle, X } from "lucide-react";
+import { Mail, User, Building, Phone, MapPin, CheckCircle, XCircle, X, Loader2 } from "lucide-react";
 import tabtimelogo from "../assets/images/tap-time-logo.png";
 import RegistrationSuccessModal from "../components/ui/RegistrationSuccessModal";
 import CenterLoadingOverlay from "../components/ui/CenterLoadingOverlay";
@@ -63,6 +64,31 @@ const Register = () => {
   // Employment type tag input states
   const [employmentTypes, setEmploymentTypes] = useState(['General Employee']);
   const [employmentTypeInput, setEmploymentTypeInput] = useState('');
+
+  // ZIP code auto-fill callbacks
+  const handleCompanyZipResult = useCallback((result) => {
+    setFormData(prev => ({
+      ...prev,
+      companyCity: result.city,
+      companyState: result.state
+    }));
+    setCompanyCityError('');
+    setCompanyStateError('');
+  }, []);
+
+  const handleCustomerZipResult = useCallback((result) => {
+    setFormData(prev => ({
+      ...prev,
+      customerCity: result.city,
+      customerState: result.state
+    }));
+    setCustomerCityError('');
+    setCustomerStateError('');
+  }, []);
+
+  // ZIP code lookup hooks
+  const { isLoading: companyZipLoading } = useZipLookup(formData.companyZip, handleCompanyZipResult);
+  const { isLoading: customerZipLoading } = useZipLookup(formData.customerZip, handleCustomerZipResult);
 
   const showCenterLoading = (message) => {
     setCenterLoading({ show: true, message });
@@ -482,17 +508,22 @@ const Register = () => {
 
           <div className="space-y-2">
             <Label htmlFor="companyZip">Zip Code *</Label>
-            <Input
-              type="text"
-              id="companyZip"
-              name="companyZip"
-              placeholder="Enter zip code"
-              value={formData.companyZip}
-              onChange={handleInputChange}
-              className={companyZipError ? 'border-red-500 focus:border-red-500' : ''}
-              maxLength={5}
-              required
-            />
+            <div className="relative">
+              <Input
+                type="text"
+                id="companyZip"
+                name="companyZip"
+                placeholder="Enter zip code"
+                value={formData.companyZip}
+                onChange={handleInputChange}
+                className={companyZipError ? 'border-red-500 focus:border-red-500' : ''}
+                maxLength={5}
+                required
+              />
+              {companyZipLoading && (
+                <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+              )}
+            </div>
             {companyZipError && (
               <p className="text-red-600 text-xs mt-1">{companyZipError}</p>
             )}
@@ -722,16 +753,21 @@ const Register = () => {
 
           <div className="space-y-2">
             <Label htmlFor="customerZip">Zip Code *</Label>
-            <Input
-              id="customerZip"
-              name="customerZip"
-              placeholder="Enter zip code"
-              value={formData.customerZip}
-              onChange={handleInputChange}
-              className={customerZipError ? 'border-red-500 focus:border-red-500' : ''}
-              maxLength={5}
-              required
-            />
+            <div className="relative">
+              <Input
+                id="customerZip"
+                name="customerZip"
+                placeholder="Enter zip code"
+                value={formData.customerZip}
+                onChange={handleInputChange}
+                className={customerZipError ? 'border-red-500 focus:border-red-500' : ''}
+                maxLength={5}
+                required
+              />
+              {customerZipLoading && (
+                <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+              )}
+            </div>
             {customerZipError && (
               <p className="text-red-600 text-xs mt-1">{customerZipError}</p>
             )}

@@ -149,7 +149,7 @@ const Header = () => {
   return (
     <>
       <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm">
-        <div className="flex justify-between items-center h-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        <div className="flex justify-between items-center h-20 px-4 sm:px-6 lg:px-8 max-w-full mx-auto">
           <div className="flex items-center">
             {isAuthenticated ? (
               <img
@@ -257,19 +257,36 @@ const Header = () => {
                   )}
                 </button>
                 
-                {/* Desktop Inline Profile */}
+                {/* Desktop Profile Card */}
                 {showProfileDropdown && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowProfileDropdown(false)}></div>
-                    <div className="hidden lg:block absolute -top-3 left-full ml-5 z-50">
-                      <div className="flex flex-col items-start space-y-2">
-                        <span className="text-sm font-medium text-gray-900">{userProfile.email}</span>
-                        <button
-                          onClick={() => { setShowModal(true); setShowProfileDropdown(false); }}
-                          className="px-3 py-1.5 bg-gradient-to-r from-[#01005a] to-[#01005a]/90 text-white text-sm font-medium rounded-lg hover:brightness-105 transition-all duration-200"
-                        >
-                          Logout
-                        </button>
+                    <div className="hidden lg:block absolute left-[-189px] top-full mt-2 z-50">
+                      <div className="bg-[#02066F] rounded-lg shadow-lg p-6 w-64">
+                        <div className="flex flex-col items-center text-center">
+                          {userProfile.picture ? (
+                            <img
+                              className="h-16 w-16 rounded-full object-cover mb-3"
+                              src={userProfile.picture}
+                              alt="Profile"
+                            />
+                          ) : (
+                            <div className="h-16 w-16 rounded-full bg-white flex items-center justify-center mb-3">
+                              <span className="text-lg font-medium text-[#02066F]">{userProfile.fallback}</span>
+                            </div>
+                          )}
+                          {/* <h3 className="text-white font-medium text-lg mb-1">{userProfile.name || 'User'}</h3> */}
+                          <p className="text-white text-sm mb-4">{userProfile.email}</p>
+                          <button
+                            onClick={() => { setShowModal(true); setShowProfileDropdown(false); }}
+                            className="w-full bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center gap-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                            Logout
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </>

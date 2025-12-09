@@ -1,4 +1,6 @@
-import React from "react"
+import React, { useEffect } from "react"
+import { useNavigate } from "react-router-dom"
+import { useAuth } from "../contexts/AuthContext"
 import Header from "../components/layout/Header"
 import Footer from "../components/layout/Footer"
 import { Button } from "../components/ui/button"
@@ -15,6 +17,18 @@ import {
 } from "lucide-react"
 
 const HomePage = () => {
+  const navigate = useNavigate();
+  const { session, user } = useAuth();
+
+  // Handle OAuth callback redirect
+  useEffect(() => {
+    // If user just completed OAuth authentication (has session but no backend data)
+    // redirect to login page where the proper OAuth callback handler exists
+    if (session && user && !localStorage.getItem('companyID')) {
+      console.log('OAuth callback detected on HomePage, redirecting to /login');
+      navigate('/login', { replace: true });
+    }
+  }, [session, user, navigate]);
 
   const features = [
     {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Header from "../components/layout/Header";
 import Footer from "../components/layout/Footer";
 import { Button } from "../components/ui/button";
@@ -21,7 +21,7 @@ import {
   Loader2,
   X
 } from "lucide-react";
-import { useModalClose } from "../hooks/useModalClose";
+import { useModalClose, useZipLookup } from "../hooks";
 
 const Profile = () => {
   const [activeTab, setActiveTab] = useState("company");
@@ -91,6 +91,47 @@ const Profile = () => {
   
   // Handle modal close events for loading overlay
   useModalClose(isLoading, () => {}, 'profile-loading-modal');
+
+  // ZIP code auto-fill callbacks
+  const handleCompanyZipResult = useCallback((result) => {
+    if (isEditing.company) {
+      setCompanyData(prev => ({
+        ...prev,
+        city: result.city,
+        state: result.state
+      }));
+      setErrors(prev => ({
+        ...prev,
+        companyCity: '',
+        companyState: ''
+      }));
+    }
+  }, [isEditing.company]);
+
+  const handlePersonalZipResult = useCallback((result) => {
+    if (isEditing.personal) {
+      setPersonalData(prev => ({
+        ...prev,
+        customerCity: result.city,
+        customerState: result.state
+      }));
+      setErrors(prev => ({
+        ...prev,
+        customerCity: '',
+        customerState: ''
+      }));
+    }
+  }, [isEditing.personal]);
+
+  // ZIP code lookup hooks (only active when editing)
+  const { isLoading: companyZipLoading } = useZipLookup(
+    isEditing.company ? companyData.companyZip : '',
+    handleCompanyZipResult
+  );
+  const { isLoading: personalZipLoading } = useZipLookup(
+    isEditing.personal ? personalData.zipCode : '',
+    handlePersonalZipResult
+  );
 
   const formatphone_number = (value) => {
     const digits = value.replace(/\D/g, '').slice(0, 10);
@@ -889,8 +930,8 @@ const Profile = () => {
                     <Label htmlFor="state">State</Label>
                     <Input
                       id="state"
-                      value={personalData.state}
-                      onChange={(e) => handlePersonalInputChange("state", e.target.value)}
+                      value={personalData.customerState}
+                      onChange={(e) => handlePersonalInputChange("customerState", e.target.value)}
                       disabled={!isEditing.personal}
                       className={errors.customerState ? "border-red-500" : ""}
                     />
@@ -899,14 +940,19 @@ const Profile = () => {
 
                   <div className="space-y-2">
                     <Label htmlFor="zipCode">Zip Code</Label>
-                    <Input
-                      id="zipCode"
-                      value={personalData.zipCode}
-                      onChange={(e) => handlePersonalInputChange("zipCode", e.target.value)}
-                      disabled={!isEditing.personal}
-                      className={errors.customerZip ? "border-red-500" : ""}
-                      maxLength={5}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="zipCode"
+                        value={personalData.zipCode}
+                        onChange={(e) => handlePersonalInputChange("zipCode", e.target.value)}
+                        disabled={!isEditing.personal}
+                        className={errors.customerZip ? "border-red-500" : ""}
+                        maxLength={5}
+                      />
+                      {personalZipLoading && (
+                        <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
                     {errors.customerZip && <p className="text-sm text-red-600">{errors.customerZip}</p>}
                   </div>
                 </div>
@@ -1087,14 +1133,19 @@ const Profile = () => {
 
                   <div className="space-y-2">
                     <Label htmlFor="companyZipCode">Zip Code</Label>
-                    <Input
-                      id="companyZipCode"
-                      value={companyData.zipCode}
-                      onChange={(e) => handleCompanyInputChange("zipCode", e.target.value)}
-                      disabled={!isEditing.company}
-                      className={errors.companyZip ? "border-red-500" : ""}
-                      maxLength={5}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="companyZipCode"
+                        value={companyData.companyZip}
+                        onChange={(e) => handleCompanyInputChange("companyZip", e.target.value)}
+                        disabled={!isEditing.company}
+                        className={errors.companyZip ? "border-red-500" : ""}
+                        maxLength={5}
+                      />
+                      {companyZipLoading && (
+                        <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
                     {errors.companyZip && <p className="text-sm text-red-600">{errors.companyZip}</p>}
                   </div>
 

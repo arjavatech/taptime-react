@@ -26,3 +26,6 @@ export const useApi = (apiFunction) => {
 
 // Export modal close hook
 export { useModalClose } from './useModalClose';
+
+// Export ZIP code lookup hook
+export { useZipLookup } from './useZipLookup';
