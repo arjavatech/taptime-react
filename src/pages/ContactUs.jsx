@@ -139,8 +139,9 @@ const ContactUs = () => {
   };
 
   // API call
+  const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://postgresql-restless-waterfall-2105.fly.dev').replace(/\/$/, '');
   const callContactUsCreateAPiData = async () => {
-    const apiLink = `https://postgresql-restless-waterfall-2105.fly.dev/contact-us/create`;
+    const apiLink = `${API_BASE}/contact-us/create`;
     const requestID = uuidv4();
     const cid = localStorage.getItem("companyID") || "";
 

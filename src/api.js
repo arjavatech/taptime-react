@@ -7,12 +7,12 @@ import { ENCRYPTION_KEY, STORAGE_KEYS } from './constants';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://postgresql-restless-waterfall-2105.fly.dev').replace(/\/$/, '');
 export const API_URLS = {
-  employee: 'https://postgresql-restless-waterfall-2105.fly.dev/employee',
-  company: 'https://postgresql-restless-waterfall-2105.fly.dev/company',
-  customer: 'https://postgresql-restless-waterfall-2105.fly.dev/customer',
-  device: 'https://postgresql-restless-waterfall-2105.fly.dev/device',
-  loginCheck: 'https://postgresql-restless-waterfall-2105.fly.dev/employee/login_check',
-  signUp: 'https://postgresql-restless-waterfall-2105.fly.dev/auth/sign_up'
+  employee: `${API_BASE}/employee`,
+  company: `${API_BASE}/company`,
+  customer: `${API_BASE}/customer`,
+  device: `${API_BASE}/device`,
+  loginCheck: `${API_BASE}/employee/login_check`,
+  signUp: `${API_BASE}/auth/sign_up`
 };
 
 // HTTP client
