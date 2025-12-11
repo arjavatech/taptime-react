@@ -345,7 +345,8 @@ const ReportSetting = () => {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`https://postgresql-restless-waterfall-2105.fly.dev/admin-report-type/update/${company_id}`, {
+      const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://postgresql-restless-waterfall-2105.fly.dev').replace(/\/$/, '');
+      const response = await fetch(`${API_BASE}/admin-report-type/update/${company_id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(setting),
