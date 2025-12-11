@@ -15,9 +15,10 @@ import {
   Clock, 
   MapPin,
   AlertCircle,
-  CheckCircle,
   Loader2
 } from "lucide-react";
+import CenterLoadingOverlay from "../components/ui/CenterLoadingOverlay";
+import { useModalClose } from "../hooks/useModalClose";
 
 const Device = () => {
   // Device API functions
@@ -53,16 +54,14 @@ const Device = () => {
   };
 
   const [devices, setDevices] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAddLoading, setIsAddLoading] = useState(false);
-  const [isDeleteLoading, setIsDeleteLoading] = useState(false);
+  const [globalLoading, setGlobalLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [deviceToDelete, setDeviceToDelete] = useState(null);
   const [editingDevice, setEditingDevice] = useState(null);
   const [copiedKey, setCopiedKey] = useState("");
-  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+
   const [maxDevices, setMaxDevices] = useState(0);
   const [userRole] = useState("admin");
 
@@ -71,6 +70,11 @@ const Device = () => {
     branchName: "",
     timeZone: "America/New_York"
   });
+  
+  // Handle modal close events
+  useModalClose(showAddModal, () => setShowAddModal(false), 'device-add-modal');
+  useModalClose(showDeleteModal, () => setShowDeleteModal(false), 'device-delete-modal');
+  useModalClose(showApprovalModal, () => setShowApprovalModal(false), 'device-approval-modal');
 
   useEffect(() => {
     const limitStr = localStorage.getItem("device_count") || "";
@@ -78,18 +82,22 @@ const Device = () => {
     loadDevices();
   }, []);
 
-  const showToast = (message, type = "success") => {
-    setToast({ show: true, message, type });
-    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
+  const [centerLoading, setCenterLoading] = useState({ show: false, message: "" });
+
+  const showCenterLoading = (message) => {
+    setCenterLoading({ show: true, message });
+  };
+
+  const hideCenterLoading = () => {
+    setCenterLoading({ show: false, message: "" });
   };
 
   const loadDevices = async () => {
-    setIsLoading(true);
+    setGlobalLoading(true);
     const companyId = localStorage.getItem("companyID");
 
     if (!companyId) {
-      showToast("Company ID not found", "error");
-      setIsLoading(false);
+      setGlobalLoading(false);
       return;
     }
 
@@ -101,10 +109,9 @@ const Device = () => {
         setDevices(Array.isArray(data) ? data : [data]);
       }
     } catch (error) {
-      showToast("Failed to load devices", "error");
       setDevices([]);
     } finally {
-      setIsLoading(false);
+      setGlobalLoading(false);
     }
   };
 
@@ -130,20 +137,16 @@ const Device = () => {
     try {
       await navigator.clipboard.writeText(accessKey);
       setCopiedKey(accessKey);
-      showToast("Access key copied to clipboard!");
       setTimeout(() => setCopiedKey(""), 2000);
     } catch (error) {
-      showToast("Failed to copy access key", "error");
+      // Copy failed silently
     }
   };
 
   const handleAddDevice = async () => {
-    setIsAddLoading(true);
     const companyId = localStorage.getItem("companyID");
 
     if (!companyId) {
-      showToast("Company ID not found", "error");
-      setIsAddLoading(false);
       return;
     }
 
@@ -160,21 +163,18 @@ const Device = () => {
     try {
       await deviceApi.create(newDevice);
       await loadDevices();
-      showToast("Device added successfully!");
+      showCenterLoading("Device added successfully!");
+      setTimeout(() => hideCenterLoading(), 800);
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Failed to add device", "error");
-    } finally {
-      setIsAddLoading(false);
+      // Error handled silently
     }
   };
 
   const handleEditDevice = async () => {
     if (!formData.deviceName.trim()) {
-      showToast("Device name is required", "error");
       return;
     }
 
-    setIsAddLoading(true);
     try {
       // Since there's no update API, we'll simulate it by updating the local state
       setDevices(prev => prev.map(device => 
@@ -193,23 +193,19 @@ const Device = () => {
       setEditingDevice(null);
       setShowAddModal(false);
       setFormData({ deviceName: "", branchName: "", timeZone: "America/New_York" });
-      showToast("Device updated successfully!");
+      showCenterLoading("Device updated successfully!");
+      setTimeout(() => hideCenterLoading(), 800);
     } catch (error) {
-      showToast("Failed to update device", "error");
-    } finally {
-      setIsAddLoading(false);
+      // Error handled silently
     }
   };
 
   const handleDeleteDevice = async () => {
     if (!deviceToDelete) return;
 
-    setIsDeleteLoading(true);
     const companyId = localStorage.getItem("companyID");
 
     if (!companyId) {
-      showToast("Company ID not found", "error");
-      setIsDeleteLoading(false);
       return;
     }
 
@@ -219,12 +215,10 @@ const Device = () => {
       setDevices(updatedDevices);
       setShowDeleteModal(false);
       setDeviceToDelete(null);
-      showToast("Device deleted successfully!");
+      showCenterLoading("Device deleted successfully!");
+      setTimeout(() => hideCenterLoading(), 800);
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Failed to delete device", "error");
       await loadDevices();
-    } finally {
-      setIsDeleteLoading(false);
     }
   };
 
@@ -257,34 +251,11 @@ const Device = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
-      {/* Toast Notification */}
-      {toast.show && (
-        <div className="fixed top-4 left-4 right-4 sm:right-4 sm:left-auto z-50 animate-in slide-in-from-top-2">
-          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${
-            toast.type === 'success' 
-              ? 'bg-green-50 border-green-200 text-green-800' 
-              : 'bg-red-50 border-red-200 text-red-800'
-          }`}>
-            {toast.type === 'success' ? (
-              <CheckCircle className="h-5 w-5 text-green-600" />
-            ) : (
-              <AlertCircle className="h-5 w-5 text-red-600" />
-            )}
-            <span className="font-medium text-sm">{toast.message}</span>
-          </div>
-        </div>
-      )}
+      <CenterLoadingOverlay show={centerLoading.show} message={centerLoading.message} />
 
-      {/* Loading Overlay */}
-      {isLoading && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-lg p-6 shadow-xl">
-            <div className="flex items-center space-x-3">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            </div>
-          </div>
-        </div>
-      )}
+
+
+
 
       <div className="pt-20 pb-8 flex-grow bg-gradient-to-br from-slate-50 to-blue-50">
         {/* Page Header */}
@@ -300,19 +271,14 @@ const Device = () => {
               <Button
                 onClick={openAddDevice}
                 className="flex items-center justify-center gap-2 w-full sm:w-auto"
-                disabled={devices.length >= maxDevices || isAddLoading}
+                disabled={globalLoading || devices.length >= maxDevices || centerLoading.show}
               >
-                {isAddLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="sm:inline">Adding...</span>
-                  </>
+                {globalLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  <>
-                    <Plus className="w-4 h-4" />
-                    <span className="sm:inline">Add Device</span>
-                  </>
+                  <Plus className="w-4 h-4" />
                 )}
+                <span className="sm:inline">{globalLoading ? "Loading..." : "Add Device"}</span>
               </Button>
             </div>
           </div>
@@ -320,7 +286,17 @@ const Device = () => {
 
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-          {devices.length === 0 ? (
+          {globalLoading ? (
+            <Card className="text-center py-8 sm:py-12">
+              <CardContent>
+                <Loader2 className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-primary animate-spin mb-4" />
+                <h3 className="text-base sm:text-lg font-medium text-foreground mb-2">Loading devices...</h3>
+                <p className="text-sm text-muted-foreground">
+                  Please wait while we fetch your devices.
+                </p>
+              </CardContent>
+            </Card>
+          ) : devices.length === 0 ? (
             <Card className="text-center py-8 sm:py-12">
               <CardContent>
                 <Tablet className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-4" />
@@ -331,20 +307,11 @@ const Device = () => {
                 <div className="flex justify-center">
                   <Button
                     onClick={openAddDevice}
-                    disabled={devices.length >= maxDevices || isAddLoading}
+                    disabled={globalLoading || devices.length >= maxDevices || centerLoading.show}
                     className="flex items-center justify-center gap-2 w-full sm:w-auto"
                   >
-                    {isAddLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Adding...
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="w-4 h-4" />
-                        Add Device
-                      </>
-                    )}
+                    <Plus className="w-4 h-4" />
+                    Add Device
                   </Button>
                 </div>
                
@@ -551,8 +518,8 @@ const Device = () => {
 
       {/* Add/Edit Device Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-          <Card className="w-full max-w-md mx-4">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={() => setShowAddModal(false)}>
+          <Card id="device-add-modal" className="w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
             <CardHeader className="pb-4">
               <CardTitle className="text-lg sm:text-xl">{editingDevice ? "Edit Device" : "Add New Device"}</CardTitle>
               <CardDescription className="text-sm">
@@ -609,16 +576,9 @@ const Device = () => {
                 <Button
                   onClick={editingDevice ? handleEditDevice : handleAddDevice}
                   className="flex-1 order-1 sm:order-2"
-                  disabled={isAddLoading}
+                  disabled={centerLoading.show}
                 >
-                  {isAddLoading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin mr-2" />
-                      {editingDevice ? "Updating..." : "Adding..."}
-                    </>
-                  ) : (
-                    <>{editingDevice ? "Update Device" : "Add Device"}</>
-                  )}
+                  {editingDevice ? "Update Device" : "Add Device"}
                 </Button>
               </div>
             </CardContent>
@@ -628,8 +588,8 @@ const Device = () => {
 
       {/* Super Admin Approval Modal */}
       {showApprovalModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-          <Card className="w-full max-w-md mx-4">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={() => setShowApprovalModal(false)}>
+          <Card id="device-approval-modal" className="w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-orange-600 text-lg">
                 <AlertCircle className="w-5 h-5" />
@@ -656,8 +616,8 @@ const Device = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && deviceToDelete && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-          <Card className="w-full max-w-md mx-4">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={() => setShowDeleteModal(false)}>
+          <Card id="device-delete-modal" className="w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-destructive text-lg">
                 <AlertCircle className="w-5 h-5" />
@@ -681,16 +641,9 @@ const Device = () => {
                   variant="destructive"
                   onClick={handleDeleteDevice}
                   className="flex-1 order-1 sm:order-2"
-                  disabled={isDeleteLoading}
+                  disabled={centerLoading.show}
                 >
-                  {isDeleteLoading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                      Deleting...
-                    </>
-                  ) : (
-                    "Delete Device"
-                  )}
+                  Delete Device
                 </Button>
               </div>
             </CardContent>

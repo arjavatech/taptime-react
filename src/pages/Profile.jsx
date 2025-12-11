@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Header from "../components/layout/Header";
 import Footer from "../components/layout/Footer";
 import { Button } from "../components/ui/button";
@@ -18,15 +18,21 @@ import {
   Edit,
   CheckCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  X
 } from "lucide-react";
+import { useModalClose, useZipLookup } from "../hooks";
+import { PhoneInput } from 'react-international-phone';
+import 'react-international-phone/style.css';
 
 const Profile = () => {
   const [activeTab, setActiveTab] = useState("company");
   const [isEditing, setIsEditing] = useState({ personal: false, company: false, admin: false });
   const [isLoading, setIsLoading] = useState(true);
-  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [userType, setUserType] = useState("");
+  const [saveSuccess, setSaveSuccess] = useState("");
+  const [saveError, setSaveError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   const [personalData, setPersonalData] = useState({
     firstName: "",
@@ -37,7 +43,7 @@ const Profile = () => {
     street2: "",
     customerCity: "",
     customerState: "",
-    customerZip: "",
+    zipCode: "",
     pin: "",
   });
 
@@ -56,8 +62,15 @@ const Profile = () => {
     city: "",
     state: "",
     companyZip: "",
-    logo: ""
+    logo: "",
+    employmentType: "General Employee"
   });
+
+  const [logoFile, setLogoFile] = useState(null);
+
+  // Employment type tag input states
+  const [employmentTypes, setEmploymentTypes] = useState(['General Employee']);
+  const [employmentTypeInput, setEmploymentTypeInput] = useState('');
 
   const [errors, setErrors] = useState({
     companyName: "",
@@ -77,11 +90,50 @@ const Profile = () => {
   });
 
   const [companyId, setCompanyId] = useState("");
+  
+  // Handle modal close events for loading overlay
+  useModalClose(isLoading, () => {}, 'profile-loading-modal');
 
-  const showToast = (message, type = "success") => {
-    setToast({ show: true, message, type });
-    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
-  };
+  // ZIP code auto-fill callbacks
+  const handleCompanyZipResult = useCallback((result) => {
+    if (isEditing.company) {
+      setCompanyData(prev => ({
+        ...prev,
+        city: result.city,
+        state: result.state
+      }));
+      setErrors(prev => ({
+        ...prev,
+        companyCity: '',
+        companyState: ''
+      }));
+    }
+  }, [isEditing.company]);
+
+  const handlePersonalZipResult = useCallback((result) => {
+    if (isEditing.personal) {
+      setPersonalData(prev => ({
+        ...prev,
+        customerCity: result.city,
+        customerState: result.state
+      }));
+      setErrors(prev => ({
+        ...prev,
+        customerCity: '',
+        customerState: ''
+      }));
+    }
+  }, [isEditing.personal]);
+
+  // ZIP code lookup hooks (only active when editing)
+  const { isLoading: companyZipLoading } = useZipLookup(
+    isEditing.company ? companyData.companyZip : '',
+    handleCompanyZipResult
+  );
+  const { isLoading: personalZipLoading } = useZipLookup(
+    isEditing.personal ? personalData.zipCode : '',
+    handlePersonalZipResult
+  );
 
   const formatphone_number = (value) => {
     const digits = value.replace(/\D/g, '').slice(0, 10);
@@ -100,16 +152,16 @@ const Profile = () => {
     console.log(`Personal input change - Field: ${field}, Value: ${value}`);
     console.log('Current activeTab:', activeTab);
     console.log('Current isEditing.personal:', isEditing.personal);
-    
-    if (field === "phone") {
-      value = formatphone_number(value);
+
+    // Restrict zipCode to 5 digits only
+    if (field === "zipCode" && value && !/^\d{0,5}$/.test(value)) {
+      return;
     }
 
     const fieldMap = {
       "city": "customerCity",
-      "state": "customerState",
-      "zipCode": "customerZip",
-      "address": "address"
+      "address": "address",
+      "state": "customerState"
     };
 
     const actualField = fieldMap[field] || field;
@@ -133,9 +185,6 @@ const Profile = () => {
 
   const handleAdminInputChange = (field, value) => {
     console.log(`Admin input change - Field: ${field}, Value: ${value}`);
-    if (field === "phone") {
-      value = formatphone_number(value);
-    }
     setAdminData(prev => {
       const newData = { ...prev, [field]: value };
       console.log('Updated adminData:', newData);
@@ -147,6 +196,10 @@ const Profile = () => {
   };
 
   const handleCompanyInputChange = (field, value) => {
+    // Restrict zipCode to 5 digits only
+    if (field === "zipCode" && value && !/^\d{0,5}$/.test(value)) {
+      return;
+    }
     setCompanyData(prev => ({ ...prev, [field]: value }));
     const errorField = field === "name" ? "companyName" :
       field === "address" ? "companyStreet" :
@@ -164,23 +217,53 @@ const Profile = () => {
 
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     if (!validTypes.includes(file.type)) {
-      showToast("Please upload a valid image file (JPEG, PNG, GIF, or WebP)", "error");
+      // Error handled silently
       event.target.value = '';
       return;
     }
 
     const maxSize = 2 * 1024 * 1024;
     if (file.size > maxSize) {
-      showToast("Image size must be less than 2MB", "error");
+      // Error handled silently
       event.target.value = '';
       return;
     }
 
+    // Store the file for upload
+    setLogoFile(file);
+
+    // Create preview for display
     const reader = new FileReader();
     reader.onload = (e) => {
       setCompanyData(prev => ({ ...prev, logo: e.target.result }));
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleEmploymentTypeKeyDown = (e) => {
+    if (e.key === ',' || e.key === 'Enter') {
+      e.preventDefault();
+      const value = employmentTypeInput.trim();
+      if (value && !employmentTypes.includes(value)) {
+        const newTypes = [...employmentTypes, value];
+        setEmploymentTypes(newTypes);
+        setCompanyData(prev => ({
+          ...prev,
+          employmentType: newTypes.join(',')
+        }));
+      }
+      setEmploymentTypeInput('');
+    }
+  };
+
+  const handleRemoveEmploymentType = (typeToRemove) => {
+    if (employmentTypes.length === 1) return;
+    const newTypes = employmentTypes.filter(type => type !== typeToRemove);
+    setEmploymentTypes(newTypes);
+    setCompanyData(prev => ({
+      ...prev,
+      employmentType: newTypes.join(',')
+    }));
   };
 
   useEffect(() => {
@@ -205,11 +288,11 @@ const Profile = () => {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
-        phone: formData.phone || "",
+        phone: formatphone_number(formData.phone || ""),
         address: formData.customerStreet,
         street2: formData.customerStreet2,
         customerCity: formData.customerCity,
-        state: formData.customerState,
+        customerState: formData.customerState,
         zipCode: formData.customerZip,
         pin: formData.adminPin,
         decryptedPassword: formData.decryptedPassword,
@@ -224,15 +307,23 @@ const Profile = () => {
         pin: formData.adminPin
       });
 
+      // Load employment type from localStorage
+      const storedEmploymentType = localStorage.getItem("employmentType") || "General Employee";
+
       setCompanyData({
         name: formData.companyName,
         address: formData.companyStreet,
         street2: formData.companyStreet2,
         city: formData.companyCity,
         state: formData.companyState,
-        zipCode: formData.companyZip,
-        logo: formData.logo
+        companyZip: formData.companyZip,
+        logo: formData.logo,
+        employmentType: storedEmploymentType
       });
+
+      // Initialize employmentTypes array from stored CSV
+      setEmploymentTypes(storedEmploymentType.split(',').filter(t => t.trim()));
+
       setIsLoading(false);
     };
 
@@ -277,9 +368,17 @@ const Profile = () => {
       isValid = false;
     }
 
-    if (personalData.phone && !/^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/.test(personalData.phone)) {
-      console.log("phone format validation failed:", personalData.phone);
-      newErrors.phone = "Please use format: (123) 456-7890";
+    if (personalData.phone) {
+      const digits = personalData.phone.replace(/\D/g, '');
+      if (digits.length < 10) {
+        console.log("phone format validation failed:", personalData.phone);
+        newErrors.phone = "Invalid phone number format";
+        isValid = false;
+      }
+    }
+
+    if (personalData.zipCode && personalData.zipCode.length !== 5) {
+      newErrors.customerZip = "Zip code must be exactly 5 digits";
       isValid = false;
     }
 
@@ -330,8 +429,11 @@ const Profile = () => {
       isValid = false;
     }
 
-    if (!companyData.zipCode.trim()) {
+    if (!companyData.companyZip.trim()) {
       newErrors.companyZip = "Please fill out this field";
+      isValid = false;
+    } else if (companyData.companyZip.length !== 5) {
+      newErrors.companyZip = "Zip code must be exactly 5 digits";
       isValid = false;
     }
 
@@ -347,15 +449,16 @@ const Profile = () => {
     }
 
     if (!companyId) {
-      showToast("Company ID not found", "error");
       return;
     }
 
-    setIsLoading(true);
+    setSaveSuccess("");
+    setSaveError("");
+    setIsSaving(true);
+
     try {
-      const updateData = {
+      const companyDataPayload = {
         company_name: companyData.name || "",
-        company_logo: companyData.logo || "",
         report_type: localStorage.getItem("reportType"),
         company_address_line1: companyData.address || "",
         company_address_line2: companyData.street2 || "",
@@ -369,20 +472,26 @@ const Profile = () => {
         customer_address_line1: personalData.address || "",
         customer_address_line2: personalData.street2 || "",
         customer_city: personalData.customerCity || "",
-        customer_state: personalData.customerState || "",
-        customer_zip_code: personalData.customerZip || "",
+        customer_state: personalData.state || "",
+        customer_zip_code: personalData.zipCode || "",
         is_verified: localStorage.getItem("isVerified") === "true",
         device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
         employee_count: parseInt(localStorage.getItem("noOfEmployees") || "30"),
         last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system"
       };
 
-      console.log("Current personalData state:", personalData);
-      console.log("Update data being sent:", updateData);
+      const formData = new FormData();
+      formData.append('company_data', JSON.stringify(companyDataPayload));
 
-      console.log("Updating personal profile:", { companyId, userType, timestamp: new Date().toISOString() });
-      const result = await updateProfile(companyId, updateData);
-      console.log("Personal profile update successful:", result);
+      // Only add logo file if it has been changed
+      if (logoFile) {
+        formData.append('company_logo', logoFile);
+      }
+
+      const result = await updateProfile(companyId, formData);
+
+      // Reset logoFile after successful save
+      setLogoFile(null);
 
       // Update localStorage after successful API call
       if (userType === "Owner") {
@@ -409,28 +518,34 @@ const Profile = () => {
       localStorage.setItem("customerState", personalData.customerState);
       localStorage.setItem("customerZip", personalData.customerZip);
 
-
-
-      setIsEditing(prev => ({ ...prev, personal: false }));
-      showToast("Personal information updated successfully!");
+      setSaveSuccess("Personal information updated successfully!");
+      setTimeout(() => {
+        setSaveSuccess("");
+        setIsEditing(prev => ({ ...prev, personal: false }));
+      }, 3000);
     } catch (error) {
       console.error("Save Personal Error:", error);
-      showToast("Failed to update personal information", "error");
+      setSaveError(error.message || "Failed to update personal information");
+      setTimeout(() => {
+        setSaveError("");
+      }, 3000);
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
   const handleSaveAdmin = async () => {
     console.log("handleSaveAdmin called");
     console.log("Current adminData state:", adminData);
-    
+
     if (!companyId) {
-      showToast("Company ID not found", "error");
       return;
     }
 
-    setIsLoading(true);
+    setSaveSuccess("");
+    setSaveError("");
+    setIsSaving(true);
+
     try {
       const updateData = {
         company_name: companyData.name || "",
@@ -448,17 +563,15 @@ const Profile = () => {
         customer_address_line1: personalData.address || "",
         customer_address_line2:personalData.street2 || "",
         customer_city: personalData.customerCity,
-        customer_state: personalData.customerState || "",
-        customer_zip_code: personalData.customerZip || "",
+        customer_state: personalData.state || "",
+        customer_zip_code: personalData.zipCode || "",
         is_verified: localStorage.getItem("isVerified") === "true",
         device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
         employee_count: parseInt(localStorage.getItem("noOfEmployees") || "30"),
         last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system"
       };
 
-      console.log("Admin update data being sent:", updateData);
       const result = await updateProfile(companyId, updateData);
-      console.log("Admin profile update successful:", result);
 
       localStorage.setItem("firstName", adminData.firstName);
       localStorage.setItem("lastName", adminData.lastName);
@@ -467,13 +580,19 @@ const Profile = () => {
       localStorage.setItem("phone", adminData.phone);
       localStorage.setItem("phone_number", adminData.phone);
 
-      setIsEditing(prev => ({ ...prev, admin: false }));
-      showToast("Admin information updated successfully!");
+      setSaveSuccess("Admin information updated successfully!");
+      setTimeout(() => {
+        setSaveSuccess("");
+        setIsEditing(prev => ({ ...prev, admin: false }));
+      }, 3000);
     } catch (error) {
       console.error("Save Admin Error:", error);
-      showToast("Failed to update admin information", "error");
+      setSaveError(error.message || "Failed to update admin information");
+      setTimeout(() => {
+        setSaveError("");
+      }, 3000);
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
@@ -485,21 +604,23 @@ const Profile = () => {
     }
 
     if (!companyId) {
-      showToast("Company ID not found", "error");
       return;
     }
 
-    setIsLoading(true);
+    setSaveSuccess("");
+    setSaveError("");
+    setIsSaving(true);
+
     try {
-      const updateData = {
+      const companyDataPayload = {
         company_name: companyData.name || "",
-        company_logo: companyData.logo || "",
         report_type: localStorage.getItem("reportType") || "string",
         company_address_line1: companyData.address || "",
         company_address_line2: companyData.street2 || "",
         company_city: companyData.city || "",
         company_state: companyData.state || "",
         company_zip_code: companyData.zipCode || "",
+        employment_type: companyData.employmentType || "General Employee",
         first_name: personalData.firstName || "",
         last_name: personalData.lastName || "",
         email: personalData.email || "",
@@ -507,17 +628,26 @@ const Profile = () => {
         customer_address_line1: personalData.address || "",
         customer_address_line2: personalData.street2 || "",
         customer_city: personalData.customerCity || "",
-        customer_state: personalData.customerState || "",
-        customer_zip_code: personalData.customerZip || "",
-        is_verified: false,
+        customer_state: personalData.state || "",
+        customer_zip_code: personalData.zipCode || "",
+        is_verified: true,
         device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
         employee_count: parseInt(localStorage.getItem("noOfEmployees") || "30"),
         last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system"
       };
 
-      console.log("Calling updateProfile API with:", { companyId, updateData });
-      const result = await updateProfile(companyId, updateData);
-      console.log("API Response:", result);
+      const formData = new FormData();
+      formData.append('company_data', JSON.stringify(companyDataPayload));
+
+      // Only add logo file if it has been changed
+      if (logoFile) {
+        formData.append('company_logo', logoFile);
+      }
+
+      const result = await updateProfile(companyId, formData);
+
+      // Reset logoFile after successful save
+      setLogoFile(null);
 
       // Update localStorage after successful API call
       localStorage.setItem("companyName", companyData.name);
@@ -526,24 +656,28 @@ const Profile = () => {
       localStorage.setItem("companyCity", companyData.city);
       localStorage.setItem("companyState", companyData.state);
       localStorage.setItem("companyZip", companyData.zipCode);
+      localStorage.setItem("employmentType", companyData.employmentType);
       if (companyData.logo) {
         localStorage.setItem("companyLogo", companyData.logo);
       }
-      
 
-      setIsEditing(prev => ({ ...prev, company: false }));
-      showToast("Company information updated successfully!");
+      setSaveSuccess("Company information updated successfully!");
+      setTimeout(() => {
+        setSaveSuccess("");
+        setIsEditing(prev => ({ ...prev, company: false }));
+      }, 3000);
     } catch (error) {
       console.error("Company Save Error:", error);
-      showToast("Failed to update company information", "error");
+      setSaveError(error.message || "Failed to update company information");
+      setTimeout(() => {
+        setSaveError("");
+      }, 3000);
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
-  const handleCancel = async (type) => {
-    setIsEditing(prev => ({ ...prev, [type]: false }));
-
+  const handleCancel = (type) => {
     // Reload original data from localStorage
     const formData = loadProfileData(null);
 
@@ -556,7 +690,7 @@ const Profile = () => {
         address: formData.customerStreet,
         street2: formData.customerStreet2,
         customerCity: formData.customerCity,
-        state: formData.customerState,
+        customerState: formData.customerState,
         zipCode: formData.customerZip,
         pin: formData.adminPin,
         decryptedPassword: formData.decryptedPassword,
@@ -579,6 +713,14 @@ const Profile = () => {
         zipCode: formData.companyZip,
         logo: formData.logo
       });
+    } else if (type === "admin") {
+      setAdminData({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone || "",
+        email: formData.email,
+        pin: formData.adminPin
+      });
     }
 
     // Reset errors
@@ -598,33 +740,19 @@ const Profile = () => {
       phone: "",
       pin: "",
     });
+    
+    // Exit edit mode
+    setIsEditing(prev => ({ ...prev, [type]: false }));
   };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
-      {/* Toast Notification */}
-      {toast.show && (
-        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2">
-          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${toast.type === 'success'
-            ? 'bg-green-50 border-green-200 text-green-800'
-            : 'bg-red-50 border-red-200 text-red-800'
-            }`}>
-            {toast.type === 'success' ? (
-              <CheckCircle className="h-5 w-5 text-green-600" />
-            ) : (
-              <AlertCircle className="h-5 w-5 text-red-600" />
-            )}
-            <span className="font-medium text-sm">{toast.message}</span>
-          </div>
-        </div>
-      )}
-
       {/* Loading Overlay */}
       {isLoading && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-lg p-6 shadow-xl">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <div id="profile-loading-modal" className="bg-white rounded-lg p-6 shadow-xl">
             <div className="flex items-center space-x-3">
               <Loader2 className="w-6 h-6 animate-spin text-primary" />
             </div>
@@ -754,17 +882,23 @@ const Profile = () => {
 
                   <div className="space-y-2">
                     <Label htmlFor="phone">Phone Number</Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                      <Input
-                        id="phone"
-                        value={personalData.phone}
-                        onChange={(e) => handlePersonalInputChange("phone", e.target.value)}
-                        disabled={!isEditing.personal}
-                        className={`pl-10 ${errors.phone ? "border-red-500" : ""}`}
-                        placeholder="(123) 456-7890"
-                      />
-                    </div>
+                    <PhoneInput
+                      defaultCountry="us"
+                      value={personalData.phone}
+                      onChange={(phone) => handlePersonalInputChange("phone", phone)}
+                      disabled={!isEditing.personal}
+                      forceDialCode={true}
+                      className={errors.phone ? 'phone-input-error' : ''}
+                      inputClassName="w-full"
+                      style={{
+                        '--react-international-phone-border-radius': '0.375rem',
+                        '--react-international-phone-border-color': errors.phone ? '#ef4444' : '#e5e7eb',
+                        '--react-international-phone-background-color': '#ffffff',
+                        '--react-international-phone-text-color': '#000000',
+                        '--react-international-phone-selected-dropdown-item-background-color': '#f3f4f6',
+                        '--react-international-phone-height': '2.5rem'
+                      }}
+                    />
                     {errors.phone && <p className="text-sm text-red-600">{errors.phone}</p>}
                   </div>
 
@@ -801,7 +935,7 @@ const Profile = () => {
                     <Label htmlFor="state">State</Label>
                     <Input
                       id="state"
-                      value={personalData.state}
+                      value={personalData.customerState}
                       onChange={(e) => handlePersonalInputChange("state", e.target.value)}
                       disabled={!isEditing.personal}
                       className={errors.customerState ? "border-red-500" : ""}
@@ -811,34 +945,65 @@ const Profile = () => {
 
                   <div className="space-y-2">
                     <Label htmlFor="zipCode">Zip Code</Label>
-                    <Input
-                      id="zipCode"
-                      value={personalData.zipCode}
-                      onChange={(e) => handlePersonalInputChange("zipCode", e.target.value)}
-                      disabled={!isEditing.personal}
-                      className={errors.customerZip ? "border-red-500" : ""}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="zipCode"
+                        value={personalData.zipCode}
+                        onChange={(e) => handlePersonalInputChange("zipCode", e.target.value)}
+                        disabled={!isEditing.personal}
+                        className={errors.customerZip ? "border-red-500" : ""}
+                        maxLength={5}
+                      />
+                      {personalZipLoading && (
+                        <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
                     {errors.customerZip && <p className="text-sm text-red-600">{errors.customerZip}</p>}
                   </div>
                 </div>
 
                 {isEditing.personal && (
-                  <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
-                    <Button
-                      variant="outline"
-                      onClick={() => handleCancel("personal")}
-                      className="flex-1 order-2 sm:order-1"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleSavePersonal}
-                      className="flex-1 flex items-center justify-center gap-2 order-1 sm:order-2"
-                    >
-                      <Save className="w-4 h-4" />
-                      Save Changes
-                    </Button>
-                  </div>
+                  <>
+                    {saveSuccess && (
+                      <div className="p-3 bg-green-50 border border-green-200 rounded-md flex items-start gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-green-600">{saveSuccess}</p>
+                      </div>
+                    )}
+                    {saveError && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                        <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-red-600">{saveError}</p>
+                      </div>
+                    )}
+
+                    <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
+                      <Button
+                        variant="outline"
+                        onClick={() => handleCancel("personal")}
+                        className="flex-1 order-2 sm:order-1"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleSavePersonal}
+                        disabled={isSaving || saveSuccess}
+                        className="flex-1 flex items-center justify-center gap-2 order-1 sm:order-2"
+                      >
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4" />
+                            Save Changes
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -973,34 +1138,102 @@ const Profile = () => {
 
                   <div className="space-y-2">
                     <Label htmlFor="companyZipCode">Zip Code</Label>
-                    <Input
-                      id="companyZipCode"
-                      value={companyData.zipCode}
-                      onChange={(e) => handleCompanyInputChange("zipCode", e.target.value)}
-                      disabled={!isEditing.company}
-                      className={errors.companyZip ? "border-red-500" : ""}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="companyZipCode"
+                        value={companyData.companyZip}
+                        onChange={(e) => handleCompanyInputChange("companyZip", e.target.value)}
+                        disabled={!isEditing.company}
+                        className={errors.companyZip ? "border-red-500" : ""}
+                        maxLength={5}
+                      />
+                      {companyZipLoading && (
+                        <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
                     {errors.companyZip && <p className="text-sm text-red-600">{errors.companyZip}</p>}
+                  </div>
+
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label htmlFor="employmentType">Employment Types</Label>
+                    <div className={`border rounded-md p-2 min-h-[42px] flex flex-wrap gap-2 items-center ${isEditing.company ? 'focus-within:ring-2 focus-within:ring-primary focus-within:border-primary' : 'bg-muted'}`}>
+                      {employmentTypes.map((type, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary text-sm rounded-md"
+                        >
+                          {type}
+                          {isEditing.company && employmentTypes.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveEmploymentType(type)}
+                              className="hover:text-red-500 focus:outline-none"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </span>
+                      ))}
+                      {isEditing.company && (
+                        <input
+                          type="text"
+                          id="employmentType"
+                          value={employmentTypeInput}
+                          onChange={(e) => setEmploymentTypeInput(e.target.value)}
+                          onKeyDown={handleEmploymentTypeKeyDown}
+                          placeholder="Add more..."
+                          className="flex-1 min-w-[120px] outline-none text-sm bg-transparent"
+                        />
+                      )}
+                    </div>
+                    {isEditing.company && (
+                      <p className="text-xs text-muted-foreground">Type employment type and press comma to add</p>
+                    )}
                   </div>
                 </div>
 
                 {isEditing.company && (
-                  <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
-                    <Button
-                      variant="outline"
-                      onClick={() => handleCancel("company")}
-                      className="flex-1 order-2 sm:order-1"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleSaveCompany}
-                      className="flex-1 flex items-center justify-center gap-2 order-1 sm:order-2"
-                    >
-                      <Save className="w-4 h-4" />
-                      Save Changes
-                    </Button>
-                  </div>
+                  <>
+                    {saveSuccess && (
+                      <div className="p-3 bg-green-50 border border-green-200 rounded-md flex items-start gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-green-600">{saveSuccess}</p>
+                      </div>
+                    )}
+                    {saveError && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                        <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-red-600">{saveError}</p>
+                      </div>
+                    )}
+
+                    <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
+                      <Button
+                        variant="outline"
+                        onClick={() => handleCancel("company")}
+                        className="flex-1 order-2 sm:order-1"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleSaveCompany}
+                        disabled={isSaving || saveSuccess}
+                        className="flex-1 flex items-center justify-center gap-2 order-1 sm:order-2"
+                      >
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4" />
+                            Save Changes
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -1064,17 +1297,22 @@ const Profile = () => {
 
                   <div className="space-y-2">
                     <Label htmlFor="adminPhone">Phone Number</Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                      <Input
-                        id="adminPhone"
-                        value={adminData.phone}
-                        onChange={(e) => handleAdminInputChange("phone", e.target.value)}
-                        disabled={!isEditing.admin}
-                        className="pl-10"
-                        placeholder="(123) 456-7890"
-                      />
-                    </div>
+                    <PhoneInput
+                      defaultCountry="us"
+                      value={adminData.phone}
+                      onChange={(phone) => handleAdminInputChange("phone", phone)}
+                      disabled={!isEditing.admin}
+                      forceDialCode={true}
+                      inputClassName="w-full"
+                      style={{
+                        '--react-international-phone-border-radius': '0.375rem',
+                        '--react-international-phone-border-color': '#e5e7eb',
+                        '--react-international-phone-background-color': '#ffffff',
+                        '--react-international-phone-text-color': '#000000',
+                        '--react-international-phone-selected-dropdown-item-background-color': '#f3f4f6',
+                        '--react-international-phone-height': '2.5rem'
+                      }}
+                    />
                   </div>
 
                   <div className="space-y-2">
@@ -1108,22 +1346,47 @@ const Profile = () => {
                 </div>
 
                 {isEditing.admin && (
-                  <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
-                    <Button
-                      variant="outline"
-                      onClick={() => handleCancel("admin")}
-                      className="flex-1 order-2 sm:order-1"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={handleSaveAdmin}
-                      className="flex-1 flex items-center justify-center gap-2 order-1 sm:order-2"
-                    >
-                      <Save className="w-4 h-4" />
-                      Save Changes
-                    </Button>
-                  </div>
+                  <>
+                    {saveSuccess && (
+                      <div className="p-3 bg-green-50 border border-green-200 rounded-md flex items-start gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-green-600">{saveSuccess}</p>
+                      </div>
+                    )}
+                    {saveError && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                        <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-red-600">{saveError}</p>
+                      </div>
+                    )}
+
+                    <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
+                      <Button
+                        variant="outline"
+                        onClick={() => handleCancel("admin")}
+                        className="flex-1 order-2 sm:order-1"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleSaveAdmin}
+                        disabled={isSaving || saveSuccess}
+                        className="flex-1 flex items-center justify-center gap-2 order-1 sm:order-2"
+                      >
+                        {isSaving ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4" />
+                            Save Changes
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>

@@ -21,13 +21,14 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
-  Grid3X3,
-  Table,
   ArrowUp,
   ArrowDown,
   ChevronDown,
   Check
 } from "lucide-react";
+import { HamburgerIcon } from "../components/icons/HamburgerIcon";
+import { GridIcon } from "../components/icons/GridIcon";
+import { useModalClose } from "../hooks/useModalClose";
 
 const Reports = () => {
   const [activeTab, setActiveTab] = useState("today");
@@ -39,7 +40,7 @@ const Reports = () => {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [viewMode, setViewMode] = useState("table");
-  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+
   
   // Common state
   const [devices, setDevices] = useState([]);
@@ -53,6 +54,7 @@ const Reports = () => {
     CheckOutTime: ""
   });
   const [employeeList, setEmployeeList] = useState([]);
+  const [checkinDisabled, setCheckinDisabled] = useState(true);
   const [checkoutDisabled, setCheckoutDisabled] = useState(true);
   const [addButtonDisabled, setAddButtonDisabled] = useState(true);
   const [formErrors, setFormErrors] = useState({
@@ -62,12 +64,16 @@ const Reports = () => {
     checkinTime: "",
     checkoutTime: ""
   });
+  const [modalSuccess, setModalSuccess] = useState("");
+  const [modalError, setModalError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const companyId = localStorage.getItem("companyID");
 
   // Today's report specific
   const [tableData, setTableData] = useState([]);
   const [currentDate, setCurrentDate] = useState("");
   const [checkoutTimes, setCheckoutTimes] = useState({});
+  const [checkoutErrors, setCheckoutErrors] = useState({});
 
   // Day wise report specific
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -88,6 +94,7 @@ const Reports = () => {
   const [selectedHalf, setSelectedHalf] = useState('first');
   const [availableWeeks, setAvailableWeeks] = useState([]);
   const [salariedReportData, setSalariedReportData] = useState([]);
+  const [employmentTypes, setEmploymentTypes] = useState([]);
 
   // Summary stats
   const [summaryStats, setSummaryStats] = useState({
@@ -95,10 +102,12 @@ const Reports = () => {
     totalRecords: 0,
     totalHours: "0.0"
   });
+  
+  // Handle modal close events
+  useModalClose(showModal, () => setShowModal(false), 'add-entry-modal');
 
   const showToast = (message, type = "success") => {
-    setToast({ show: true, message, type });
-    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
+    // Toast notifications removed
   };
 
   // Helper function to get today's date in YYYY-MM-DD format (local timezone)
@@ -217,11 +226,39 @@ const Reports = () => {
   };
 
   // Checkout functionality
-  const handleCheckoutTimeChange = (rowKey, value) => {
+  const handleCheckoutTimeChange = (rowKey, value, checkInTime) => {
     setCheckoutTimes(prev => ({
       ...prev,
       [rowKey]: value
     }));
+
+    // Real-time validation
+    if (value) {
+      const checkinDate = new Date(checkInTime);
+      const checkInDateString = getLocalDateString(checkinDate);
+      const checkoutDateTime = new Date(`${checkInDateString}T${value}:00`);
+
+      if (checkoutDateTime <= checkinDate) {
+        setCheckoutErrors(prev => ({
+          ...prev,
+          [rowKey]: "Checkout time must be greater than check-in time"
+        }));
+      } else {
+        // Clear error if valid
+        setCheckoutErrors(prev => {
+          const updated = { ...prev };
+          delete updated[rowKey];
+          return updated;
+        });
+      }
+    } else {
+      // Clear error if time is cleared
+      setCheckoutErrors(prev => {
+        const updated = { ...prev };
+        delete updated[rowKey];
+        return updated;
+      });
+    }
   };
 
   const handleCheckout = async (row) => {
@@ -328,12 +365,10 @@ const Reports = () => {
         }
       }
 
-      // Consolidate multiple entries per employee into single rows
-      const consolidatedData = consolidateDaywiseReport(processedData);
-      console.log('Day-wise report consolidated:', consolidatedData.length, 'unique employees from', processedData.length, 'records');
+      console.log('Day-wise report processed:', processedData.length, 'records');
 
-      setReportData(consolidatedData);
-      setFilteredData([...consolidatedData]);
+      setReportData(processedData);
+      setFilteredData([...processedData]);
       updateSummaryStats(processedData);
       setCurrentPage(1);
     } catch (err) {
@@ -827,6 +862,8 @@ const Reports = () => {
 
   const closeModal = () => {
     setShowModal(false);
+    setModalSuccess("");
+    setModalError("");
     setNewEntry({
       EmployeeID: "",
       Type: "",
@@ -841,18 +878,56 @@ const Reports = () => {
       checkinTime: "",
       checkoutTime: ""
     });
+    setCheckinDisabled(true);
     setCheckoutDisabled(true);
     setAddButtonDisabled(true);
   };
 
+  const handleDateChange = (value) => {
+    setNewEntry({ ...newEntry, Date: value });
+    if (value) {
+      setCheckinDisabled(false);
+      // If check-in time already exists, enable checkout
+      if (newEntry.CheckInTime) {
+        setCheckoutDisabled(false);
+      }
+    } else {
+      setCheckinDisabled(true);
+      setCheckoutDisabled(true);
+      setAddButtonDisabled(true);
+    }
+  };
+
   const handleCheckinTimeChange = (value) => {
     setNewEntry({ ...newEntry, CheckInTime: value });
-    if (value) {
+    if (value && newEntry.Date) {
       setCheckoutDisabled(false);
       setAddButtonDisabled(false);
     } else {
       setCheckoutDisabled(true);
       setAddButtonDisabled(true);
+    }
+  };
+
+  const handleModalCheckoutTimeChange = (value) => {
+    setNewEntry({ ...newEntry, CheckOutTime: value });
+
+    // Validate if both times are present
+    if (value && newEntry.CheckInTime && newEntry.Date) {
+      const checkinDateTime = new Date(`${newEntry.Date}T${newEntry.CheckInTime}:00`);
+      const checkoutDateTime = new Date(`${newEntry.Date}T${value}:00`);
+
+      if (checkoutDateTime <= checkinDateTime) {
+        setFormErrors({
+          ...formErrors,
+          checkoutTime: "Checkout time must be greater than check-in time"
+        });
+      } else {
+        setFormErrors({
+          ...formErrors,
+          checkoutTime: ""
+        });
+      }
     }
   };
 
@@ -869,17 +944,34 @@ const Reports = () => {
   const handleSaveEntry = async () => {
     // Validation
     if (!newEntry.EmployeeID || !newEntry.Type || !newEntry.Date || !newEntry.CheckInTime) {
-      showToast("Please fill in all required fields", "error");
+      setModalError("Please fill in all required fields");
+      setTimeout(() => setModalError(""), 3000);
       return;
+    }
+
+    // If checkout time is provided, validate it's greater than check-in
+    if (newEntry.CheckOutTime) {
+      const checkinDateTime = new Date(`${newEntry.Date}T${newEntry.CheckInTime}:00`);
+      const checkoutDateTime = new Date(`${newEntry.Date}T${newEntry.CheckOutTime}:00`);
+
+      if (checkoutDateTime <= checkinDateTime) {
+        setModalError("Checkout time must be greater than check-in time");
+        setTimeout(() => setModalError(""), 3000);
+        return;
+      }
     }
 
     const selectedEmployee = employeeList.find(emp => emp.pin === newEntry.EmployeeID);
     if (!selectedEmployee) {
-      showToast("Selected employee not found", "error");
+      setModalError("Selected employee not found");
+      setTimeout(() => setModalError(""), 3000);
       return;
     }
 
-    setLoading(true);
+    setModalSuccess("");
+    setModalError("");
+    setIsSubmitting(true);
+
     try {
       // Calculate time worked: if no checkout time, set to "0:00"
       const timeWorked = newEntry.CheckOutTime
@@ -913,13 +1005,19 @@ const Reports = () => {
         await viewDatewiseReport(selectedDate);
       }
 
-      showToast("Entry saved successfully!");
-      closeModal();
+      setModalSuccess("Entry added successfully!");
+      setTimeout(() => {
+        setModalSuccess("");
+        closeModal();
+      }, 3000);
     } catch (error) {
       console.error("Error saving entry:", error);
-      showToast("Failed to save entry. Please try again.", "error");
+      setModalError(error.message || "Failed to save entry. Please try again.");
+      setTimeout(() => {
+        setModalError("");
+      }, 3000);
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -928,6 +1026,12 @@ const Reports = () => {
       loadDevices();
       loadEmployeeList();
       setCurrentDate(getTodayDate());
+
+      // Load employment types from localStorage
+      const storedEmploymentTypes = localStorage.getItem("employmentType");
+      if (storedEmploymentTypes) {
+        setEmploymentTypes(storedEmploymentTypes.split(",").map(t => t.trim()).filter(t => t));
+      }
     }
   }, [companyId, loadDevices, loadEmployeeList]);
 
@@ -1017,26 +1121,11 @@ const Reports = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
-      {/* Toast Notification */}
-      {toast.show && (
-        <div className="fixed top-4 left-4 right-4 sm:right-4 sm:left-auto z-50 animate-in slide-in-from-top-2">
-          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${toast.type === 'success'
-              ? 'bg-green-50 border-green-200 text-green-800'
-              : 'bg-red-50 border-red-200 text-red-800'
-            }`}>
-            {toast.type === 'success' ? (
-              <CheckCircle className="h-5 w-5 text-green-600" />
-            ) : (
-              <AlertCircle className="h-5 w-5 text-red-600" />
-            )}
-            <span className="font-medium text-sm">{toast.message}</span>
-          </div>
-        </div>
-      )}
+
 
       {/* Loading Overlay */}
       {loading && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
           <div className="bg-white rounded-lg p-6 shadow-xl">
             <div className="flex items-center space-x-3">
               <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -1246,11 +1335,11 @@ const Reports = () => {
                     className="absolute top-full left-0 mt-1 w-48 bg-background border border-input rounded-md shadow-lg z-10 hidden"
                   >
                     {[
-                      { key: 'name', direction: 'asc', label: 'Sort By Name A-Z', icon: ArrowUp },
-                      { key: 'name', direction: 'desc', label: 'Sort By Name Z-A', icon: ArrowDown },
-                      { key: 'pin', direction: 'asc', label: 'Sort By PIN A-Z', icon: ArrowUp },
-                      { key: 'pin', direction: 'desc', label: 'Sort By PIN Z-A', icon: ArrowDown },
-                     
+                      { key: 'name', direction: 'asc', label: 'Sort By Name', icon: ArrowUp },
+                      { key: 'name', direction: 'desc', label: 'Sort By Name', icon: ArrowDown },
+                      { key: 'pin', direction: 'asc', label: 'Sort By PIN', icon: ArrowUp },
+                      { key: 'pin', direction: 'desc', label: 'Sort By PIN', icon: ArrowDown },
+
                     ].map(({ key, direction, label, icon: Icon }) => (
                       <button
                         key={`${key}-${direction}`}
@@ -1285,7 +1374,7 @@ const Reports = () => {
                     onClick={() => setViewMode("table")}
                     className="h-8 w-8 p-0"
                   >
-                    <Table className="w-4 h-4" />
+                    <HamburgerIcon className="w-4 h-4" />
                   </Button>
                   <Button
                     variant={viewMode === "grid" ? "default" : "ghost"}
@@ -1293,7 +1382,7 @@ const Reports = () => {
                     onClick={() => setViewMode("grid")}
                     className="h-8 w-8 p-0"
                   >
-                    <Grid3X3 className="w-4 h-4" />
+                    <GridIcon className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
@@ -1394,6 +1483,7 @@ const Reports = () => {
                             const rowKey = `${record.Pin}-${record.CheckInTime}`;
                             const hasCheckout = record.CheckOutTime;
                             const selectedTime = checkoutTimes[rowKey];
+                            const checkoutError = checkoutErrors[rowKey];
 
                             // Get minimum time (check-in time) for time picker
                             const checkInTime = new Date(record.CheckInTime);
@@ -1408,13 +1498,22 @@ const Reports = () => {
                                   {hasCheckout ? (
                                     formatTime(record.CheckOutTime)
                                   ) : (
-                                    <input
-                                      type="time"
-                                      value={selectedTime || ''}
-                                      onChange={(e) => handleCheckoutTimeChange(rowKey, e.target.value)}
-                                      min={minTime}
-                                      className="border border-gray-300 rounded px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    />
+                                    <div className="flex flex-col items-center">
+                                      <input
+                                        type="time"
+                                        value={selectedTime || ''}
+                                        onChange={(e) => handleCheckoutTimeChange(rowKey, e.target.value, record.CheckInTime)}
+                                        min={minTime}
+                                        className={`border rounded px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 ${
+                                          checkoutError
+                                            ? 'border-red-500 focus:ring-red-500'
+                                            : 'border-gray-300 focus:ring-blue-500'
+                                        }`}
+                                      />
+                                      {checkoutError && (
+                                        <span className="text-red-500 text-xs mt-1">{checkoutError}</span>
+                                      )}
+                                    </div>
                                   )}
                                 </td>
                                 <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
@@ -1425,9 +1524,9 @@ const Reports = () => {
                                 <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
                                   <Button
                                     onClick={() => handleCheckout(record)}
-                                    disabled={hasCheckout || !selectedTime}
+                                    disabled={hasCheckout || !selectedTime || checkoutError}
                                     size="sm"
-                                    className={`text-xs ${hasCheckout || !selectedTime ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+                                    className={`text-xs ${hasCheckout || !selectedTime || checkoutError ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
                                   >
                                     {hasCheckout ? 'Checked Out' : 'Check Out'}
                                   </Button>
@@ -1761,8 +1860,8 @@ const Reports = () => {
 
       {/* Add Entry Modal */}
       {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-          <Card className="w-full max-w-md max-h-[90vh] mx-4">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={() => setShowModal(false)}>
+          <Card id="add-entry-modal" className="w-full max-w-md max-h-[90vh] mx-4" onClick={(e) => e.stopPropagation()}>
             <CardHeader className="pb-4">
               <CardTitle className="text-lg sm:text-xl">
                 Add Entry
@@ -1794,20 +1893,17 @@ const Reports = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="type" className="text-sm font-medium">Type</Label>
+                <Label htmlFor="type" className="text-sm font-medium">Employment Type</Label>
                 <select
                   id="type"
                   value={newEntry.Type}
                   onChange={(e) => setNewEntry({ ...newEntry, Type: e.target.value })}
                   className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
                 >
-                  <option value="">Select Type</option>
-                  <option value="Belt">Belt</option>
-                  <option value="Path">Path</option>
-                  <option value="Camp">Camp</option>
-                  <option value="External">Off site</option>
-                  <option value="Trial">Trial</option>
-                  <option value="Reception">Reception</option>
+                  <option value="">Select Employment Type</option>
+                  {employmentTypes.map((type, index) => (
+                    <option key={index} value={type}>{type}</option>
+                  ))}
                 </select>
                 {formErrors.type && (
                   <p className="text-red-500 text-sm mt-1">{formErrors.type}</p>
@@ -1815,12 +1911,12 @@ const Reports = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="date" className="text-sm font-medium">Date</Label>
+                <Label htmlFor="date" className="text-sm font-medium">Date *</Label>
                 <Input
                   id="date"
                   type="date"
                   value={newEntry.Date}
-                  onChange={(e) => setNewEntry({ ...newEntry, Date: e.target.value })}
+                  onChange={(e) => handleDateChange(e.target.value)}
                   max={getTodayDate()}
                   className="text-sm"
                 />
@@ -1831,13 +1927,14 @@ const Reports = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="checkinTime" className="text-sm font-medium">Check-in Time</Label>
+                  <Label htmlFor="checkinTime" className="text-sm font-medium">Check-in Time *</Label>
                   <Input
                     id="checkinTime"
                     type="time"
                     value={newEntry.CheckInTime}
                     onChange={(e) => handleCheckinTimeChange(e.target.value)}
-                    className="text-sm"
+                    disabled={checkinDisabled}
+                    className="text-sm disabled:bg-muted"
                   />
                   {formErrors.checkinTime && (
                     <p className="text-red-500 text-sm mt-1">{formErrors.checkinTime}</p>
@@ -1850,8 +1947,9 @@ const Reports = () => {
                     id="checkoutTime"
                     type="time"
                     value={newEntry.CheckOutTime}
-                    onChange={(e) => setNewEntry({ ...newEntry, CheckOutTime: e.target.value })}
+                    onChange={(e) => handleModalCheckoutTimeChange(e.target.value)}
                     disabled={checkoutDisabled}
+                    min={newEntry.CheckInTime || undefined}
                     className="text-sm disabled:bg-muted"
                   />
                   {formErrors.checkoutTime && (
@@ -1859,6 +1957,19 @@ const Reports = () => {
                   )}
                 </div>
               </div>
+
+              {modalSuccess && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-md flex items-start gap-2">
+                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-green-600">{modalSuccess}</p>
+                </div>
+              )}
+              {modalError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-600">{modalError}</p>
+                </div>
+              )}
 
               <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <Button
@@ -1870,10 +1981,10 @@ const Reports = () => {
                 </Button>
                 <Button
                   onClick={handleSaveEntry}
-                  disabled={addButtonDisabled || loading}
+                  disabled={addButtonDisabled || isSubmitting || modalSuccess}
                   className="flex-1 order-1 sm:order-2"
                 >
-                  {loading ? (
+                  {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Adding...

@@ -26,8 +26,6 @@ import {
   AlertCircle,
   CheckCircle,
   Loader2,
-  Grid3X3,
-  Table,
   ChevronLeft,
   ChevronRight,
   ArrowUpDown,
@@ -36,6 +34,12 @@ import {
   ChevronDown,
   Check
 } from "lucide-react";
+import { HamburgerIcon } from "../components/icons/HamburgerIcon";
+import { GridIcon } from "../components/icons/GridIcon";
+import CenterLoadingOverlay from "../components/ui/CenterLoadingOverlay";
+import { useModalClose } from "../hooks/useModalClose";
+import { PhoneInput } from 'react-international-phone';
+import 'react-international-phone/style.css';
 
 const EmployeeList = () => {
   // Data state
@@ -54,14 +58,18 @@ const EmployeeList = () => {
   const [currentEmployee, setCurrentEmployee] = useState(null);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [isAddLoading, setIsAddLoading] = useState(false);
-  const [isDeleteLoading, setIsDeleteLoading] = useState(false);
+  const [globalLoading, setGlobalLoading] = useState(true);
   const [adminCount, setAdminCount] = useState(0);
   const [superAdminCount, setSuperAdminCount] = useState(0);
   const [viewMode, setViewMode] = useState("table");
-  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
   const [employeeToDelete, setEmployeeToDelete] = useState(null);
+  const [centerLoading, setCenterLoading] = useState({ show: false, message: "" });
+  const [modalError, setModalError] = useState("");
+  const [modalSuccess, setModalSuccess] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [deleteSuccess, setDeleteSuccess] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Form data
   const [formData, setFormData] = useState({
@@ -105,6 +113,10 @@ const EmployeeList = () => {
   const maxEmployees = parseInt(limitEmployees);
   const adminType = localStorage.getItem("adminType");
   const companyId = localStorage.getItem("companyID");
+  
+  // Handle modal close events
+  useModalClose(showAddModal, () => setShowAddModal(false), 'employee-add-modal');
+  useModalClose(showDeleteModal, () => setShowDeleteModal(false), 'employee-delete-modal');
 
   // Initialize component
   useEffect(() => {
@@ -157,16 +169,16 @@ const EmployeeList = () => {
   // Fetch all employee data using centralized API
   const loadEmployeeData = useCallback(async () => {
     try {
-      setLoading(true);
+      setGlobalLoading(true);
       const data = await fetchEmployeeData();
       if (data) {
         const employeesArray = Array.isArray(data) ? data : [];
         setEmployees(employeesArray);
       }
     } catch (error) {
-      showToast("Failed to load employee data", "error");
+      // Error handled silently
     } finally {
-      setLoading(false);
+      setGlobalLoading(false);
     }
   }, []);
 
@@ -245,10 +257,43 @@ const EmployeeList = () => {
     }
   }, [employees, searchQuery, activeTab, sortConfig, currentPage, viewMode, getEmail, adminType]);
 
-  // Toast notification helper
-  const showToast = (message, type = "success") => {
-    setToast({ show: true, message, type });
-    setTimeout(() => setToast({ show: false, message: "", type: "success" }), 3000);
+  // Center loading helper
+  const showCenterLoading = (message) => {
+    setCenterLoading({ show: true, message });
+  };
+
+  const hideCenterLoading = () => {
+    setCenterLoading({ show: false, message: "" });
+  };
+
+  // Parse duplicate error from backend
+  const parseDuplicateError = (errorDetail) => {
+    if (!errorDetail) return null;
+
+    const detail = errorDetail.toLowerCase();
+
+    if (detail.includes('pin') || detail.includes('employee_c_id_pin_unique')) {
+      return { field: 'pin', message: 'PIN already exists. Please use a different phone number.' };
+    }
+    if (detail.includes('email')) {
+      return { field: 'email', message: 'Email already exists. Please use a different email address.' };
+    }
+    if (detail.includes('phone')) {
+      return { field: 'phone_number', message: 'Phone number already exists. Please use a different phone number.' };
+    }
+
+    return { field: 'general', message: errorDetail };
+  };
+
+  // Generate alternative PIN by changing first digit
+  const generateAlternativePin = (currentPin, existingPins) => {
+    for (let i = 0; i <= 9; i++) {
+      const newPin = i.toString() + currentPin.slice(1);
+      if (!existingPins.includes(newPin) && newPin !== currentPin) {
+        return newPin;
+      }
+    }
+    return null;
   };
 
   // Employee type helpers
@@ -268,6 +313,8 @@ const EmployeeList = () => {
   const openAddModal = (adminLevel = 0) => {
     setEditingEmployee(null);
     setErrors({ first_name: "", last_name: "", phone_number: "", email: "" });
+    setModalError("");
+    setModalSuccess("");
     setFormData({
       pin: "",
       first_name: "",
@@ -285,6 +332,8 @@ const EmployeeList = () => {
   const openEditModal = (employee) => {
     setEditingEmployee(employee);
     setErrors({ first_name: "", last_name: "", phone_number: "", email: "" });
+    setModalError("");
+    setModalSuccess("");
     setFormData({
       pin: employee.pin,
       first_name: employee.first_name,
@@ -301,43 +350,38 @@ const EmployeeList = () => {
 
   const openDeleteModal = (employee) => {
     setEmployeeToDelete(employee);
+    setDeleteError("");
+    setDeleteSuccess("");
     setShowDeleteModal(true);
   };
 
-  // Format phone number display
+  // Format phone number display with country code
   const formatPhoneNumber = useCallback((phone) => {
     if (!phone) return "";
-    let value = phone.replace(/\D/g, "");
-    if (value.length > 6) {
-      value = `(${value.slice(0, 3)}) ${value.slice(3, 6)}-${value.slice(
-        6,
-        10
-      )}`;
-    } else if (value.length > 3) {
-      value = `(${value.slice(0, 3)}) ${value.slice(3)}`;
-    } else {
-      value = `(${value}`;
+    
+    const digits = phone.replace(/\D/g, "");
+    
+    if (digits.length > 10 || (digits.length === 11 && digits.startsWith('1'))) {
+      const countryCode = digits.slice(0, -10);
+      const areaCode = digits.slice(-10, -7);
+      const firstPart = digits.slice(-7, -4);
+      const lastPart = digits.slice(-4);
+      return `+${countryCode} (${areaCode}) ${firstPart}-${lastPart}`;
     }
-    return value;
+    
+    if (digits.length === 10) {
+      return `+1 (${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+    }
+    
+    return phone;
   }, []);
 
   // Handle phone input with auto-formatting
-  const handlePhoneInput = useCallback((e) => {
-    let value = e.target.value.replace(/\D/g, "");
-    if (value.length > 10) value = value.slice(0, 10);
-
-    if (value.length > 6) {
-      value = `(${value.slice(0, 3)}) ${value.slice(3, 6)}-${value.slice(6)}`;
-    } else if (value.length > 3) {
-      value = `(${value.slice(0, 3)}) ${value.slice(3)}`;
-    } else if (value.length > 0) {
-      value = `(${value}`;
-    }
-
-    setFormData((prev) => ({ ...prev, phone_number: value }));
+  const handlePhoneInput = useCallback((phone) => {
+    setFormData((prev) => ({ ...prev, phone_number: phone }));
 
     // Auto-generate PIN from last 4 digits
-    const digits = value.replace(/\D/g, "");
+    const digits = phone.replace(/\D/g, '').replace(/^1/, '');
     if (digits.length >= 4) {
       setFormData((prev) => ({ ...prev, pin: digits.slice(-4) }));
     }
@@ -367,13 +411,15 @@ const EmployeeList = () => {
     }
 
     // Phone validation
-    const phoneRegex = /^\([0-9]{3}\) [0-9]{3}-[0-9]{4}$/;
     if (!formData.phone_number) {
       newErrors.phone_number = "Phone number is required";
       isValid = false;
-    } else if (!phoneRegex.test(formData.phone_number)) {
-      newErrors.phone_number = "Invalid phone number format";
-      isValid = false;
+    } else {
+      const digits = formData.phone_number.replace(/\D/g, '');
+      if (digits.length < 10) {
+        newErrors.phone_number = "Invalid phone number format";
+        isValid = false;
+      }
     }
 
     // Email validation for admins/superadmins
@@ -395,39 +441,72 @@ const EmployeeList = () => {
   // Handle add/edit employee
   const handleAddEmployee = async () => {
     if (!validateForm()) {
-      showToast("Please fix the errors before submitting", "error");
       return;
     }
 
-    setIsAddLoading(true);
+    setModalError("");
+    setIsSubmitting(true);
+
     try {
       if (editingEmployee) {
         await updateEmployeeWithData(editingEmployee.emp_id, formData);
-        showToast("Employee updated successfully!");
+        setModalSuccess("Employee updated successfully!");
+        setIsSubmitting(false);
+
+        setTimeout(() => {
+          setShowAddModal(false);
+          setEditingEmployee(null);
+          setModalSuccess("");
+          loadEmployeeData();
+        }, 3000);
+        return;
       } else {
         await createEmployeeWithData(formData);
-        showToast("Employee added successfully!");
       }
 
+      // Success - close modal and refresh
       setShowAddModal(false);
       setEditingEmployee(null);
       loadEmployeeData();
     } catch (error) {
-      let errorMessage;
+      const duplicateError = parseDuplicateError(error.detail || error.message);
 
-      // Check for 409 conflict (duplicate email/phone)
-      if (error.response?.status === 409) {
-        errorMessage = `Email ${formData.email} already exists`;
+      if (duplicateError?.field === 'pin' && !editingEmployee) {
+        // Try auto-generating alternative PIN
+        const existingPins = employees.map(e => e.pin);
+        const newPin = generateAlternativePin(formData.pin, existingPins);
+
+        if (newPin) {
+          // Retry with new PIN
+          try {
+            const newFormData = { ...formData, pin: newPin };
+            await createEmployeeWithData(newFormData);
+
+            // Show success message with original and new PIN
+            setModalSuccess(`PIN ${formData.pin} was already taken. Created with PIN: ${newPin}`);
+            setIsSubmitting(false);
+
+            // Close modal after 5 seconds for reading
+            setTimeout(() => {
+              setShowAddModal(false);
+              setEditingEmployee(null);
+              setModalSuccess("");
+              loadEmployeeData();
+            }, 5000);
+            return;
+          } catch (retryError) {
+            setModalError(parseDuplicateError(retryError.detail || retryError.message)?.message || 'Failed to create employee');
+          }
+        } else {
+          setModalError('PIN already exists and no alternative PIN available. Please use a different phone number.');
+        }
+      } else if (duplicateError) {
+        setModalError(duplicateError.message);
       } else {
-        errorMessage = `Email ${formData.email} already exists` ||
-          (editingEmployee ? "Failed to update employee" : "Failed to add employee");
+        setModalError(error.message || 'An unexpected error occurred');
       }
-
-      setShowAddModal(false);
-      setEditingEmployee(null);
-      showToast(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage), "error");
     } finally {
-      setIsAddLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -435,17 +514,23 @@ const EmployeeList = () => {
   const handleDeleteEmployee = async () => {
     if (!employeeToDelete) return;
 
-    setIsDeleteLoading(true);
+    setDeleteError("");
+    setIsDeleting(true);
+
     try {
       await deleteEmployeeById(employeeToDelete.emp_id);
-      setShowDeleteModal(false);
-      setEmployeeToDelete(null);
-      showToast("Employee deleted successfully!");
-      loadEmployeeData();
+      setDeleteSuccess("Employee deleted successfully!");
+
+      setTimeout(() => {
+        setShowDeleteModal(false);
+        setEmployeeToDelete(null);
+        setDeleteSuccess("");
+        loadEmployeeData();
+      }, 3000);
     } catch (error) {
-      showToast("Failed to delete employee", "error");
+      setDeleteError(error.message || "Failed to delete employee");
     } finally {
-      setIsDeleteLoading(false);
+      setIsDeleting(false);
     }
   };
 
@@ -453,33 +538,9 @@ const EmployeeList = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
-      {/* Toast Notification */}
-      {toast.show && (
-        <div className="fixed top-4 left-4 right-4 sm:right-4 sm:left-auto z-50 animate-in slide-in-from-top-2">
-          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${toast.type === 'success'
-              ? 'bg-green-50 border-green-200 text-green-800'
-              : 'bg-red-50 border-red-200 text-red-800'
-            }`}>
-            {toast.type === 'success' ? (
-              <CheckCircle className="h-5 w-5 text-green-600" />
-            ) : (
-              <AlertCircle className="h-5 w-5 text-red-600" />
-            )}
-            <span className="font-medium text-sm">{toast.message}</span>
-          </div>
-        </div>
-      )}
+      <CenterLoadingOverlay show={centerLoading.show} message={centerLoading.message} />
 
-      {/* Loading Overlay */}
-      {loading && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-lg p-6 shadow-xl">
-            <div className="flex items-center space-x-3">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            </div>
-          </div>
-        </div>
-      )}
+
 
       <div className="pt-20 pb-8 flex-1 bg-gradient-to-br from-slate-50 to-blue-50">
         {/* Page Header */}
@@ -509,7 +570,10 @@ const EmployeeList = () => {
         {/* Summary Statistics */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
-            <Card>
+            <Card
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => setActiveTab("employees")}
+            >
               <CardContent className="p-4 sm:p-6">
                 <div className="flex items-center">
                   <Users className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
@@ -521,7 +585,10 @@ const EmployeeList = () => {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => setActiveTab("admins")}
+            >
               <CardContent className="p-4 sm:p-6">
                 <div className="flex items-center">
                   <Shield className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
@@ -533,7 +600,10 @@ const EmployeeList = () => {
               </CardContent>
             </Card>
 
-            <Card className="sm:col-span-2 md:col-span-1">
+            <Card
+              className="sm:col-span-2 md:col-span-1 cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => setActiveTab("superadmins")}
+            >
               <CardContent className="p-4 sm:p-6">
                 <div className="flex items-center">
                   <Crown className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600" />
@@ -621,12 +691,12 @@ const EmployeeList = () => {
                   className="absolute top-full left-0 mt-1 w-48 bg-background border border-input rounded-md shadow-lg z-10 hidden"
                 >
                   {[
-                    { key: 'name', direction: 'asc', label: 'Sort By Name A-Z', icon: ArrowUp },
-                    { key: 'name', direction: 'desc', label: 'Sort By Name Z-A', icon: ArrowDown },
-                    { key: 'pin', direction: 'asc', label: 'Sort By PIN A-Z', icon: ArrowUp },
-                    { key: 'pin', direction: 'desc', label: 'Sort By PIN Z-A', icon: ArrowDown },
-                    { key: 'contact', direction: 'asc', label: 'Sort By Contact A-Z', icon: ArrowUp },
-                    { key: 'contact', direction: 'desc', label: 'Sort By Contact Z-A', icon: ArrowDown }
+                    { key: 'name', direction: 'asc', label: 'Sort By Name', icon: ArrowUp },
+                    { key: 'name', direction: 'desc', label: 'Sort By Name', icon: ArrowDown },
+                    { key: 'pin', direction: 'asc', label: 'Sort By PIN', icon: ArrowUp },
+                    { key: 'pin', direction: 'desc', label: 'Sort By PIN', icon: ArrowDown },
+                    { key: 'contact', direction: 'asc', label: 'Sort By Contact', icon: ArrowUp },
+                    { key: 'contact', direction: 'desc', label: 'Sort By Contact', icon: ArrowDown }
                   ].map(({ key, direction, label, icon: Icon }) => (
                     <button
                       key={`${key}-${direction}`}
@@ -658,7 +728,7 @@ const EmployeeList = () => {
                   onClick={() => setViewMode("table")}
                   className="h-8 w-8 p-0"
                 >
-                  <Table className="w-4 h-4" />
+                  <HamburgerIcon className="w-4 h-4" />
                 </Button>
                 <Button
                   variant={viewMode === "grid" ? "default" : "ghost"}
@@ -666,7 +736,7 @@ const EmployeeList = () => {
                   onClick={() => setViewMode("grid")}
                   className="h-8 w-8 p-0"
                 >
-                  <Grid3X3 className="w-4 h-4" />
+                  <GridIcon className="w-4 h-4" />
                 </Button>
               </div>
             </div>
@@ -756,7 +826,7 @@ const EmployeeList = () => {
                       {employee.phone_number && (
                         <div className="flex items-center gap-2 text-xs sm:text-sm">
                           <Phone className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
-                          <span>{formatPhoneNumber(employee.phone_number)}</span>
+                          <span className="font-mono">{formatPhoneNumber(employee.phone_number)}</span>
                         </div>
                       )}
 
@@ -808,7 +878,7 @@ const EmployeeList = () => {
                           <td className="p-4">
                             <div className="text-sm space-y-1">
                               {employee.email && <div>{employee.email}</div>}
-                              {employee.phone_number && <div className="text-muted-foreground">{formatPhoneNumber(employee.phone_number)}</div>}
+                              {employee.phone_number && <div className="text-muted-foreground font-mono">{formatPhoneNumber(employee.phone_number)}</div>}
                             </div>
                           </td>
                           <td className="p-4">
@@ -886,8 +956,8 @@ const EmployeeList = () => {
 
       {/* Add/Edit Employee Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-          <Card className="w-full max-w-md max-h-[90vh] overflow-y-auto mx-4">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={() => setShowAddModal(false)}>
+          <Card id="employee-add-modal" className="w-full max-w-md max-h-[90vh] overflow-y-auto mx-4" onClick={(e) => e.stopPropagation()}>
             <CardHeader className="pb-4">
               <CardTitle className="text-lg sm:text-xl">
                 {editingEmployee ? "Edit" : "Add"} {
@@ -929,12 +999,21 @@ const EmployeeList = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="phone" className="text-sm font-medium">Phone Number</Label>
-                <Input
-                  id="phone"
-                  placeholder="(123) 456-7890"
+                <PhoneInput
+                  defaultCountry="us"
                   value={formData.phone_number}
                   onChange={handlePhoneInput}
-                  className="text-sm"
+                  forceDialCode={true}
+                  className={errors.phone_number ? 'phone-input-error' : ''}
+                  inputClassName="w-full"
+                  style={{
+                    '--react-international-phone-border-radius': '0.375rem',
+                    '--react-international-phone-border-color': errors.phone_number ? '#ef4444' : '#e5e7eb',
+                    '--react-international-phone-background-color': '#ffffff',
+                    '--react-international-phone-text-color': '#000000',
+                    '--react-international-phone-selected-dropdown-item-background-color': '#f3f4f6',
+                    '--react-international-phone-height': '2.5rem'
+                  }}
                 />
                 {errors.phone_number && <p className="text-xs text-red-600">{errors.phone_number}</p>}
               </div>
@@ -982,27 +1061,41 @@ const EmployeeList = () => {
                 </select>
               </div>
 
+              {/* Success message for PIN change */}
+              {modalSuccess && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-md flex items-start gap-2">
+                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-green-600">{modalSuccess}</p>
+                </div>
+              )}
+
+              {/* Error display */}
+              {modalError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-600">{modalError}</p>
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <Button
                   variant="outline"
                   onClick={() => setShowAddModal(false)}
                   className="flex-1 order-2 sm:order-1"
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={handleAddEmployee}
                   className="flex-1 order-1 sm:order-2"
-                  disabled={isAddLoading}
+                  disabled={isSubmitting}
                 >
-                  {isAddLoading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin mr-2" />
-                      {editingEmployee ? "Updating..." : "Adding..."}
-                    </>
-                  ) : (
-                    <>{editingEmployee ? "Update" : "Add"} Employee</>
-                  )}
+                  {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  {editingEmployee ? "Update" : "Add"} {
+                    formData.is_admin === 2 ? "Super Admin" :
+                    formData.is_admin === 1 ? "Admin" : "Employee"
+                  }
                 </Button>
               </div>
             </CardContent>
@@ -1012,10 +1105,10 @@ const EmployeeList = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && employeeToDelete && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-          <Card className="w-full max-w-md mx-4">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={() => setShowDeleteModal(false)}>
+          <Card id="employee-delete-modal" className="w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
             <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-destructive text-lg">
+              <CardTitle className="flex items-center gap-2 text-lg" style={{ color: '#01005a' }}>
                 <AlertCircle className="w-5 h-5" />
                 Delete Employee
               </CardTitle>
@@ -1024,29 +1117,39 @@ const EmployeeList = () => {
               </CardDescription>
             </CardHeader>
 
-            <CardContent>
+            <CardContent className="space-y-4">
+              {/* Success message */}
+              {deleteSuccess && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-md flex items-start gap-2">
+                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-green-600">{deleteSuccess}</p>
+                </div>
+              )}
+
+              {/* Error message */}
+              {deleteError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-600">{deleteError}</p>
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
                   variant="outline"
                   onClick={() => setShowDeleteModal(false)}
                   className="flex-1 order-2 sm:order-1"
+                  disabled={isDeleting || deleteSuccess}
                 >
                   Cancel
                 </Button>
                 <Button
-                  variant="destructive"
                   onClick={handleDeleteEmployee}
-                  className="flex-1 order-1 sm:order-2"
-                  disabled={isDeleteLoading}
+                  className="flex-1 order-1 sm:order-2 bg-[#01005a] hover:bg-[#01005a]/90 text-white"
+                  disabled={isDeleting || deleteSuccess}
                 >
-                  {isDeleteLoading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                      Deleting...
-                    </>
-                  ) : (
-                    "Delete Employee"
-                  )}
+                  {isDeleting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Delete Employee
                 </Button>
               </div>
             </CardContent>

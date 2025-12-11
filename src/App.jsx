@@ -15,6 +15,7 @@ import EmployeeList from "./pages/EmployeeList";
 import Device from "./pages/Device";
 import Profile from "./pages/Profile";
 import ContactUs from "./pages/ContactUs";
+import GetInTouch from "./pages/GetInTouch";
 import ReportSummary from "./pages/ReportSummary";
 import ReportSetting from "./pages/ReportSetting";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -36,6 +37,7 @@ function App() {
             <Route path="/device" element={<Device/>}/>
             <Route path="/profile" element={<Profile/>} />
             <Route path="/contact" element={<ContactUs/>}/>
+            <Route path="/contact-us" element={<GetInTouch/>}/>
             <Route path="/reports" element={<ReportSummary/>}/>
             <Route path="/reportsummary" element={<ReportSummary/>}/>
             <Route path="/daywisereport" element={<ReportSummary/>}/>

@@ -1,22 +1,46 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { registerUser } from '../api.js';
+import { useZipLookup } from '../hooks';
 import Header from "../components/layout/Header";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { Eye, EyeOff, Mail, Lock, User, Building, Phone, MapPin, CheckCircle, XCircle } from "lucide-react";
+import { Mail, User, Building, Phone, MapPin, CheckCircle, XCircle, X, Loader2 } from "lucide-react";
 import tabtimelogo from "../assets/images/tap-time-logo.png";
+import RegistrationSuccessModal from "../components/ui/RegistrationSuccessModal";
+import CenterLoadingOverlay from "../components/ui/CenterLoadingOverlay";
+import { PhoneInput } from 'react-international-phone';
+import 'react-international-phone/style.css';
 
 
 const Register = () => {
-  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [toast, setToast] = useState({ show: false, message: '', type: '' });
+  const [logoFileName, setLogoFileName] = useState('');
+  const [logoFile, setLogoFile] = useState(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [centerLoading, setCenterLoading] = useState({ show: false, message: "" });
+
+  // Error states for Step 1
+  const [companyNameError, setCompanyNameError] = useState('');
+  const [companyStreetError, setCompanyStreetError] = useState('');
+  const [companyCityError, setCompanyCityError] = useState('');
+  const [companyStateError, setCompanyStateError] = useState('');
+  const [companyZipError, setCompanyZipError] = useState('');
+  const [noOfDevicesError, setNoOfDevicesError] = useState('');
+  const [noOfEmployeesError, setNoOfEmployeesError] = useState('');
+
+  // Error states for Step 2
+  const [firstNameError, setFirstNameError] = useState('');
+  const [lastNameError, setLastNameError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [customerStreetError, setCustomerStreetError] = useState('');
+  const [customerCityError, setCustomerCityError] = useState('');
+  const [customerStateError, setCustomerStateError] = useState('');
+  const [customerZipError, setCustomerZipError] = useState('');
 
   // Form data state
   const [formData, setFormData] = useState({
@@ -26,7 +50,7 @@ const Register = () => {
     companyCity: '',
     companyState: '',
     companyZip: '',
-    noOfDevices: '',
+    noOfDevices: '1',
     noOfEmployees: '',
     firstName: '',
     lastName: '',
@@ -36,22 +60,72 @@ const Register = () => {
     customerCity: '',
     customerState: '',
     customerZip: '',
-    password: '',
-    confirmPassword: ''
+    employmentType: 'General Employee'
   });
 
-  const showToast = (message, type) => {
-    setToast({ show: true, message, type });
-    setTimeout(() => setToast({ show: false, message: '', type: '' }), 4000);
+  // Employment type tag input states
+  const [employmentTypes, setEmploymentTypes] = useState(['General Employee']);
+  const [employmentTypeInput, setEmploymentTypeInput] = useState('');
+
+  // ZIP code auto-fill callbacks
+  const handleCompanyZipResult = useCallback((result) => {
+    setFormData(prev => ({
+      ...prev,
+      companyCity: result.city,
+      companyState: result.state
+    }));
+    setCompanyCityError('');
+    setCompanyStateError('');
+  }, []);
+
+  const handleCustomerZipResult = useCallback((result) => {
+    setFormData(prev => ({
+      ...prev,
+      customerCity: result.city,
+      customerState: result.state
+    }));
+    setCustomerCityError('');
+    setCustomerStateError('');
+  }, []);
+
+  // ZIP code lookup hooks
+  const { isLoading: companyZipLoading } = useZipLookup(formData.companyZip, handleCompanyZipResult);
+  const { isLoading: customerZipLoading } = useZipLookup(formData.customerZip, handleCustomerZipResult);
+
+  const showCenterLoading = (message) => {
+    setCenterLoading({ show: true, message });
+  };
+
+  const hideCenterLoading = () => {
+    setCenterLoading({ show: false, message: "" });
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     
-    // Only allow numbers for device, employee count, and zip code fields
-    if ((name === 'noOfDevices' || name === 'noOfEmployees' || name === 'companyZip' || name === 'customerZip') && value && !/^\d+$/.test(value)) {
+    // Only allow numbers for device and employee count fields
+    if ((name === 'noOfDevices' || name === 'noOfEmployees') && value && !/^\d+$/.test(value)) {
       return;
     }
+    // Restrict zip codes to 5 digits only
+    if ((name === 'companyZip' || name === 'customerZip') && value && !/^\d{0,5}$/.test(value)) {
+      return;
+    }
+    
+    // Clear errors when user types
+    if (name === 'companyName') setCompanyNameError('');
+    if (name === 'companyStreet') setCompanyStreetError('');
+    if (name === 'companyCity') setCompanyCityError('');
+    if (name === 'companyState') setCompanyStateError('');
+    if (name === 'companyZip') setCompanyZipError('');
+    if (name === 'noOfEmployees') setNoOfEmployeesError('');
+    if (name === 'firstName') setFirstNameError('');
+    if (name === 'lastName') setLastNameError('');
+    if (name === 'email') setEmailError('');
+    if (name === 'customerStreet') setCustomerStreetError('');
+    if (name === 'customerCity') setCustomerCityError('');
+    if (name === 'customerState') setCustomerStateError('');
+    if (name === 'customerZip') setCustomerZipError('');
     
     setFormData(prev => ({
       ...prev,
@@ -62,116 +136,160 @@ const Register = () => {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      setLogoFileName(file.name);
+      setLogoFile(file); // Store the actual File object for upload
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData(prev => ({
           ...prev,
-          companyLogo: reader.result
+          companyLogo: reader.result // Keep base64 for preview
         }));
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handlePhoneChange = (e) => {
-    const value = e.target.value;
-    const digits = value.replace(/\D/g, '').slice(0, 10);
-    let formatted = '';
-
-    if (digits.length > 6) {
-      formatted = `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-    } else if (digits.length > 3) {
-      formatted = `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-    } else if (digits.length > 0) {
-      formatted = `(${digits}`;
-    }
-
+  const handleRemoveLogo = () => {
+    setLogoFileName('');
+    setLogoFile(null);
     setFormData(prev => ({
       ...prev,
-      phone: formatted
+      companyLogo: null
+    }));
+  };
+
+  const handlePhoneChange = (phone) => {
+    setPhoneError('');
+    setFormData(prev => ({
+      ...prev,
+      phone: phone
+    }));
+  };
+
+  const handleEmploymentTypeKeyDown = (e) => {
+    if (e.key === ',' || e.key === 'Enter') {
+      e.preventDefault();
+      const value = employmentTypeInput.trim();
+
+      if (value && !employmentTypes.includes(value)) {
+        const newTypes = [...employmentTypes, value];
+        setEmploymentTypes(newTypes);
+        setFormData(prev => ({
+          ...prev,
+          employmentType: newTypes.join(',')
+        }));
+      }
+      setEmploymentTypeInput('');
+    }
+  };
+
+  const handleRemoveEmploymentType = (typeToRemove) => {
+    // Don't allow removing if it's the last one
+    if (employmentTypes.length === 1) return;
+
+    const newTypes = employmentTypes.filter(type => type !== typeToRemove);
+    setEmploymentTypes(newTypes);
+    setFormData(prev => ({
+      ...prev,
+      employmentType: newTypes.join(',')
     }));
   };
 
   const validateStep1 = () => {
-    const { companyName, companyStreet, companyCity, companyState, companyZip, noOfDevices, noOfEmployees } = formData;
+    const { companyName, companyStreet, companyCity, companyState, companyZip, noOfEmployees } = formData;
+
+    // Clear previous errors
+    setCompanyNameError('');
+    setCompanyStreetError('');
+    setCompanyCityError('');
+    setCompanyStateError('');
+    setCompanyZipError('');
+    setNoOfDevicesError('');
+    setNoOfEmployeesError('');
+
+    let hasErrors = false;
 
     if (!companyName.trim()) {
-      showToast('Company name is required', 'error');
-      return false;
+      setCompanyNameError('Company name is required');
+      hasErrors = true;
     }
     if (!companyStreet.trim()) {
-      showToast('Street address is required', 'error');
-      return false;
+      setCompanyStreetError('Street address is required');
+      hasErrors = true;
     }
     if (!companyCity.trim()) {
-      showToast('City is required', 'error');
-      return false;
+      setCompanyCityError('City is required');
+      hasErrors = true;
     }
     if (!companyState.trim()) {
-      showToast('State is required', 'error');
-      return false;
+      setCompanyStateError('State is required');
+      hasErrors = true;
     }
     if (!companyZip.trim()) {
-      showToast('Zip code is required', 'error');
-      return false;
+      setCompanyZipError('Zip code is required');
+      hasErrors = true;
     }
-    if (!noOfDevices || Number(noOfDevices) <= 0) {
-      showToast('Number of devices must be greater than 0', 'error');
-      return false;
-    }
+    // noOfDevices is hardcoded to 1, no validation needed
     if (!noOfEmployees || Number(noOfEmployees) <= 0) {
-      showToast('Number of employees must be greater than 0', 'error');
-      return false;
+      setNoOfEmployeesError('Number of employees must be greater than 0');
+      hasErrors = true;
     }
 
-    return true;
+    return !hasErrors;
   };
 
   const validateStep2 = () => {
-    const { firstName, lastName, email, phone, customerStreet, customerCity, customerState, customerZip, password, confirmPassword } = formData;
+    const { firstName, lastName, email, phone, customerStreet, customerCity, customerState, customerZip } = formData;
+
+    // Clear previous errors
+    setFirstNameError('');
+    setLastNameError('');
+    setEmailError('');
+    setPhoneError('');
+    setCustomerStreetError('');
+    setCustomerCityError('');
+    setCustomerStateError('');
+    setCustomerZipError('');
+
+    let hasErrors = false;
 
     if (!firstName.trim()) {
-      showToast('First name is required', 'error');
-      return false;
+      setFirstNameError('First name is required');
+      hasErrors = true;
     }
     if (!lastName.trim()) {
-      showToast('Last name is required', 'error');
-      return false;
+      setLastNameError('Last name is required');
+      hasErrors = true;
     }
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      showToast('Valid email address is required', 'error');
-      return false;
+    if (!email.trim()) {
+      setEmailError('Email is required');
+      hasErrors = true;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailError('Please enter a valid email address');
+      hasErrors = true;
     }
     if (!phone.trim()) {
-      showToast('Phone number is required', 'error');
-      return false;
+      setPhoneError('Phone number is required');
+      hasErrors = true;
     }
     if (!customerStreet.trim()) {
-      showToast('Street address is required', 'error');
-      return false;
+      setCustomerStreetError('Street address is required');
+      hasErrors = true;
     }
     if (!customerCity.trim()) {
-      showToast('City is required', 'error');
-      return false;
+      setCustomerCityError('City is required');
+      hasErrors = true;
     }
     if (!customerState.trim()) {
-      showToast('State is required', 'error');
-      return false;
+      setCustomerStateError('State is required');
+      hasErrors = true;
     }
     if (!customerZip.trim()) {
-      showToast('Zip code is required', 'error');
-      return false;
-    }
-    if (!password.trim() || password.length < 6) {
-      showToast('Password must be at least 6 characters', 'error');
-      return false;
-    }
-    if (password !== confirmPassword) {
-      showToast('Passwords do not match', 'error');
-      return false;
+      setCustomerZipError('Zip code is required');
+      hasErrors = true;
     }
 
-    return true;
+    return !hasErrors;
   };
 
   const handleNext = (e) => {
@@ -194,7 +312,7 @@ const Register = () => {
 
     try {
       // Extract only digits from phone number
-      const phoneDigits = formData.phone.replace(/\D/g, '');
+      const phoneDigits = formData.phone.replace(/\D/g, '').replace(/^1/, '');
 
       // Create plain object with proper field name mapping for API
       const submitData = {
@@ -205,6 +323,7 @@ const Register = () => {
         company_zip_code: formData.companyZip,
         device_count: parseInt(formData.noOfDevices, 10),
         employee_count: parseInt(formData.noOfEmployees, 10),
+        employment_type: formData.employmentType,
         first_name: formData.firstName,
         last_name: formData.lastName,
         email: formData.email,
@@ -214,27 +333,50 @@ const Register = () => {
         customer_city: formData.customerCity,
         customer_state: formData.customerState,
         customer_zip_code: formData.customerZip,
-        password: formData.password,
         last_modified_by: 'Admin'
       };
 
-      // Add company logo if provided (as base64)
-      if (formData.companyLogo) {
-        submitData.company_logo = formData.companyLogo;
-      }
-
       console.log('Submitting registration data:', submitData);
-      const response = await registerUser(submitData);
+      // Pass signup data and logo file separately - API uses multipart/form-data
+      const response = await registerUser(submitData, logoFile);
 
       if (response.success) {
-        showToast('Registration successful! Redirecting to login...', 'success');
-        setTimeout(() => navigate('/login'), 2000);
+        showCenterLoading('Processing registration...');
+        setTimeout(() => {
+          hideCenterLoading();
+          setShowSuccessModal(true);
+        }, 800);
       } else {
-        showToast(response.message || 'Registration failed', 'error');
+        const errorMessage = response.error || response.message || 'Registration failed';
+        
+        if (errorMessage.includes('email') && errorMessage.includes('already')) {
+          setEmailError('This email address is already registered');
+        } else if (errorMessage.includes('company') && errorMessage.includes('exists')) {
+          setCompanyNameError('Company name already exists');
+        } else if (errorMessage.includes('validation')) {
+          setEmailError('Please check your information and try again');
+        } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+          setEmailError('Network error. Please check your connection and try again');
+        } else {
+          setEmailError(errorMessage);
+        }
       }
     } catch (error) {
       console.error('Registration error:', error);
-      showToast('Registration failed. Please try again.', 'error');
+      
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        setEmailError('Network error. Please check your internet connection and try again');
+      } else if (error.message.includes('timeout')) {
+        setEmailError('Request timeout. Please try again');
+      } else if (error.message.includes('400')) {
+        setEmailError('Invalid data provided. Please check your information');
+      } else if (error.message.includes('409')) {
+        setEmailError('Email or company name already exists');
+      } else if (error.message.includes('500')) {
+        setEmailError('Server error. Please try again later');
+      } else {
+        setEmailError('Registration failed. Please try again');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -261,21 +403,45 @@ const Register = () => {
                 placeholder="Enter company name"
                 value={formData.companyName}
                 onChange={handleInputChange}
-                className="pl-10"
+                className={`pl-10 ${companyNameError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
             </div>
+            {companyNameError && (
+              <p className="text-red-600 text-xs mt-1">{companyNameError}</p>
+            )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="companyLogo">Company Logo</Label>
-            <Input
-              id="companyLogo"
-              name="companyLogo"
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-            />
+            {formData.companyLogo ? (
+              <div className="flex items-center gap-3 p-3 border rounded-md bg-gray-50">
+                <img
+                  src={formData.companyLogo}
+                  alt="Company Logo Preview"
+                  className="w-12 h-12 object-cover rounded"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-700 truncate">{logoFileName}</p>
+                  <p className="text-xs text-gray-500">Image selected</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRemoveLogo}
+                  className="text-red-500 hover:text-red-700 text-sm font-medium"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <Input
+                id="companyLogo"
+                name="companyLogo"
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+              />
+            )}
           </div>
 
           <div className="space-y-2">
@@ -288,10 +454,13 @@ const Register = () => {
                 placeholder="Enter street address"
                 value={formData.companyStreet}
                 onChange={handleInputChange}
-                className="pl-10"
+                className={`pl-10 ${companyStreetError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
             </div>
+            {companyStreetError && (
+              <p className="text-red-600 text-xs mt-1">{companyStreetError}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -303,8 +472,12 @@ const Register = () => {
                 placeholder="City"
                 value={formData.companyCity}
                 onChange={handleInputChange}
+                className={companyCityError ? 'border-red-500 focus:border-red-500' : ''}
                 required
               />
+              {companyCityError && (
+                <p className="text-red-600 text-xs mt-1">{companyCityError}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="companyState">State *</Label>
@@ -314,22 +487,36 @@ const Register = () => {
                 placeholder="State"
                 value={formData.companyState}
                 onChange={handleInputChange}
+                className={companyStateError ? 'border-red-500 focus:border-red-500' : ''}
                 required
               />
+              {companyStateError && (
+                <p className="text-red-600 text-xs mt-1">{companyStateError}</p>
+              )}
             </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="companyZip">Zip Code *</Label>
-            <Input
-              type="text"
-              id="companyZip"
-              name="companyZip"
-              placeholder="Enter zip code"
-              value={formData.companyZip}
-              onChange={handleInputChange}
-              required
-            />
+            <div className="relative">
+              <Input
+                type="text"
+                id="companyZip"
+                name="companyZip"
+                placeholder="Enter zip code"
+                value={formData.companyZip}
+                onChange={handleInputChange}
+                className={companyZipError ? 'border-red-500 focus:border-red-500' : ''}
+                maxLength={5}
+                required
+              />
+              {companyZipLoading && (
+                <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+              )}
+            </div>
+            {companyZipError && (
+              <p className="text-red-600 text-xs mt-1">{companyZipError}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -341,8 +528,9 @@ const Register = () => {
                 type="text"
                 placeholder="Devices"
                 value={formData.noOfDevices}
-                onChange={handleInputChange}
-                required
+                disabled
+                readOnly
+                className="bg-gray-100 cursor-not-allowed text-gray-600"
               />
             </div>
             <div className="space-y-2">
@@ -354,9 +542,46 @@ const Register = () => {
                 placeholder="Employees"
                 value={formData.noOfEmployees}
                 onChange={handleInputChange}
+                className={noOfEmployeesError ? 'border-red-500 focus:border-red-500' : ''}
                 required
               />
+              {noOfEmployeesError && (
+                <p className="text-red-600 text-xs mt-1">{noOfEmployeesError}</p>
+              )}
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="employmentType">Employment Types</Label>
+            <div className="border rounded-md p-2 min-h-[42px] flex flex-wrap gap-2 items-center focus-within:ring-2 focus-within:ring-primary focus-within:border-primary">
+              {employmentTypes.map((type, index) => (
+                <span
+                  key={index}
+                  className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary text-sm rounded-md"
+                >
+                  {type}
+                  {employmentTypes.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveEmploymentType(type)}
+                      className="hover:text-red-500 focus:outline-none"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </span>
+              ))}
+              <input
+                type="text"
+                id="employmentType"
+                value={employmentTypeInput}
+                onChange={(e) => setEmploymentTypeInput(e.target.value)}
+                onKeyDown={handleEmploymentTypeKeyDown}
+                placeholder={employmentTypes.length === 0 ? "Type and press comma to add" : "Add more..."}
+                className="flex-1 min-w-[120px] outline-none text-sm bg-transparent"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">Type employment type and press comma to add. Default: General Employee</p>
           </div>
 
           <Button type="submit" className="w-full" size="lg">
@@ -396,10 +621,13 @@ const Register = () => {
                   placeholder="First name"
                   value={formData.firstName}
                   onChange={handleInputChange}
-                  className="pl-10"
+                  className={`pl-10 ${firstNameError ? 'border-red-500 focus:border-red-500' : ''}`}
                   required
                 />
               </div>
+              {firstNameError && (
+                <p className="text-red-600 text-xs mt-1">{firstNameError}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="lastName">Last Name *</Label>
@@ -411,10 +639,13 @@ const Register = () => {
                   placeholder="Last name"
                   value={formData.lastName}
                   onChange={handleInputChange}
-                  className="pl-10"
+                  className={`pl-10 ${lastNameError ? 'border-red-500 focus:border-red-500' : ''}`}
                   required
                 />
               </div>
+              {lastNameError && (
+                <p className="text-red-600 text-xs mt-1">{lastNameError}</p>
+              )}
             </div>
           </div>
 
@@ -429,27 +660,37 @@ const Register = () => {
                 placeholder="name@company.com"
                 value={formData.email}
                 onChange={handleInputChange}
-                className="pl-10"
+                className={`pl-10 ${emailError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
             </div>
+            {emailError && (
+              <p className="text-red-600 text-xs mt-1">{emailError}</p>
+            )}
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="phone">Phone Number *</Label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input
-                id="phone"
-                name="phone"
-                type="tel"
-                placeholder="(123) 456-7890"
-                value={formData.phone}
-                onChange={handlePhoneChange}
-                className="pl-10"
-                required
-              />
-            </div>
+            <PhoneInput
+              defaultCountry="us"
+              value={formData.phone}
+              onChange={handlePhoneChange}
+              disableDialCodePrefill={false}
+              forceDialCode={true}
+              className={phoneError ? 'phone-input-error' : ''}
+              inputClassName="w-full"
+              style={{
+                '--react-international-phone-border-radius': '0.375rem',
+                '--react-international-phone-border-color': phoneError ? '#ef4444' : '#e5e7eb',
+                '--react-international-phone-background-color': '#ffffff',
+                '--react-international-phone-text-color': '#000000',
+                '--react-international-phone-selected-dropdown-item-background-color': '#f3f4f6',
+                '--react-international-phone-height': '2.5rem'
+              }}
+            />
+            {phoneError && (
+              <p className="text-red-600 text-xs mt-1">{phoneError}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -462,10 +703,13 @@ const Register = () => {
                 placeholder="Enter street address"
                 value={formData.customerStreet}
                 onChange={handleInputChange}
-                className="pl-10"
+                className={`pl-10 ${customerStreetError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
             </div>
+            {customerStreetError && (
+              <p className="text-red-600 text-xs mt-1">{customerStreetError}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -477,8 +721,12 @@ const Register = () => {
                 placeholder="City"
                 value={formData.customerCity}
                 onChange={handleInputChange}
+                className={customerCityError ? 'border-red-500 focus:border-red-500' : ''}
                 required
               />
+              {customerCityError && (
+                <p className="text-red-600 text-xs mt-1">{customerCityError}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="customerState">State *</Label>
@@ -488,69 +736,35 @@ const Register = () => {
                 placeholder="State"
                 value={formData.customerState}
                 onChange={handleInputChange}
+                className={customerStateError ? 'border-red-500 focus:border-red-500' : ''}
                 required
               />
+              {customerStateError && (
+                <p className="text-red-600 text-xs mt-1">{customerStateError}</p>
+              )}
             </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="customerZip">Zip Code *</Label>
-            <Input
-              id="customerZip"
-              name="customerZip"
-              placeholder="Enter zip code"
-              value={formData.customerZip}
-              onChange={handleInputChange}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password">Password *</Label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
-                id="password"
-                name="password"
-                type={showPassword ? "text" : "password"}
-                placeholder="Create a password"
-                value={formData.password}
+                id="customerZip"
+                name="customerZip"
+                placeholder="Enter zip code"
+                value={formData.customerZip}
                 onChange={handleInputChange}
-                className="pl-10 pr-10"
+                className={customerZipError ? 'border-red-500 focus:border-red-500' : ''}
+                maxLength={5}
                 required
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
+              {customerZipLoading && (
+                <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+              )}
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirm Password *</Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input
-                id="confirmPassword"
-                name="confirmPassword"
-                type={showConfirmPassword ? "text" : "password"}
-                placeholder="Confirm your password"
-                value={formData.confirmPassword}
-                onChange={handleInputChange}
-                className="pl-10 pr-10"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
+            {customerZipError && (
+              <p className="text-red-600 text-xs mt-1">{customerZipError}</p>
+            )}
           </div>
 
           <div className="flex flex-col sm:flex-row gap-4">
@@ -578,22 +792,7 @@ const Register = () => {
       {/* Header Navigation */}
       <Header />
 
-      {/* Toast Notification */}
-      {toast.show && (
-        <div className="fixed top-24 right-4 z-50 animate-in slide-in-from-top-2">
-          <div className={`flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg border ${toast.type === 'success'
-            ? 'bg-green-50 border-green-200 text-green-800'
-            : 'bg-red-50 border-red-200 text-red-800'
-            }`}>
-            {toast.type === 'success' ? (
-              <CheckCircle className="h-5 w-5 text-green-600" />
-            ) : (
-              <XCircle className="h-5 w-5 text-red-600" />
-            )}
-            <span className="font-medium text-sm">{toast.message}</span>
-          </div>
-        </div>
-      )}
+      <CenterLoadingOverlay show={centerLoading.show} message={centerLoading.message} />
 
       <div className="min-h-screen flex flex-col md:flex-row pt-20 md:pt-0">
         {/* Left side - Brand section (hidden on mobile) */}
@@ -639,7 +838,7 @@ const Register = () => {
               <img src={tabtimelogo} alt="TabTime Logo" className="mx-auto h-20 w-auto sm:h-25" />
             </div>
 
-            {/* Progress Indicator */}
+            {/* Progress Indicator
             <div className="flex items-center justify-center mb-8">
             <div className="flex items-center space-x-4">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
@@ -654,6 +853,7 @@ const Register = () => {
               </div>
             </div>
           </div>
+           */}
 
           {currentStep === 1 ? renderStep1() : renderStep2()}
 
@@ -665,6 +865,9 @@ const Register = () => {
           </div>
         </div>
       </div>
+
+      {/* Registration Success Modal */}
+      <RegistrationSuccessModal isOpen={showSuccessModal} />
     </>
   );
 };

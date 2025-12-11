@@ -2,7 +2,9 @@ import React, { useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import Header from "../components/layout/Header";
 import Footer from "../components/layout/Footer";
-import { Loader2 } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { PhoneInput } from 'react-international-phone';
+import 'react-international-phone/style.css';
 
 const ContactUs = () => {
   // Form fields
@@ -10,16 +12,16 @@ const ContactUs = () => {
   const [cemail, setCemail] = useState("");
   const [question, setQuestion] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [showOverlay, setShowOverlay] = useState(false);
-
   // Error messages
   const [errorName, setErrorName] = useState("");
   const [errorEmail, setErrorEmail] = useState("");
   const [errorTextarea, setErrorTextarea] = useState("");
   const [errorPhone, setErrorPhone] = useState("");
 
-  // Modal states
-  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  // Loading and response states
+  const [submitSuccess, setSubmitSuccess] = useState("");
+  const [submitError, setSubmitError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Regular expressions
   const isAlpha = /^[a-zA-Z\s]+$/;
@@ -68,31 +70,16 @@ const ContactUs = () => {
     }
   };
 
-  const formatPhoneNumber = (e) => {
-    let value = e.target.value.replace(/\D/g, "");
-
-    if (value.length > 3 && value.length <= 6) {
-      value = `(${value.slice(0, 3)}) ${value.slice(3)}`;
-    } else if (value.length > 6) {
-      value = `(${value.slice(0, 3)}) ${value.slice(3, 6)}-${value.slice(
-        6,
-        10
-      )}`;
-    } else if (value.length > 3) {
-      value = `(${value.slice(0, 3)}) ${value.slice(3)}`;
-    }
-
-    setPhoneNumber(value);
-  };
-
   const validatePhoneNumber = () => {
     if (phoneNumber.trim() === "") {
       setErrorPhone("");
       return false;
-    } else if (!phoneRegex.test(phoneNumber)) {
-      setErrorPhone("Please use format: (123) 456-7890");
-      return false;
     } else {
+      const digits = phoneNumber.replace(/\D/g, '');
+      if (digits.length < 10) {
+        setErrorPhone("Invalid phone number format");
+        return false;
+      }
       setErrorPhone("");
       return true;
     }
@@ -101,6 +88,10 @@ const ContactUs = () => {
   // Submit form
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Clear previous messages
+    setSubmitSuccess("");
+    setSubmitError("");
 
     // Validate all fields
     const isNameValid = validCName();
@@ -119,17 +110,26 @@ const ContactUs = () => {
       isPhoneNumberValid &&
       isRequiredFieldsValid
     ) {
-      setShowOverlay(true);
+      setIsSubmitting(true);
       try {
         await callContactUsCreateAPiData();
-        setToast({ show: true, message: 'Message sent successfully!', type: 'success' });
-        setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+        setSubmitSuccess("Message sent successfully!");
+
+        // Clear success message after 3 seconds
+        setTimeout(() => {
+          setSubmitSuccess("");
+        }, 3000);
       } catch (error) {
         console.error("Form submission failed:", error);
-        setToast({ show: true, message: 'Failed to send message', type: 'error' });
-        setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+        setSubmitError(error.message || "Failed to send message. Please try again.");
+
+        // Clear error message after 3 seconds
+        setTimeout(() => {
+          setSubmitError("");
+        }, 3000);
+      } finally {
+        setIsSubmitting(false);
       }
-      setShowOverlay(false);
     } else {
       // Trigger validation messages for required fields
       if (cname.trim() === "") setErrorName("Name is required");
@@ -185,17 +185,6 @@ const ContactUs = () => {
     <div className="min-h-screen flex flex-col">
       <Header isAuthenticated={true} />
 
-      {/* Loading Overlay */}
-      {showOverlay && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-lg p-6 shadow-xl">
-            <div className="flex items-center space-x-3">
-              <Loader2 className="w-6 h-6 animate-spin text-[#02066F]" />
-            </div>
-          </div>
-        </div>
-      )}
-
       <section className="flex-grow bg-gray-50 px-4 sm:px-6 pt-25 pb-16">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
@@ -208,7 +197,7 @@ const ContactUs = () => {
 
           <div className="grid lg:grid-cols-2 gap-12">
             {/* Contact Info */}
-            <div className="flex">
+            <div className="flex center">
               <div className="bg-white rounded-lg shadow-sm border p-8 flex-1 flex flex-col">
                 <h2 className="text-2xl font-semibold text-gray-900 mb-6">Get in Touch</h2>
 
@@ -227,29 +216,6 @@ const ContactUs = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-[#02066F] rounded-lg flex items-center justify-center">
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Response Time</h3>
-                      <p className="text-gray-600">Within 24 hours</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-[#02066F] rounded-lg flex items-center justify-center">
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 4v10m6-10v10" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Support Hours</h3>
-                      <p className="text-gray-600">Mon-Fri, 9AM-6PM EST</p>
-                    </div>
-                  </div>
 
                   <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 bg-[#02066F] rounded-lg flex items-center justify-center">
@@ -259,7 +225,7 @@ const ContactUs = () => {
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900">Phone</h3>
-                      <p className="text-gray-600">+1 (555) 123-4567</p>
+                      <p className="text-gray-600">+1 (425) 999-9719</p>
                     </div>
                   </div>
 
@@ -329,14 +295,22 @@ const ContactUs = () => {
                     <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-2">
                       Phone Number (Optional)
                     </label>
-                    <input
-                      type="tel"
-                      id="phoneNumber"
+                    <PhoneInput
+                      defaultCountry="us"
                       value={phoneNumber}
-                      onChange={formatPhoneNumber}
+                      onChange={setPhoneNumber}
                       onBlur={validatePhoneNumber}
-                      placeholder="(123) 456-7890"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#02066F] focus:border-[#02066F] transition-colors"
+                      forceDialCode={true}
+                      className={errorPhone ? 'phone-input-error' : ''}
+                      inputClassName="w-full"
+                      style={{
+                        '--react-international-phone-border-radius': '0.5rem',
+                        '--react-international-phone-border-color': errorPhone ? '#ef4444' : '#d1d5db',
+                        '--react-international-phone-background-color': '#ffffff',
+                        '--react-international-phone-text-color': '#000000',
+                        '--react-international-phone-selected-dropdown-item-background-color': '#f3f4f6',
+                        '--react-international-phone-height': '3rem'
+                      }}
                     />
                     {errorPhone && (
                       <p className="text-red-500 text-sm mt-1">{errorPhone}</p>
@@ -369,17 +343,27 @@ const ContactUs = () => {
                     </div>
                   </div>
 
+                  {submitSuccess && (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-sm text-green-600">{submitSuccess}</p>
+                    </div>
+                  )}
+                  {submitError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+                      <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-sm text-red-600">{submitError}</p>
+                    </div>
+                  )}
+
                   <button
                     type="submit"
-                    disabled={showOverlay}
+                    disabled={isSubmitting}
                     className="w-full bg-[#02066F] text-white py-3 px-6 rounded-lg font-medium hover:bg-[#030974] focus:ring-2 focus:ring-[#02066F] focus:ring-offset-2 disabled:opacity-50 transition-colors"
                   >
-                    {showOverlay ? (
+                    {isSubmitting ? (
                       <div className="flex items-center justify-center">
-                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
+                        <Loader2 className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" />
                         Sending...
                       </div>
                     ) : (
@@ -393,29 +377,7 @@ const ContactUs = () => {
         </div>
       </section>
 
-      {/* Toast Notification */}
-      {toast.show && (
-        <div className="fixed top-6 right-6 z-50 animate-in slide-in-from-top-2 duration-300">
-          <div className={`flex items-center gap-4 px-6 py-4 rounded-xl shadow-2xl border backdrop-blur-sm ${toast.type === 'success'
-              ? 'bg-green-50/95 border-green-200 text-green-800'
-              : 'bg-red-50/95 border-red-200 text-red-800'
-            }`}>
-            <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${toast.type === 'success' ? 'bg-green-100' : 'bg-red-100'
-              }`}>
-              {toast.type === 'success' ? (
-                <svg className="h-5 w-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                </svg>
-              ) : (
-                <svg className="h-5 w-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              )}
-            </div>
-            <span className="font-semibold text-base">{toast.message}</span>
-          </div>
-        </div>
-      )}
+
 
       <Footer variant="authenticated" />
     </div>

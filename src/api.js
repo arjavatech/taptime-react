@@ -134,6 +134,7 @@ export const googleSignInCheck = async (email) => {
       [STORAGE_KEYS.CUSTOMER_CITY]: data.customer_city,
       [STORAGE_KEYS.CUSTOMER_STATE]: data.customer_state,
       [STORAGE_KEYS.COMPANY_ZIP_CODE]: data.company_zip_code,
+      employmentType: data.employment_type,
       last_modified_by: data.last_modified_by
       
 
@@ -159,9 +160,30 @@ export const googleSignInCheck = async (email) => {
 
 
 
-export const registerUser = async (registrationData) => {
+export const registerUser = async (signupData, companyLogoFile = null) => {
   try {
-    const data = await api.post(`${API_URLS.signUp}`, registrationData);
+    const formData = new FormData();
+
+    // Add signup_data as JSON string
+    formData.append('signup_data', JSON.stringify(signupData));
+
+    // Add company_logo file if provided
+    if (companyLogoFile) {
+      formData.append('company_logo', companyLogoFile);
+    }
+
+    const response = await fetch(`${API_URLS.signUp}`, {
+      method: 'POST',
+      body: formData
+      // Note: Don't set Content-Type header - browser will set it automatically with boundary
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
     return { success: true, data };
   } catch (error) {
     console.error('Registration error:', error);
@@ -184,7 +206,21 @@ export const fetchEmployeeData = async () => {
 
 export const createEmployeeWithData = async (employeeData) => {
   try {
-    return await api.post(`${API_BASE}/employee/create`, employeeData);
+    const response = await fetch(`${API_BASE}/employee/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(employeeData)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const error = new Error(errorData.detail || `HTTP ${response.status}`);
+      error.detail = errorData.detail;
+      error.status = response.status;
+      throw error;
+    }
+
+    return await response.json();
   } catch (error) {
     console.error('Create employee error:', error);
     throw error;
@@ -397,14 +433,18 @@ export const getCustomerData = async (cid) => {
 // Company functions
 export const updateProfile = async (cid, data) => {
   const apiUrl = `${API_URLS.company}/update/${cid}`;
-  
+
   try {
+    // Check if data is FormData (for company update with file)
+    const isFormData = data instanceof FormData;
+
     const response = await fetch(apiUrl, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+      // Don't set Content-Type for FormData - browser sets it with boundary
+      headers: isFormData ? {} : { 'Content-Type': 'application/json' },
+      body: isFormData ? data : JSON.stringify(data)
     });
-    
+
     if (!response.ok) throw new Error(`Error: ${response.status}`);
     return await response.json();
   } catch (error) {
