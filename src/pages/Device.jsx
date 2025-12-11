@@ -271,10 +271,14 @@ const Device = () => {
               <Button
                 onClick={openAddDevice}
                 className="flex items-center justify-center gap-2 w-full sm:w-auto"
-                disabled={devices.length >= maxDevices || centerLoading.show}
+                disabled={globalLoading || devices.length >= maxDevices || centerLoading.show}
               >
-                <Plus className="w-4 h-4" />
-                <span className="sm:inline">Add Device</span>
+                {globalLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Plus className="w-4 h-4" />
+                )}
+                <span className="sm:inline">{globalLoading ? "Loading..." : "Add Device"}</span>
               </Button>
             </div>
           </div>
@@ -282,7 +286,17 @@ const Device = () => {
 
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-          {devices.length === 0 ? (
+          {globalLoading ? (
+            <Card className="text-center py-8 sm:py-12">
+              <CardContent>
+                <Loader2 className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-primary animate-spin mb-4" />
+                <h3 className="text-base sm:text-lg font-medium text-foreground mb-2">Loading devices...</h3>
+                <p className="text-sm text-muted-foreground">
+                  Please wait while we fetch your devices.
+                </p>
+              </CardContent>
+            </Card>
+          ) : devices.length === 0 ? (
             <Card className="text-center py-8 sm:py-12">
               <CardContent>
                 <Tablet className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-4" />
@@ -293,7 +307,7 @@ const Device = () => {
                 <div className="flex justify-center">
                   <Button
                     onClick={openAddDevice}
-                    disabled={devices.length >= maxDevices || centerLoading.show}
+                    disabled={globalLoading || devices.length >= maxDevices || centerLoading.show}
                     className="flex items-center justify-center gap-2 w-full sm:w-auto"
                   >
                     <Plus className="w-4 h-4" />

@@ -160,7 +160,8 @@ const Profile = () => {
 
     const fieldMap = {
       "city": "customerCity",
-      "address": "address"
+      "address": "address",
+      "state": "customerState"
     };
 
     const actualField = fieldMap[field] || field;
@@ -291,7 +292,7 @@ const Profile = () => {
         address: formData.customerStreet,
         street2: formData.customerStreet2,
         customerCity: formData.customerCity,
-        state: formData.customerState,
+        customerState: formData.customerState,
         zipCode: formData.customerZip,
         pin: formData.adminPin,
         decryptedPassword: formData.decryptedPassword,
@@ -315,7 +316,7 @@ const Profile = () => {
         street2: formData.companyStreet2,
         city: formData.companyCity,
         state: formData.companyState,
-        zipCode: formData.companyZip,
+        companyZip: formData.companyZip,
         logo: formData.logo,
         employmentType: storedEmploymentType
       });
@@ -428,10 +429,10 @@ const Profile = () => {
       isValid = false;
     }
 
-    if (!companyData.zipCode.trim()) {
+    if (!companyData.companyZip.trim()) {
       newErrors.companyZip = "Please fill out this field";
       isValid = false;
-    } else if (companyData.zipCode.length !== 5) {
+    } else if (companyData.companyZip.length !== 5) {
       newErrors.companyZip = "Zip code must be exactly 5 digits";
       isValid = false;
     }
@@ -689,7 +690,7 @@ const Profile = () => {
         address: formData.customerStreet,
         street2: formData.customerStreet2,
         customerCity: formData.customerCity,
-        state: formData.customerState,
+        customerState: formData.customerState,
         zipCode: formData.customerZip,
         pin: formData.adminPin,
         decryptedPassword: formData.decryptedPassword,
@@ -935,7 +936,7 @@ const Profile = () => {
                     <Input
                       id="state"
                       value={personalData.customerState}
-                      onChange={(e) => handlePersonalInputChange("customerState", e.target.value)}
+                      onChange={(e) => handlePersonalInputChange("state", e.target.value)}
                       disabled={!isEditing.personal}
                       className={errors.customerState ? "border-red-500" : ""}
                     />

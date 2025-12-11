@@ -35,6 +35,11 @@ const Login = () => {
   const { signInWithEmail, signInWithGoogle, signOut, user, session, loading: authLoading, fetchBackendUserData } = useAuth();
   const [isProcessingOAuth, setIsProcessingOAuth] = useState(false);
 
+  // Clear companyID from localStorage when login page loads
+  useEffect(() => {
+    localStorage.removeItem('companyID');
+  }, []);
+
   const showCenterLoading = (message) => {
     setCenterLoading({ show: true, message });
   };
