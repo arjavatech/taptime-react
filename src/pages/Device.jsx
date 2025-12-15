@@ -71,10 +71,7 @@ const Device = () => {
     timeZone: "America/New_York"
   });
   
-  // Handle modal close events
-  useModalClose(showAddModal, () => setShowAddModal(false), 'device-add-modal');
-  useModalClose(showDeleteModal, () => setShowDeleteModal(false), 'device-delete-modal');
-  useModalClose(showApprovalModal, () => setShowApprovalModal(false), 'device-approval-modal');
+  // Modal close events disabled - modals only close via buttons
 
   useEffect(() => {
     const limitStr = localStorage.getItem("device_count") || "";
@@ -518,8 +515,8 @@ const Device = () => {
 
       {/* Add/Edit Device Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={() => setShowAddModal(false)}>
-          <Card id="device-add-modal" className="w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card id="device-add-modal" className="w-full max-w-md mx-4">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg sm:text-xl">{editingDevice ? "Edit Device" : "Add New Device"}</CardTitle>
               <CardDescription className="text-sm">
@@ -588,8 +585,8 @@ const Device = () => {
 
       {/* Super Admin Approval Modal */}
       {showApprovalModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={() => setShowApprovalModal(false)}>
-          <Card id="device-approval-modal" className="w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card id="device-approval-modal" className="w-full max-w-md mx-4">
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-orange-600 text-lg">
                 <AlertCircle className="w-5 h-5" />
@@ -616,10 +613,10 @@ const Device = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && deviceToDelete && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={() => setShowDeleteModal(false)}>
-          <Card id="device-delete-modal" className="w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card id="device-delete-modal" className="w-full max-w-md mx-4">
             <CardHeader className="pb-4">
-              <CardTitle className="flex items-center gap-2 text-destructive text-lg">
+              <CardTitle className="flex items-center gap-2 text-lg" style={{ color: '#01005a' }}>
                 <AlertCircle className="w-5 h-5" />
                 Delete Device
               </CardTitle>
@@ -634,13 +631,13 @@ const Device = () => {
                   variant="outline"
                   onClick={() => setShowDeleteModal(false)}
                   className="flex-1 order-2 sm:order-1"
+                  disabled={centerLoading.show}
                 >
                   Cancel
                 </Button>
                 <Button
-                  variant="destructive"
                   onClick={handleDeleteDevice}
-                  className="flex-1 order-1 sm:order-2"
+                  className="flex-1 order-1 sm:order-2 bg-[#01005a] hover:bg-[#01005a]/90 text-white"
                   disabled={centerLoading.show}
                 >
                   Delete Device

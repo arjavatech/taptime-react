@@ -48,16 +48,13 @@ const EmployeeList = () => {
   const [admins, setAdmins] = useState([]);
   const [superAdmins, setSuperAdmins] = useState([]);
 
-  const [searchTerms, setSearchTerms] = useState({ employee: "", admin: "", superAdmin: "" });
   const [getEmail, setGetEmail] = useState("");
 
   // UI state
   const [activeTab, setActiveTab] = useState("employees");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [currentEmployee, setCurrentEmployee] = useState(null);
   const [editingEmployee, setEditingEmployee] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
   const [globalLoading, setGlobalLoading] = useState(true);
   const [adminCount, setAdminCount] = useState(0);
   const [superAdminCount, setSuperAdminCount] = useState(0);
@@ -114,9 +111,7 @@ const EmployeeList = () => {
   const adminType = localStorage.getItem("adminType");
   const companyId = localStorage.getItem("companyID");
   
-  // Handle modal close events
-  useModalClose(showAddModal, () => setShowAddModal(false), 'employee-add-modal');
-  useModalClose(showDeleteModal, () => setShowDeleteModal(false), 'employee-delete-modal');
+  // Modal close events disabled - modals only close via buttons
 
   // Initialize component
   useEffect(() => {
@@ -956,8 +951,8 @@ const EmployeeList = () => {
 
       {/* Add/Edit Employee Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={() => setShowAddModal(false)}>
-          <Card id="employee-add-modal" className="w-full max-w-md max-h-[90vh] overflow-y-auto mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card id="employee-add-modal" className="w-full max-w-md max-h-[90vh] overflow-y-auto mx-4">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg sm:text-xl">
                 {editingEmployee ? "Edit" : "Add"} {
@@ -1047,19 +1042,7 @@ const EmployeeList = () => {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="role" className="text-sm font-medium">Role</Label>
-                <select
-                  id="role"
-                  value={formData.is_admin}
-                  onChange={(e) => setFormData(prev => ({ ...prev, is_admin: parseInt(e.target.value) }))}
-                  className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
-                >
-                  <option value={0}>Employee</option>
-                  <option value={1}>Admin</option>
-                  {adminType === "Owner" && <option value={2}>Super Admin</option>}
-                </select>
-              </div>
+
 
               {/* Success message for PIN change */}
               {modalSuccess && (
@@ -1105,8 +1088,8 @@ const EmployeeList = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && employeeToDelete && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={() => setShowDeleteModal(false)}>
-          <Card id="employee-delete-modal" className="w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card id="employee-delete-modal" className="w-full max-w-md mx-4">
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-lg" style={{ color: '#01005a' }}>
                 <AlertCircle className="w-5 h-5" />

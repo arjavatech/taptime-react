@@ -103,8 +103,7 @@ const Reports = () => {
     totalHours: "0.0"
   });
   
-  // Handle modal close events
-  useModalClose(showModal, () => setShowModal(false), 'add-entry-modal');
+  // Modal close events disabled - modals only close via buttons
 
   const showToast = (message, type = "success") => {
     // Toast notifications removed
@@ -1860,8 +1859,8 @@ const Reports = () => {
 
       {/* Add Entry Modal */}
       {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={() => setShowModal(false)}>
-          <Card id="add-entry-modal" className="w-full max-w-md max-h-[90vh] mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card id="add-entry-modal" className="w-full max-w-md max-h-[90vh] mx-4">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg sm:text-xl">
                 Add Entry

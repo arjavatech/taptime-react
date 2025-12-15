@@ -61,11 +61,7 @@ const ReportSetting = () => {
 
   const frequencies = ["Daily", "Weekly", "Biweekly", "Monthly", "Bimonthly"];
   
-  // Handle modal close events
-  useModalClose(showAddModal, () => setShowAddModal(false), 'report-add-modal');
-  useModalClose(showEditModal, () => setShowEditModal(false), 'report-edit-modal');
-  useModalClose(showViewEditModal, () => setShowViewEditModal(false), 'report-view-edit-modal');
-  useModalClose(showDeleteModal, () => setShowDeleteModal(false), 'report-delete-modal');
+  // Modal close events disabled - modals only close via buttons
 
   const showToast = (message, type = "success") => {
     // Toast notifications removed
@@ -732,8 +728,8 @@ const ReportSetting = () => {
 
       {/* Add Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={() => setShowAddModal(false)}>
-          <Card id="report-add-modal" className="w-full max-w-md max-h-[90vh] overflow-y-auto mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card id="report-add-modal" className="w-full max-w-md max-h-[90vh] overflow-y-auto mx-4">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
                 <Plus className="w-5 h-5" />
@@ -824,8 +820,8 @@ const ReportSetting = () => {
 
       {/* Edit Modal */}
       {showEditModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={() => setShowEditModal(false)}>
-          <Card id="report-edit-modal" className="w-full max-w-md max-h-[90vh] overflow-y-auto mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card id="report-edit-modal" className="w-full max-w-md max-h-[90vh] overflow-y-auto mx-4">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
                 <Edit className="w-5 h-5" />
@@ -912,8 +908,8 @@ const ReportSetting = () => {
 
       {/* View Edit Modal */}
       {showViewEditModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={() => setShowViewEditModal(false)}>
-          <Card id="report-view-edit-modal" className="w-full max-w-md max-h-[90vh] overflow-y-auto mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card id="report-view-edit-modal" className="w-full max-w-md max-h-[90vh] overflow-y-auto mx-4">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
                 <Calendar className="w-5 h-5" />
@@ -972,8 +968,8 @@ const ReportSetting = () => {
 
       {/* Delete Modal */}
       {showDeleteModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={() => setShowDeleteModal(false)}>
-          <Card id="report-delete-modal" className="w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card id="report-delete-modal" className="w-full max-w-md mx-4">
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-lg" style={{ color: '#01005a' }}>
                 <AlertCircle className="w-5 h-5" />
