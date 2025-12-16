@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+
 import Header from "../components/layout/Header";
 import Footer from "../components/layout/Footer";
 import { Button } from "../components/ui/button";
@@ -32,12 +33,12 @@ import { useModalClose } from "../hooks/useModalClose";
 
 const Reports = () => {
   const [activeTab, setActiveTab] = useState("today");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [reportData, setReportData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [viewMode, setViewMode] = useState("table");
 
@@ -105,9 +106,7 @@ const Reports = () => {
   
   // Modal close events disabled - modals only close via buttons
 
-  const showToast = (message, type = "success") => {
-    // Toast notifications removed
-  };
+
 
   // Helper function to get today's date in YYYY-MM-DD format (local timezone)
   const getTodayDate = () => {
@@ -118,10 +117,7 @@ const Reports = () => {
     return `${year}-${month}-${day}`;
   };
 
-  const loadFrequenciesSync = () => {
-    const savedFrequencies = localStorage.getItem("reportType");
-    return savedFrequencies ? savedFrequencies.split(",").filter(f => f.trim() !== "" && f.toLowerCase() !== "weekly") : [];
-  };
+
 
   const loadDevices = useCallback(async () => {
     try {
@@ -135,20 +131,7 @@ const Reports = () => {
     }
   }, [companyId]);
 
-  const handleDeviceSelection = (device) => {
-    setSelectedDevice(device);
-    if (activeTab === "today") {
-      viewCurrentDateReport(currentDate);
-    } else if (activeTab === "daywise" && selectedDate) {
-      viewDatewiseReport(selectedDate);
-    } else if (activeTab === "summary" && startDate && endDate && dateRangeReportLoaded) {
-      loadSummaryReport();
-    } else if (activeTab === "salaried" && salariedReportData.length > 0) {
-      // Reload salaried report if data was previously loaded
-      loadSalariedReport();
-    }
-  };
-
+ 
   // Today's Report Functions
   const formatToAmPm = (date) => {
     let h = date.getHours();
@@ -168,8 +151,8 @@ const Reports = () => {
     });
   };
 
-  const viewCurrentDateReport = async (dateToUse = currentDate) => {
-    setLoading(true);
+  const viewCurrentDateReport = async (dateToUse = currentDate, showLoading = false) => {
+    if (showLoading) setLoading(true);
     try {
       const arr = await fetchDailyReport(companyId, dateToUse);
       console.log("Today's Report raw data:", arr.length, 'records');
@@ -203,7 +186,11 @@ const Reports = () => {
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+        setIsInitialLoad(false);
+      }
     }
   };
 
@@ -265,7 +252,7 @@ const Reports = () => {
     const checkoutTime = checkoutTimes[rowKey];
 
     if (!checkoutTime) {
-      showToast("Please enter a checkout time", "error");
+
       return;
     }
 
@@ -278,7 +265,7 @@ const Reports = () => {
     const checkoutDate = new Date(checkoutDateTime);
 
     if (checkoutDate <= checkinDate) {
-      showToast("Checkout time must be greater than check-in time", "error");
+
       return;
     }
 
@@ -305,11 +292,11 @@ const Reports = () => {
         return updated;
       });
 
-      await viewCurrentDateReport(currentDate);
-      showToast("Checkout time updated successfully!");
+      await viewCurrentDateReport(currentDate, false);
+
     } catch (error) {
       console.error("Error updating checkout:", error);
-      showToast("Failed to update checkout time. Please try again.", "error");
+
     } finally {
       setLoading(false);
     }
@@ -335,14 +322,14 @@ const Reports = () => {
     return `${hours}:${minutes.toString().padStart(2, "0")}`;
   };
 
-  const viewDatewiseReport = async (dateValue) => {
+  const viewDatewiseReport = async (dateValue, showLoading = false) => {
     if (!dateValue || !companyId) {
       setReportData([]);
       setFilteredData([]);
       return;
     }
 
-    setLoading(true);
+    if (showLoading) setLoading(true);
     try {
       const data = await fetchDailyReport(companyId, dateValue);
       const records = Array.isArray(data) ? data : [];
@@ -374,9 +361,13 @@ const Reports = () => {
       console.error("Error fetching report:", err);
       setReportData([]);
       setFilteredData([]);
-      showToast("Failed to load report data", "error");
+
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+        setIsInitialLoad(false);
+      }
     }
   };
 
@@ -408,100 +399,14 @@ const Reports = () => {
     return employeeTimes;
   };
 
-  const consolidateDaywiseReport = (data) => {
-    const consolidated = {};
+ 
 
-    data.forEach(entry => {
-      const { Name, Pin, CheckInTime, CheckOutTime, TimeWorked, Type, EmpID, DeviceID } = entry;
-      if (!Name || !Pin) return;
-
-      if (!consolidated[Pin]) {
-        // Initialize entry for this employee
-        consolidated[Pin] = {
-          Name,
-          Pin,
-          EmpID,
-          DeviceID,
-          earliestCheckIn: CheckInTime,
-          latestCheckOut: CheckOutTime,
-          totalMinutes: 0,
-          types: new Set(),
-          hasIncompleteEntry: false
-        };
-      }
-
-      // Track all unique types
-      if (Type) {
-        consolidated[Pin].types.add(Type);
-      }
-
-      // Find earliest check-in
-      if (CheckInTime) {
-        const currentCheckIn = new Date(CheckInTime);
-        const earliestCheckIn = new Date(consolidated[Pin].earliestCheckIn);
-        if (currentCheckIn < earliestCheckIn) {
-          consolidated[Pin].earliestCheckIn = CheckInTime;
-        }
-      }
-
-      // Find latest check-out
-      if (CheckOutTime) {
-        if (!consolidated[Pin].latestCheckOut) {
-          consolidated[Pin].latestCheckOut = CheckOutTime;
-        } else {
-          const currentCheckOut = new Date(CheckOutTime);
-          const latestCheckOut = new Date(consolidated[Pin].latestCheckOut);
-          if (currentCheckOut > latestCheckOut) {
-            consolidated[Pin].latestCheckOut = CheckOutTime;
-          }
-        }
-      } else {
-        // Mark if any entry doesn't have checkout
-        consolidated[Pin].hasIncompleteEntry = true;
-      }
-
-      // Calculate time worked for this entry
-      if (CheckInTime && CheckOutTime) {
-        const checkInDate = new Date(CheckInTime);
-        const checkOutDate = new Date(CheckOutTime);
-        const timeDifferenceInMinutes = Math.floor(
-          (Number(checkOutDate) - Number(checkInDate)) / 1000 / 60
-        );
-        consolidated[Pin].totalMinutes += timeDifferenceInMinutes;
-      }
-    });
-
-    // Convert to array format with proper formatting
-    return Object.values(consolidated).map(employee => {
-      const hours = Math.floor(employee.totalMinutes / 60);
-      const mins = employee.totalMinutes % 60;
-      const totalTimeWorked = `${hours}:${mins.toString().padStart(2, "0")}`;
-      const typesArray = Array.from(employee.types);
-
-      return {
-        Name: employee.Name,
-        Pin: employee.Pin,
-        EmpID: employee.EmpID,
-        DeviceID: employee.DeviceID,
-        CheckInTime: employee.earliestCheckIn,
-        CheckOutTime: employee.hasIncompleteEntry ? null : employee.latestCheckOut,
-        formattedCheckIn: employee.earliestCheckIn ? convertToAmPm(employee.earliestCheckIn) : "--",
-        formattedCheckOut: (employee.hasIncompleteEntry || !employee.latestCheckOut) ? "--" : convertToAmPm(employee.latestCheckOut),
-        TimeWorked: totalTimeWorked,
-        Type: typesArray.join(", "), // Comma-separated types
-        Status: employee.hasIncompleteEntry ? "In Progress" : "Completed"
-      };
-    });
-  };
-
-  const loadSummaryReport = async () => {
+  const loadSummaryReport = async (showLoading = true) => {
     if (!startDate || !endDate) {
-      showToast("Please select both start and end dates", "error");
       return;
     }
 
     if (new Date(startDate) > new Date(endDate)) {
-      showToast("Start date must be before end date", "error");
       return;
     }
 
@@ -511,7 +416,7 @@ const Reports = () => {
     setEmployees([]);
     setDateRangeReportLoaded(false);
 
-    setLoading(true);
+    if (showLoading) setLoading(true);
     try {
       const data = await fetchDateRangeReport(companyId, startDate, endDate);
 
@@ -545,16 +450,18 @@ const Reports = () => {
       setReportData(employeeData);
       setFilteredData(employeeData);
       setDateRangeReportLoaded(true);
-      showToast(`Loaded ${employeeData.length} employee records`);
       setCurrentPage(1);
     } catch (error) {
       console.error("Error loading summary report:", error);
-      showToast("Failed to load summary report", "error");
       setEmployees([]);
       setReportData([]);
       setFilteredData([]);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+        setIsInitialLoad(false);
+      }
     }
   };
 
@@ -646,15 +553,14 @@ const Reports = () => {
   };
 
   // Load salaried report data
-  const loadSalariedReport = async () => {
+  const loadSalariedReport = async (showLoading = true) => {
     const dateRange = getDateRangeForReportType(selectedReportType, selectedYear, selectedMonth, selectedWeek, selectedHalf);
 
     if (!dateRange) {
-      showToast("Please select all required options", "error");
       return;
     }
 
-    setLoading(true);
+    if (showLoading) setLoading(true);
     try {
       const data = await fetchDateRangeReport(companyId, dateRange.start, dateRange.end);
       let filteredData = Array.isArray(data) ? data : [];
@@ -686,16 +592,18 @@ const Reports = () => {
       setSalariedReportData(employeeData);
       setReportData(employeeData);
       setFilteredData(employeeData);
-      showToast(`Loaded ${employeeData.length} employee records`);
       setCurrentPage(1);
     } catch (error) {
       console.error("Error loading salaried report:", error);
-      showToast("Failed to load report", "error");
       setSalariedReportData([]);
       setReportData([]);
       setFilteredData([]);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+        setIsInitialLoad(false);
+      }
     }
   };
 
@@ -747,7 +655,6 @@ const Reports = () => {
 
   const downloadCSV = () => {
     if (filteredData.length === 0) {
-      showToast("No data to export", "error");
       return;
     }
 
@@ -770,13 +677,10 @@ const Reports = () => {
     link.href = URL.createObjectURL(blob);
     link.download = filename;
     link.click();
-
-    showToast("Report exported successfully!");
   };
 
   const downloadPDF = () => {
     if (filteredData.length === 0) {
-      showToast("No data to export", "error");
       return;
     }
 
@@ -844,10 +748,8 @@ const Reports = () => {
       }
 
       doc.save(filename);
-      showToast("PDF exported successfully!");
     } catch (error) {
       console.error("Error generating PDF:", error);
-      showToast("Failed to generate PDF", "error");
     }
   };
 
@@ -936,7 +838,6 @@ const Reports = () => {
       setEmployeeList(data);
     } catch (error) {
       console.error("Error loading employees:", error);
-      showToast("Failed to load employees", "error");
     }
   }, [companyId]);
 
@@ -944,7 +845,7 @@ const Reports = () => {
     // Validation
     if (!newEntry.EmployeeID || !newEntry.Type || !newEntry.Date || !newEntry.CheckInTime) {
       setModalError("Please fill in all required fields");
-      setTimeout(() => setModalError(""), 3000);
+      setTimeout(() => setModalError(""), 1000);
       return;
     }
 
@@ -955,7 +856,7 @@ const Reports = () => {
 
       if (checkoutDateTime <= checkinDateTime) {
         setModalError("Checkout time must be greater than check-in time");
-        setTimeout(() => setModalError(""), 3000);
+        setTimeout(() => setModalError(""), 1000);
         return;
       }
     }
@@ -963,7 +864,7 @@ const Reports = () => {
     const selectedEmployee = employeeList.find(emp => emp.pin === newEntry.EmployeeID);
     if (!selectedEmployee) {
       setModalError("Selected employee not found");
-      setTimeout(() => setModalError(""), 3000);
+      setTimeout(() => setModalError(""), 1000);
       return;
     }
 
@@ -999,22 +900,22 @@ const Reports = () => {
 
       // Refresh the current view to show the new entry
       if (activeTab === "today" && currentDate) {
-        await viewCurrentDateReport(currentDate);
+        await viewCurrentDateReport(currentDate, false);
       } else if (activeTab === "daywise" && selectedDate) {
-        await viewDatewiseReport(selectedDate);
+        await viewDatewiseReport(selectedDate, false);
       }
 
       setModalSuccess("Entry added successfully!");
       setTimeout(() => {
         setModalSuccess("");
         closeModal();
-      }, 3000);
+      }, 1000);
     } catch (error) {
       console.error("Error saving entry:", error);
       setModalError(error.message || "Failed to save entry. Please try again.");
       setTimeout(() => {
         setModalError("");
-      }, 3000);
+      }, 1000);
     } finally {
       setIsSubmitting(false);
     }
@@ -1051,7 +952,7 @@ const Reports = () => {
       setEmployees([]);
       setSalariedReportData([]);
       if (currentDate) {
-        viewCurrentDateReport(currentDate);
+        viewCurrentDateReport(currentDate, true);
       }
     } else if (activeTab === "daywise") {
       // For daywise, let the separate useEffect handle loading
@@ -1064,14 +965,14 @@ const Reports = () => {
   // Separate effect for handling date changes in daywise tab
   useEffect(() => {
     if (activeTab === "daywise" && selectedDate) {
-      viewDatewiseReport(selectedDate);
+      viewDatewiseReport(selectedDate, true);
     }
   }, [activeTab, selectedDate]); // Run when either activeTab or selectedDate changes
 
   // Separate effect for handling current date changes in today tab
   useEffect(() => {
     if (activeTab === "today" && currentDate) {
-      viewCurrentDateReport(currentDate);
+      viewCurrentDateReport(currentDate, true);
     }
   }, [currentDate]); // Only run when currentDate changes
 
@@ -1079,7 +980,7 @@ const Reports = () => {
   useEffect(() => {
     if (activeTab === "summary" && startDate && endDate && dateRangeReportLoaded) {
       // Auto-reload when dates change after initial load
-      loadSummaryReport();
+      loadSummaryReport(false);
     }
   }, [startDate, endDate]); // Run when dates change
 
@@ -1145,12 +1046,12 @@ const Reports = () => {
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                <Button variant="outline" onClick={downloadCSV} className="flex items-center justify-center gap-2 w-full sm:w-auto">
+                <Button variant="outline" onClick={downloadCSV} disabled={filteredData.length === 0} className="flex items-center justify-center gap-2 w-full sm:w-auto">
                   <Download className="w-4 h-4" />
                   <span className="hidden sm:inline">Export CSV</span>
                   <span className="sm:hidden">CSV</span>
                 </Button>
-                <Button variant="outline" onClick={downloadPDF} className="flex items-center justify-center gap-2 w-full sm:w-auto">
+                <Button variant="outline" onClick={downloadPDF} disabled={filteredData.length === 0} className="flex items-center justify-center gap-2 w-full sm:w-auto">
                   <FileText className="w-4 h-4" />
                   <span className="hidden sm:inline">Export PDF</span>
                   <span className="sm:hidden">PDF</span>
@@ -1222,7 +1123,7 @@ const Reports = () => {
                   <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
                   <span className="hidden sm:inline">{label}</span>
                   <span className="sm:hidden">
-                    {key === "today" ? "Today" : key === "daywise" ? "Daily" : "Summary"}
+                    {key === "today" ? "Today" : key === "daywise" ? "Daily" : key === "summary" ? "Date Range" : "Salary"}
                   </span>
                 </button>
               ))}

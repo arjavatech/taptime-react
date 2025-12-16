@@ -61,6 +61,8 @@ const Device = () => {
   const [deviceToDelete, setDeviceToDelete] = useState(null);
   const [editingDevice, setEditingDevice] = useState(null);
   const [copiedKey, setCopiedKey] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [maxDevices, setMaxDevices] = useState(0);
   const [userRole] = useState("admin");
@@ -147,6 +149,9 @@ const Device = () => {
       return;
     }
 
+    setIsSubmitting(true);
+    showCenterLoading("Adding device...");
+
     const newDevice = {
       timezone: null,
       device_id: null,
@@ -164,6 +169,8 @@ const Device = () => {
       setTimeout(() => hideCenterLoading(), 800);
     } catch (error) {
       // Error handled silently
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -171,6 +178,9 @@ const Device = () => {
     if (!formData.deviceName.trim()) {
       return;
     }
+
+    setIsSubmitting(true);
+    showCenterLoading("Updating device...");
 
     try {
       // Since there's no update API, we'll simulate it by updating the local state
@@ -194,6 +204,8 @@ const Device = () => {
       setTimeout(() => hideCenterLoading(), 800);
     } catch (error) {
       // Error handled silently
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -206,6 +218,9 @@ const Device = () => {
       return;
     }
 
+    setIsDeleting(true);
+    showCenterLoading("Deleting device...");
+
     try {
       await deviceApi.delete(deviceToDelete.access_key, companyId);
       const updatedDevices = devices.filter(device => device.AccessKey !== deviceToDelete.AccessKey);
@@ -216,6 +231,8 @@ const Device = () => {
       setTimeout(() => hideCenterLoading(), 800);
     } catch (error) {
       await loadDevices();
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -248,7 +265,18 @@ const Device = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
-      <CenterLoadingOverlay show={centerLoading.show} message={centerLoading.message} />
+      {/* Loading Overlay */}
+      {globalLoading && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <div className="bg-white rounded-lg p-6 shadow-xl">
+            <div className="flex items-center space-x-3">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          </div>
+        </div>
+      )}
+
+
 
 
 
@@ -283,17 +311,7 @@ const Device = () => {
 
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-          {globalLoading ? (
-            <Card className="text-center py-8 sm:py-12">
-              <CardContent>
-                <Loader2 className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-primary animate-spin mb-4" />
-                <h3 className="text-base sm:text-lg font-medium text-foreground mb-2">Loading devices...</h3>
-                <p className="text-sm text-muted-foreground">
-                  Please wait while we fetch your devices.
-                </p>
-              </CardContent>
-            </Card>
-          ) : devices.length === 0 ? (
+          {devices.length === 0 ? (
             <Card className="text-center py-8 sm:py-12">
               <CardContent>
                 <Tablet className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-4" />
@@ -573,8 +591,9 @@ const Device = () => {
                 <Button
                   onClick={editingDevice ? handleEditDevice : handleAddDevice}
                   className="flex-1 order-1 sm:order-2"
-                  disabled={centerLoading.show}
+                  disabled={isSubmitting}
                 >
+                  {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   {editingDevice ? "Update Device" : "Add Device"}
                 </Button>
               </div>
@@ -631,15 +650,16 @@ const Device = () => {
                   variant="outline"
                   onClick={() => setShowDeleteModal(false)}
                   className="flex-1 order-2 sm:order-1"
-                  disabled={centerLoading.show}
+                  disabled={isDeleting}
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={handleDeleteDevice}
                   className="flex-1 order-1 sm:order-2 bg-[#01005a] hover:bg-[#01005a]/90 text-white"
-                  disabled={centerLoading.show}
+                  disabled={isDeleting}
                 >
+                  {isDeleting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   Delete Device
                 </Button>
               </div>

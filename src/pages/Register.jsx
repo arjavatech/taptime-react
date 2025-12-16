@@ -857,11 +857,11 @@ const Register = () => {
 
           {currentStep === 1 ? renderStep1() : renderStep2()}
 
-            <div className="text-center mt-8">
+            {/* <div className="text-center mt-8">
               <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
                 ← Back to home
               </Link>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

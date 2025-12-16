@@ -63,13 +63,13 @@ const Profile = () => {
     state: "",
     companyZip: "",
     logo: "",
-    employmentType: "General Employee"
+    employmentType: ""
   });
 
   const [logoFile, setLogoFile] = useState(null);
 
   // Employment type tag input states
-  const [employmentTypes, setEmploymentTypes] = useState(['General Employee']);
+  const [employmentTypes, setEmploymentTypes] = useState([' ']);
   const [employmentTypeInput, setEmploymentTypeInput] = useState('');
 
   const [errors, setErrors] = useState({
@@ -308,7 +308,7 @@ const Profile = () => {
       });
 
       // Load employment type from localStorage
-      const storedEmploymentType = localStorage.getItem("employmentType") || "General Employee";
+      const storedEmploymentType = localStorage.getItem("employmentType");
 
       setCompanyData({
         name: formData.companyName,
@@ -318,7 +318,7 @@ const Profile = () => {
         state: formData.companyState,
         companyZip: formData.companyZip,
         logo: formData.logo,
-        employmentType: storedEmploymentType
+        employmentType: storedEmploymentType.split(',').filter(t => t.trim()).join(','),
       });
 
       // Initialize employmentTypes array from stored CSV
@@ -464,7 +464,7 @@ const Profile = () => {
         company_address_line2: companyData.street2 || "",
         company_city: companyData.city || "",
         company_state: companyData.state || "",
-        company_zip_code: companyData.zipCode || "",
+        company_zip_code: companyData.companyZip || "",
         first_name: personalData.firstName || "",
         last_name: personalData.lastName || "",
         email: personalData.email || "",
@@ -472,7 +472,7 @@ const Profile = () => {
         customer_address_line1: personalData.address || "",
         customer_address_line2: personalData.street2 || "",
         customer_city: personalData.customerCity || "",
-        customer_state: personalData.state || "",
+        customer_state: personalData.customerState || "",
         customer_zip_code: personalData.zipCode || "",
         is_verified: localStorage.getItem("isVerified") === "true",
         device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
@@ -487,8 +487,11 @@ const Profile = () => {
       if (logoFile) {
         formData.append('company_logo', logoFile);
       }
+      console.log("Submitting personal update with data:", companyDataPayload);
 
       const result = await updateProfile(companyId, formData);
+
+      
 
       // Reset logoFile after successful save
       setLogoFile(null);
@@ -522,13 +525,13 @@ const Profile = () => {
       setTimeout(() => {
         setSaveSuccess("");
         setIsEditing(prev => ({ ...prev, personal: false }));
-      }, 3000);
+      }, 1000);
     } catch (error) {
       console.error("Save Personal Error:", error);
       setSaveError(error.message || "Failed to update personal information");
       setTimeout(() => {
         setSaveError("");
-      }, 3000);
+      }, 1000);
     } finally {
       setIsSaving(false);
     }
@@ -563,7 +566,7 @@ const Profile = () => {
         customer_address_line1: personalData.address || "",
         customer_address_line2:personalData.street2 || "",
         customer_city: personalData.customerCity,
-        customer_state: personalData.state || "",
+        customer_state: personalData.customerState || "",
         customer_zip_code: personalData.zipCode || "",
         is_verified: localStorage.getItem("isVerified") === "true",
         device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
@@ -572,6 +575,7 @@ const Profile = () => {
       };
 
       const result = await updateProfile(companyId, updateData);
+
 
       localStorage.setItem("firstName", adminData.firstName);
       localStorage.setItem("lastName", adminData.lastName);
@@ -584,13 +588,13 @@ const Profile = () => {
       setTimeout(() => {
         setSaveSuccess("");
         setIsEditing(prev => ({ ...prev, admin: false }));
-      }, 3000);
+      }, 1000);
     } catch (error) {
       console.error("Save Admin Error:", error);
       setSaveError(error.message || "Failed to update admin information");
       setTimeout(() => {
         setSaveError("");
-      }, 3000);
+      }, 1000);
     } finally {
       setIsSaving(false);
     }
@@ -620,7 +624,7 @@ const Profile = () => {
         company_city: companyData.city || "",
         company_state: companyData.state || "",
         company_zip_code: companyData.zipCode || "",
-        employment_type: companyData.employmentType || "General Employee",
+        employment_type: employmentTypes.join(','),
         first_name: personalData.firstName || "",
         last_name: personalData.lastName || "",
         email: personalData.email || "",
@@ -628,7 +632,7 @@ const Profile = () => {
         customer_address_line1: personalData.address || "",
         customer_address_line2: personalData.street2 || "",
         customer_city: personalData.customerCity || "",
-        customer_state: personalData.state || "",
+        customer_state: personalData.customerState || "",
         customer_zip_code: personalData.zipCode || "",
         is_verified: true,
         device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
@@ -642,7 +646,10 @@ const Profile = () => {
       // Only add logo file if it has been changed
       if (logoFile) {
         formData.append('company_logo', logoFile);
+
+        
       }
+      console.log("Submitting company update with data:", companyDataPayload);
 
       const result = await updateProfile(companyId, formData);
 
@@ -665,13 +672,13 @@ const Profile = () => {
       setTimeout(() => {
         setSaveSuccess("");
         setIsEditing(prev => ({ ...prev, company: false }));
-      }, 3000);
+      }, 1000);
     } catch (error) {
       console.error("Company Save Error:", error);
       setSaveError(error.message || "Failed to update company information");
       setTimeout(() => {
         setSaveError("");
-      }, 3000);
+      }, 1000);
     } finally {
       setIsSaving(false);
     }
@@ -781,7 +788,7 @@ const Profile = () => {
         {/* Tabs */}
         <div className="border-b">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <nav className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-8">
+            <nav className="flex space-x-4 sm:space-x-8 overflow-x-auto">
               {[
                 ...(userType !== "Admin" && userType !== "SuperAdmin" ? [{ key: "personal", label: "Personal Information", icon: User }] : []),
                 { key: "company", label: "Company Information", icon: Building },
@@ -790,7 +797,7 @@ const Profile = () => {
                 <button
                   key={key}
                   onClick={() => setActiveTab(key)}
-                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === key
+                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 whitespace-nowrap ${activeTab === key
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
                     }`}
@@ -1156,7 +1163,7 @@ const Profile = () => {
 
                   <div className="space-y-2 sm:col-span-2">
                     <Label htmlFor="employmentType">Employment Types</Label>
-                    <div className={`border rounded-md p-2 min-h-[42px] flex flex-wrap gap-2 items-center ${isEditing.company ? 'focus-within:ring-2 focus-within:ring-primary focus-within:border-primary' : 'bg-muted'}`}>
+                    <div className={`border rounded-md p-2 min-h-[42px] flex flex-wrap gap-2 items-center ${isEditing.company ? 'focus-within:ring-2 focus-within:ring-primary focus-within:border-primary' : ''}`}>
                       {employmentTypes.map((type, index) => (
                         <span
                           key={index}
@@ -1175,14 +1182,14 @@ const Profile = () => {
                         </span>
                       ))}
                       {isEditing.company && (
-                        <input
+                        <Input
                           type="text"
                           id="employmentType"
                           value={employmentTypeInput}
                           onChange={(e) => setEmploymentTypeInput(e.target.value)}
                           onKeyDown={handleEmploymentTypeKeyDown}
                           placeholder="Add more..."
-                          className="flex-1 min-w-[120px] outline-none text-sm bg-transparent"
+                         
                         />
                       )}
                     </div>

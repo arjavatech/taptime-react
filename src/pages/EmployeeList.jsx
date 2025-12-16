@@ -533,6 +533,17 @@ const EmployeeList = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
+      {/* Loading Overlay */}
+      {globalLoading && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <div className="bg-white rounded-lg p-6 shadow-xl">
+            <div className="flex items-center space-x-3">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          </div>
+        </div>
+      )}
+
       <CenterLoadingOverlay show={centerLoading.show} message={centerLoading.message} />
 
 

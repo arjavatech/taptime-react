@@ -92,7 +92,7 @@ const HomePage = () => {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-              <Button size="lg" className="text-lg px-8 py-6">
+              <Button size="lg" className="text-lg px-8 py-6" onClick={() => navigate('/register')}>
                 Get Started Free
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>

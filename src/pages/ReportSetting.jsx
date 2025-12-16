@@ -33,7 +33,8 @@ import { GridIcon } from "../components/icons/GridIcon";
 import { useModalClose } from "../hooks/useModalClose";
 
 const ReportSetting = () => {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [emailSettings, setEmailSettings] = useState([]);
   const [allEmailSettings, setAllEmailSettings] = useState([]);
   const [viewSettings, setViewSettings] = useState([]);
@@ -67,31 +68,55 @@ const ReportSetting = () => {
     // Toast notifications removed
   };
 
-  const loadReportSettings = async () => {
-    setIsLoading(true);
+  const loadReportSettings = async (showLoading = false) => {
+    if (showLoading) setIsLoading(true);
     if (typeof window === "undefined") return;
     const company_id = localStorage.getItem("companyID") || "";
 
     try {
       const data = await getAllReportEmails(company_id);
-      console.log(data)
-      setAllEmailSettings(data);
-      filterReportSettings(data);
+      console.log('Raw API data:', data);
+      console.log('Data type:', typeof data);
+      console.log('Is array:', Array.isArray(data));
+      
+      // Handle different response formats
+      let processedData = [];
+      if (Array.isArray(data)) {
+        processedData = data;
+      } else if (data && typeof data === 'object') {
+        // If it's an object, check if it has a data property or wrap it in an array
+        if (data.data && Array.isArray(data.data)) {
+          processedData = data.data;
+        } else if (data.email || data.company_reporter_email) {
+          processedData = [data];
+        }
+      }
+      
+      console.log('Processed data:', processedData);
+      console.log('Processed data length:', processedData.length);
+      
+      setAllEmailSettings(processedData);
+      setEmailSettings(processedData);
     } catch (error) {
       console.error("Failed to load report settings:", error);
       setAllEmailSettings([]);
       setEmailSettings([]);
-      showToast("Failed to load report settings", "error");
     } finally {
-      setIsLoading(false);
+      if (showLoading) setIsLoading(false);
+      if (isInitialLoad) {
+        setIsLoading(false);
+        setIsInitialLoad(false);
+      }
     }
   };
 
-  const filterReportSettings = (data = allEmailSettings) => {
-    setEmailSettings(Array.isArray(data) ? data : []);
-  };
+
 
   const getFilteredAndSortedSettings = () => {
+    console.log('getFilteredAndSortedSettings called');
+    console.log('emailSettings:', emailSettings);
+    console.log('emailSettings length:', emailSettings.length);
+    
     let filtered = emailSettings;
     
     if (searchQuery) {
@@ -117,6 +142,8 @@ const ReportSetting = () => {
       return 0;
     });
     
+    console.log('filtered result:', filtered);
+    console.log('filtered length:', filtered.length);
     return filtered;
   };
 
@@ -262,12 +289,14 @@ const ReportSetting = () => {
     try {
       await createReportEmail(reportData);
       setModalSuccess("Email setting added successfully!");
+      
+      // Refresh table data immediately
+      await loadReportSettings(false);
 
       setTimeout(() => {
         setShowAddModal(false);
         setModalSuccess("");
-        loadReportSettings();
-      }, 3000);
+      }, 1000);
     } catch (error) {
       console.error("Error saving report settings:", error);
       setModalError(error.message || "Failed to save email setting");
@@ -288,12 +317,14 @@ const ReportSetting = () => {
     try {
       await updateReportEmail(currentEmail, company_id, reportData);
       setModalSuccess("Email setting updated successfully!");
+      
+      // Refresh table data immediately
+      await loadReportSettings(false);
 
       setTimeout(() => {
         setShowEditModal(false);
         setModalSuccess("");
-        loadReportSettings();
-      }, 3000);
+      }, 1000);
     } catch (error) {
       console.error("Error updating report settings:", error);
       setModalError(error.message || "Failed to update email setting");
@@ -310,12 +341,14 @@ const ReportSetting = () => {
     try {
       await deleteReportEmail(currentEmail, company_id);
       setModalSuccess("Email setting deleted successfully!");
+      
+      // Refresh table data immediately
+      await loadReportSettings(false);
 
       setTimeout(() => {
         setShowDeleteModal(false);
         setModalSuccess("");
-        loadReportSettings();
-      }, 3000);
+      }, 1000);
     } catch (error) {
       console.error("Error deleting report settings:", error);
       setModalError(error.message || "Failed to delete email setting");
@@ -380,7 +413,7 @@ const ReportSetting = () => {
         localStorage.removeItem("reportType");
       }
 
-      await loadReportSettings();
+      await loadReportSettings(true);
       loadViewSetting();
     };
 
@@ -634,7 +667,7 @@ const ReportSetting = () => {
                       <tbody className="divide-y divide-gray-200">
                         {getFilteredAndSortedSettings().map((setting, index) => (
                           <tr key={index} className="hover:bg-gray-50">
-                            <td className="px-2 sm:px-4 py-2 sm:py-3 text-center font-medium text-xs sm:text-sm">{(setting.company_reporter_email || "").trim()}</td>
+                            <td className="px-2 sm:px-4 py-2 sm:py-3 text-center font-medium text-xs sm:text-sm">{(setting.email || setting.company_reporter_email || "").trim()}</td>
                             <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
                               <div className="flex gap-1 sm:gap-2 justify-center flex-wrap">
                                 {formatFrequencies(setting).map((freq) => (
