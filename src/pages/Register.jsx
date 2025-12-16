@@ -25,6 +25,7 @@ const Register = () => {
 
   // Error states for Step 1
   const [companyNameError, setCompanyNameError] = useState('');
+  const [companyLogoError, setCompanyLogoError] = useState('');
   const [companyStreetError, setCompanyStreetError] = useState('');
   const [companyCityError, setCompanyCityError] = useState('');
   const [companyStateError, setCompanyStateError] = useState('');
@@ -60,7 +61,7 @@ const Register = () => {
     customerCity: '',
     customerState: '',
     customerZip: '',
-    employmentType: 'General Employee'
+    employmentType: ''
   });
 
   // Employment type tag input states
@@ -136,13 +137,23 @@ const Register = () => {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Validate image format immediately
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+      const allowedExtensions = ['.jpg', '.jpeg', '.png'];
+      const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+      
+      if (!allowedTypes.includes(file.type) || !allowedExtensions.includes(fileExtension)) {
+        setCompanyLogoError('Please upload a valid image file (JPEG or PNG)');
+        return;
+      }
+      setCompanyLogoError('');
       setLogoFileName(file.name);
-      setLogoFile(file); // Store the actual File object for upload
+      setLogoFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData(prev => ({
           ...prev,
-          companyLogo: reader.result // Keep base64 for preview
+          companyLogo: reader.result
         }));
       };
       reader.readAsDataURL(file);
@@ -197,9 +208,11 @@ const Register = () => {
 
   const validateStep1 = () => {
     const { companyName, companyStreet, companyCity, companyState, companyZip, noOfEmployees } = formData;
+    console.log('Validating fields:', { companyName, companyStreet, companyCity, companyState, companyZip, noOfEmployees });
 
     // Clear previous errors
     setCompanyNameError('');
+    setCompanyLogoError('');
     setCompanyStreetError('');
     setCompanyCityError('');
     setCompanyStateError('');
@@ -210,31 +223,52 @@ const Register = () => {
     let hasErrors = false;
 
     if (!companyName.trim()) {
+      console.log('Company name validation failed');
       setCompanyNameError('Company name is required');
       hasErrors = true;
     }
     if (!companyStreet.trim()) {
+      console.log('Company street validation failed');
       setCompanyStreetError('Street address is required');
       hasErrors = true;
     }
     if (!companyCity.trim()) {
+      console.log('Company city validation failed');
       setCompanyCityError('City is required');
       hasErrors = true;
     }
     if (!companyState.trim()) {
+      console.log('Company state validation failed');
       setCompanyStateError('State is required');
       hasErrors = true;
     }
     if (!companyZip.trim()) {
+      console.log('Company zip validation failed - empty');
       setCompanyZipError('Zip code is required');
       hasErrors = true;
+    } else if (!/^\d{5}$/.test(companyZip)) {
+      console.log('Company zip validation failed - format');
+      setCompanyZipError('Zip code must be exactly 5 digits');
+      hasErrors = true;
     }
-    // noOfDevices is hardcoded to 1, no validation needed
     if (!noOfEmployees || Number(noOfEmployees) <= 0) {
+      console.log('Number of employees validation failed');
       setNoOfEmployeesError('Number of employees must be greater than 0');
       hasErrors = true;
     }
+    // Validate company logo
+    if (logoFile) {
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+      const allowedExtensions = ['.jpg', '.jpeg', '.png'];
+      const fileExtension = logoFile.name.toLowerCase().substring(logoFile.name.lastIndexOf('.'));
+      
+      if (!allowedTypes.includes(logoFile.type) || !allowedExtensions.includes(fileExtension)) {
+        setCompanyLogoError('Please upload a valid image file (JPEG or PNG)');
+        hasErrors = true;
+      }
+    }
 
+    console.log('Validation complete. Has errors:', hasErrors);
     return !hasErrors;
   };
 
@@ -294,8 +328,15 @@ const Register = () => {
 
   const handleNext = (e) => {
     e.preventDefault();
-    if (validateStep1()) {
+    console.log('Form data:', formData);
+    console.log('Validating step 1...');
+    const isValid = validateStep1();
+    console.log('Validation result:', isValid);
+    if (isValid) {
+      console.log('Moving to step 2');
       setCurrentStep(2);
+    } else {
+      console.log('Validation failed, staying on step 1');
     }
   };
 
@@ -338,29 +379,29 @@ const Register = () => {
 
       console.log('Submitting registration data:', submitData);
       // Pass signup data and logo file separately - API uses multipart/form-data
-      const response = await registerUser(submitData, logoFile);
+      // const response = await registerUser(submitData, logoFile);
 
-      if (response.success) {
-        showCenterLoading('Processing registration...');
-        setTimeout(() => {
-          hideCenterLoading();
-          setShowSuccessModal(true);
-        }, 800);
-      } else {
-        const errorMessage = response.error || response.message || 'Registration failed';
+      // if (response.success) {
+      //   showCenterLoading('Processing registration...');
+      //   setTimeout(() => {
+      //     hideCenterLoading();
+      //     setShowSuccessModal(true);
+      //   }, 800);
+      // } else {
+      //   const errorMessage = response.error || response.message || 'Registration failed';
         
-        if (errorMessage.includes('email') && errorMessage.includes('already')) {
-          setEmailError('This email address is already registered');
-        } else if (errorMessage.includes('company') && errorMessage.includes('exists')) {
-          setCompanyNameError('Company name already exists');
-        } else if (errorMessage.includes('validation')) {
-          setEmailError('Please check your information and try again');
-        } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
-          setEmailError('Network error. Please check your connection and try again');
-        } else {
-          setEmailError(errorMessage);
-        }
-      }
+      //   if (errorMessage.includes('email') && errorMessage.includes('already')) {
+      //     setEmailError('This email address is already registered');
+      //   } else if (errorMessage.includes('company') && errorMessage.includes('exists')) {
+      //     setCompanyNameError('Company name already exists');
+      //   } else if (errorMessage.includes('validation')) {
+      //     setEmailError('Please check your information and try again');
+      //   } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+      //     setEmailError('Network error. Please check your connection and try again');
+      //   } else {
+      //     setEmailError(errorMessage);
+      //   }
+      // }
     } catch (error) {
       console.error('Registration error:', error);
       
@@ -440,7 +481,11 @@ const Register = () => {
                 type="file"
                 accept="image/*"
                 onChange={handleFileChange}
+                className={companyLogoError ? 'border-red-500 focus:border-red-500' : ''}
               />
+            )}
+            {companyLogoError && (
+              <p className="text-red-600 text-xs mt-1">{companyLogoError}</p>
             )}
           </div>
 

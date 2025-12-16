@@ -32,6 +32,14 @@ import { GridIcon } from "../components/icons/GridIcon";
 import { useModalClose } from "../hooks/useModalClose";
 
 const Reports = () => {
+  // Utility function to capitalize first letter of each word
+  const capitalizeFirst = (str) => {
+    if (!str) return str;
+    return str.split(' ').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+  };
+
   const [activeTab, setActiveTab] = useState("today");
   const [loading, setLoading] = useState(true);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -1783,7 +1791,7 @@ const Reports = () => {
                   <option value="">Select Employee</option>
                   {(employeeList || []).map((employee) => (
                     <option key={employee.pin} value={employee.pin}>
-                      {employee.first_name} {employee.last_name}
+                      {capitalizeFirst(employee.first_name)} {capitalizeFirst(employee.last_name)}
                     </option>
                   ))}
                 </select>

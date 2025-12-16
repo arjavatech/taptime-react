@@ -42,6 +42,14 @@ import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
 
 const EmployeeList = () => {
+  // Utility function to capitalize first letter of each word
+  const capitalizeFirst = (str) => {
+    if (!str) return str;
+    return str.split(' ').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+  };
+
   // Data state
   const [employees, setEmployees] = useState([]);
   const [filteredEmployees, setFilteredEmployees] = useState([]);
@@ -985,7 +993,7 @@ const EmployeeList = () => {
                     id="firstName"
                     placeholder="First name"
                     value={formData.first_name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, first_name: e.target.value }))}
+                    onChange={(e) => setFormData(prev => ({ ...prev, first_name: capitalizeFirst(e.target.value) }))}
                     className="text-sm"
                   />
                   {errors.first_name && <p className="text-xs text-red-600">{errors.first_name}</p>}
@@ -996,7 +1004,7 @@ const EmployeeList = () => {
                     id="lastName"
                     placeholder="Last name"
                     value={formData.last_name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, last_name: e.target.value }))}
+                    onChange={(e) => setFormData(prev => ({ ...prev, last_name: capitalizeFirst(e.target.value) }))}
                     className="text-sm"
                   />
                   {errors.last_name && <p className="text-xs text-red-600">{errors.last_name}</p>}

@@ -26,6 +26,14 @@ import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
 
 const Profile = () => {
+  // Utility function to capitalize first letter of each word
+  const capitalizeFirst = (str) => {
+    if (!str) return str;
+    return str.split(' ').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+  };
+
   const [activeTab, setActiveTab] = useState("company");
   const [isEditing, setIsEditing] = useState({ personal: false, company: false, admin: false });
   const [isLoading, setIsLoading] = useState(true);
@@ -308,7 +316,7 @@ const Profile = () => {
       });
 
       // Load employment type from localStorage
-      const storedEmploymentType = localStorage.getItem("employmentType");
+      const storedEmploymentType = localStorage.getItem("employmentType") || "";
 
       setCompanyData({
         name: formData.companyName,
@@ -558,7 +566,7 @@ const Profile = () => {
         company_address_line2: companyData.street2 || "",
         company_city: companyData.city || "",
         company_state: companyData.state || "",
-        company_zip_code: companyData.zipCode || "",
+        company_zip_code: companyData.companyZip || "",
         first_name: adminData.firstName || "",
         last_name: adminData.lastName || "",
         email: adminData.email || "",
@@ -623,7 +631,7 @@ const Profile = () => {
         company_address_line2: companyData.street2 || "",
         company_city: companyData.city || "",
         company_state: companyData.state || "",
-        company_zip_code: companyData.zipCode || "",
+        company_zip_code: companyData.companyZip || "",
         employment_type: employmentTypes.join(','),
         first_name: personalData.firstName || "",
         last_name: personalData.lastName || "",
@@ -848,7 +856,7 @@ const Profile = () => {
                       <Input
                         id="firstName"
                         value={personalData.firstName}
-                        onChange={(e) => handlePersonalInputChange("firstName", e.target.value)}
+                        onChange={(e) => handlePersonalInputChange("firstName", capitalizeFirst(e.target.value))}
                         disabled={!isEditing.personal}
                         className={`pl-10 ${errors.firstName ? "border-red-500" : ""}`}
                       />
@@ -863,7 +871,7 @@ const Profile = () => {
                       <Input
                         id="lastName"
                         value={personalData.lastName}
-                        onChange={(e) => handlePersonalInputChange("lastName", e.target.value)}
+                        onChange={(e) => handlePersonalInputChange("lastName", capitalizeFirst(e.target.value))}
                         disabled={!isEditing.personal}
                         className={`pl-10 ${errors.lastName ? "border-red-500" : ""}`}
                       />
@@ -931,7 +939,7 @@ const Profile = () => {
                     <Input
                       id="city"
                       value={personalData.customerCity}
-                      onChange={(e) => handlePersonalInputChange("city", e.target.value)}
+                      onChange={(e) => handlePersonalInputChange("city", capitalizeFirst(e.target.value))}
                       disabled={!isEditing.personal}
                       className={errors.customerCity ? "border-red-500" : ""}
                     />
@@ -943,7 +951,7 @@ const Profile = () => {
                     <Input
                       id="state"
                       value={personalData.customerState}
-                      onChange={(e) => handlePersonalInputChange("state", e.target.value)}
+                      onChange={(e) => handlePersonalInputChange("state", capitalizeFirst(e.target.value))}
                       disabled={!isEditing.personal}
                       className={errors.customerState ? "border-red-500" : ""}
                     />
@@ -1081,7 +1089,7 @@ const Profile = () => {
                       <Input
                         id="companyName"
                         value={companyData.name}
-                        onChange={(e) => handleCompanyInputChange("name", e.target.value)}
+                        onChange={(e) => handleCompanyInputChange("name", capitalizeFirst(e.target.value))}
                         disabled={!isEditing.company}
                         className={`pl-10 ${errors.companyName ? "border-red-500" : ""}`}
                       />
@@ -1124,7 +1132,7 @@ const Profile = () => {
                     <Input
                       id="companyCity"
                       value={companyData.city}
-                      onChange={(e) => handleCompanyInputChange("city", e.target.value)}
+                      onChange={(e) => handleCompanyInputChange("city", capitalizeFirst(e.target.value))}
                       disabled={!isEditing.company}
                       className={errors.companyCity ? "border-red-500" : ""}
                     />
@@ -1136,7 +1144,7 @@ const Profile = () => {
                     <Input
                       id="companyState"
                       value={companyData.state}
-                      onChange={(e) => handleCompanyInputChange("state", e.target.value)}
+                      onChange={(e) => handleCompanyInputChange("state", capitalizeFirst(e.target.value))}
                       disabled={!isEditing.company}
                       className={errors.companyState ? "border-red-500" : ""}
                     />
@@ -1163,7 +1171,7 @@ const Profile = () => {
 
                   <div className="space-y-2 sm:col-span-2">
                     <Label htmlFor="employmentType">Employment Types</Label>
-                    <div className={`border rounded-md p-2 min-h-[42px] flex flex-wrap gap-2 items-center ${isEditing.company ? 'focus-within:ring-2 focus-within:ring-primary focus-within:border-primary' : ''}`}>
+                    <div className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-0 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[42px] flex-wrap gap-2 items-center ${!isEditing.company ? 'opacity-50' : ''}`}>
                       {employmentTypes.map((type, index) => (
                         <span
                           key={index}
@@ -1186,10 +1194,10 @@ const Profile = () => {
                           type="text"
                           id="employmentType"
                           value={employmentTypeInput}
-                          onChange={(e) => setEmploymentTypeInput(e.target.value)}
+                          onChange={(e) => setEmploymentTypeInput(capitalizeFirst(e.target.value))}
                           onKeyDown={handleEmploymentTypeKeyDown}
                           placeholder="Add more..."
-                         
+                          className="border-0 shadow-none focus-visible:ring-0 flex-1 min-w-[120px]"
                         />
                       )}
                     </div>
@@ -1281,7 +1289,7 @@ const Profile = () => {
                       <Input
                         id="adminFirstName"
                         value={adminData.firstName}
-                        onChange={(e) => handleAdminInputChange("firstName", e.target.value)}
+                        onChange={(e) => handleAdminInputChange("firstName", capitalizeFirst(e.target.value))}
                         disabled={!isEditing.admin}
                         className="pl-10"
                       />
@@ -1295,7 +1303,7 @@ const Profile = () => {
                       <Input
                         id="adminLastName"
                         value={adminData.lastName}
-                        onChange={(e) => handleAdminInputChange("lastName", e.target.value)}
+                        onChange={(e) => handleAdminInputChange("lastName", capitalizeFirst(e.target.value))}
                         disabled={!isEditing.admin}
                         className="pl-10"
                       />
