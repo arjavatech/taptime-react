@@ -113,6 +113,15 @@ const Register = () => {
       return;
     }
     
+    // Auto-capitalize first character for text fields (exclude email and numeric fields)
+    let processedValue = value;
+    const numericFields = ['noOfDevices', 'noOfEmployees', 'companyZip', 'customerZip'];
+    const emailFields = ['email'];
+    
+    if (!numericFields.includes(name) && !emailFields.includes(name) && processedValue.length > 0) {
+      processedValue = processedValue.charAt(0).toUpperCase() + processedValue.slice(1);
+    }
+    
     // Clear errors when user types
     if (name === 'companyName') setCompanyNameError('');
     if (name === 'companyStreet') setCompanyStreetError('');
@@ -130,7 +139,7 @@ const Register = () => {
     
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: processedValue
     }));
   };
 
@@ -181,9 +190,10 @@ const Register = () => {
     if (e.key === ',' || e.key === 'Enter') {
       e.preventDefault();
       const value = employmentTypeInput.trim();
+      const capitalizedValue = value.length > 0 ? value.charAt(0).toUpperCase() + value.slice(1) : value;
 
-      if (value && !employmentTypes.includes(value)) {
-        const newTypes = [...employmentTypes, value];
+      if (capitalizedValue && !employmentTypes.includes(capitalizedValue)) {
+        const newTypes = [...employmentTypes, capitalizedValue];
         setEmploymentTypes(newTypes);
         setFormData(prev => ({
           ...prev,
@@ -379,29 +389,29 @@ const Register = () => {
 
       console.log('Submitting registration data:', submitData);
       // Pass signup data and logo file separately - API uses multipart/form-data
-      // const response = await registerUser(submitData, logoFile);
+      const response = await registerUser(submitData, logoFile);
 
-      // if (response.success) {
-      //   showCenterLoading('Processing registration...');
-      //   setTimeout(() => {
-      //     hideCenterLoading();
-      //     setShowSuccessModal(true);
-      //   }, 800);
-      // } else {
-      //   const errorMessage = response.error || response.message || 'Registration failed';
+      if (response.success) {
+        showCenterLoading('Processing registration...');
+        setTimeout(() => {
+          hideCenterLoading();
+          setShowSuccessModal(true);
+        }, 800);
+      } else {
+        const errorMessage = response.error || response.message || 'Registration failed';
         
-      //   if (errorMessage.includes('email') && errorMessage.includes('already')) {
-      //     setEmailError('This email address is already registered');
-      //   } else if (errorMessage.includes('company') && errorMessage.includes('exists')) {
-      //     setCompanyNameError('Company name already exists');
-      //   } else if (errorMessage.includes('validation')) {
-      //     setEmailError('Please check your information and try again');
-      //   } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
-      //     setEmailError('Network error. Please check your connection and try again');
-      //   } else {
-      //     setEmailError(errorMessage);
-      //   }
-      // }
+        if (errorMessage.includes('email') && errorMessage.includes('already')) {
+          setEmailError('This email address is already registered');
+        } else if (errorMessage.includes('company') && errorMessage.includes('exists')) {
+          setCompanyNameError('Company name already exists');
+        } else if (errorMessage.includes('validation')) {
+          setEmailError('Please check your information and try again');
+        } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+          setEmailError('Network error. Please check your connection and try again');
+        } else {
+          setEmailError(errorMessage);
+        }
+      }
     } catch (error) {
       console.error('Registration error:', error);
       
