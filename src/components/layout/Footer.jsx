@@ -40,7 +40,7 @@ const Footer = () => {
     { href: "/reportsetting", text: "Report Settings" },
     { href: "/profile", text: "Profile" },
     { href: "/contact", text: "Contact Us" }
-  ]
+  ].filter(link => !((link.text === "Report Settings" || link.text === "Device") && isAuthenticated))
 
   const quickLinks = isAuthenticated ? authenticatedLinks : publicLinks
 

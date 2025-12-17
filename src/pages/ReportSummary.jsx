@@ -1118,7 +1118,8 @@ const Reports = () => {
                 { key: "today", label: "Today Report", icon: Calendar },
                 { key: "daywise", label: "Day-wise Report", icon: Calendar },
                 { key: "summary", label: "Date Range Report", icon: BarChart3 },
-                { key: "salaried", label: "Salaried Report", icon: TrendingUp }
+                { key: "salaried", label: "Salaried Report", icon: TrendingUp },
+                { key: "pending", label: "Pending Checkout", icon: Clock }
               ].map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}
@@ -1131,7 +1132,7 @@ const Reports = () => {
                   <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
                   <span className="hidden sm:inline">{label}</span>
                   <span className="sm:hidden">
-                    {key === "today" ? "Today" : key === "daywise" ? "Daily" : key === "summary" ? "Date Range" : "Salary"}
+                    {key === "today" ? "Today" : key === "daywise" ? "Daily" : key === "summary" ? "Date Range" : key === "salaried" ? "Salary" : "Pending"}
                   </span>
                 </button>
               ))}
@@ -1335,43 +1336,77 @@ const Reports = () => {
                 ) : (
                   viewMode === "grid" ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                      {filteredData.map((record, index) => (
-                        <Card key={index} className="hover:shadow-lg transition-shadow">
-                          <CardHeader className="pb-3">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                                  <Users className="w-4 h-4 text-primary" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <CardTitle className="text-base sm:text-lg truncate">{record.Name}</CardTitle>
-                                  <CardDescription className="text-xs sm:text-sm">PIN: {record.Pin}</CardDescription>
+                      {filteredData.map((record, index) => {
+                        const rowKey = `${record.Pin}-${record.CheckInTime}`;
+                        const hasCheckout = record.CheckOutTime;
+                        const selectedTime = checkoutTimes[rowKey];
+                        const checkoutError = checkoutErrors[rowKey];
+                        const checkInTime = new Date(record.CheckInTime);
+                        const minTime = `${String(checkInTime.getHours()).padStart(2, '0')}:${String(checkInTime.getMinutes() + 1).padStart(2, '0')}`;
+
+                        return (
+                          <Card key={index} className="hover:shadow-lg transition-shadow">
+                            <CardHeader className="pb-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <Users className="w-4 h-4 text-primary" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <CardTitle className="text-base sm:text-lg truncate">{record.Name}</CardTitle>
+                                    <CardDescription className="text-xs sm:text-sm">PIN: {record.Pin}</CardDescription>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="space-y-3 sm:space-y-4 pt-0">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs sm:text-sm text-muted-foreground">Type</span>
-                              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{record.Type}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs sm:text-sm">
-                              <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
-                              <span className="truncate">In: {formatTime(record.CheckInTime)}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs sm:text-sm">
-                              <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
-                              <span className="truncate">Out: {formatTime(record.CheckOutTime)}</span>
-                            </div>
-                            <div className="pt-2 border-t">
-                              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                <span>Time Worked</span>
-                                <span className="font-medium text-foreground">{record.TimeWorked}</span>
+                            </CardHeader>
+                            <CardContent className="space-y-3 sm:space-y-4 pt-0">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs sm:text-sm text-muted-foreground">Type</span>
+                                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{record.Type}</span>
                               </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
+                              <div className="flex items-center gap-2 text-xs sm:text-sm">
+                                <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
+                                <span className="truncate">In: {formatTime(record.CheckInTime)}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs sm:text-sm">
+                                <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
+                                <span className="truncate">Out: {formatTime(record.CheckOutTime)}</span>
+                              </div>
+                              {!hasCheckout && (
+                                <div className="space-y-2">
+                                  <input
+                                    type="time"
+                                    value={selectedTime || ''}
+                                    onChange={(e) => handleCheckoutTimeChange(rowKey, e.target.value, record.CheckInTime)}
+                                    min={minTime}
+                                    className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="Select checkout time"
+                                  />
+                                  {checkoutError && (
+                                    <span className="text-red-500 text-xs">{checkoutError}</span>
+                                  )}
+                                </div>
+                              )}
+                              <div className="pt-2 border-t">
+                                <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                                  <span>Time Worked</span>
+                                  <span className="font-medium text-foreground">{record.TimeWorked}</span>
+                                </div>
+                                {!hasCheckout && (
+                                  <Button
+                                    onClick={() => handleCheckout(record)}
+                                    disabled={!selectedTime || checkoutError}
+                                    size="sm"
+                                    className="w-full bg-green-600 hover:bg-green-700 text-xs disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                  >
+                                    Check Out
+                                  </Button>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
@@ -1604,6 +1639,142 @@ const Reports = () => {
                             </td>
                           </tr>
                         ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Pending Checkout Section */}
+        {activeTab === "pending" && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="w-5 h-5" />
+                  Pending Checkout
+                </CardTitle>
+                <CardDescription>
+                  Employees who have checked in but not checked out
+                </CardDescription>
+              </CardHeader>
+
+              <CardContent>
+                {viewMode === "grid" ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                    {/* Sample hardcoded data */}
+                    {[
+                      { id: "EMP001", name: "John Smith", checkin: "9:00 AM", type: "Full-time" },
+                      { id: "EMP002", name: "Sarah Johnson", checkin: "8:30 AM", type: "Part-time" },
+                      { id: "EMP003", name: "Mike Davis", checkin: "9:15 AM", type: "Contract" }
+                    ].map((record, index) => (
+                      <Card key={index} className="hover:shadow-lg transition-shadow">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                                <Users className="w-4 h-4 text-primary" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <CardTitle className="text-base sm:text-lg truncate">{record.name}</CardTitle>
+                                <CardDescription className="text-xs sm:text-sm">ID: {record.id}</CardDescription>
+                              </div>
+                            </div>
+                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Pending</span>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-3 sm:space-y-4 pt-0">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs sm:text-sm text-muted-foreground">Date</span>
+                            <span className="text-xs sm:text-sm">{new Date().toLocaleDateString()}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs sm:text-sm text-muted-foreground">Type</span>
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{record.type}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs sm:text-sm">
+                            <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
+                            <span className="truncate">In: {record.checkin}</span>
+                          </div>
+                          <div className="pt-2 border-t">
+                            <Button size="sm" className="w-full bg-green-600 hover:bg-green-700 text-xs">
+                              Check Out
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full border border-gray-300 rounded-lg">
+                      <thead className="bg-[#02066F] text-white">
+                        <tr>
+                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Employee ID</th>
+                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Name</th>
+                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Date</th>
+                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Check-in Time</th>
+                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Check-out Time</th>
+                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Type</th>
+                          <th className="px-4 py-3 text-center font-semibold text-sm">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {/* Sample hardcoded data */}
+                        <tr className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-center font-medium">EMP001</td>
+                          <td className="px-4 py-3 text-center">John Smith</td>
+                          <td className="px-4 py-3 text-center">{new Date().toLocaleDateString()}</td>
+                          <td className="px-4 py-3 text-center">9:00 AM</td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Pending</span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Full-time</span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <Button size="sm" className="bg-green-600 hover:bg-green-700 text-xs">
+                              Check Out
+                            </Button>
+                          </td>
+                        </tr>
+                        <tr className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-center font-medium">EMP002</td>
+                          <td className="px-4 py-3 text-center">Sarah Johnson</td>
+                          <td className="px-4 py-3 text-center">{new Date().toLocaleDateString()}</td>
+                          <td className="px-4 py-3 text-center">8:30 AM</td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Pending</span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Part-time</span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <Button size="sm" className="bg-green-600 hover:bg-green-700 text-xs">
+                              Check Out
+                            </Button>
+                          </td>
+                        </tr>
+                        <tr className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-center font-medium">EMP003</td>
+                          <td className="px-4 py-3 text-center">Mike Davis</td>
+                          <td className="px-4 py-3 text-center">{new Date().toLocaleDateString()}</td>
+                          <td className="px-4 py-3 text-center">9:15 AM</td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Pending</span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Contract</span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <Button size="sm" className="bg-green-600 hover:bg-green-700 text-xs">
+                              Check Out
+                            </Button>
+                          </td>
+                        </tr>
                       </tbody>
                     </table>
                   </div>
