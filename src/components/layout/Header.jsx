@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import LogoutModal from "../ui/LogoutModal";
+import Avatar from "../ui/Avatar";
 import tapTimeLogo from "../../assets/images/tap-time-logo.png";
 
 const Header = () => {
@@ -25,7 +26,6 @@ const Header = () => {
     name: "",
     email: "",
     picture: "",
-    fallback: "",
   });
 
   useEffect(() => {
@@ -54,7 +54,6 @@ const Header = () => {
           name: userName,
           email: email,
           picture: fixedPictureUrl || "",
-          fallback: email.charAt(0).toUpperCase(),
         });
       } else {
         // Reset user profile when not authenticated
@@ -63,7 +62,6 @@ const Header = () => {
           name: "",
           email: "",
           picture: "",
-          fallback: "",
         });
       }
     };
@@ -132,14 +130,18 @@ const Header = () => {
   const authenticatedNavItems = [
     ...(userType !== "Admin" ? [{ to: "/device", label: "Device" }] : []),
     { to: "/employee-management", label: "Employee Management" },
-    { 
-      label: "Reports", 
-      dropdown: true,
-      items: [
-        { to: "/reportsummary", label: "Report Summary" },
-        { to: "/reportsetting", label: "Report Settings" }
-      ]
-    },
+    ...(userType === "Admin" ? [
+      { to: "/reportsummary", label: "Report Summary" }
+    ] : [
+      { 
+        label: "Reports", 
+        dropdown: true,
+        items: [
+          { to: "/reportsummary", label: "Report Summary" },
+          { to: "/reportsetting", label: "Report Settings" }
+        ]
+      }
+    ]),
     { to: "/profile", label: "Profile" },
     { to: "/contact", label: "Contact" }
   ];
@@ -243,18 +245,12 @@ const Header = () => {
                     }
                   }}
                 >
-                  {userProfile.picture ? (
-                    <img
-                      className="h-10 w-10 rounded-full object-cover"
-                      src={userProfile.picture}
-                      alt="Profile"
-                      onError={() => setUserProfile(prev => ({ ...prev, picture: "" }))}
-                    />
-                  ) : (
-                    <div className="h-10 w-10 rounded-full bg-[#02066F] flex items-center justify-center">
-                      <span className="text-sm font-medium text-white">{userProfile.fallback}</span>
-                    </div>
-                  )}
+                  <Avatar
+                    src={userProfile.picture}
+                    email={userProfile.email}
+                    size="md"
+                    alt="Profile"
+                  />
                 </button>
                 
                 {/* Desktop Profile Card */}
@@ -264,17 +260,13 @@ const Header = () => {
                     <div className="hidden lg:block absolute left-[-189px] top-full mt-2 z-50">
                       <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-6 w-64">
                         <div className="flex flex-col items-center text-center">
-                          {userProfile.picture ? (
-                            <img
-                              className="h-16 w-16 rounded-full object-cover mb-3"
-                              src={userProfile.picture}
-                              alt="Profile"
-                            />
-                          ) : (
-                            <div className="h-16 w-16 rounded-full bg-[#02066F] flex items-center justify-center mb-3">
-                              <span className="text-lg font-medium text-white">{userProfile.fallback}</span>
-                            </div>
-                          )}
+                          <Avatar
+                            src={userProfile.picture}
+                            email={userProfile.email}
+                            size="lg"
+                            alt="Profile"
+                            className="mb-3"
+                          />
                           {/* <h3 className="text-gray-900 font-medium text-lg mb-1">{userProfile.name || 'User'}</h3> */}
                           <p className="text-black text-sm mb-4">{userProfile.email}</p>
                           <button
@@ -398,13 +390,12 @@ const Header = () => {
             </div>
             <div className="px-6 py-6">
               <div className="flex items-center space-x-4 mb-6">
-                {userProfile.picture ? (
-                  <img className="h-16 w-16 rounded-full object-cover" src={userProfile.picture} alt="Profile" />
-                ) : (
-                  <div className="h-16 w-16 rounded-full bg-[#01005a] flex items-center justify-center">
-                    <span className="text-xl font-bold text-white">{userProfile.fallback}</span>
-                  </div>
-                )}
+                <Avatar
+                  src={userProfile.picture}
+                  email={userProfile.email}
+                  size="lg"
+                  alt="Profile"
+                />
                 <div>
                   <h4 className="text-lg font-medium text-gray-900">{userProfile.name}</h4>
                   <p className="text-sm text-gray-500">{userProfile.email}</p>

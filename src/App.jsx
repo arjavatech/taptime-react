@@ -19,6 +19,7 @@ import ContactUs from "./pages/ContactUs";
 import GetInTouch from "./pages/GetInTouch";
 import ReportSummary from "./pages/ReportSummary";
 import ReportSetting from "./pages/ReportSetting";
+import ForgotPassword from "./pages/ForgotPassword";
 import { AuthProvider } from "./contexts/AuthContext";
 
 
@@ -32,6 +33,7 @@ function App() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/set-password" element={<SetPassword />} />
             <Route path="/register" element={<Register />} />
             <Route path="/employee-management" element={<EmployeeList/>} />

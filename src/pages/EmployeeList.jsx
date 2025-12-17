@@ -567,16 +567,14 @@ const EmployeeList = () => {
                   Manage employees, admins, and super admins
                 </p>
               </div>
-              {(adminType !== "Admin") && (
-                <Button
-                  onClick={() => openAddModal(activeTab === "admins" ? 1 : activeTab === "superadmins" ? 2 : 0)}
-                  disabled={activeTab === "superadmins" && adminType !== "Owner"}
-                  className="flex items-center justify-center gap-2 w-full sm:w-auto"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span className="truncate">Add {activeTab === "admins" ? "Admin" : activeTab === "superadmins" ? "Super Admin" : "Employee"}</span>
-                </Button>
-              )}
+              <Button
+                onClick={() => openAddModal(activeTab === "admins" ? 1 : activeTab === "superadmins" ? 2 : 0)}
+                disabled={activeTab === "superadmins" && adminType !== "Owner"}
+                className="flex items-center justify-center gap-2 w-full sm:w-auto"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="truncate">Add {activeTab === "admins" ? "Admin" : activeTab === "superadmins" ? "Super Admin" : "Employee"}</span>
+              </Button>
             </div>
           </div>
         </div>
@@ -599,35 +597,39 @@ const EmployeeList = () => {
               </CardContent>
             </Card>
 
-            <Card
-              className="cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => setActiveTab("admins")}
-            >
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center">
-                  <Shield className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
-                  <div className="ml-3 sm:ml-4">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Admins</p>
-                    <p className="text-xl sm:text-2xl font-bold text-foreground">{adminCount}</p>
+            {adminType !== "Admin" && (
+              <Card
+                className="cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => setActiveTab("admins")}
+              >
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center">
+                    <Shield className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
+                    <div className="ml-3 sm:ml-4">
+                      <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Admins</p>
+                      <p className="text-xl sm:text-2xl font-bold text-foreground">{adminCount}</p>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
 
-            <Card
-              className="sm:col-span-2 md:col-span-1 cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => setActiveTab("superadmins")}
-            >
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center">
-                  <Crown className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600" />
-                  <div className="ml-3 sm:ml-4">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Super Admins</p>
-                    <p className="text-xl sm:text-2xl font-bold text-foreground">{superAdminCount}</p>
+            {adminType !== "Admin" && (
+              <Card
+                className="sm:col-span-2 md:col-span-1 cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => setActiveTab("superadmins")}
+              >
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center">
+                    <Crown className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600" />
+                    <div className="ml-3 sm:ml-4">
+                      <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Super Admins</p>
+                      <p className="text-xl sm:text-2xl font-bold text-foreground">{superAdminCount}</p>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
 

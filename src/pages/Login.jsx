@@ -49,7 +49,7 @@ const Login = () => {
         try {
           const userEmail = user.email;
           const userName = user.user_metadata?.full_name || user.user_metadata?.name || user.email.split('@')[0];
-          const userPicture = user.user_metadata?.avatar_url || user.user_metadata?.picture || '';
+          const userPicture = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
 
           const result = await fetchBackendUserData(userEmail, userName, userPicture);
 
@@ -120,7 +120,7 @@ const Login = () => {
 
       if (data?.user) {
         const userName = data.user.user_metadata?.full_name || data.user.user_metadata?.name || email.split('@')[0];
-        const userPicture = data.user.user_metadata?.avatar_url || data.user.user_metadata?.picture || '';
+        const userPicture = data.user.user_metadata?.avatar_url || data.user.user_metadata?.picture || null;
 
         const result = await fetchBackendUserData(data.user.email, userName, userPicture);
 

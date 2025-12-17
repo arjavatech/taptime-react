@@ -98,6 +98,9 @@ const Profile = () => {
   });
 
   const [companyId, setCompanyId] = useState("");
+    
+  // Check if user can edit company details
+  const canEditCompany = userType === "SuperAdmin" || userType === "Owner";
   
   // Handle modal close events for loading overlay
   useModalClose(isLoading, () => {}, 'profile-loading-modal');
@@ -288,6 +291,11 @@ const Profile = () => {
 
       setCompanyId(companyId);
       setUserType(userType);
+
+      // Auto-redirect Admin users to Admin Information tab
+      if (userType === "Admin" || userType === "SuperAdmin") {
+        setActiveTab("admin");
+      }
 
       const formData = loadProfileData(adminDetails);
       console.log("Loaded form data:", formData);
@@ -610,6 +618,14 @@ const Profile = () => {
 
   const handleSaveCompany = async () => {
     console.log("handleSaveCompany called");
+    
+    // Check authorization
+    if (!canEditCompany) {
+      setSaveError("Only Super Admins and Owners are authorized to edit company details.");
+      setTimeout(() => setSaveError(""), 3000);
+      return;
+    }
+    
     if (!validateCompanyForm()) {
       console.log("Validation failed");
       return;
@@ -1037,7 +1053,7 @@ const Profile = () => {
                       Manage your company details and branding
                     </CardDescription>
                   </div>
-                  {!isEditing.company && (
+                  {!isEditing.company && canEditCompany && (
                     <Button
                       variant="outline"
                       onClick={() => setIsEditing(prev => ({ ...prev, company: true }))}
@@ -1046,6 +1062,11 @@ const Profile = () => {
                       <Edit className="w-4 h-4" />
                       Edit
                     </Button>
+                  )}
+                  {!canEditCompany && (
+                    <div className="text-sm text-muted-foreground bg-muted px-3 py-2 rounded-md">
+                      Only Super Admins and Owners can edit company details
+                    </div>
                   )}
                 </div>
               </CardHeader>
