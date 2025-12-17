@@ -42,22 +42,27 @@ import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
 
 const EmployeeList = () => {
+  // Utility function to capitalize first letter of each word
+  const capitalizeFirst = (str) => {
+    if (!str) return str;
+    return str.split(' ').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+  };
+
   // Data state
   const [employees, setEmployees] = useState([]);
   const [filteredEmployees, setFilteredEmployees] = useState([]);
   const [admins, setAdmins] = useState([]);
   const [superAdmins, setSuperAdmins] = useState([]);
 
-  const [searchTerms, setSearchTerms] = useState({ employee: "", admin: "", superAdmin: "" });
   const [getEmail, setGetEmail] = useState("");
 
   // UI state
   const [activeTab, setActiveTab] = useState("employees");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [currentEmployee, setCurrentEmployee] = useState(null);
   const [editingEmployee, setEditingEmployee] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
   const [globalLoading, setGlobalLoading] = useState(true);
   const [adminCount, setAdminCount] = useState(0);
   const [superAdminCount, setSuperAdminCount] = useState(0);
@@ -114,9 +119,7 @@ const EmployeeList = () => {
   const adminType = localStorage.getItem("adminType");
   const companyId = localStorage.getItem("companyID");
   
-  // Handle modal close events
-  useModalClose(showAddModal, () => setShowAddModal(false), 'employee-add-modal');
-  useModalClose(showDeleteModal, () => setShowDeleteModal(false), 'employee-delete-modal');
+  // Modal close events disabled - modals only close via buttons
 
   // Initialize component
   useEffect(() => {
@@ -538,6 +541,17 @@ const EmployeeList = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
+      {/* Loading Overlay */}
+      {globalLoading && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <div className="bg-white rounded-lg p-6 shadow-xl">
+            <div className="flex items-center space-x-3">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          </div>
+        </div>
+      )}
+
       <CenterLoadingOverlay show={centerLoading.show} message={centerLoading.message} />
 
 
@@ -553,16 +567,14 @@ const EmployeeList = () => {
                   Manage employees, admins, and super admins
                 </p>
               </div>
-              {(adminType !== "Admin") && (
-                <Button
-                  onClick={() => openAddModal(activeTab === "admins" ? 1 : activeTab === "superadmins" ? 2 : 0)}
-                  disabled={activeTab === "superadmins" && adminType !== "Owner"}
-                  className="flex items-center justify-center gap-2 w-full sm:w-auto"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span className="truncate">Add {activeTab === "admins" ? "Admin" : activeTab === "superadmins" ? "Super Admin" : "Employee"}</span>
-                </Button>
-              )}
+              <Button
+                onClick={() => openAddModal(activeTab === "admins" ? 1 : activeTab === "superadmins" ? 2 : 0)}
+                disabled={activeTab === "superadmins" && adminType !== "Owner"}
+                className="flex items-center justify-center gap-2 w-full sm:w-auto"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="truncate">Add {activeTab === "admins" ? "Admin" : activeTab === "superadmins" ? "Super Admin" : "Employee"}</span>
+              </Button>
             </div>
           </div>
         </div>
@@ -585,35 +597,39 @@ const EmployeeList = () => {
               </CardContent>
             </Card>
 
-            <Card
-              className="cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => setActiveTab("admins")}
-            >
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center">
-                  <Shield className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
-                  <div className="ml-3 sm:ml-4">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Admins</p>
-                    <p className="text-xl sm:text-2xl font-bold text-foreground">{adminCount}</p>
+            {adminType !== "Admin" && (
+              <Card
+                className="cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => setActiveTab("admins")}
+              >
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center">
+                    <Shield className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
+                    <div className="ml-3 sm:ml-4">
+                      <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Admins</p>
+                      <p className="text-xl sm:text-2xl font-bold text-foreground">{adminCount}</p>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
 
-            <Card
-              className="sm:col-span-2 md:col-span-1 cursor-pointer hover:shadow-lg transition-shadow"
-              onClick={() => setActiveTab("superadmins")}
-            >
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center">
-                  <Crown className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600" />
-                  <div className="ml-3 sm:ml-4">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Super Admins</p>
-                    <p className="text-xl sm:text-2xl font-bold text-foreground">{superAdminCount}</p>
+            {adminType !== "Admin" && (
+              <Card
+                className="sm:col-span-2 md:col-span-1 cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => setActiveTab("superadmins")}
+              >
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex items-center">
+                    <Crown className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600" />
+                    <div className="ml-3 sm:ml-4">
+                      <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Super Admins</p>
+                      <p className="text-xl sm:text-2xl font-bold text-foreground">{superAdminCount}</p>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
 
@@ -956,8 +972,8 @@ const EmployeeList = () => {
 
       {/* Add/Edit Employee Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={() => setShowAddModal(false)}>
-          <Card id="employee-add-modal" className="w-full max-w-md max-h-[90vh] overflow-y-auto mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card id="employee-add-modal" className="w-full max-w-md max-h-[90vh] overflow-y-auto mx-4">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg sm:text-xl">
                 {editingEmployee ? "Edit" : "Add"} {
@@ -979,7 +995,7 @@ const EmployeeList = () => {
                     id="firstName"
                     placeholder="First name"
                     value={formData.first_name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, first_name: e.target.value }))}
+                    onChange={(e) => setFormData(prev => ({ ...prev, first_name: capitalizeFirst(e.target.value) }))}
                     className="text-sm"
                   />
                   {errors.first_name && <p className="text-xs text-red-600">{errors.first_name}</p>}
@@ -990,7 +1006,7 @@ const EmployeeList = () => {
                     id="lastName"
                     placeholder="Last name"
                     value={formData.last_name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, last_name: e.target.value }))}
+                    onChange={(e) => setFormData(prev => ({ ...prev, last_name: capitalizeFirst(e.target.value) }))}
                     className="text-sm"
                   />
                   {errors.last_name && <p className="text-xs text-red-600">{errors.last_name}</p>}
@@ -1047,19 +1063,7 @@ const EmployeeList = () => {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="role" className="text-sm font-medium">Role</Label>
-                <select
-                  id="role"
-                  value={formData.is_admin}
-                  onChange={(e) => setFormData(prev => ({ ...prev, is_admin: parseInt(e.target.value) }))}
-                  className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
-                >
-                  <option value={0}>Employee</option>
-                  <option value={1}>Admin</option>
-                  {adminType === "Owner" && <option value={2}>Super Admin</option>}
-                </select>
-              </div>
+
 
               {/* Success message for PIN change */}
               {modalSuccess && (
@@ -1105,8 +1109,8 @@ const EmployeeList = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && employeeToDelete && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={() => setShowDeleteModal(false)}>
-          <Card id="employee-delete-modal" className="w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card id="employee-delete-modal" className="w-full max-w-md mx-4">
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-lg" style={{ color: '#01005a' }}>
                 <AlertCircle className="w-5 h-5" />

@@ -26,6 +26,14 @@ import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
 
 const Profile = () => {
+  // Utility function to capitalize first letter of each word
+  const capitalizeFirst = (str) => {
+    if (!str) return str;
+    return str.split(' ').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+  };
+
   const [activeTab, setActiveTab] = useState("company");
   const [isEditing, setIsEditing] = useState({ personal: false, company: false, admin: false });
   const [isLoading, setIsLoading] = useState(true);
@@ -63,13 +71,13 @@ const Profile = () => {
     state: "",
     companyZip: "",
     logo: "",
-    employmentType: "General Employee"
+    employmentType: ""
   });
 
   const [logoFile, setLogoFile] = useState(null);
 
   // Employment type tag input states
-  const [employmentTypes, setEmploymentTypes] = useState(['General Employee']);
+  const [employmentTypes, setEmploymentTypes] = useState([' ']);
   const [employmentTypeInput, setEmploymentTypeInput] = useState('');
 
   const [errors, setErrors] = useState({
@@ -90,6 +98,9 @@ const Profile = () => {
   });
 
   const [companyId, setCompanyId] = useState("");
+    
+  // Check if user can edit company details
+  const canEditCompany = userType === "SuperAdmin" || userType === "Owner";
   
   // Handle modal close events for loading overlay
   useModalClose(isLoading, () => {}, 'profile-loading-modal');
@@ -281,6 +292,11 @@ const Profile = () => {
       setCompanyId(companyId);
       setUserType(userType);
 
+      // Auto-redirect Admin users to Admin Information tab
+      if (userType === "Admin" || userType === "SuperAdmin") {
+        setActiveTab("admin");
+      }
+
       const formData = loadProfileData(adminDetails);
       console.log("Loaded form data:", formData);
 
@@ -308,7 +324,7 @@ const Profile = () => {
       });
 
       // Load employment type from localStorage
-      const storedEmploymentType = localStorage.getItem("employmentType") || "General Employee";
+      const storedEmploymentType = localStorage.getItem("employmentType") || "";
 
       setCompanyData({
         name: formData.companyName,
@@ -318,7 +334,7 @@ const Profile = () => {
         state: formData.companyState,
         companyZip: formData.companyZip,
         logo: formData.logo,
-        employmentType: storedEmploymentType
+        employmentType: storedEmploymentType.split(',').filter(t => t.trim()).join(','),
       });
 
       // Initialize employmentTypes array from stored CSV
@@ -464,7 +480,7 @@ const Profile = () => {
         company_address_line2: companyData.street2 || "",
         company_city: companyData.city || "",
         company_state: companyData.state || "",
-        company_zip_code: companyData.zipCode || "",
+        company_zip_code: companyData.companyZip || "",
         first_name: personalData.firstName || "",
         last_name: personalData.lastName || "",
         email: personalData.email || "",
@@ -472,7 +488,7 @@ const Profile = () => {
         customer_address_line1: personalData.address || "",
         customer_address_line2: personalData.street2 || "",
         customer_city: personalData.customerCity || "",
-        customer_state: personalData.state || "",
+        customer_state: personalData.customerState || "",
         customer_zip_code: personalData.zipCode || "",
         is_verified: localStorage.getItem("isVerified") === "true",
         device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
@@ -487,8 +503,11 @@ const Profile = () => {
       if (logoFile) {
         formData.append('company_logo', logoFile);
       }
+      console.log("Submitting personal update with data:", companyDataPayload);
 
       const result = await updateProfile(companyId, formData);
+
+      
 
       // Reset logoFile after successful save
       setLogoFile(null);
@@ -522,13 +541,13 @@ const Profile = () => {
       setTimeout(() => {
         setSaveSuccess("");
         setIsEditing(prev => ({ ...prev, personal: false }));
-      }, 3000);
+      }, 1000);
     } catch (error) {
       console.error("Save Personal Error:", error);
       setSaveError(error.message || "Failed to update personal information");
       setTimeout(() => {
         setSaveError("");
-      }, 3000);
+      }, 1000);
     } finally {
       setIsSaving(false);
     }
@@ -555,7 +574,7 @@ const Profile = () => {
         company_address_line2: companyData.street2 || "",
         company_city: companyData.city || "",
         company_state: companyData.state || "",
-        company_zip_code: companyData.zipCode || "",
+        company_zip_code: companyData.companyZip || "",
         first_name: adminData.firstName || "",
         last_name: adminData.lastName || "",
         email: adminData.email || "",
@@ -563,7 +582,7 @@ const Profile = () => {
         customer_address_line1: personalData.address || "",
         customer_address_line2:personalData.street2 || "",
         customer_city: personalData.customerCity,
-        customer_state: personalData.state || "",
+        customer_state: personalData.customerState || "",
         customer_zip_code: personalData.zipCode || "",
         is_verified: localStorage.getItem("isVerified") === "true",
         device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
@@ -572,6 +591,7 @@ const Profile = () => {
       };
 
       const result = await updateProfile(companyId, updateData);
+
 
       localStorage.setItem("firstName", adminData.firstName);
       localStorage.setItem("lastName", adminData.lastName);
@@ -584,13 +604,13 @@ const Profile = () => {
       setTimeout(() => {
         setSaveSuccess("");
         setIsEditing(prev => ({ ...prev, admin: false }));
-      }, 3000);
+      }, 1000);
     } catch (error) {
       console.error("Save Admin Error:", error);
       setSaveError(error.message || "Failed to update admin information");
       setTimeout(() => {
         setSaveError("");
-      }, 3000);
+      }, 1000);
     } finally {
       setIsSaving(false);
     }
@@ -598,6 +618,14 @@ const Profile = () => {
 
   const handleSaveCompany = async () => {
     console.log("handleSaveCompany called");
+    
+    // Check authorization
+    if (!canEditCompany) {
+      setSaveError("Only Super Admins and Owners are authorized to edit company details.");
+      setTimeout(() => setSaveError(""), 3000);
+      return;
+    }
+    
     if (!validateCompanyForm()) {
       console.log("Validation failed");
       return;
@@ -619,8 +647,8 @@ const Profile = () => {
         company_address_line2: companyData.street2 || "",
         company_city: companyData.city || "",
         company_state: companyData.state || "",
-        company_zip_code: companyData.zipCode || "",
-        employment_type: companyData.employmentType || "General Employee",
+        company_zip_code: companyData.companyZip || "",
+        employment_type: employmentTypes.join(','),
         first_name: personalData.firstName || "",
         last_name: personalData.lastName || "",
         email: personalData.email || "",
@@ -628,7 +656,7 @@ const Profile = () => {
         customer_address_line1: personalData.address || "",
         customer_address_line2: personalData.street2 || "",
         customer_city: personalData.customerCity || "",
-        customer_state: personalData.state || "",
+        customer_state: personalData.customerState || "",
         customer_zip_code: personalData.zipCode || "",
         is_verified: true,
         device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
@@ -642,7 +670,10 @@ const Profile = () => {
       // Only add logo file if it has been changed
       if (logoFile) {
         formData.append('company_logo', logoFile);
+
+        
       }
+      console.log("Submitting company update with data:", companyDataPayload);
 
       const result = await updateProfile(companyId, formData);
 
@@ -665,13 +696,13 @@ const Profile = () => {
       setTimeout(() => {
         setSaveSuccess("");
         setIsEditing(prev => ({ ...prev, company: false }));
-      }, 3000);
+      }, 1000);
     } catch (error) {
       console.error("Company Save Error:", error);
       setSaveError(error.message || "Failed to update company information");
       setTimeout(() => {
         setSaveError("");
-      }, 3000);
+      }, 1000);
     } finally {
       setIsSaving(false);
     }
@@ -781,7 +812,7 @@ const Profile = () => {
         {/* Tabs */}
         <div className="border-b">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <nav className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-8">
+            <nav className="flex space-x-4 sm:space-x-8 overflow-x-auto">
               {[
                 ...(userType !== "Admin" && userType !== "SuperAdmin" ? [{ key: "personal", label: "Personal Information", icon: User }] : []),
                 { key: "company", label: "Company Information", icon: Building },
@@ -790,7 +821,7 @@ const Profile = () => {
                 <button
                   key={key}
                   onClick={() => setActiveTab(key)}
-                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === key
+                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 whitespace-nowrap ${activeTab === key
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
                     }`}
@@ -841,7 +872,7 @@ const Profile = () => {
                       <Input
                         id="firstName"
                         value={personalData.firstName}
-                        onChange={(e) => handlePersonalInputChange("firstName", e.target.value)}
+                        onChange={(e) => handlePersonalInputChange("firstName", capitalizeFirst(e.target.value))}
                         disabled={!isEditing.personal}
                         className={`pl-10 ${errors.firstName ? "border-red-500" : ""}`}
                       />
@@ -856,7 +887,7 @@ const Profile = () => {
                       <Input
                         id="lastName"
                         value={personalData.lastName}
-                        onChange={(e) => handlePersonalInputChange("lastName", e.target.value)}
+                        onChange={(e) => handlePersonalInputChange("lastName", capitalizeFirst(e.target.value))}
                         disabled={!isEditing.personal}
                         className={`pl-10 ${errors.lastName ? "border-red-500" : ""}`}
                       />
@@ -924,7 +955,7 @@ const Profile = () => {
                     <Input
                       id="city"
                       value={personalData.customerCity}
-                      onChange={(e) => handlePersonalInputChange("city", e.target.value)}
+                      onChange={(e) => handlePersonalInputChange("city", capitalizeFirst(e.target.value))}
                       disabled={!isEditing.personal}
                       className={errors.customerCity ? "border-red-500" : ""}
                     />
@@ -936,7 +967,7 @@ const Profile = () => {
                     <Input
                       id="state"
                       value={personalData.customerState}
-                      onChange={(e) => handlePersonalInputChange("state", e.target.value)}
+                      onChange={(e) => handlePersonalInputChange("state", capitalizeFirst(e.target.value))}
                       disabled={!isEditing.personal}
                       className={errors.customerState ? "border-red-500" : ""}
                     />
@@ -1022,7 +1053,7 @@ const Profile = () => {
                       Manage your company details and branding
                     </CardDescription>
                   </div>
-                  {!isEditing.company && (
+                  {!isEditing.company && canEditCompany && (
                     <Button
                       variant="outline"
                       onClick={() => setIsEditing(prev => ({ ...prev, company: true }))}
@@ -1031,6 +1062,11 @@ const Profile = () => {
                       <Edit className="w-4 h-4" />
                       Edit
                     </Button>
+                  )}
+                  {!canEditCompany && (
+                    <div className="text-sm text-muted-foreground bg-muted px-3 py-2 rounded-md">
+                      Only Super Admins and Owners can edit company details
+                    </div>
                   )}
                 </div>
               </CardHeader>
@@ -1074,7 +1110,7 @@ const Profile = () => {
                       <Input
                         id="companyName"
                         value={companyData.name}
-                        onChange={(e) => handleCompanyInputChange("name", e.target.value)}
+                        onChange={(e) => handleCompanyInputChange("name", capitalizeFirst(e.target.value))}
                         disabled={!isEditing.company}
                         className={`pl-10 ${errors.companyName ? "border-red-500" : ""}`}
                       />
@@ -1117,7 +1153,7 @@ const Profile = () => {
                     <Input
                       id="companyCity"
                       value={companyData.city}
-                      onChange={(e) => handleCompanyInputChange("city", e.target.value)}
+                      onChange={(e) => handleCompanyInputChange("city", capitalizeFirst(e.target.value))}
                       disabled={!isEditing.company}
                       className={errors.companyCity ? "border-red-500" : ""}
                     />
@@ -1129,7 +1165,7 @@ const Profile = () => {
                     <Input
                       id="companyState"
                       value={companyData.state}
-                      onChange={(e) => handleCompanyInputChange("state", e.target.value)}
+                      onChange={(e) => handleCompanyInputChange("state", capitalizeFirst(e.target.value))}
                       disabled={!isEditing.company}
                       className={errors.companyState ? "border-red-500" : ""}
                     />
@@ -1156,7 +1192,7 @@ const Profile = () => {
 
                   <div className="space-y-2 sm:col-span-2">
                     <Label htmlFor="employmentType">Employment Types</Label>
-                    <div className={`border rounded-md p-2 min-h-[42px] flex flex-wrap gap-2 items-center ${isEditing.company ? 'focus-within:ring-2 focus-within:ring-primary focus-within:border-primary' : 'bg-muted'}`}>
+                    <div className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-0 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[42px] flex-wrap gap-2 items-center ${!isEditing.company ? 'opacity-50' : ''}`}>
                       {employmentTypes.map((type, index) => (
                         <span
                           key={index}
@@ -1175,14 +1211,14 @@ const Profile = () => {
                         </span>
                       ))}
                       {isEditing.company && (
-                        <input
+                        <Input
                           type="text"
                           id="employmentType"
                           value={employmentTypeInput}
-                          onChange={(e) => setEmploymentTypeInput(e.target.value)}
+                          onChange={(e) => setEmploymentTypeInput(capitalizeFirst(e.target.value))}
                           onKeyDown={handleEmploymentTypeKeyDown}
                           placeholder="Add more..."
-                          className="flex-1 min-w-[120px] outline-none text-sm bg-transparent"
+                          className="border-0 shadow-none focus-visible:ring-0 flex-1 min-w-[120px]"
                         />
                       )}
                     </div>
@@ -1274,7 +1310,7 @@ const Profile = () => {
                       <Input
                         id="adminFirstName"
                         value={adminData.firstName}
-                        onChange={(e) => handleAdminInputChange("firstName", e.target.value)}
+                        onChange={(e) => handleAdminInputChange("firstName", capitalizeFirst(e.target.value))}
                         disabled={!isEditing.admin}
                         className="pl-10"
                       />
@@ -1288,7 +1324,7 @@ const Profile = () => {
                       <Input
                         id="adminLastName"
                         value={adminData.lastName}
-                        onChange={(e) => handleAdminInputChange("lastName", e.target.value)}
+                        onChange={(e) => handleAdminInputChange("lastName", capitalizeFirst(e.target.value))}
                         disabled={!isEditing.admin}
                         className="pl-10"
                       />

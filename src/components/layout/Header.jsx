@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import LogoutModal from "../ui/LogoutModal";
+import Avatar from "../ui/Avatar";
 import tapTimeLogo from "../../assets/images/tap-time-logo.png";
 
 const Header = () => {
@@ -25,7 +26,6 @@ const Header = () => {
     name: "",
     email: "",
     picture: "",
-    fallback: "",
   });
 
   useEffect(() => {
@@ -54,7 +54,6 @@ const Header = () => {
           name: userName,
           email: email,
           picture: fixedPictureUrl || "",
-          fallback: email.charAt(0).toUpperCase(),
         });
       } else {
         // Reset user profile when not authenticated
@@ -63,7 +62,6 @@ const Header = () => {
           name: "",
           email: "",
           picture: "",
-          fallback: "",
         });
       }
     };
@@ -132,14 +130,18 @@ const Header = () => {
   const authenticatedNavItems = [
     ...(userType !== "Admin" ? [{ to: "/device", label: "Device" }] : []),
     { to: "/employee-management", label: "Employee Management" },
-    { 
-      label: "Reports", 
-      dropdown: true,
-      items: [
-        { to: "/reportsummary", label: "Report Summary" },
-        { to: "/reportsetting", label: "Report Settings" }
-      ]
-    },
+    ...(userType === "Admin" ? [
+      { to: "/reportsummary", label: "Report Summary" }
+    ] : [
+      { 
+        label: "Reports", 
+        dropdown: true,
+        items: [
+          { to: "/reportsummary", label: "Report Summary" },
+          { to: "/reportsetting", label: "Report Settings" }
+        ]
+      }
+    ]),
     { to: "/profile", label: "Profile" },
     { to: "/contact", label: "Contact" }
   ];
@@ -243,18 +245,12 @@ const Header = () => {
                     }
                   }}
                 >
-                  {userProfile.picture ? (
-                    <img
-                      className="h-10 w-10 rounded-full object-cover"
-                      src={userProfile.picture}
-                      alt="Profile"
-                      onError={() => setUserProfile(prev => ({ ...prev, picture: "" }))}
-                    />
-                  ) : (
-                    <div className="h-10 w-10 rounded-full bg-[#02066F] flex items-center justify-center">
-                      <span className="text-sm font-medium text-white">{userProfile.fallback}</span>
-                    </div>
-                  )}
+                  <Avatar
+                    src={userProfile.picture}
+                    email={userProfile.email}
+                    size="md"
+                    alt="Profile"
+                  />
                 </button>
                 
                 {/* Desktop Profile Card */}
@@ -262,29 +258,25 @@ const Header = () => {
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowProfileDropdown(false)}></div>
                     <div className="hidden lg:block absolute left-[-189px] top-full mt-2 z-50">
-                      <div className="bg-[#02066F] rounded-lg shadow-lg p-6 w-64">
+                      <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-6 w-64">
                         <div className="flex flex-col items-center text-center">
-                          {userProfile.picture ? (
-                            <img
-                              className="h-16 w-16 rounded-full object-cover mb-3"
-                              src={userProfile.picture}
-                              alt="Profile"
-                            />
-                          ) : (
-                            <div className="h-16 w-16 rounded-full bg-white flex items-center justify-center mb-3">
-                              <span className="text-lg font-medium text-[#02066F]">{userProfile.fallback}</span>
-                            </div>
-                          )}
-                          {/* <h3 className="text-white font-medium text-lg mb-1">{userProfile.name || 'User'}</h3> */}
-                          <p className="text-white text-sm mb-4">{userProfile.email}</p>
+                          <Avatar
+                            src={userProfile.picture}
+                            email={userProfile.email}
+                            size="lg"
+                            alt="Profile"
+                            className="mb-3"
+                          />
+                          {/* <h3 className="text-gray-900 font-medium text-lg mb-1">{userProfile.name || 'User'}</h3> */}
+                          <p className="text-black text-sm mb-4">{userProfile.email}</p>
                           <button
                             onClick={() => { setShowModal(true); setShowProfileDropdown(false); }}
-                            className="w-full bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center gap-2"
+                            className="w-full bg-[#02066F]  text-white py-2 px-4 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center gap-2"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                             </svg>
-                            Logout
+                            Sign Out
                           </button>
                         </div>
                       </div>
@@ -309,7 +301,7 @@ const Header = () => {
           <aside className="fixed top-0 left-0 h-full w-64 bg-white shadow-xl z-50 border-r flex flex-col">
             <div className="flex items-center justify-between px-4 py-4 border-b">
               <img className="h-10 w-auto" src={tapTimeLogo} alt="Tap Time Logo" />
-              <button onClick={toggleSidebar} className="text-gray-400 hover:text-gray-600">
+              <button onClick={toggleSidebar} className="text-gray-400 hover:text-black">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -374,7 +366,7 @@ const Header = () => {
                   className="w-full px-3 py-2 text-[#02066F] hover:text-[#030974] hover:bg-blue-50 rounded-md font-medium text-left text-base" 
                   onClick={() => { setShowModal(true); setSidebarOpen(false); }}
                 >
-                  Logout
+                  Sign Out
                 </button>
               </div>
             )}
@@ -390,7 +382,7 @@ const Header = () => {
           <div className="fixed top-0 right-0 h-full w-80 bg-white shadow-xl z-50 border-l animate-in slide-in-from-right-0 duration-300">
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <h3 className="text-lg font-semibold text-gray-900">Profile</h3>
-              <button onClick={() => setShowProfileSidebar(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setShowProfileSidebar(false)} className="text-gray-400 hover:text-black">
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -398,13 +390,12 @@ const Header = () => {
             </div>
             <div className="px-6 py-6">
               <div className="flex items-center space-x-4 mb-6">
-                {userProfile.picture ? (
-                  <img className="h-16 w-16 rounded-full object-cover" src={userProfile.picture} alt="Profile" />
-                ) : (
-                  <div className="h-16 w-16 rounded-full bg-[#01005a] flex items-center justify-center">
-                    <span className="text-xl font-bold text-white">{userProfile.fallback}</span>
-                  </div>
-                )}
+                <Avatar
+                  src={userProfile.picture}
+                  email={userProfile.email}
+                  size="lg"
+                  alt="Profile"
+                />
                 <div>
                   <h4 className="text-lg font-medium text-gray-900">{userProfile.name}</h4>
                   <p className="text-sm text-gray-500">{userProfile.email}</p>
@@ -417,7 +408,7 @@ const Header = () => {
                 <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                 </svg>
-                Logout
+                Sign Out
               </button>
             </div>
           </div>
