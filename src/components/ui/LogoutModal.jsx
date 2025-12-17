@@ -26,7 +26,7 @@ const LogoutModal = ({ isOpen, onClose, onConfirm, userName = "User" }) => {
           <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
             <AlertTriangle className="w-6 h-6 text-[#02066F]" />
           </div>
-          <CardTitle className="text-xl">Confirm Logout</CardTitle>
+          <CardTitle className="text-xl">Confirm Sign Out</CardTitle>
           <CardDescription>
             Are you sure you want to sign out, {userName}?
           </CardDescription>

@@ -34,8 +34,22 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    // Auto logout on browser/tab close
+    const handleBeforeUnload = () => {
+      if (session) {
+        localStorage.clear();
+        sessionStorage.clear();
+        supabase.auth.signOut();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [session]);
 
   // Sign in with email and password
   const signInWithEmail = async (email, password) => {
@@ -124,9 +138,7 @@ export const AuthProvider = ({ children }) => {
   // Reset password
   const resetPassword = async (email) => {
     try {
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email);
 
       if (error) throw error;
       return { data, error: null };
@@ -165,6 +177,9 @@ export const AuthProvider = ({ children }) => {
       }
       if (userPicture) {
         localStorage.setItem('userPicture', userPicture);
+      } else {
+        // Remove any existing userPicture to ensure fallback is used
+        localStorage.removeItem('userPicture');
       }
 
       // Step 3: Fetch timezone data

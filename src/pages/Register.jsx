@@ -25,6 +25,7 @@ const Register = () => {
 
   // Error states for Step 1
   const [companyNameError, setCompanyNameError] = useState('');
+  const [companyLogoError, setCompanyLogoError] = useState('');
   const [companyStreetError, setCompanyStreetError] = useState('');
   const [companyCityError, setCompanyCityError] = useState('');
   const [companyStateError, setCompanyStateError] = useState('');
@@ -60,7 +61,7 @@ const Register = () => {
     customerCity: '',
     customerState: '',
     customerZip: '',
-    employmentType: 'General Employee'
+    employmentType: ''
   });
 
   // Employment type tag input states
@@ -112,6 +113,15 @@ const Register = () => {
       return;
     }
     
+    // Auto-capitalize first character for text fields (exclude email and numeric fields)
+    let processedValue = value;
+    const numericFields = ['noOfDevices', 'noOfEmployees', 'companyZip', 'customerZip'];
+    const emailFields = ['email'];
+    
+    if (!numericFields.includes(name) && !emailFields.includes(name) && processedValue.length > 0) {
+      processedValue = processedValue.charAt(0).toUpperCase() + processedValue.slice(1);
+    }
+    
     // Clear errors when user types
     if (name === 'companyName') setCompanyNameError('');
     if (name === 'companyStreet') setCompanyStreetError('');
@@ -129,20 +139,30 @@ const Register = () => {
     
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: processedValue
     }));
   };
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      // Validate image format immediately
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+      const allowedExtensions = ['.jpg', '.jpeg', '.png'];
+      const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+      
+      if (!allowedTypes.includes(file.type) || !allowedExtensions.includes(fileExtension)) {
+        setCompanyLogoError('Please upload a valid image file (JPEG or PNG)');
+        return;
+      }
+      setCompanyLogoError('');
       setLogoFileName(file.name);
-      setLogoFile(file); // Store the actual File object for upload
+      setLogoFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData(prev => ({
           ...prev,
-          companyLogo: reader.result // Keep base64 for preview
+          companyLogo: reader.result
         }));
       };
       reader.readAsDataURL(file);
@@ -170,9 +190,10 @@ const Register = () => {
     if (e.key === ',' || e.key === 'Enter') {
       e.preventDefault();
       const value = employmentTypeInput.trim();
+      const capitalizedValue = value.length > 0 ? value.charAt(0).toUpperCase() + value.slice(1) : value;
 
-      if (value && !employmentTypes.includes(value)) {
-        const newTypes = [...employmentTypes, value];
+      if (capitalizedValue && !employmentTypes.includes(capitalizedValue)) {
+        const newTypes = [...employmentTypes, capitalizedValue];
         setEmploymentTypes(newTypes);
         setFormData(prev => ({
           ...prev,
@@ -197,9 +218,11 @@ const Register = () => {
 
   const validateStep1 = () => {
     const { companyName, companyStreet, companyCity, companyState, companyZip, noOfEmployees } = formData;
+    console.log('Validating fields:', { companyName, companyStreet, companyCity, companyState, companyZip, noOfEmployees });
 
     // Clear previous errors
     setCompanyNameError('');
+    setCompanyLogoError('');
     setCompanyStreetError('');
     setCompanyCityError('');
     setCompanyStateError('');
@@ -210,31 +233,52 @@ const Register = () => {
     let hasErrors = false;
 
     if (!companyName.trim()) {
+      console.log('Company name validation failed');
       setCompanyNameError('Company name is required');
       hasErrors = true;
     }
     if (!companyStreet.trim()) {
+      console.log('Company street validation failed');
       setCompanyStreetError('Street address is required');
       hasErrors = true;
     }
     if (!companyCity.trim()) {
+      console.log('Company city validation failed');
       setCompanyCityError('City is required');
       hasErrors = true;
     }
     if (!companyState.trim()) {
+      console.log('Company state validation failed');
       setCompanyStateError('State is required');
       hasErrors = true;
     }
     if (!companyZip.trim()) {
+      console.log('Company zip validation failed - empty');
       setCompanyZipError('Zip code is required');
       hasErrors = true;
+    } else if (!/^\d{5}$/.test(companyZip)) {
+      console.log('Company zip validation failed - format');
+      setCompanyZipError('Zip code must be exactly 5 digits');
+      hasErrors = true;
     }
-    // noOfDevices is hardcoded to 1, no validation needed
     if (!noOfEmployees || Number(noOfEmployees) <= 0) {
+      console.log('Number of employees validation failed');
       setNoOfEmployeesError('Number of employees must be greater than 0');
       hasErrors = true;
     }
+    // Validate company logo
+    if (logoFile) {
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+      const allowedExtensions = ['.jpg', '.jpeg', '.png'];
+      const fileExtension = logoFile.name.toLowerCase().substring(logoFile.name.lastIndexOf('.'));
+      
+      if (!allowedTypes.includes(logoFile.type) || !allowedExtensions.includes(fileExtension)) {
+        setCompanyLogoError('Please upload a valid image file (JPEG or PNG)');
+        hasErrors = true;
+      }
+    }
 
+    console.log('Validation complete. Has errors:', hasErrors);
     return !hasErrors;
   };
 
@@ -294,8 +338,15 @@ const Register = () => {
 
   const handleNext = (e) => {
     e.preventDefault();
-    if (validateStep1()) {
+    console.log('Form data:', formData);
+    console.log('Validating step 1...');
+    const isValid = validateStep1();
+    console.log('Validation result:', isValid);
+    if (isValid) {
+      console.log('Moving to step 2');
       setCurrentStep(2);
+    } else {
+      console.log('Validation failed, staying on step 1');
     }
   };
 
@@ -440,7 +491,11 @@ const Register = () => {
                 type="file"
                 accept="image/*"
                 onChange={handleFileChange}
+                className={companyLogoError ? 'border-red-500 focus:border-red-500' : ''}
               />
+            )}
+            {companyLogoError && (
+              <p className="text-red-600 text-xs mt-1">{companyLogoError}</p>
             )}
           </div>
 
@@ -831,7 +886,7 @@ const Register = () => {
         </div>
 
         {/* Right side - Registration form */}
-        <div className="w-full md:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center mt-12 py-12 px-6 sm:px-8 md:px-12 lg:px-20">
+        <div className="w-full md:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center mt-0 md:mt-12 py-12 px-6 sm:px-8 md:px-12 lg:px-20">
           <div className="w-full max-w-md">
             {/* Logo (visible on mobile only) */}
             <div className="text-center mb-8 md:hidden">
@@ -857,11 +912,11 @@ const Register = () => {
 
           {currentStep === 1 ? renderStep1() : renderStep2()}
 
-            <div className="text-center mt-8">
+            {/* <div className="text-center mt-8">
               <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
                 ← Back to home
               </Link>
-            </div>
+            </div> */}
           </div>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+
 import Header from "../components/layout/Header";
 import Footer from "../components/layout/Footer";
 import { Button } from "../components/ui/button";
@@ -31,13 +32,21 @@ import { GridIcon } from "../components/icons/GridIcon";
 import { useModalClose } from "../hooks/useModalClose";
 
 const Reports = () => {
+  // Utility function to capitalize first letter of each word
+  const capitalizeFirst = (str) => {
+    if (!str) return str;
+    return str.split(' ').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+  };
+
   const [activeTab, setActiveTab] = useState("today");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [reportData, setReportData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [viewMode, setViewMode] = useState("table");
 
@@ -103,12 +112,9 @@ const Reports = () => {
     totalHours: "0.0"
   });
   
-  // Handle modal close events
-  useModalClose(showModal, () => setShowModal(false), 'add-entry-modal');
+  // Modal close events disabled - modals only close via buttons
 
-  const showToast = (message, type = "success") => {
-    // Toast notifications removed
-  };
+
 
   // Helper function to get today's date in YYYY-MM-DD format (local timezone)
   const getTodayDate = () => {
@@ -119,10 +125,7 @@ const Reports = () => {
     return `${year}-${month}-${day}`;
   };
 
-  const loadFrequenciesSync = () => {
-    const savedFrequencies = localStorage.getItem("reportType");
-    return savedFrequencies ? savedFrequencies.split(",").filter(f => f.trim() !== "" && f.toLowerCase() !== "weekly") : [];
-  };
+
 
   const loadDevices = useCallback(async () => {
     try {
@@ -136,20 +139,7 @@ const Reports = () => {
     }
   }, [companyId]);
 
-  const handleDeviceSelection = (device) => {
-    setSelectedDevice(device);
-    if (activeTab === "today") {
-      viewCurrentDateReport(currentDate);
-    } else if (activeTab === "daywise" && selectedDate) {
-      viewDatewiseReport(selectedDate);
-    } else if (activeTab === "summary" && startDate && endDate && dateRangeReportLoaded) {
-      loadSummaryReport();
-    } else if (activeTab === "salaried" && salariedReportData.length > 0) {
-      // Reload salaried report if data was previously loaded
-      loadSalariedReport();
-    }
-  };
-
+ 
   // Today's Report Functions
   const formatToAmPm = (date) => {
     let h = date.getHours();
@@ -169,8 +159,8 @@ const Reports = () => {
     });
   };
 
-  const viewCurrentDateReport = async (dateToUse = currentDate) => {
-    setLoading(true);
+  const viewCurrentDateReport = async (dateToUse = currentDate, showLoading = false) => {
+    if (showLoading) setLoading(true);
     try {
       const arr = await fetchDailyReport(companyId, dateToUse);
       console.log("Today's Report raw data:", arr.length, 'records');
@@ -204,7 +194,11 @@ const Reports = () => {
     } catch (err) {
       console.error(err);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+        setIsInitialLoad(false);
+      }
     }
   };
 
@@ -266,7 +260,7 @@ const Reports = () => {
     const checkoutTime = checkoutTimes[rowKey];
 
     if (!checkoutTime) {
-      showToast("Please enter a checkout time", "error");
+
       return;
     }
 
@@ -279,7 +273,7 @@ const Reports = () => {
     const checkoutDate = new Date(checkoutDateTime);
 
     if (checkoutDate <= checkinDate) {
-      showToast("Checkout time must be greater than check-in time", "error");
+
       return;
     }
 
@@ -306,11 +300,11 @@ const Reports = () => {
         return updated;
       });
 
-      await viewCurrentDateReport(currentDate);
-      showToast("Checkout time updated successfully!");
+      await viewCurrentDateReport(currentDate, false);
+
     } catch (error) {
       console.error("Error updating checkout:", error);
-      showToast("Failed to update checkout time. Please try again.", "error");
+
     } finally {
       setLoading(false);
     }
@@ -336,14 +330,14 @@ const Reports = () => {
     return `${hours}:${minutes.toString().padStart(2, "0")}`;
   };
 
-  const viewDatewiseReport = async (dateValue) => {
+  const viewDatewiseReport = async (dateValue, showLoading = false) => {
     if (!dateValue || !companyId) {
       setReportData([]);
       setFilteredData([]);
       return;
     }
 
-    setLoading(true);
+    if (showLoading) setLoading(true);
     try {
       const data = await fetchDailyReport(companyId, dateValue);
       const records = Array.isArray(data) ? data : [];
@@ -375,9 +369,13 @@ const Reports = () => {
       console.error("Error fetching report:", err);
       setReportData([]);
       setFilteredData([]);
-      showToast("Failed to load report data", "error");
+
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+        setIsInitialLoad(false);
+      }
     }
   };
 
@@ -409,100 +407,14 @@ const Reports = () => {
     return employeeTimes;
   };
 
-  const consolidateDaywiseReport = (data) => {
-    const consolidated = {};
+ 
 
-    data.forEach(entry => {
-      const { Name, Pin, CheckInTime, CheckOutTime, TimeWorked, Type, EmpID, DeviceID } = entry;
-      if (!Name || !Pin) return;
-
-      if (!consolidated[Pin]) {
-        // Initialize entry for this employee
-        consolidated[Pin] = {
-          Name,
-          Pin,
-          EmpID,
-          DeviceID,
-          earliestCheckIn: CheckInTime,
-          latestCheckOut: CheckOutTime,
-          totalMinutes: 0,
-          types: new Set(),
-          hasIncompleteEntry: false
-        };
-      }
-
-      // Track all unique types
-      if (Type) {
-        consolidated[Pin].types.add(Type);
-      }
-
-      // Find earliest check-in
-      if (CheckInTime) {
-        const currentCheckIn = new Date(CheckInTime);
-        const earliestCheckIn = new Date(consolidated[Pin].earliestCheckIn);
-        if (currentCheckIn < earliestCheckIn) {
-          consolidated[Pin].earliestCheckIn = CheckInTime;
-        }
-      }
-
-      // Find latest check-out
-      if (CheckOutTime) {
-        if (!consolidated[Pin].latestCheckOut) {
-          consolidated[Pin].latestCheckOut = CheckOutTime;
-        } else {
-          const currentCheckOut = new Date(CheckOutTime);
-          const latestCheckOut = new Date(consolidated[Pin].latestCheckOut);
-          if (currentCheckOut > latestCheckOut) {
-            consolidated[Pin].latestCheckOut = CheckOutTime;
-          }
-        }
-      } else {
-        // Mark if any entry doesn't have checkout
-        consolidated[Pin].hasIncompleteEntry = true;
-      }
-
-      // Calculate time worked for this entry
-      if (CheckInTime && CheckOutTime) {
-        const checkInDate = new Date(CheckInTime);
-        const checkOutDate = new Date(CheckOutTime);
-        const timeDifferenceInMinutes = Math.floor(
-          (Number(checkOutDate) - Number(checkInDate)) / 1000 / 60
-        );
-        consolidated[Pin].totalMinutes += timeDifferenceInMinutes;
-      }
-    });
-
-    // Convert to array format with proper formatting
-    return Object.values(consolidated).map(employee => {
-      const hours = Math.floor(employee.totalMinutes / 60);
-      const mins = employee.totalMinutes % 60;
-      const totalTimeWorked = `${hours}:${mins.toString().padStart(2, "0")}`;
-      const typesArray = Array.from(employee.types);
-
-      return {
-        Name: employee.Name,
-        Pin: employee.Pin,
-        EmpID: employee.EmpID,
-        DeviceID: employee.DeviceID,
-        CheckInTime: employee.earliestCheckIn,
-        CheckOutTime: employee.hasIncompleteEntry ? null : employee.latestCheckOut,
-        formattedCheckIn: employee.earliestCheckIn ? convertToAmPm(employee.earliestCheckIn) : "--",
-        formattedCheckOut: (employee.hasIncompleteEntry || !employee.latestCheckOut) ? "--" : convertToAmPm(employee.latestCheckOut),
-        TimeWorked: totalTimeWorked,
-        Type: typesArray.join(", "), // Comma-separated types
-        Status: employee.hasIncompleteEntry ? "In Progress" : "Completed"
-      };
-    });
-  };
-
-  const loadSummaryReport = async () => {
+  const loadSummaryReport = async (showLoading = true) => {
     if (!startDate || !endDate) {
-      showToast("Please select both start and end dates", "error");
       return;
     }
 
     if (new Date(startDate) > new Date(endDate)) {
-      showToast("Start date must be before end date", "error");
       return;
     }
 
@@ -512,7 +424,7 @@ const Reports = () => {
     setEmployees([]);
     setDateRangeReportLoaded(false);
 
-    setLoading(true);
+    if (showLoading) setLoading(true);
     try {
       const data = await fetchDateRangeReport(companyId, startDate, endDate);
 
@@ -546,16 +458,18 @@ const Reports = () => {
       setReportData(employeeData);
       setFilteredData(employeeData);
       setDateRangeReportLoaded(true);
-      showToast(`Loaded ${employeeData.length} employee records`);
       setCurrentPage(1);
     } catch (error) {
       console.error("Error loading summary report:", error);
-      showToast("Failed to load summary report", "error");
       setEmployees([]);
       setReportData([]);
       setFilteredData([]);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+        setIsInitialLoad(false);
+      }
     }
   };
 
@@ -647,15 +561,14 @@ const Reports = () => {
   };
 
   // Load salaried report data
-  const loadSalariedReport = async () => {
+  const loadSalariedReport = async (showLoading = true) => {
     const dateRange = getDateRangeForReportType(selectedReportType, selectedYear, selectedMonth, selectedWeek, selectedHalf);
 
     if (!dateRange) {
-      showToast("Please select all required options", "error");
       return;
     }
 
-    setLoading(true);
+    if (showLoading) setLoading(true);
     try {
       const data = await fetchDateRangeReport(companyId, dateRange.start, dateRange.end);
       let filteredData = Array.isArray(data) ? data : [];
@@ -687,16 +600,18 @@ const Reports = () => {
       setSalariedReportData(employeeData);
       setReportData(employeeData);
       setFilteredData(employeeData);
-      showToast(`Loaded ${employeeData.length} employee records`);
       setCurrentPage(1);
     } catch (error) {
       console.error("Error loading salaried report:", error);
-      showToast("Failed to load report", "error");
       setSalariedReportData([]);
       setReportData([]);
       setFilteredData([]);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+        setIsInitialLoad(false);
+      }
     }
   };
 
@@ -748,7 +663,6 @@ const Reports = () => {
 
   const downloadCSV = () => {
     if (filteredData.length === 0) {
-      showToast("No data to export", "error");
       return;
     }
 
@@ -771,13 +685,10 @@ const Reports = () => {
     link.href = URL.createObjectURL(blob);
     link.download = filename;
     link.click();
-
-    showToast("Report exported successfully!");
   };
 
   const downloadPDF = () => {
     if (filteredData.length === 0) {
-      showToast("No data to export", "error");
       return;
     }
 
@@ -845,10 +756,8 @@ const Reports = () => {
       }
 
       doc.save(filename);
-      showToast("PDF exported successfully!");
     } catch (error) {
       console.error("Error generating PDF:", error);
-      showToast("Failed to generate PDF", "error");
     }
   };
 
@@ -937,7 +846,6 @@ const Reports = () => {
       setEmployeeList(data);
     } catch (error) {
       console.error("Error loading employees:", error);
-      showToast("Failed to load employees", "error");
     }
   }, [companyId]);
 
@@ -945,7 +853,7 @@ const Reports = () => {
     // Validation
     if (!newEntry.EmployeeID || !newEntry.Type || !newEntry.Date || !newEntry.CheckInTime) {
       setModalError("Please fill in all required fields");
-      setTimeout(() => setModalError(""), 3000);
+      setTimeout(() => setModalError(""), 1000);
       return;
     }
 
@@ -956,7 +864,7 @@ const Reports = () => {
 
       if (checkoutDateTime <= checkinDateTime) {
         setModalError("Checkout time must be greater than check-in time");
-        setTimeout(() => setModalError(""), 3000);
+        setTimeout(() => setModalError(""), 1000);
         return;
       }
     }
@@ -964,7 +872,7 @@ const Reports = () => {
     const selectedEmployee = employeeList.find(emp => emp.pin === newEntry.EmployeeID);
     if (!selectedEmployee) {
       setModalError("Selected employee not found");
-      setTimeout(() => setModalError(""), 3000);
+      setTimeout(() => setModalError(""), 1000);
       return;
     }
 
@@ -1000,22 +908,22 @@ const Reports = () => {
 
       // Refresh the current view to show the new entry
       if (activeTab === "today" && currentDate) {
-        await viewCurrentDateReport(currentDate);
+        await viewCurrentDateReport(currentDate, false);
       } else if (activeTab === "daywise" && selectedDate) {
-        await viewDatewiseReport(selectedDate);
+        await viewDatewiseReport(selectedDate, false);
       }
 
       setModalSuccess("Entry added successfully!");
       setTimeout(() => {
         setModalSuccess("");
         closeModal();
-      }, 3000);
+      }, 1000);
     } catch (error) {
       console.error("Error saving entry:", error);
       setModalError(error.message || "Failed to save entry. Please try again.");
       setTimeout(() => {
         setModalError("");
-      }, 3000);
+      }, 1000);
     } finally {
       setIsSubmitting(false);
     }
@@ -1052,7 +960,7 @@ const Reports = () => {
       setEmployees([]);
       setSalariedReportData([]);
       if (currentDate) {
-        viewCurrentDateReport(currentDate);
+        viewCurrentDateReport(currentDate, true);
       }
     } else if (activeTab === "daywise") {
       // For daywise, let the separate useEffect handle loading
@@ -1065,14 +973,14 @@ const Reports = () => {
   // Separate effect for handling date changes in daywise tab
   useEffect(() => {
     if (activeTab === "daywise" && selectedDate) {
-      viewDatewiseReport(selectedDate);
+      viewDatewiseReport(selectedDate, true);
     }
   }, [activeTab, selectedDate]); // Run when either activeTab or selectedDate changes
 
   // Separate effect for handling current date changes in today tab
   useEffect(() => {
     if (activeTab === "today" && currentDate) {
-      viewCurrentDateReport(currentDate);
+      viewCurrentDateReport(currentDate, true);
     }
   }, [currentDate]); // Only run when currentDate changes
 
@@ -1080,7 +988,7 @@ const Reports = () => {
   useEffect(() => {
     if (activeTab === "summary" && startDate && endDate && dateRangeReportLoaded) {
       // Auto-reload when dates change after initial load
-      loadSummaryReport();
+      loadSummaryReport(false);
     }
   }, [startDate, endDate]); // Run when dates change
 
@@ -1146,12 +1054,12 @@ const Reports = () => {
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                <Button variant="outline" onClick={downloadCSV} className="flex items-center justify-center gap-2 w-full sm:w-auto">
+                <Button variant="outline" onClick={downloadCSV} disabled={filteredData.length === 0} className="flex items-center justify-center gap-2 w-full sm:w-auto">
                   <Download className="w-4 h-4" />
                   <span className="hidden sm:inline">Export CSV</span>
                   <span className="sm:hidden">CSV</span>
                 </Button>
-                <Button variant="outline" onClick={downloadPDF} className="flex items-center justify-center gap-2 w-full sm:w-auto">
+                <Button variant="outline" onClick={downloadPDF} disabled={filteredData.length === 0} className="flex items-center justify-center gap-2 w-full sm:w-auto">
                   <FileText className="w-4 h-4" />
                   <span className="hidden sm:inline">Export PDF</span>
                   <span className="sm:hidden">PDF</span>
@@ -1210,7 +1118,8 @@ const Reports = () => {
                 { key: "today", label: "Today Report", icon: Calendar },
                 { key: "daywise", label: "Day-wise Report", icon: Calendar },
                 { key: "summary", label: "Date Range Report", icon: BarChart3 },
-                { key: "salaried", label: "Salaried Report", icon: TrendingUp }
+                { key: "salaried", label: "Salaried Report", icon: TrendingUp },
+                { key: "pending", label: "Pending Checkout", icon: Clock }
               ].map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}
@@ -1223,7 +1132,7 @@ const Reports = () => {
                   <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
                   <span className="hidden sm:inline">{label}</span>
                   <span className="sm:hidden">
-                    {key === "today" ? "Today" : key === "daywise" ? "Daily" : "Summary"}
+                    {key === "today" ? "Today" : key === "daywise" ? "Daily" : key === "summary" ? "Date Range" : key === "salaried" ? "Salary" : "Pending"}
                   </span>
                 </button>
               ))}
@@ -1427,43 +1336,77 @@ const Reports = () => {
                 ) : (
                   viewMode === "grid" ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                      {filteredData.map((record, index) => (
-                        <Card key={index} className="hover:shadow-lg transition-shadow">
-                          <CardHeader className="pb-3">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                                  <Users className="w-4 h-4 text-primary" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <CardTitle className="text-base sm:text-lg truncate">{record.Name}</CardTitle>
-                                  <CardDescription className="text-xs sm:text-sm">PIN: {record.Pin}</CardDescription>
+                      {filteredData.map((record, index) => {
+                        const rowKey = `${record.Pin}-${record.CheckInTime}`;
+                        const hasCheckout = record.CheckOutTime;
+                        const selectedTime = checkoutTimes[rowKey];
+                        const checkoutError = checkoutErrors[rowKey];
+                        const checkInTime = new Date(record.CheckInTime);
+                        const minTime = `${String(checkInTime.getHours()).padStart(2, '0')}:${String(checkInTime.getMinutes() + 1).padStart(2, '0')}`;
+
+                        return (
+                          <Card key={index} className="hover:shadow-lg transition-shadow">
+                            <CardHeader className="pb-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <Users className="w-4 h-4 text-primary" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <CardTitle className="text-base sm:text-lg truncate">{record.Name}</CardTitle>
+                                    <CardDescription className="text-xs sm:text-sm">PIN: {record.Pin}</CardDescription>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="space-y-3 sm:space-y-4 pt-0">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs sm:text-sm text-muted-foreground">Type</span>
-                              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{record.Type}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs sm:text-sm">
-                              <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
-                              <span className="truncate">In: {formatTime(record.CheckInTime)}</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs sm:text-sm">
-                              <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
-                              <span className="truncate">Out: {formatTime(record.CheckOutTime)}</span>
-                            </div>
-                            <div className="pt-2 border-t">
-                              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                <span>Time Worked</span>
-                                <span className="font-medium text-foreground">{record.TimeWorked}</span>
+                            </CardHeader>
+                            <CardContent className="space-y-3 sm:space-y-4 pt-0">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs sm:text-sm text-muted-foreground">Type</span>
+                                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{record.Type}</span>
                               </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
+                              <div className="flex items-center gap-2 text-xs sm:text-sm">
+                                <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
+                                <span className="truncate">In: {formatTime(record.CheckInTime)}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs sm:text-sm">
+                                <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
+                                <span className="truncate">Out: {formatTime(record.CheckOutTime)}</span>
+                              </div>
+                              {!hasCheckout && (
+                                <div className="space-y-2">
+                                  <input
+                                    type="time"
+                                    value={selectedTime || ''}
+                                    onChange={(e) => handleCheckoutTimeChange(rowKey, e.target.value, record.CheckInTime)}
+                                    min={minTime}
+                                    className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="Select checkout time"
+                                  />
+                                  {checkoutError && (
+                                    <span className="text-red-500 text-xs">{checkoutError}</span>
+                                  )}
+                                </div>
+                              )}
+                              <div className="pt-2 border-t">
+                                <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                                  <span>Time Worked</span>
+                                  <span className="font-medium text-foreground">{record.TimeWorked}</span>
+                                </div>
+                                {!hasCheckout && (
+                                  <Button
+                                    onClick={() => handleCheckout(record)}
+                                    disabled={!selectedTime || checkoutError}
+                                    size="sm"
+                                    className="w-full bg-green-600 hover:bg-green-700 text-xs disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                  >
+                                    Check Out
+                                  </Button>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
@@ -1705,6 +1648,142 @@ const Reports = () => {
           </div>
         )}
 
+        {/* Pending Checkout Section */}
+        {activeTab === "pending" && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="w-5 h-5" />
+                  Pending Checkout
+                </CardTitle>
+                <CardDescription>
+                  Employees who have checked in but not checked out
+                </CardDescription>
+              </CardHeader>
+
+              <CardContent>
+                {viewMode === "grid" ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                    {/* Sample hardcoded data */}
+                    {[
+                      { id: "EMP001", name: "John Smith", checkin: "9:00 AM", type: "Full-time" },
+                      { id: "EMP002", name: "Sarah Johnson", checkin: "8:30 AM", type: "Part-time" },
+                      { id: "EMP003", name: "Mike Davis", checkin: "9:15 AM", type: "Contract" }
+                    ].map((record, index) => (
+                      <Card key={index} className="hover:shadow-lg transition-shadow">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                                <Users className="w-4 h-4 text-primary" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <CardTitle className="text-base sm:text-lg truncate">{record.name}</CardTitle>
+                                <CardDescription className="text-xs sm:text-sm">ID: {record.id}</CardDescription>
+                              </div>
+                            </div>
+                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Pending</span>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-3 sm:space-y-4 pt-0">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs sm:text-sm text-muted-foreground">Date</span>
+                            <span className="text-xs sm:text-sm">{new Date().toLocaleDateString()}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs sm:text-sm text-muted-foreground">Type</span>
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{record.type}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs sm:text-sm">
+                            <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
+                            <span className="truncate">In: {record.checkin}</span>
+                          </div>
+                          <div className="pt-2 border-t">
+                            <Button size="sm" className="w-full bg-green-600 hover:bg-green-700 text-xs">
+                              Check Out
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full border border-gray-300 rounded-lg">
+                      <thead className="bg-[#02066F] text-white">
+                        <tr>
+                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Employee ID</th>
+                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Name</th>
+                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Date</th>
+                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Check-in Time</th>
+                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Check-out Time</th>
+                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Type</th>
+                          <th className="px-4 py-3 text-center font-semibold text-sm">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {/* Sample hardcoded data */}
+                        <tr className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-center font-medium">EMP001</td>
+                          <td className="px-4 py-3 text-center">John Smith</td>
+                          <td className="px-4 py-3 text-center">{new Date().toLocaleDateString()}</td>
+                          <td className="px-4 py-3 text-center">9:00 AM</td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Pending</span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Full-time</span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <Button size="sm" className="bg-green-600 hover:bg-green-700 text-xs">
+                              Check Out
+                            </Button>
+                          </td>
+                        </tr>
+                        <tr className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-center font-medium">EMP002</td>
+                          <td className="px-4 py-3 text-center">Sarah Johnson</td>
+                          <td className="px-4 py-3 text-center">{new Date().toLocaleDateString()}</td>
+                          <td className="px-4 py-3 text-center">8:30 AM</td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Pending</span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Part-time</span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <Button size="sm" className="bg-green-600 hover:bg-green-700 text-xs">
+                              Check Out
+                            </Button>
+                          </td>
+                        </tr>
+                        <tr className="hover:bg-gray-50">
+                          <td className="px-4 py-3 text-center font-medium">EMP003</td>
+                          <td className="px-4 py-3 text-center">Mike Davis</td>
+                          <td className="px-4 py-3 text-center">{new Date().toLocaleDateString()}</td>
+                          <td className="px-4 py-3 text-center">9:15 AM</td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Pending</span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Contract</span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <Button size="sm" className="bg-green-600 hover:bg-green-700 text-xs">
+                              Check Out
+                            </Button>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Salaried Report Section (Weekly/Biweekly/Monthly/Bimonthly) */}
         {activeTab === "salaried" && (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -1860,8 +1939,8 @@ const Reports = () => {
 
       {/* Add Entry Modal */}
       {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={() => setShowModal(false)}>
-          <Card id="add-entry-modal" className="w-full max-w-md max-h-[90vh] mx-4" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card id="add-entry-modal" className="w-full max-w-md max-h-[90vh] mx-4">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg sm:text-xl">
                 Add Entry
@@ -1883,7 +1962,7 @@ const Reports = () => {
                   <option value="">Select Employee</option>
                   {(employeeList || []).map((employee) => (
                     <option key={employee.pin} value={employee.pin}>
-                      {employee.first_name} {employee.last_name}
+                      {capitalizeFirst(employee.first_name)} {capitalizeFirst(employee.last_name)}
                     </option>
                   ))}
                 </select>

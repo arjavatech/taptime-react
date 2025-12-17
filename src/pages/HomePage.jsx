@@ -92,7 +92,7 @@ const HomePage = () => {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-              <Button size="lg" className="text-lg px-8 py-6">
+              <Button size="lg" className="text-lg px-8 py-6" onClick={() => navigate('/register')}>
                 Get Started Free
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
@@ -115,7 +115,7 @@ const HomePage = () => {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-5 bg-muted/30">
+      <section id="features" className="py-5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">

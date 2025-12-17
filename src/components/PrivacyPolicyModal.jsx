@@ -1,16 +1,12 @@
 import React from 'react';
 import { X } from 'lucide-react';
 import { Button } from './ui/button';
-import { useModalClose } from '../hooks/useModalClose';
-
 const PrivacyPolicyModal = ({ isOpen, onClose }) => {
-  // Handle outside click and ESC key
-  useModalClose(isOpen, onClose, 'privacy-policy-modal')
   
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm modal-backdrop" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm modal-backdrop">
       <div id="privacy-policy-modal" className="bg-background rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b text-foreground">
