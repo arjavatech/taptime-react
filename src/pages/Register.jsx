@@ -7,7 +7,7 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { Mail, User, Building, Phone, MapPin, CheckCircle, XCircle, X, Loader2 } from "lucide-react";
+import { Mail, User, Building, Phone, MapPin, CheckCircle, XCircle, X, Loader2, AlertCircle } from "lucide-react";
 import tabtimelogo from "../assets/images/tap-time-logo.png";
 import RegistrationSuccessModal from "../components/ui/RegistrationSuccessModal";
 import CenterLoadingOverlay from "../components/ui/CenterLoadingOverlay";
@@ -42,6 +42,7 @@ const Register = () => {
   const [customerCityError, setCustomerCityError] = useState('');
   const [customerStateError, setCustomerStateError] = useState('');
   const [customerZipError, setCustomerZipError] = useState('');
+  const [generalError, setGeneralError] = useState('');
 
   // Form data state
   const [formData, setFormData] = useState({
@@ -294,6 +295,7 @@ const Register = () => {
     setCustomerCityError('');
     setCustomerStateError('');
     setCustomerZipError('');
+    setGeneralError('');
 
     let hasErrors = false;
 
@@ -315,6 +317,12 @@ const Register = () => {
     if (!phone.trim()) {
       setPhoneError('Phone number is required');
       hasErrors = true;
+    } else {
+      const digits = phone.replace(/\D/g, '');
+      if (digits.length < 10) {
+        setPhoneError('Phone number must be at least 10 digits');
+        hasErrors = true;
+      }
     }
     if (!customerStreet.trim()) {
       setCustomerStreetError('Street address is required');
@@ -404,10 +412,8 @@ const Register = () => {
           setEmailError('This email address is already registered');
         } else if (errorMessage.includes('company') && errorMessage.includes('exists')) {
           setCompanyNameError('Company name already exists');
-        } else if (errorMessage.includes('validation')) {
-          setEmailError('Please check your information and try again');
         } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
-          setEmailError('Network error. Please check your connection and try again');
+          setGeneralError('Network error. Please check your connection and try again');
         } else {
           setEmailError(errorMessage);
         }
@@ -416,17 +422,17 @@ const Register = () => {
       console.error('Registration error:', error);
       
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        setEmailError('Network error. Please check your internet connection and try again');
+        setGeneralError('Network error. Please check your internet connection and try again');
       } else if (error.message.includes('timeout')) {
-        setEmailError('Request timeout. Please try again');
-      } else if (error.message.includes('400')) {
-        setEmailError('Invalid data provided. Please check your information');
+        setGeneralError('Request timeout. Please try again');
+      } else if (error.message.includes('500')) {
+        setGeneralError('Server error. Please try again later');
       } else if (error.message.includes('409')) {
         setEmailError('Email or company name already exists');
-      } else if (error.message.includes('500')) {
-        setEmailError('Server error. Please try again later');
+      } else if (error.message.includes('400')) {
+        setEmailError('Invalid data provided. Please check your information');
       } else {
-        setEmailError('Registration failed. Please try again');
+        setGeneralError('Registration failed. Please try again');
       }
     } finally {
       setIsLoading(false);
@@ -830,6 +836,12 @@ const Register = () => {
               {isLoading ? "Creating Account..." : "Create Account"}
             </Button>
           </div>
+          {generalError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2 mt-4">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-600">{generalError}</p>
+            </div>
+          )}
         </form>
 
         <div className="text-center text-sm">

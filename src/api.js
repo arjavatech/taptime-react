@@ -340,6 +340,17 @@ export const updateDailyReportEntry = async (empId, cid, checkinTime, updateData
   }
 };
 
+export const processPendingCheckout = async (cid) => {
+  try {
+    const data = await api.get(`${API_BASE}/dailyreport/pending_checkout/${cid}`);
+    const records = Array.isArray(data) ? data : [];
+    return records.map(transformReportRecord);
+  } catch (error) {
+    console.error('Error processing pending checkout:', error);
+    throw error;
+  }
+};
+
 export const fetchDateRangeReport = async (companyId, startDate, endDate) => {
   try {
     const data = await api.get(`${API_BASE}/dailyreport/date_range_report_get/${companyId}/${startDate}/${endDate}`);
@@ -347,6 +358,16 @@ export const fetchDateRangeReport = async (companyId, startDate, endDate) => {
     return records.map(transformReportRecord);
   } catch (error) {
     console.error('Error fetching date range report:', error);
+    return [];
+  }
+};
+
+export const fetchPendingCheckouts = async (companyId) => {
+  try {
+    const data = await api.get(`${API_BASE}/dailyreport/pending_checkout/${companyId}`);
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error fetching pending checkouts:', error);
     return [];
   }
 };

@@ -34,20 +34,8 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     });
 
-    // Auto logout on browser/tab close
-    const handleBeforeUnload = () => {
-      if (session) {
-        localStorage.clear();
-        sessionStorage.clear();
-        supabase.auth.signOut();
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
     return () => {
       subscription.unsubscribe();
-      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, [session]);
 

@@ -8,7 +8,7 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { fetchEmployeeData, fetchDevices, fetchDailyReport, fetchDateRangeReport, createDailyReportEntry, updateDailyReportEntry } from "../api.js";
+import { fetchEmployeeData, fetchDevices, fetchDailyReport, fetchDateRangeReport, createDailyReportEntry, updateDailyReportEntry, processPendingCheckout } from "../api.js";
 import { getLocalDateString } from "../utils";
 import {
   Calendar,
@@ -83,6 +83,7 @@ const Reports = () => {
   const [currentDate, setCurrentDate] = useState("");
   const [checkoutTimes, setCheckoutTimes] = useState({});
   const [checkoutErrors, setCheckoutErrors] = useState({});
+  const [pendingCheckoutData, setPendingCheckoutData] = useState([]);
 
   // Day wise report specific
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -266,6 +267,10 @@ const Reports = () => {
 
     const checkinDateObj = new Date(row.CheckInTime);
     const checkInDateString = getLocalDateString(checkinDateObj);
+    
+    // Process pending checkout and store data
+    const pendingData = await processPendingCheckout(companyId);
+    setPendingCheckoutData(pendingData);
     const checkoutDateTime = `${checkInDateString}T${checkoutTime}:00`;
     const checkinDateTime = row.CheckInTime;
 
@@ -616,7 +621,7 @@ const Reports = () => {
   };
 
   const filterData = () => {
-    let filtered = activeTab === "today" ? tableData : reportData;
+    let filtered = activeTab === "today" ? tableData : activeTab === "pending" ? pendingCheckoutData : reportData;
     console.log('filterData called - activeTab:', activeTab, 'source data length:', filtered.length);
 
     if (searchQuery) {
@@ -809,7 +814,7 @@ const Reports = () => {
 
   const handleCheckinTimeChange = (value) => {
     setNewEntry({ ...newEntry, CheckInTime: value });
-    if (value && newEntry.Date) {
+    if (value && newEntry.Date && newEntry.EmployeeID && newEntry.Type) {
       setCheckoutDisabled(false);
       setAddButtonDisabled(false);
     } else {
@@ -946,6 +951,8 @@ const Reports = () => {
   useEffect(() => {
     // Clear selected dates when switching tabs
     if (activeTab === "summary") {
+      setReportData([]);
+      setFilteredData([]);
       // Don't clear dates or loaded flag - preserve data when switching back to summary tab
       // User can manually clear by changing dates if needed
     } else if (activeTab === "salaried") {
@@ -953,6 +960,23 @@ const Reports = () => {
       setReportData([]);
       setFilteredData([]);
       setSalariedReportData([]);
+    } else if (activeTab === "pending") {
+      // Load pending checkout data
+      const loadPendingData = async () => {
+        setLoading(true);
+        try {
+          const pendingData = await processPendingCheckout(companyId);
+          setPendingCheckoutData(pendingData);
+        } catch (error) {
+          console.error("Error loading pending checkout data:", error);
+        } finally {
+          setLoading(false);
+          if (isInitialLoad) {
+            setIsInitialLoad(false);
+          }
+        }
+      };
+      loadPendingData();
     } else if (activeTab === "today") {
       // For Today's Report, clear and load data
       setReportData([]);
@@ -1003,7 +1027,7 @@ const Reports = () => {
 
   useEffect(() => {
     filterData();
-  }, [reportData, tableData, searchQuery, sortConfig, activeTab]);
+  }, [reportData, tableData, pendingCheckoutData, searchQuery, sortConfig, activeTab]);
 
   useEffect(() => {
     if (window.innerWidth < 650) {
@@ -1054,12 +1078,22 @@ const Reports = () => {
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                <Button variant="outline" onClick={downloadCSV} disabled={filteredData.length === 0} className="flex items-center justify-center gap-2 w-full sm:w-auto">
+                <Button 
+                  variant="outline" 
+                  onClick={downloadCSV} 
+                  disabled={!filteredData || filteredData.length === 0} 
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   <Download className="w-4 h-4" />
                   <span className="hidden sm:inline">Export CSV</span>
                   <span className="sm:hidden">CSV</span>
                 </Button>
-                <Button variant="outline" onClick={downloadPDF} disabled={filteredData.length === 0} className="flex items-center justify-center gap-2 w-full sm:w-auto">
+                <Button 
+                  variant="outline" 
+                  onClick={downloadPDF} 
+                  disabled={!filteredData || filteredData.length === 0} 
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   <FileText className="w-4 h-4" />
                   <span className="hidden sm:inline">Export PDF</span>
                   <span className="sm:hidden">PDF</span>
@@ -1663,121 +1697,143 @@ const Reports = () => {
               </CardHeader>
 
               <CardContent>
-                {viewMode === "grid" ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                    {/* Sample hardcoded data */}
-                    {[
-                      { id: "EMP001", name: "John Smith", checkin: "9:00 AM", type: "Full-time" },
-                      { id: "EMP002", name: "Sarah Johnson", checkin: "8:30 AM", type: "Part-time" },
-                      { id: "EMP003", name: "Mike Davis", checkin: "9:15 AM", type: "Contract" }
-                    ].map((record, index) => (
-                      <Card key={index} className="hover:shadow-lg transition-shadow">
-                        <CardHeader className="pb-3">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                                <Users className="w-4 h-4 text-primary" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <CardTitle className="text-base sm:text-lg truncate">{record.name}</CardTitle>
-                                <CardDescription className="text-xs sm:text-sm">ID: {record.id}</CardDescription>
-                              </div>
-                            </div>
-                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Pending</span>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="space-y-3 sm:space-y-4 pt-0">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs sm:text-sm text-muted-foreground">Date</span>
-                            <span className="text-xs sm:text-sm">{new Date().toLocaleDateString()}</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs sm:text-sm text-muted-foreground">Type</span>
-                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{record.type}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs sm:text-sm">
-                            <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
-                            <span className="truncate">In: {record.checkin}</span>
-                          </div>
-                          <div className="pt-2 border-t">
-                            <Button size="sm" className="w-full bg-green-600 hover:bg-green-700 text-xs">
-                              Check Out
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                {pendingCheckoutData.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Clock className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium text-foreground mb-2">No Pending Checkouts</h3>
+                    <p className="text-sm text-muted-foreground">
+                      All employees have completed their checkout for today.
+                    </p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full border border-gray-300 rounded-lg">
-                      <thead className="bg-[#02066F] text-white">
-                        <tr>
-                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Employee ID</th>
-                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Name</th>
-                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Date</th>
-                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Check-in Time</th>
-                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Check-out Time</th>
-                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Type</th>
-                          <th className="px-4 py-3 text-center font-semibold text-sm">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {/* Sample hardcoded data */}
-                        <tr className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-center font-medium">EMP001</td>
-                          <td className="px-4 py-3 text-center">John Smith</td>
-                          <td className="px-4 py-3 text-center">{new Date().toLocaleDateString()}</td>
-                          <td className="px-4 py-3 text-center">9:00 AM</td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Pending</span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Full-time</span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <Button size="sm" className="bg-green-600 hover:bg-green-700 text-xs">
-                              Check Out
-                            </Button>
-                          </td>
-                        </tr>
-                        <tr className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-center font-medium">EMP002</td>
-                          <td className="px-4 py-3 text-center">Sarah Johnson</td>
-                          <td className="px-4 py-3 text-center">{new Date().toLocaleDateString()}</td>
-                          <td className="px-4 py-3 text-center">8:30 AM</td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Pending</span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Part-time</span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <Button size="sm" className="bg-green-600 hover:bg-green-700 text-xs">
-                              Check Out
-                            </Button>
-                          </td>
-                        </tr>
-                        <tr className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-center font-medium">EMP003</td>
-                          <td className="px-4 py-3 text-center">Mike Davis</td>
-                          <td className="px-4 py-3 text-center">{new Date().toLocaleDateString()}</td>
-                          <td className="px-4 py-3 text-center">9:15 AM</td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Pending</span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Contract</span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <Button size="sm" className="bg-green-600 hover:bg-green-700 text-xs">
-                              Check Out
-                            </Button>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
+                  viewMode === "grid" ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                      {pendingCheckoutData.map((record, index) => {
+                        const rowKey = `${record.Pin}-${record.CheckInTime}`;
+                        const selectedTime = checkoutTimes[rowKey];
+                        const checkoutError = checkoutErrors[rowKey];
+                        const checkInTime = new Date(record.CheckInTime);
+                        const minTime = `${String(checkInTime.getHours()).padStart(2, '0')}:${String(checkInTime.getMinutes() + 1).padStart(2, '0')}`;
+
+                        return (
+                          <Card key={index} className="hover:shadow-lg transition-shadow">
+                            <CardHeader className="pb-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <Users className="w-4 h-4 text-primary" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <CardTitle className="text-base sm:text-lg truncate">{record.Name}</CardTitle>
+                                    <CardDescription className="text-xs sm:text-sm">PIN: {record.Pin}</CardDescription>
+                                  </div>
+                                </div>
+                                <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Pending</span>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="space-y-3 sm:space-y-4 pt-0">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs sm:text-sm text-muted-foreground">Type</span>
+                                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{record.Type}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs sm:text-sm">
+                                <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
+                                <span className="truncate">In: {formatTime(record.CheckInTime)}</span>
+                              </div>
+                              <div className="space-y-2">
+                                <input
+                                  type="time"
+                                  value={selectedTime || ''}
+                                  onChange={(e) => handleCheckoutTimeChange(rowKey, e.target.value, record.CheckInTime)}
+                                  min={minTime}
+                                  className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder="Select checkout time"
+                                />
+                                {checkoutError && (
+                                  <span className="text-red-500 text-xs">{checkoutError}</span>
+                                )}
+                              </div>
+                              <div className="pt-2 border-t">
+                                <Button
+                                  onClick={() => handleCheckout(record)}
+                                  disabled={!selectedTime || checkoutError}
+                                  size="sm"
+                                  className="w-full bg-green-600 hover:bg-green-700 text-xs disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                >
+                                  Check Out
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full border border-gray-300 rounded-lg">
+                        <thead className="bg-[#02066F] text-white">
+                          <tr>
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Employee ID</th>
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Name</th>
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Check-in Time</th>
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Check-out Time</th>
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Type</th>
+                            <th className="px-4 py-3 text-center font-semibold text-sm">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {pendingCheckoutData.map((record, index) => {
+                            const rowKey = `${record.Pin}-${record.CheckInTime}`;
+                            const selectedTime = checkoutTimes[rowKey];
+                            const checkoutError = checkoutErrors[rowKey];
+                            const checkInTime = new Date(record.CheckInTime);
+                            const minTime = `${String(checkInTime.getHours()).padStart(2, '0')}:${String(checkInTime.getMinutes() + 1).padStart(2, '0')}`;
+
+                            return (
+                              <tr key={index} className="hover:bg-gray-50">
+                                <td className="px-4 py-3 text-center font-medium">{record.Pin}</td>
+                                <td className="px-4 py-3 text-center">{record.Name}</td>
+                                <td className="px-4 py-3 text-center">{formatTime(record.CheckInTime)}</td>
+                                <td className="px-4 py-3 text-center">
+                                  <div className="flex flex-col items-center">
+                                    <input
+                                      type="time"
+                                      value={selectedTime || ''}
+                                      onChange={(e) => handleCheckoutTimeChange(rowKey, e.target.value, record.CheckInTime)}
+                                      min={minTime}
+                                      className={`border rounded px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 ${
+                                        checkoutError
+                                          ? 'border-red-500 focus:ring-red-500'
+                                          : 'border-gray-300 focus:ring-blue-500'
+                                      }`}
+                                    />
+                                    {checkoutError && (
+                                      <span className="text-red-500 text-xs mt-1">{checkoutError}</span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                    {record.Type}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <Button
+                                    onClick={() => handleCheckout(record)}
+                                    disabled={!selectedTime || checkoutError}
+                                    size="sm"
+                                    className={`text-xs ${!selectedTime || checkoutError ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+                                  >
+                                    Check Out
+                                  </Button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
                 )}
               </CardContent>
             </Card>
@@ -1940,7 +1996,7 @@ const Reports = () => {
       {/* Add Entry Modal */}
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
-          <Card id="add-entry-modal" className="w-full max-w-md max-h-[90vh] mx-4">
+          <Card id="add-entry-modal" className="w-full max-w-md max-h-[90vh] mx-4 overflow-hidden">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg sm:text-xl">
                 Add Entry
@@ -1956,7 +2012,15 @@ const Reports = () => {
                 <select
                   id="employee"
                   value={newEntry.EmployeeID}
-                  onChange={(e) => setNewEntry({ ...newEntry, EmployeeID: e.target.value })}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setNewEntry({ ...newEntry, EmployeeID: value });
+                    if (value && newEntry.Type && newEntry.Date && newEntry.CheckInTime) {
+                      setAddButtonDisabled(false);
+                    } else {
+                      setAddButtonDisabled(true);
+                    }
+                  }}
                   className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md text-sm"
                 >
                   <option value="">Select Employee</option>
@@ -1976,7 +2040,15 @@ const Reports = () => {
                 <select
                   id="type"
                   value={newEntry.Type}
-                  onChange={(e) => setNewEntry({ ...newEntry, Type: e.target.value })}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setNewEntry({ ...newEntry, Type: value });
+                    if (value && newEntry.EmployeeID && newEntry.Date && newEntry.CheckInTime) {
+                      setAddButtonDisabled(false);
+                    } else {
+                      setAddButtonDisabled(true);
+                    }
+                  }}
                   className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
                 >
                   <option value="">Select Employment Type</option>
