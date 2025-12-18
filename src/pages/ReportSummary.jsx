@@ -29,7 +29,6 @@ import {
 } from "lucide-react";
 import { HamburgerIcon } from "../components/icons/HamburgerIcon";
 import { GridIcon } from "../components/icons/GridIcon";
-import { useModalClose } from "../hooks/useModalClose";
 
 const Reports = () => {
   // Utility function to capitalize first letter of each word
@@ -1077,7 +1076,7 @@ const Reports = () => {
                   View and analyze employee time tracking data
                 </p>
               </div>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <div className="flex flex-row items-center gap-2">
                 <Button 
                   variant="outline" 
                   onClick={downloadCSV} 
@@ -1654,28 +1653,56 @@ const Reports = () => {
                     <p className="text-gray-500 text-sm">No records found for the selected date range.</p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full border border-gray-300 rounded-lg">
-                      <thead className="bg-[#02066F] text-white">
-                        <tr>
-                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Employee</th>
-                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">PIN</th>
-                          <th className="px-4 py-3 text-center font-semibold text-sm">Total Time Worked</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {filteredData.map((employee, index) => (
-                          <tr key={index} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-4 py-3 text-center font-medium text-gray-900">{employee.Name}</td>
-                            <td className="px-4 py-3 text-center text-gray-600">{employee.Pin}</td>
-                            <td className="px-4 py-3 text-center font-semibold text-blue-600">
-                              {employee.TimeWorked || employee.hoursWorked || "0:00"}
-                            </td>
+                  viewMode === "grid" ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                      {filteredData.map((employee, index) => (
+                        <Card key={index} className="hover:shadow-lg transition-shadow">
+                          <CardHeader className="pb-3">
+                            <div className="flex items-center gap-2 sm:gap-3">
+                              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                                <Users className="w-4 h-4 text-primary" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <CardTitle className="text-base sm:text-lg truncate">{employee.Name}</CardTitle>
+                                <CardDescription className="text-xs sm:text-sm">PIN: {employee.Pin}</CardDescription>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="pt-0">
+                            <div className="flex items-center justify-between pt-2 border-t">
+                              <span className="text-xs sm:text-sm text-muted-foreground">Total Hours</span>
+                              <span className="font-semibold text-blue-600 text-sm sm:text-base">
+                                {employee.TimeWorked || employee.hoursWorked || "0:00"}
+                              </span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full border border-gray-300 rounded-lg">
+                        <thead className="bg-[#02066F] text-white">
+                          <tr>
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Employee</th>
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">PIN</th>
+                            <th className="px-4 py-3 text-center font-semibold text-sm">Total Time Worked</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {filteredData.map((employee, index) => (
+                            <tr key={index} className="hover:bg-gray-50 transition-colors">
+                              <td className="px-4 py-3 text-center font-medium text-gray-900">{employee.Name}</td>
+                              <td className="px-4 py-3 text-center text-gray-600">{employee.Pin}</td>
+                              <td className="px-4 py-3 text-center font-semibold text-blue-600">
+                                {employee.TimeWorked || employee.hoursWorked || "0:00"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
                 )}
               </CardContent>
             </Card>
@@ -1964,28 +1991,56 @@ const Reports = () => {
                     <p className="text-gray-400 text-xs mt-2">Select options above and click "Load Report" to view data.</p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full border border-gray-300 rounded-lg">
-                      <thead className="bg-[#02066F] text-white">
-                        <tr>
-                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Employee</th>
-                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">PIN</th>
-                          <th className="px-4 py-3 text-center font-semibold text-sm">Total Time Worked</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {filteredData.map((employee, index) => (
-                          <tr key={index} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-4 py-3 text-center font-medium text-gray-900">{employee.Name}</td>
-                            <td className="px-4 py-3 text-center text-gray-600">{employee.Pin}</td>
-                            <td className="px-4 py-3 text-center font-semibold text-blue-600">
-                              {employee.TimeWorked || employee.hoursWorked || "0:00"}
-                            </td>
+                  viewMode === "grid" ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                      {filteredData.map((employee, index) => (
+                        <Card key={index} className="hover:shadow-lg transition-shadow">
+                          <CardHeader className="pb-3">
+                            <div className="flex items-center gap-2 sm:gap-3">
+                              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                                <Users className="w-4 h-4 text-primary" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <CardTitle className="text-base sm:text-lg truncate">{employee.Name}</CardTitle>
+                                <CardDescription className="text-xs sm:text-sm">PIN: {employee.Pin}</CardDescription>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="pt-0">
+                            <div className="flex items-center justify-between pt-2 border-t">
+                              <span className="text-xs sm:text-sm text-muted-foreground">Total Hours</span>
+                              <span className="font-semibold text-blue-600 text-sm sm:text-base">
+                                {employee.TimeWorked || employee.hoursWorked || "0:00"}
+                              </span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full border border-gray-300 rounded-lg">
+                        <thead className="bg-[#02066F] text-white">
+                          <tr>
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Employee</th>
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">PIN</th>
+                            <th className="px-4 py-3 text-center font-semibold text-sm">Total Time Worked</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {filteredData.map((employee, index) => (
+                            <tr key={index} className="hover:bg-gray-50 transition-colors">
+                              <td className="px-4 py-3 text-center font-medium text-gray-900">{employee.Name}</td>
+                              <td className="px-4 py-3 text-center text-gray-600">{employee.Pin}</td>
+                              <td className="px-4 py-3 text-center font-semibold text-blue-600">
+                                {employee.TimeWorked || employee.hoursWorked || "0:00"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
                 )}
               </CardContent>
             </Card>

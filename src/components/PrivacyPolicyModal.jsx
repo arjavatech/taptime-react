@@ -6,30 +6,30 @@ const PrivacyPolicyModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm modal-backdrop">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm modal-backdrop">
       <div id="privacy-policy-modal" className="bg-background rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b text-foreground">
-          <h2 className="text-2xl font-bold">Privacy Policy</h2>
+        <div className="flex items-center justify-between p-3 sm:p-4 md:p-6 border-b text-foreground">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold">Privacy Policy</h2>
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="space-y-4 text-foreground">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
+          <div className="space-y-3 sm:space-y-4 text-foreground text-sm sm:text-base">
             <p>Last updated: October 1, 2024</p>
             <p>This Privacy Policy describes Our policies and procedures on the collection, use and disclosure of Your information when You use the Service and tells You about Your privacy rights and how the law protects You.</p>
             <p>We use Your Personal data to provide and improve the Service. By using the Service, You agree to the collection and use of information in accordance with this Privacy Policy.</p>
             
-            <h2 className="text-xl font-semibold">Interpretation and Definitions</h2>
-            <h3 className="text-lg font-semibold">Interpretation</h3>
+            <h2 className="text-lg sm:text-xl font-semibold">Interpretation and Definitions</h2>
+            <h3 className="text-base sm:text-lg font-semibold">Interpretation</h3>
             <p>The words of which the initial letter is capitalized have meanings defined under the following conditions. The following definitions shall have the same meaning regardless of whether they appear in singular or in plural.</p>
             
-            <h3 className="text-lg font-semibold">Definitions</h3>
+            <h3 className="text-base sm:text-lg font-semibold">Definitions</h3>
             <p>For the purposes of this Privacy Policy:</p>
-            <ul className="pl-6 space-y-2">
+            <ul className="pl-4 sm:pl-6 space-y-2">
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span><p><strong>Account</strong> means a unique account created for You to access our Service or parts of our Service.</p></li>
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span><p><strong>Affiliate</strong> means an entity that controls, is controlled by or is under common control with a party, where "control" means ownership of 50% or more of the shares, equity interest or other securities entitled to vote for election of directors or other managing authority.</p></li>
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span><p><strong>Business</strong>, for the purpose of CCPA/CPRA, refers to the Company as the legal entity that collects Consumers' personal information and determines the purposes and means of the processing of Consumers' personal information.</p></li>
@@ -50,11 +50,11 @@ const PrivacyPolicyModal = ({ isOpen, onClose }) => {
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span><p><strong>You</strong> means the individual accessing or using the Service, or the company, or other legal entity on behalf of which such individual is accessing or using the Service, as applicable. Under GDPR, You can be referred to as the Data Subject or as the User as you are the individual using the Service.</p></li>
             </ul>
 
-            <h2 className="text-xl font-semibold">Collecting and Using Your Personal Data</h2>
-            <h3 className="text-lg font-semibold">Types of Data Collected</h3>
-            <h4 className="text-base font-semibold">Personal Data</h4>
+            <h2 className="text-lg sm:text-xl font-semibold">Collecting and Using Your Personal Data</h2>
+            <h3 className="text-base sm:text-lg font-semibold">Types of Data Collected</h3>
+            <h4 className="text-sm sm:text-base font-semibold">Personal Data</h4>
             <p>While using Our Service, We may ask You to provide Us with certain personally identifiable information that can be used to contact or identify You. Personally identifiable information may include, but is not limited to:</p>
-            <ul className="pl-6 space-y-2">
+            <ul className="pl-4 sm:pl-6 space-y-2">
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span><h6 className="font-semibold">Email address</h6></li>
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span><div><h6 className="font-semibold">Camera Access</h6><p>Our application(Tap-Time) requires access to the device's camera to enable facial recognition. This feature is used solely for client-side operations, such as user authentication or personalization. Images and facial recognition data captured by the camera are stored only on the local device and are not transmitted or stored on our servers. No camera data is shared with third parties or stored externally, ensuring the security and privacy of your information.</p></div></li>
                 <li className="flex gap-2"><span className="text-lg leading-none">•</span><h6 className="font-semibold">Usage Data</h6></li>

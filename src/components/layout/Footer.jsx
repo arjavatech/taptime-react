@@ -43,8 +43,7 @@ const Footer = () => {
     { to: "/", text: "Home" },
     { to: "/login", text: "Login" },
     { to: "/register", text: "Register" },
-    { to: "/contact-us", text: "Contact Us" },
-    { action: () => setShowPrivacyModal(true), text: "Privacy Policy" }
+    { to: "/contact-us", text: "Contact Us" }
   ]
 
   const authenticatedLinks = [
