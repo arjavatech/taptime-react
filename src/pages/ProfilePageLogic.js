@@ -23,34 +23,13 @@ export const initializeUserSession = async () => {
       );
 
       if (matchedAdmin) {
-        console.log('Admin matched successfully:', { email: adminMail, type: userType });
-
         adminDetails = matchedAdmin;
-
-
       }
     } catch (error) {
-      console.error("Failed to fetch admin details:", {
-        message: error.message,
-        userType,
-        adminMail,
-        timestamp: new Date().toISOString()
-      });
       adminDetails = null;
     }
   } else if (storedAdmin) {
     adminDetails = JSON.parse(storedAdmin);
-    console.log('Using stored admin details:', adminDetails);
-    console.log('Company fields in stored admin:', {
-      company_name: adminDetails.company_name,
-      company_address_line1: adminDetails.company_address_line1,
-      company_address_line2: adminDetails.company_address_line2,
-      company_city: adminDetails.company_city,
-      company_state: adminDetails.company_state,
-      company_zip_code: adminDetails.company_zip_code
-    });
-
-
   }
 
   return {
@@ -63,8 +42,6 @@ export const initializeUserSession = async () => {
 
 // Load user profile data from localStorage (matching Profile.jsx structure)
 export const loadProfileData = (adminDetails) => {
-  // Debug all localStorage company-related values
-  
   let formData = {
     // Company info
     companyName: localStorage.getItem("companyName") || "",
@@ -87,40 +64,36 @@ export const loadProfileData = (adminDetails) => {
     customerCity: localStorage.getItem("customerCity") || "",
     customerState: localStorage.getItem("customerState") || "",
     customerZip: localStorage.getItem("customerZipCode") || "",
-    
 
     // Admin fields
     adminPin: "",
   };
 
-
   if (adminDetails) {
-    console.log('AdminDetails received:', adminDetails);
-    console.log(localStorage.getItem("reportType"))
 
     // Personal info from adminDetails - use actual data or fallbacks
-    formData.firstName = adminDetails.first_name || adminDetails.FName || formData.firstName
+    formData.firstName = adminDetails.first_name || adminDetails.FName || formData.firstName;
     formData.lastName = adminDetails.last_name || adminDetails.LName || formData.lastName;
-    formData.email = adminDetails.email || formData.email
-    formData.phone = adminDetails.phone_number || formData.phone
+    formData.email = adminDetails.email || formData.email;
+    formData.phone = adminDetails.phone_number || formData.phone;
 
     // Admin specific fields
     formData.adminPin = adminDetails.pin || adminDetails.Pin || "";
 
     // Company data from adminDetails
-    formData.companyName = adminDetails.company_name || formData.companyName
-    formData.companyStreet = adminDetails.company_address_line1 || formData.companyStreet || "";
-    formData.companyStreet2 = adminDetails.company_address_line2 || formData.companyStreet2 || "";
-    formData.companyCity = adminDetails.company_city || formData.companyCity || "";
-    formData.companyState = adminDetails.company_state || formData.companyState || "";
-    formData.companyZip = adminDetails.company_zip_code || formData.companyZip || "";
+    formData.companyName = adminDetails.company_name || formData.companyName;
+    formData.companyStreet = adminDetails.company_address_line1 || formData.companyStreet;
+    formData.companyStreet2 = adminDetails.company_address_line2 || formData.companyStreet2;
+    formData.companyCity = adminDetails.company_city || formData.companyCity;
+    formData.companyState = adminDetails.company_state || formData.companyState;
+    formData.companyZip = adminDetails.company_zip_code || formData.companyZip;
 
     // Customer address from API data
-    formData.customerStreet = adminDetails.customer_address_line1 || formData.customerStreet || "";
-    formData.customerStreet2 = adminDetails.customer_address_line2 || formData.customerStreet2 || "";
-    formData.customerCity = adminDetails.customer_city || formData.customerCity || "";
-    formData.customerState = adminDetails.customer_state || formData.customerState || "";
-    formData.customerZip = adminDetails.customer_zip_code || formData.customerZip || "";
+    formData.customerStreet = adminDetails.customer_address_line1 || formData.customerStreet;
+    formData.customerStreet2 = adminDetails.customer_address_line2 || formData.customerStreet2;
+    formData.customerCity = adminDetails.customer_city || formData.customerCity;
+    formData.customerState = adminDetails.customer_state || formData.customerState;
+    formData.customerZip = adminDetails.customer_zip_code || formData.customerZip;
 
     // Company logo
     if (adminDetails.company_logo) {
@@ -156,7 +129,6 @@ export const loadProfileData = (adminDetails) => {
       localStorage.setItem("companyLogo", formData.logo);
     }
   }
-
 
   return formData;
 };

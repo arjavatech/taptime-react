@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { v4 as uuidv4 } from "uuid";
 import Header from "../components/layout/Header";
-import Footer from "../components/layout/Footer";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import Footer from "../components/layout/Footer";
+
 import {
   fetchEmployeeData,
   createEmployeeWithData,
@@ -28,7 +28,6 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
-  ArrowUpDown,
   ArrowUp,
   ArrowDown,
   ChevronDown,
@@ -37,7 +36,6 @@ import {
 import { HamburgerIcon } from "../components/icons/HamburgerIcon";
 import { GridIcon } from "../components/icons/GridIcon";
 import CenterLoadingOverlay from "../components/ui/CenterLoadingOverlay";
-import { useModalClose } from "../hooks/useModalClose";
 import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
 
@@ -53,8 +51,6 @@ const EmployeeList = () => {
   // Data state
   const [employees, setEmployees] = useState([]);
   const [filteredEmployees, setFilteredEmployees] = useState([]);
-  const [admins, setAdmins] = useState([]);
-  const [superAdmins, setSuperAdmins] = useState([]);
 
   const [getEmail, setGetEmail] = useState("");
 
@@ -118,8 +114,6 @@ const EmployeeList = () => {
   const maxEmployees = parseInt(limitEmployees);
   const adminType = localStorage.getItem("adminType");
   const companyId = localStorage.getItem("companyID");
-  
-  // Modal close events disabled - modals only close via buttons
 
   // Initialize component
   useEffect(() => {
@@ -239,8 +233,6 @@ const EmployeeList = () => {
     // Update counts
     const adminList = allEmployees.filter((emp) => emp.is_admin === 1);
     const superAdminList = allEmployees.filter((emp) => emp.is_admin === 2);
-    setAdmins(adminList);
-    setSuperAdmins(superAdminList);
     setAdminCount(adminList.length);
     setSuperAdminCount(superAdminList.length);
 
@@ -553,8 +545,6 @@ const EmployeeList = () => {
       )}
 
       <CenterLoadingOverlay show={centerLoading.show} message={centerLoading.message} />
-
-
 
       <div className="pt-20 pb-8 flex-1 bg-gradient-to-br from-slate-50 to-blue-50">
         {/* Page Header */}
@@ -1160,8 +1150,8 @@ const EmployeeList = () => {
           </Card>
         </div>
       )}
+      <Footer/> 
 
-      <Footer />
     </div>
   );
 };

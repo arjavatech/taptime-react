@@ -21,6 +21,7 @@ import ReportSummary from "./pages/ReportSummary";
 import ReportSetting from "./pages/ReportSetting";
 import ForgotPassword from "./pages/ForgotPassword";
 import { AuthProvider } from "./contexts/AuthContext";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 
 function App() {
@@ -36,16 +37,16 @@ function App() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/set-password" element={<SetPassword />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/employee-management" element={<EmployeeList/>} />
-            <Route path="/device" element={<Device/>}/>
-            <Route path="/profile" element={<Profile/>} />
-            <Route path="/contact" element={<ContactUs/>}/>
-            <Route path="/contact-us" element={<GetInTouch/>}/>
-            <Route path="/reports" element={<ReportSummary/>}/>
-            <Route path="/reportsummary" element={<ReportSummary/>}/>
-            <Route path="/daywisereport" element={<ReportSummary/>}/>
-            <Route path="/salariedreport" element={<ReportSummary/>}/>
-            <Route path="/reportsetting" element={<ReportSetting/>}/>
+            <Route path="/employee-management" element={<ProtectedRoute><EmployeeList/></ProtectedRoute>} />
+            <Route path="/device" element={<ProtectedRoute><Device/></ProtectedRoute>}/>
+            <Route path="/profile" element={<ProtectedRoute><Profile/></ProtectedRoute>} />
+            <Route path="/contact" element={<ProtectedRoute><ContactUs/></ProtectedRoute>}/>
+            <Route path="/contact-us" element={<ProtectedRoute><GetInTouch/></ProtectedRoute>}/>
+            <Route path="/reports" element={<ProtectedRoute><ReportSummary/></ProtectedRoute>}/>
+            <Route path="/reportsummary" element={<ProtectedRoute><ReportSummary/></ProtectedRoute>}/>
+            <Route path="/daywisereport" element={<ProtectedRoute><ReportSummary/></ProtectedRoute>}/>
+            <Route path="/salariedreport" element={<ProtectedRoute><ReportSummary/></ProtectedRoute>}/>
+            <Route path="/reportsetting" element={<ProtectedRoute><ReportSetting/></ProtectedRoute>}/>
             {/* Add other routes as needed */}
           </Routes>
           {/* <Footer /> */}

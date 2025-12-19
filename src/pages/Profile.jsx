@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Header from "../components/layout/Header";
-import Footer from "../components/layout/Footer";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { updateProfile } from "../api.js";
 import { initializeUserSession, loadProfileData, logoutUser } from "./ProfilePageLogic.js";
+import Footer from "@/components/layout/Footer";
 import {
   User,
   Building,
@@ -21,7 +21,7 @@ import {
   Loader2,
   X
 } from "lucide-react";
-import { useModalClose, useZipLookup } from "../hooks";
+import { useZipLookup } from "../hooks";
 import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
 
@@ -101,9 +101,6 @@ const Profile = () => {
     
   // Check if user can edit company details
   const canEditCompany = userType === "SuperAdmin" || userType === "Owner";
-  
-  // Handle modal close events for loading overlay
-  useModalClose(isLoading, () => {}, 'profile-loading-modal');
 
   // ZIP code auto-fill callbacks
   const handleCompanyZipResult = useCallback((result) => {
@@ -146,23 +143,9 @@ const Profile = () => {
     handlePersonalZipResult
   );
 
-  const formatphone_number = (value) => {
-    const digits = value.replace(/\D/g, '').slice(0, 10);
-    let formatted = '';
-    if (digits.length > 6) {
-      formatted = `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-    } else if (digits.length > 3) {
-      formatted = `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-    } else if (digits.length > 0) {
-      formatted = `(${digits}`;
-    }
-    return formatted;
-  };
+
 
   const handlePersonalInputChange = (field, value) => {
-    console.log(`Personal input change - Field: ${field}, Value: ${value}`);
-    console.log('Current activeTab:', activeTab);
-    console.log('Current isEditing.personal:', isEditing.personal);
 
     // Restrict zipCode to 5 digits only
     if (field === "zipCode" && value && !/^\d{0,5}$/.test(value)) {
@@ -176,13 +159,8 @@ const Profile = () => {
     };
 
     const actualField = fieldMap[field] || field;
-    console.log(`Mapping ${field} to ${actualField} with value: ${value}`);
     
-    setPersonalData(prev => {
-      const newData = { ...prev, [actualField]: value };
-      console.log('Updated personalData:', newData);
-      return newData;
-    });
+    setPersonalData(prev => ({ ...prev, [actualField]: value }));
 
     const errorField = field === "address" ? "customerStreet" :
       field === "city" ? "customerCity" :
@@ -195,12 +173,7 @@ const Profile = () => {
   };
 
   const handleAdminInputChange = (field, value) => {
-    console.log(`Admin input change - Field: ${field}, Value: ${value}`);
-    setAdminData(prev => {
-      const newData = { ...prev, [field]: value };
-      console.log('Updated adminData:', newData);
-      return newData;
-    });
+    setAdminData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: "" }));
     }
@@ -298,13 +271,12 @@ const Profile = () => {
       }
 
       const formData = loadProfileData(adminDetails);
-      console.log("Loaded form data:", formData);
 
       setPersonalData({
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
-        phone: formatphone_number(formData.phone || ""),
+        phone: formData.phone || "",
         address: formData.customerStreet,
         street2: formData.customerStreet2,
         customerCity: formData.customerCity,
@@ -347,7 +319,6 @@ const Profile = () => {
   }, []);
 
   const validatePersonalForm = () => {
-    console.log("Validating personal form with data:", personalData);
     let isValid = true;
     const newErrors = { ...errors };
 
@@ -361,13 +332,11 @@ const Profile = () => {
     newErrors.phone = "";
 
     if (!personalData.firstName || !personalData.firstName.trim()) {
-      console.log("firstName validation failed:", personalData.firstName);
       newErrors.firstName = "Please fill out this field";
       isValid = false;
     }
 
     if (!personalData.lastName || !personalData.lastName.trim()) {
-      console.log("lastName validation failed:", personalData.lastName);
       newErrors.lastName = "Please fill out this field";
       isValid = false;
     }
@@ -375,11 +344,9 @@ const Profile = () => {
 
 
     if (!personalData.email || !personalData.email.trim()) {
-      console.log("email validation failed:", personalData.email);
       newErrors.email = "Please fill out this field";
       isValid = false;
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(personalData.email)) {
-      console.log("email format validation failed:", personalData.email);
       newErrors.email = "Valid email is required";
       isValid = false;
     }
@@ -387,7 +354,6 @@ const Profile = () => {
     if (personalData.phone) {
       const digits = personalData.phone.replace(/\D/g, '');
       if (digits.length < 10) {
-        console.log("phone format validation failed:", personalData.phone);
         newErrors.phone = "Invalid phone number format";
         isValid = false;
       }
@@ -400,17 +366,14 @@ const Profile = () => {
 
     if (userType === "Admin" || userType === "SuperAdmin") {
       if (!personalData.pin || !personalData.pin.trim()) {
-        console.log("pin validation failed:", personalData.pin);
         newErrors.pin = "Admin PIN is required";
         isValid = false;
       } else if (!/^\d{4,6}$/.test(personalData.pin)) {
-        console.log("pin format validation failed:", personalData.pin);
         newErrors.pin = "PIN must be 4-6 digits";
         isValid = false;
       }
     }
 
-    console.log("Validation result:", isValid, "Errors:", newErrors);
     setErrors(newErrors);
     return isValid;
   };
@@ -458,9 +421,7 @@ const Profile = () => {
   };
 
   const handleSavePersonal = async () => {
-    console.log("handleSavePersonal called");
     if (!validatePersonalForm()) {
-      console.log("Validation failed");
       return;
     }
 
@@ -503,7 +464,7 @@ const Profile = () => {
       if (logoFile) {
         formData.append('company_logo', logoFile);
       }
-      console.log("Submitting personal update with data:", companyDataPayload);
+
 
       const result = await updateProfile(companyId, formData);
 
@@ -543,7 +504,7 @@ const Profile = () => {
         setIsEditing(prev => ({ ...prev, personal: false }));
       }, 1000);
     } catch (error) {
-      console.error("Save Personal Error:", error);
+
       setSaveError(error.message || "Failed to update personal information");
       setTimeout(() => {
         setSaveError("");
@@ -554,8 +515,6 @@ const Profile = () => {
   };
 
   const handleSaveAdmin = async () => {
-    console.log("handleSaveAdmin called");
-    console.log("Current adminData state:", adminData);
 
     if (!companyId) {
       return;
@@ -606,7 +565,7 @@ const Profile = () => {
         setIsEditing(prev => ({ ...prev, admin: false }));
       }, 1000);
     } catch (error) {
-      console.error("Save Admin Error:", error);
+
       setSaveError(error.message || "Failed to update admin information");
       setTimeout(() => {
         setSaveError("");
@@ -617,8 +576,6 @@ const Profile = () => {
   };
 
   const handleSaveCompany = async () => {
-    console.log("handleSaveCompany called");
-    
     // Check authorization
     if (!canEditCompany) {
       setSaveError("Only Super Admins and Owners are authorized to edit company details.");
@@ -627,7 +584,6 @@ const Profile = () => {
     }
     
     if (!validateCompanyForm()) {
-      console.log("Validation failed");
       return;
     }
 
@@ -673,7 +629,7 @@ const Profile = () => {
 
         
       }
-      console.log("Submitting company update with data:", companyDataPayload);
+
 
       const result = await updateProfile(companyId, formData);
 
@@ -698,7 +654,7 @@ const Profile = () => {
         setIsEditing(prev => ({ ...prev, company: false }));
       }, 1000);
     } catch (error) {
-      console.error("Company Save Error:", error);
+
       setSaveError(error.message || "Failed to update company information");
       setTimeout(() => {
         setSaveError("");
@@ -1429,8 +1385,7 @@ const Profile = () => {
           )}
         </div>
       </div>
-
-      <Footer />
+<Footer/>
     </div>
   );
 };

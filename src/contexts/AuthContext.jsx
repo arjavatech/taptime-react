@@ -37,7 +37,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [session]);
+  }, []);
 
   // Sign in with email and password
   const signInWithEmail = async (email, password) => {
@@ -94,7 +94,7 @@ export const AuthProvider = ({ children }) => {
   // Sign out
   const signOut = async () => {
     try {
-      // Clear sessionStorage first to remove cached OAuth state
+      // Clear sessionStorage first to remove cached OAuth state and browser session
       sessionStorage.clear();
 
       const { error } = await supabase.auth.signOut();
