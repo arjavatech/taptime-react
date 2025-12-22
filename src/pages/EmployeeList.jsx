@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import Footer from "../components/layout/Footer";
+import { useAuth } from "../contexts/AuthContext";
 
 import {
   fetchEmployeeData,
@@ -40,6 +41,7 @@ import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
 
 const EmployeeList = () => {
+  const { checkAccountDeletion } = useAuth();
   // Utility function to capitalize first letter of each word
   const capitalizeFirst = (str) => {
     if (!str) return str;
@@ -114,6 +116,7 @@ const EmployeeList = () => {
   const maxEmployees = parseInt(limitEmployees);
   const adminType = localStorage.getItem("adminType");
   const companyId = localStorage.getItem("companyID");
+  const loggedAdminEmail = localStorage.getItem("adminMail") || "";
 
   // Initialize component
   useEffect(() => {
@@ -325,6 +328,12 @@ const EmployeeList = () => {
   };
 
   const openEditModal = (employee) => {
+    // Prevent super admin from editing their own account
+    if (adminType === "SuperAdmin" && employee.is_admin === 2 && 
+        employee.email && employee.email.toLowerCase() === loggedAdminEmail.toLowerCase()) {
+      return;
+    }
+    
     setEditingEmployee(employee);
     setErrors({ first_name: "", last_name: "", phone_number: "", email: "" });
     setModalError("");
@@ -344,6 +353,12 @@ const EmployeeList = () => {
   };
 
   const openDeleteModal = (employee) => {
+    // Prevent super admin from deleting their own account
+    if (adminType === "SuperAdmin" && employee.is_admin === 2 && 
+        employee.email && employee.email.toLowerCase() === loggedAdminEmail.toLowerCase()) {
+      return;
+    }
+    
     setEmployeeToDelete(employee);
     setDeleteError("");
     setDeleteSuccess("");
@@ -514,6 +529,16 @@ const EmployeeList = () => {
 
     try {
       await deleteEmployeeById(employeeToDelete.emp_id);
+      
+      // Check if the deleted employee is the current logged-in user
+      const currentUserEmail = localStorage.getItem('adminMail');
+      if (currentUserEmail && employeeToDelete.email && 
+          currentUserEmail.toLowerCase() === employeeToDelete.email.toLowerCase()) {
+        // Trigger immediate account deletion check for current user
+        await checkAccountDeletion(currentUserEmail);
+        return; // Don't show success message as user will be logged out
+      }
+      
       setDeleteSuccess("Employee deleted successfully!");
 
       setTimeout(() => {
@@ -800,6 +825,8 @@ const EmployeeList = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => openEditModal(employee)}
+                            disabled={adminType === "SuperAdmin" && employee.is_admin === 2 && 
+                                     employee.email && employee.email.toLowerCase() === loggedAdminEmail.toLowerCase()}
                             className="h-7 w-7 sm:h-8 sm:w-8 p-0"
                           >
                             <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -808,6 +835,8 @@ const EmployeeList = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => openDeleteModal(employee)}
+                            disabled={adminType === "SuperAdmin" && employee.is_admin === 2 && 
+                                     employee.email && employee.email.toLowerCase() === loggedAdminEmail.toLowerCase()}
                             className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-destructive hover:text-destructive"
                           >
                             <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -899,6 +928,8 @@ const EmployeeList = () => {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => openEditModal(employee)}
+                                disabled={adminType === "SuperAdmin" && employee.is_admin === 2 && 
+                                         employee.email && employee.email.toLowerCase() === loggedAdminEmail.toLowerCase()}
                                 className="h-8 w-8 p-0"
                               >
                                 <Edit className="w-4 h-4" />
@@ -907,6 +938,8 @@ const EmployeeList = () => {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => openDeleteModal(employee)}
+                                disabled={adminType === "SuperAdmin" && employee.is_admin === 2 && 
+                                         employee.email && employee.email.toLowerCase() === loggedAdminEmail.toLowerCase()}
                                 className="h-8 w-8 p-0 text-destructive hover:text-destructive"
                               >
                                 <Trash2 className="w-4 h-4" />

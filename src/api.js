@@ -23,7 +23,22 @@ const api = {
         headers: { 'Content-Type': 'application/json' },
         ...options
       });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      
+      if (!response.ok) {
+        // Try to get error details from response
+        const errorData = await response.json().catch(() => ({}));
+        const errorMsg = errorData.detail || errorData.error || `HTTP ${response.status}`;
+        
+        // Handle specific HTTP status codes that might indicate account deletion
+        if (response.status === 404 || errorMsg.toLowerCase().includes('not found')) {
+          throw new Error('Account not found - may have been deleted');
+        }
+        if (response.status === 403) {
+          throw new Error('Access denied - account may be inactive or deleted');
+        }
+        
+        throw new Error(errorMsg);
+      }
       return await response.json();
     } catch (error) {
       console.error('API Error:', error);
@@ -91,9 +106,28 @@ export const loginCheck = async (username, password) => {
 
 export const googleSignInCheck = async (email) => {
   try {
-    const data = await api.get(`${API_BASE}/employee/login_check/${email}`);
-
-    if (data.error) throw new Error(data.error);
+    const response = await fetch(`${API_BASE}/employee/login_check/${email}`, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    const data = await response.json();
+    
+    // Check if response contains error details (even with 200 status)
+    if (data.detail || data.error) {
+      const errorMsg = data.detail || data.error;
+      // Check if error indicates account deletion/not found
+      if (errorMsg.toLowerCase().includes('not found') || 
+          errorMsg.toLowerCase().includes('deleted') ||
+          errorMsg.toLowerCase().includes('inactive')) {
+        return { success: false, error: errorMsg, deleted: true };
+      }
+      return { success: false, error: errorMsg };
+    }
+    
+    // If no error, proceed with normal validation
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
 
     const adminTypeValue = data.admin_type?.toString().toLowerCase();
     const allowedTypes = ['admin', 'superadmin', 'owner'];

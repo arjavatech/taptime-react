@@ -38,7 +38,9 @@ const Header = () => {
         localStorage.clear();
       }
       
-      setIsAuthenticated(hasSupabaseAuth);
+      // Only set authenticated if both Supabase auth exists AND user setup is complete
+      const isUserSetupComplete = localStorage.getItem("adminMail") && localStorage.getItem("adminType");
+      setIsAuthenticated(hasSupabaseAuth && isUserSetupComplete);
 
       if (hasSupabaseAuth) {
         const adminType = localStorage.getItem("adminType") || "";

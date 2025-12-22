@@ -114,6 +114,14 @@ const Register = () => {
     if ((name === 'companyZip' || name === 'customerZip') && value && !/^\d{0,5}$/.test(value)) {
       return;
     }
+    // Restrict email to alphanumeric, @ and . only
+    if (name === 'email' && value && !/^[a-zA-Z0-9@.]*$/.test(value)) {
+      return;
+    }
+    // Restrict first and last name to letters only
+    if ((name === 'firstName' || name === 'lastName') && value && !/^[a-zA-Z\s]*$/.test(value)) {
+      return;
+    }
     
     // Auto-capitalize first character for text fields (exclude email and numeric fields)
     let processedValue = value;
@@ -294,13 +302,22 @@ const Register = () => {
     if (!firstName.trim()) {
       setFirstNameError('First name is required');
       hasErrors = true;
+    } else if (!/^[a-zA-Z\s]+$/.test(firstName)) {
+      setFirstNameError('First name cannot contain numbers');
+      hasErrors = true;
     }
     if (!lastName.trim()) {
       setLastNameError('Last name is required');
       hasErrors = true;
+    } else if (!/^[a-zA-Z\s]+$/.test(lastName)) {
+      setLastNameError('Last name cannot contain numbers');
+      hasErrors = true;
     }
     if (!email.trim()) {
       setEmailError('Email is required');
+      hasErrors = true;
+    } else if (!/^[a-zA-Z0-9@.]+$/.test(email)) {
+      setEmailError('Email cannot contain special characters');
       hasErrors = true;
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setEmailError('Please enter a valid email address');
@@ -819,6 +836,7 @@ const Register = () => {
               Back
             </Button>
             <Button type="submit" className="flex-1 h-10 sm:h-11 text-sm sm:text-base" size="lg" disabled={isLoading}>
+              {isLoading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
               {isLoading ? "Creating Account..." : "Create Account"}
             </Button>
           </div>
