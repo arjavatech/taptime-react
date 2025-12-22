@@ -1148,42 +1148,87 @@ const Reports = () => {
 
         {/* Summary Statistics */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
-            <Card>
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center">
-                  <Users className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
-                  <div className="ml-3 sm:ml-4">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">Check-in employee</p>
-                    <p className="text-xl sm:text-2xl font-bold text-foreground">{summaryStats.presentEmployees}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center">
-                  <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
-                  <div className="ml-3 sm:ml-4">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">Currently working employee</p>
-                    <p className="text-xl sm:text-2xl font-bold text-foreground">{filteredData.filter(r => r.CheckInTime && !r.CheckOutTime).length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="sm:col-span-2 md:col-span-1">
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center">
-                  <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600" />
-                  <div className="ml-3 sm:ml-4">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Records</p>
-                    <p className="text-xl sm:text-2xl font-bold text-foreground">{filteredData.length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+            {activeTab === "today" && (
+              <>
+                <Card>
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex items-center">
+                      <Users className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+                      <div className="ml-3 sm:ml-4">
+                        <p className="text-xs sm:text-sm font-medium text-muted-foreground">Checked-in Employees</p>
+                        <p className="text-xl sm:text-2xl font-bold text-foreground">{summaryStats.presentEmployees}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex items-center">
+                      <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
+                      <div className="ml-3 sm:ml-4">
+                        <p className="text-xs sm:text-sm font-medium text-muted-foreground">Currently Working</p>
+                        <p className="text-xl sm:text-2xl font-bold text-foreground">{filteredData.filter(r => r.CheckInTime && !r.CheckOutTime).length}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+            
+            {(activeTab === "daywise" || activeTab === "summary" || activeTab === "salaried") && (
+              <>
+                <Card>
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex items-center">
+                      <Users className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+                      <div className="ml-3 sm:ml-4">
+                        <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Employees</p>
+                        <p className="text-xl sm:text-2xl font-bold text-foreground">{new Set(filteredData.map(r => r.EmployeeId)).size}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex items-center">
+                      <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
+                      <div className="ml-3 sm:ml-4">
+                        <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Records</p>
+                        <p className="text-xl sm:text-2xl font-bold text-foreground">{filteredData.length}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+            
+            {activeTab === "pending" && (
+              <>
+                <Card>
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex items-center">
+                      <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-orange-600" />
+                      <div className="ml-3 sm:ml-4">
+                        <p className="text-xs sm:text-sm font-medium text-muted-foreground">Pending Checkouts</p>
+                        <p className="text-xl sm:text-2xl font-bold text-foreground">{filteredData.length}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex items-center">
+                      <Users className="h-6 w-6 sm:h-8 sm:w-8 text-red-600" />
+                      <div className="ml-3 sm:ml-4">
+                        <p className="text-xs sm:text-sm font-medium text-muted-foreground">Affected Employees</p>
+                        <p className="text-xl sm:text-2xl font-bold text-foreground">{new Set(filteredData.map(r => r.EmployeeId)).size}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
           </div>
         </div>
 
