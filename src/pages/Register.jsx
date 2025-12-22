@@ -616,7 +616,7 @@ const Register = () => {
 
           <div className="space-y-2">
             <Label htmlFor="employmentType" className="text-sm sm:text-base font-medium">Employment Types</Label>
-            <div className="border rounded-md p-2 sm:p-3 min-h-[40px] sm:min-h-[44px] flex flex-wrap gap-1 sm:gap-2 items-center focus-within:ring-2 focus-within:ring-primary focus-within:border-primary">
+            <div className="border border-textMuted rounded-md p-2 sm:p-3 min-h-[40px] sm:min-h-[44px] flex flex-wrap gap-1 sm:gap-2 items-center focus-within:ring-1 focus-within:ring-textMuted focus-within:border-textMuted">
               {employmentTypes.map((type, index) => (
                 <span
                   key={index}
