@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import { supabase } from '../config/supabase';
 import { googleSignInCheck, getTimeZone } from '../api.js';
+import AccountDeletionModal from '../components/ui/AccountDeletionModal';
 
 const AuthContext = createContext({});
 
@@ -16,6 +17,44 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showAccountDeletionModal, setShowAccountDeletionModal] = useState(false);
+  const [deletedAccountType, setDeletedAccountType] = useState('');
+  const [accountDeleted, setAccountDeleted] = useState(false);
+
+  // Check if account has been deleted
+  const checkAccountDeletion = useCallback(async (email) => {
+    // If account already detected as deleted, don't make API calls
+    if (accountDeleted) return true;
+    
+    try {
+      const result = await googleSignInCheck(email);
+      if (!result.success && result.deleted) {
+        const adminType = localStorage.getItem('adminType') || 
+                         localStorage.getItem('ADMIN_TYPE') || 
+                         'Account';
+        setDeletedAccountType(adminType);
+        setShowAccountDeletionModal(true);
+        setAccountDeleted(true);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      // If API call fails, check error message for deletion indicators
+      const errorMsg = error.message.toLowerCase();
+      if (errorMsg.includes('not found') || 
+          errorMsg.includes('deleted') || 
+          errorMsg.includes('404')) {
+        const adminType = localStorage.getItem('adminType') || 
+                         localStorage.getItem('ADMIN_TYPE') || 
+                         'Account';
+        setDeletedAccountType(adminType);
+        setShowAccountDeletionModal(true);
+        setAccountDeleted(true);
+        return true;
+      }
+      return false;
+    }
+  }, [accountDeleted]);
 
   useEffect(() => {
     // Get initial session
@@ -38,6 +77,23 @@ export const AuthProvider = ({ children }) => {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Check account deletion on page focus/visibility change
+  useEffect(() => {
+    if (!user || accountDeleted) return;
+
+    const handleVisibilityChange = async () => {
+      if (!document.hidden) {
+        const userEmail = user?.email || localStorage.getItem('adminMail');
+        if (userEmail) {
+          await checkAccountDeletion(userEmail);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [user, checkAccountDeletion, accountDeleted]);
 
   // Sign in with email and password
   const signInWithEmail = async (email, password) => {
@@ -142,7 +198,16 @@ export const AuthProvider = ({ children }) => {
     try {
       console.log(`fetchBackendUserData called with email: ${email}`);
 
-      // Step 1: Validate email with backend and get companyID
+      // Step 1: Check if account has been deleted
+      const isDeleted = await checkAccountDeletion(email);
+      if (isDeleted) {
+        return {
+          success: false,
+          error: 'Account has been deleted'
+        };
+      }
+
+      // Step 2: Validate email with backend and get companyID
       // This validates the email exists in the backend employee database
       // and fetches company, timezone, and customer data
       const result = await googleSignInCheck(email);
@@ -159,7 +224,7 @@ export const AuthProvider = ({ children }) => {
 
       const companyID = result.companyID;
 
-      // Step 2: Store user information in localStorage
+      // Step 3: Store user information in localStorage
       if (userName) {
         localStorage.setItem('userName', userName);
       }
@@ -170,10 +235,10 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('userPicture');
       }
 
-      // Step 3: Fetch timezone data
+      // Step 4: Fetch timezone data
       await getTimeZone(companyID);
 
-      // Step 4: Fetch customer data
+      // Step 5: Fetch customer data
 
       return { success: true, companyID };
     } catch (error) {
@@ -183,7 +248,24 @@ export const AuthProvider = ({ children }) => {
         error: error.message || 'Failed to fetch user data from backend'
       };
     }
-  }, []); // Empty dependency array - function doesn't depend on external values
+  }, [checkAccountDeletion]); // Depend on checkAccountDeletion
+
+  // Handle account deletion modal close
+  const handleAccountDeletionModalClose = useCallback(async () => {
+    setShowAccountDeletionModal(false);
+    await signOut();
+    // Redirect to login page
+    window.location.href = '/login';
+  }, [signOut]);
+
+  // Check account deletion on navigation
+  const checkOnNavigation = useCallback(async () => {
+    if (!user) return;
+    const userEmail = user?.email || localStorage.getItem('adminMail');
+    if (userEmail) {
+      await checkAccountDeletion(userEmail);
+    }
+  }, [user, checkAccountDeletion]);
 
   const value = {
     user,
@@ -195,11 +277,18 @@ export const AuthProvider = ({ children }) => {
     signOut,
     resetPassword,
     fetchBackendUserData,
+    checkAccountDeletion,
+    checkOnNavigation,
   };
 
   return (
     <AuthContext.Provider value={value}>
       {children}
+      <AccountDeletionModal
+        isOpen={showAccountDeletionModal}
+        onClose={handleAccountDeletionModalClose}
+        accountType={deletedAccountType}
+      />
     </AuthContext.Provider>
   );
 };

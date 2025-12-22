@@ -4,9 +4,7 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
-  BrowserRouter,
 } from "react-router-dom";
-import { Toaster } from "sonner";
 
 import HomePage from "./pages/HomePage";
 import Login from "./pages/Login";
@@ -49,9 +47,7 @@ function App() {
             <Route path="/reportsetting" element={<ProtectedRoute><ReportSetting/></ProtectedRoute>}/>
             {/* Add other routes as needed */}
           </Routes>
-          {/* <Footer /> */}
         </div>
-        <Toaster position="top-right" />
       </AuthProvider>
     </Router>
     // </BrowserRouter>

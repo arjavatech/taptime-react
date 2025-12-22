@@ -670,19 +670,42 @@ const Reports = () => {
       return;
     }
 
-    let csvContent = "Employee ID,Name,Check-in Time,Check-out Time,Time Worked,Type\n";
-    csvContent += filteredData.map(record => [
-      record.Pin || "",
-      record.Name || "",
-      record.CheckInTime ? formatTime(record.CheckInTime) : "",
-      record.CheckOutTime ? formatTime(record.CheckOutTime) : "",
-      record.TimeWorked || "",
-      record.Type || ""
-    ].join(",")).join("\n");
+    let csvContent, filename;
 
-    const filename = activeTab === "today" 
-      ? `today_report_${new Date().toISOString().split('T')[0]}.csv`
-      : `daily_report_${selectedDate}.csv`;
+    if (activeTab === "summary" || activeTab === "salaried") {
+      // Summary and Salaried reports: Employee ID, Name, Total Hours
+      csvContent = "Employee ID,Name,Total Hours Worked\n";
+      csvContent += filteredData.map(record => [
+        record.Pin || "",
+        record.Name || "",
+        record.TimeWorked || record.hoursWorked || "0:00"
+      ].join(",")).join("\n");
+      
+      if (activeTab === "summary") {
+        filename = `summary_report_${startDate}_to_${endDate}.csv`;
+      } else {
+        filename = `salaried_report_${selectedReportType}_${new Date().toISOString().split('T')[0]}.csv`;
+      }
+    } else {
+      // Today, Daywise, Pending: Full details with check-in/out times
+      csvContent = "Employee ID,Name,Check-in Time,Check-out Time,Time Worked,Type\n";
+      csvContent += filteredData.map(record => [
+        record.Pin || "",
+        record.Name || "",
+        record.CheckInTime ? formatTime(record.CheckInTime) : "",
+        record.CheckOutTime ? formatTime(record.CheckOutTime) : "",
+        record.TimeWorked || "",
+        record.Type || ""
+      ].join(",")).join("\n");
+
+      if (activeTab === "today") {
+        filename = `today_report_${new Date().toISOString().split('T')[0]}.csv`;
+      } else if (activeTab === "daywise") {
+        filename = `daywise_report_${selectedDate}.csv`;
+      } else if (activeTab === "pending") {
+        filename = `pending_checkout_${new Date().toISOString().split('T')[0]}.csv`;
+      }
+    }
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
@@ -702,7 +725,19 @@ const Reports = () => {
 
       // Title
       doc.setFontSize(18);
-      doc.text(`${companyName} - Attendance Report`, 14, 20);
+      let reportTitle = "";
+      if (activeTab === "today") {
+        reportTitle = "Today's Report";
+      } else if (activeTab === "daywise") {
+        reportTitle = "Day-wise Report";
+      } else if (activeTab === "summary") {
+        reportTitle = "Date Range Report";
+      } else if (activeTab === "salaried") {
+        reportTitle = `${selectedReportType} Report`;
+      } else if (activeTab === "pending") {
+        reportTitle = "Pending Checkout Report";
+      }
+      doc.text(`${companyName} - ${reportTitle}`, 14, 20);
 
       // Date information
       doc.setFontSize(11);
@@ -713,14 +748,19 @@ const Reports = () => {
         dateText = `Date: ${selectedDate || new Date().toISOString().split('T')[0]}`;
       } else if (activeTab === "summary") {
         dateText = `Period: ${startDate || "N/A"} to ${endDate || "N/A"}`;
+      } else if (activeTab === "salaried") {
+        const dateRange = getDateRangeForReportType(selectedReportType, selectedYear, selectedMonth, selectedWeek, selectedHalf);
+        dateText = dateRange ? `Period: ${dateRange.start} to ${dateRange.end}` : "Period: N/A";
+      } else if (activeTab === "pending") {
+        dateText = `Date: ${new Date().toLocaleDateString()}`;
       }
       doc.text(dateText, 14, 30);
 
       // Prepare table data based on active tab
       let tableData, headers;
 
-      if (activeTab === "summary") {
-        // Summary report shows employee, pin, and total hours
+      if (activeTab === "summary" || activeTab === "salaried") {
+        // Summary and Salaried reports show employee, pin, and total hours
         headers = [['Employee ID', 'Name', 'Total Hours Worked']];
         tableData = filteredData.map(record => [
           record.Pin || "",
@@ -728,7 +768,7 @@ const Reports = () => {
           record.TimeWorked || record.hoursWorked || "0:00"
         ]);
       } else {
-        // Today and daywise reports show detailed check-in/out info
+        // Today, daywise, and pending reports show detailed check-in/out info
         headers = [['Employee ID', 'Name', 'Check-in', 'Check-out', 'Time Worked', 'Type']];
         tableData = filteredData.map(record => [
           record.Pin || "",
@@ -752,11 +792,15 @@ const Reports = () => {
       // Generate filename
       let filename;
       if (activeTab === "today") {
-        filename = `report_${new Date().toISOString().split('T')[0]}.pdf`;
+        filename = `today_report_${new Date().toISOString().split('T')[0]}.pdf`;
       } else if (activeTab === "daywise") {
-        filename = `report_${selectedDate}.pdf`;
-      } else {
-        filename = `report_${startDate}_to_${endDate}.pdf`;
+        filename = `daywise_report_${selectedDate}.pdf`;
+      } else if (activeTab === "summary") {
+        filename = `summary_report_${startDate}_to_${endDate}.pdf`;
+      } else if (activeTab === "salaried") {
+        filename = `salaried_report_${selectedReportType}_${new Date().toISOString().split('T')[0]}.pdf`;
+      } else if (activeTab === "pending") {
+        filename = `pending_checkout_${new Date().toISOString().split('T')[0]}.pdf`;
       }
 
       doc.save(filename);
