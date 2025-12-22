@@ -37,11 +37,11 @@ function App() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/set-password" element={<SetPassword />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/contact-us" element={<GetInTouch/>}/>
             <Route path="/employee-management" element={<ProtectedRoute><EmployeeList/></ProtectedRoute>} />
             <Route path="/device" element={<ProtectedRoute><Device/></ProtectedRoute>}/>
             <Route path="/profile" element={<ProtectedRoute><Profile/></ProtectedRoute>} />
-            <Route path="/contact" element={<ProtectedRoute><ContactUs/></ProtectedRoute>}/>
-            <Route path="/contact-us" element={<ProtectedRoute><GetInTouch/></ProtectedRoute>}/>
+            <Route path="/contact" element={<ProtectedRoute><ContactUs/></ProtectedRoute>}/>            
             <Route path="/reports" element={<ProtectedRoute><ReportSummary/></ProtectedRoute>}/>
             <Route path="/reportsummary" element={<ProtectedRoute><ReportSummary/></ProtectedRoute>}/>
             <Route path="/daywisereport" element={<ProtectedRoute><ReportSummary/></ProtectedRoute>}/>
