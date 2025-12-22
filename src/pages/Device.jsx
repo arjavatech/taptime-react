@@ -1,24 +1,22 @@
 import React, { useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import Header from "../components/layout/Header";
-import Footer from "../components/layout/Footer";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { 
-  Plus, 
-  Copy, 
-  Edit, 
-  Trash2, 
-  Tablet, 
-  Clock, 
+import Footer from "@/components/layout/Footer";
+import {
+  Plus,
+  Copy,
+  Edit,
+  Trash2,
+  Tablet,
+  Clock,
   MapPin,
   AlertCircle,
   Loader2
 } from "lucide-react";
-import CenterLoadingOverlay from "../components/ui/CenterLoadingOverlay";
-import { useModalClose } from "../hooks/useModalClose";
 
 const Device = () => {
   // Device API functions
@@ -65,15 +63,12 @@ const Device = () => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [maxDevices, setMaxDevices] = useState(0);
-  const [userRole] = useState("admin");
 
   const [formData, setFormData] = useState({
     deviceName: "",
     branchName: "",
     timeZone: "America/New_York"
   });
-  
-  // Modal close events disabled - modals only close via buttons
 
   useEffect(() => {
     const limitStr = localStorage.getItem("device_count") || "";
@@ -184,19 +179,19 @@ const Device = () => {
 
     try {
       // Since there's no update API, we'll simulate it by updating the local state
-      setDevices(prev => prev.map(device => 
-        device.AccessKey === editingDevice.AccessKey 
+      setDevices(prev => prev.map(device =>
+        device.AccessKey === editingDevice.AccessKey
           ? {
-              ...device,
-              device_name: formData.deviceName,
-              device_id: formData.deviceName,
-              branch_name: formData.branchName,
-              timezone: formData.timeZone,
-              last_modified_by: formData.last_modified_by
-            }
+            ...device,
+            device_name: formData.deviceName,
+            device_id: formData.deviceName,
+            branch_name: formData.branchName,
+            timezone: formData.timeZone,
+            last_modified_by: formData.last_modified_by
+          }
           : device
       ));
-      
+
       setEditingDevice(null);
       setShowAddModal(false);
       setFormData({ deviceName: "", branchName: "", timeZone: "America/New_York" });
@@ -247,7 +242,7 @@ const Device = () => {
 
   const openEditModal = (device) => {
     setEditingDevice(device);
-    
+
     setFormData({
       deviceName: device.device_name || device.DeviceName || "",
       branchName: device.branch_name || "",
@@ -275,12 +270,6 @@ const Device = () => {
           </div>
         </div>
       )}
-
-
-
-
-
-
 
       <div className="pt-20 pb-8 flex-grow bg-gradient-to-br from-slate-50 to-blue-50">
         {/* Page Header */}
@@ -329,7 +318,7 @@ const Device = () => {
                     Add Device
                   </Button>
                 </div>
-               
+
               </CardContent>
             </Card>
           ) : (
@@ -359,20 +348,20 @@ const Device = () => {
                                   </div>
                                   <div>
                                     <div className="font-medium">
-                                      {device.device_name}
+                                      {device.device_name ?? "Pending Setup"}
                                     </div>
-                                    <div className="text-sm text-muted-foreground">ID: {device.device_id}</div>
+                                    <div className="text-sm text-muted-foreground">ID: {device.device_id ?? "Not Set"}</div>
                                   </div>
                                 </div>
                               </td>
                               <td className="py-3 px-4">
                                 <span className="font-medium">
-                                  {device.branch_name === "Not Registered" ? "Not Set" : device.branch_name}
+                                  {device.branch_name ?? "Not Set"}
                                 </span>
                               </td>
                               <td className="py-3 px-4">
                                 <span className="font-medium">
-                                  {device.timezone === "Not Registered" ? "Not Set" : device.timezone}
+                                  {device.timezone ?? "Not Set"}
                                 </span>
                               </td>
                               <td className="py-3 px-4">
@@ -391,7 +380,7 @@ const Device = () => {
                                   </Button>
                                 </div>
                               </td>
-                           
+
                               <td className="py-3 px-4">
                                 <div className="flex items-center justify-center gap-2">
                                   <Button
@@ -434,10 +423,10 @@ const Device = () => {
                           </div>
                           <div className="min-w-0 flex-1">
                             <CardTitle className="text-base truncate">
-                              {device.device_name === "Not Registered" ? "Pending Setup" : device.device_name}
+                              {device.device_name ?? "Pending Setup"}
                             </CardTitle>
                             <CardDescription className="text-xs truncate">
-                              ID: {device.device_id}
+                              ID: {device.device_id ?? "Not Set"}
                             </CardDescription>
                           </div>
                         </div>
@@ -461,22 +450,22 @@ const Device = () => {
                         </div>
                       </div>
                     </CardHeader>
-                    
+
                     <CardContent className="space-y-3 pt-0">
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 text-xs">
                           <Clock className="w-3 h-3 text-muted-foreground flex-shrink-0" />
                           <span className="text-muted-foreground">Time Zone:</span>
                           <span className="font-medium truncate">
-                            {device.timezone === "Not Registered" ? "Not Set" : device.timezone}
+                            {device.timezone ?? "Not Set"}
                           </span>
                         </div>
-                        
+
                         <div className="flex items-center gap-2 text-xs">
                           <MapPin className="w-3 h-3 text-muted-foreground flex-shrink-0" />
                           <span className="text-muted-foreground">Branch:</span>
                           <span className="font-medium truncate">
-                            {device.branch_name === "Not Registered" ? "Not Set" : device.branch_name}
+                            {device.branch_name ?? "Not Set"}
                           </span>
                         </div>
                       </div>
@@ -498,14 +487,14 @@ const Device = () => {
                         </div>
                       </div>
 
-                     
+
                     </CardContent>
                   </Card>
                 ))}
               </div>
             </>
           )}
-          
+
           {/* Device Limit Info */}
           {devices.length > 0 && (
             <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -514,7 +503,7 @@ const Device = () => {
                 <div className="ml-3">
                   {devices.length >= maxDevices ? (
                     <p className="text-sm text-blue-800">
-                      You have reached the device registration limit ({devices.length}/{maxDevices}). 
+                      You have reached the device registration limit ({devices.length}/{maxDevices}).
                       <a href="/contact" className="font-medium underline hover:text-blue-900">
                         Contact us
                       </a> to add more devices.
@@ -541,7 +530,7 @@ const Device = () => {
                 {editingDevice ? "Update device information" : "Configure a new device for your system"}
               </CardDescription>
             </CardHeader>
-            
+
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="deviceName" className="text-sm font-medium">Device Name *</Label>
@@ -615,7 +604,7 @@ const Device = () => {
                 You have reached the maximum device limit ({maxDevices}). Please contact support to add more devices.
               </CardDescription>
             </CardHeader>
-            
+
             <CardContent>
               <div className="flex flex-col gap-3">
                 <Button
@@ -643,7 +632,7 @@ const Device = () => {
                 Are you sure you want to delete "{deviceToDelete.device_name}"? This action cannot be undone.
               </CardDescription>
             </CardHeader>
-            
+
             <CardContent>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
@@ -667,7 +656,6 @@ const Device = () => {
           </Card>
         </div>
       )}
-
       <Footer />
     </div>
   );

@@ -7,12 +7,13 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { Mail, User, Building, Phone, MapPin, CheckCircle, XCircle, X, Loader2 } from "lucide-react";
+import { Mail, User, Building, Phone, MapPin, X, Loader2, AlertCircle } from "lucide-react";
 import tabtimelogo from "../assets/images/tap-time-logo.png";
 import RegistrationSuccessModal from "../components/ui/RegistrationSuccessModal";
 import CenterLoadingOverlay from "../components/ui/CenterLoadingOverlay";
 import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
+
 
 
 const Register = () => {
@@ -30,7 +31,7 @@ const Register = () => {
   const [companyCityError, setCompanyCityError] = useState('');
   const [companyStateError, setCompanyStateError] = useState('');
   const [companyZipError, setCompanyZipError] = useState('');
-  const [noOfDevicesError, setNoOfDevicesError] = useState('');
+
   const [noOfEmployeesError, setNoOfEmployeesError] = useState('');
 
   // Error states for Step 2
@@ -42,6 +43,7 @@ const Register = () => {
   const [customerCityError, setCustomerCityError] = useState('');
   const [customerStateError, setCustomerStateError] = useState('');
   const [customerZipError, setCustomerZipError] = useState('');
+  const [generalError, setGeneralError] = useState('');
 
   // Form data state
   const [formData, setFormData] = useState({
@@ -218,7 +220,6 @@ const Register = () => {
 
   const validateStep1 = () => {
     const { companyName, companyStreet, companyCity, companyState, companyZip, noOfEmployees } = formData;
-    console.log('Validating fields:', { companyName, companyStreet, companyCity, companyState, companyZip, noOfEmployees });
 
     // Clear previous errors
     setCompanyNameError('');
@@ -227,42 +228,35 @@ const Register = () => {
     setCompanyCityError('');
     setCompanyStateError('');
     setCompanyZipError('');
-    setNoOfDevicesError('');
+
     setNoOfEmployeesError('');
 
     let hasErrors = false;
 
     if (!companyName.trim()) {
-      console.log('Company name validation failed');
       setCompanyNameError('Company name is required');
       hasErrors = true;
     }
     if (!companyStreet.trim()) {
-      console.log('Company street validation failed');
       setCompanyStreetError('Street address is required');
       hasErrors = true;
     }
     if (!companyCity.trim()) {
-      console.log('Company city validation failed');
       setCompanyCityError('City is required');
       hasErrors = true;
     }
     if (!companyState.trim()) {
-      console.log('Company state validation failed');
       setCompanyStateError('State is required');
       hasErrors = true;
     }
     if (!companyZip.trim()) {
-      console.log('Company zip validation failed - empty');
       setCompanyZipError('Zip code is required');
       hasErrors = true;
     } else if (!/^\d{5}$/.test(companyZip)) {
-      console.log('Company zip validation failed - format');
       setCompanyZipError('Zip code must be exactly 5 digits');
       hasErrors = true;
     }
     if (!noOfEmployees || Number(noOfEmployees) <= 0) {
-      console.log('Number of employees validation failed');
       setNoOfEmployeesError('Number of employees must be greater than 0');
       hasErrors = true;
     }
@@ -278,7 +272,6 @@ const Register = () => {
       }
     }
 
-    console.log('Validation complete. Has errors:', hasErrors);
     return !hasErrors;
   };
 
@@ -294,6 +287,7 @@ const Register = () => {
     setCustomerCityError('');
     setCustomerStateError('');
     setCustomerZipError('');
+    setGeneralError('');
 
     let hasErrors = false;
 
@@ -315,6 +309,12 @@ const Register = () => {
     if (!phone.trim()) {
       setPhoneError('Phone number is required');
       hasErrors = true;
+    } else {
+      const digits = phone.replace(/\D/g, '');
+      if (digits.length < 10) {
+        setPhoneError('Phone number must be at least 10 digits');
+        hasErrors = true;
+      }
     }
     if (!customerStreet.trim()) {
       setCustomerStreetError('Street address is required');
@@ -338,15 +338,9 @@ const Register = () => {
 
   const handleNext = (e) => {
     e.preventDefault();
-    console.log('Form data:', formData);
-    console.log('Validating step 1...');
     const isValid = validateStep1();
-    console.log('Validation result:', isValid);
     if (isValid) {
-      console.log('Moving to step 2');
       setCurrentStep(2);
-    } else {
-      console.log('Validation failed, staying on step 1');
     }
   };
 
@@ -374,7 +368,7 @@ const Register = () => {
         company_zip_code: formData.companyZip,
         device_count: parseInt(formData.noOfDevices, 10),
         employee_count: parseInt(formData.noOfEmployees, 10),
-        employment_type: formData.employmentType,
+        employment_type: employmentTypes.join(','),
         first_name: formData.firstName,
         last_name: formData.lastName,
         email: formData.email,
@@ -387,7 +381,7 @@ const Register = () => {
         last_modified_by: 'Admin'
       };
 
-      console.log('Submitting registration data:', submitData);
+
       // Pass signup data and logo file separately - API uses multipart/form-data
       const response = await registerUser(submitData, logoFile);
 
@@ -404,29 +398,26 @@ const Register = () => {
           setEmailError('This email address is already registered');
         } else if (errorMessage.includes('company') && errorMessage.includes('exists')) {
           setCompanyNameError('Company name already exists');
-        } else if (errorMessage.includes('validation')) {
-          setEmailError('Please check your information and try again');
         } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
-          setEmailError('Network error. Please check your connection and try again');
+          setGeneralError('Network error. Please check your connection and try again');
         } else {
           setEmailError(errorMessage);
         }
       }
     } catch (error) {
-      console.error('Registration error:', error);
       
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        setEmailError('Network error. Please check your internet connection and try again');
+        setGeneralError('Network error. Please check your internet connection and try again');
       } else if (error.message.includes('timeout')) {
-        setEmailError('Request timeout. Please try again');
-      } else if (error.message.includes('400')) {
-        setEmailError('Invalid data provided. Please check your information');
+        setGeneralError('Request timeout. Please try again');
+      } else if (error.message.includes('500')) {
+        setGeneralError('Server error. Please try again later');
       } else if (error.message.includes('409')) {
         setEmailError('Email or company name already exists');
-      } else if (error.message.includes('500')) {
-        setEmailError('Server error. Please try again later');
+      } else if (error.message.includes('400')) {
+        setEmailError('Invalid data provided. Please check your information');
       } else {
-        setEmailError('Registration failed. Please try again');
+        setGeneralError('Registration failed. Please try again');
       }
     } finally {
       setIsLoading(false);
@@ -435,17 +426,17 @@ const Register = () => {
 
   const renderStep1 = () => (
     <Card className="border-0 shadow-2xl">
-      <CardHeader className="space-y-1 text-center bg-primary text-primary-foreground rounded-t-xl">
-        <CardTitle className="text-2xl font-bold">Company Information</CardTitle>
-        <CardDescription className="text-primary-foreground/80">
+      <CardHeader className="space-y-1 text-center bg-primary text-primary-foreground rounded-t-xl px-4 py-6 sm:px-6 sm:py-8">
+        <CardTitle className="text-xl sm:text-2xl lg:text-3xl font-bold">Company Information</CardTitle>
+        <CardDescription className="text-primary-foreground/80 text-sm sm:text-base">
           Tell us about your company
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-6 p-8">
-        <form onSubmit={handleNext} className="space-y-4">
+      <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8">
+        <form onSubmit={handleNext} className="space-y-3 sm:space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="companyName">Company Name *</Label>
+            <Label htmlFor="companyName" className="text-sm sm:text-base font-medium">Company Name *</Label>
             <div className="relative">
               <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
@@ -454,32 +445,32 @@ const Register = () => {
                 placeholder="Enter company name"
                 value={formData.companyName}
                 onChange={handleInputChange}
-                className={`pl-10 ${companyNameError ? 'border-red-500 focus:border-red-500' : ''}`}
+                className={`pl-10 h-10 sm:h-11 text-sm sm:text-base ${companyNameError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
             </div>
             {companyNameError && (
-              <p className="text-red-600 text-xs mt-1">{companyNameError}</p>
+              <p className="text-red-600 text-xs sm:text-sm mt-1">{companyNameError}</p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="companyLogo">Company Logo</Label>
+            <Label htmlFor="companyLogo" className="text-sm sm:text-base font-medium">Company Logo</Label>
             {formData.companyLogo ? (
-              <div className="flex items-center gap-3 p-3 border rounded-md bg-gray-50">
+              <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 border rounded-md bg-gray-50">
                 <img
                   src={formData.companyLogo}
                   alt="Company Logo Preview"
-                  className="w-12 h-12 object-cover rounded"
+                  className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded"
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-700 truncate">{logoFileName}</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-700 truncate">{logoFileName}</p>
                   <p className="text-xs text-gray-500">Image selected</p>
                 </div>
                 <button
                   type="button"
                   onClick={handleRemoveLogo}
-                  className="text-red-500 hover:text-red-700 text-sm font-medium"
+                  className="text-red-500 hover:text-red-700 text-xs sm:text-sm font-medium px-2"
                 >
                   Remove
                 </button>
@@ -491,16 +482,16 @@ const Register = () => {
                 type="file"
                 accept="image/*"
                 onChange={handleFileChange}
-                className={companyLogoError ? 'border-red-500 focus:border-red-500' : ''}
+                className={`h-10 sm:h-11 text-sm sm:text-base ${companyLogoError ? 'border-red-500 focus:border-red-500' : ''}`}
               />
             )}
             {companyLogoError && (
-              <p className="text-red-600 text-xs mt-1">{companyLogoError}</p>
+              <p className="text-red-600 text-xs sm:text-sm mt-1">{companyLogoError}</p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="companyStreet">Street Address *</Label>
+            <Label htmlFor="companyStreet" className="text-sm sm:text-base font-medium">Street Address *</Label>
             <div className="relative">
               <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
@@ -509,50 +500,50 @@ const Register = () => {
                 placeholder="Enter street address"
                 value={formData.companyStreet}
                 onChange={handleInputChange}
-                className={`pl-10 ${companyStreetError ? 'border-red-500 focus:border-red-500' : ''}`}
+                className={`pl-10 h-10 sm:h-11 text-sm sm:text-base ${companyStreetError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
             </div>
             {companyStreetError && (
-              <p className="text-red-600 text-xs mt-1">{companyStreetError}</p>
+              <p className="text-red-600 text-xs sm:text-sm mt-1">{companyStreetError}</p>
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div className="space-y-2">
-              <Label htmlFor="companyCity">City *</Label>
+              <Label htmlFor="companyCity" className="text-sm sm:text-base font-medium">City *</Label>
               <Input
                 id="companyCity"
                 name="companyCity"
                 placeholder="City"
                 value={formData.companyCity}
                 onChange={handleInputChange}
-                className={companyCityError ? 'border-red-500 focus:border-red-500' : ''}
+                className={`h-10 sm:h-11 text-sm sm:text-base ${companyCityError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
               {companyCityError && (
-                <p className="text-red-600 text-xs mt-1">{companyCityError}</p>
+                <p className="text-red-600 text-xs sm:text-sm mt-1">{companyCityError}</p>
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="companyState">State *</Label>
+              <Label htmlFor="companyState" className="text-sm sm:text-base font-medium">State *</Label>
               <Input
                 id="companyState"
                 name="companyState"
                 placeholder="State"
                 value={formData.companyState}
                 onChange={handleInputChange}
-                className={companyStateError ? 'border-red-500 focus:border-red-500' : ''}
+                className={`h-10 sm:h-11 text-sm sm:text-base ${companyStateError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
               {companyStateError && (
-                <p className="text-red-600 text-xs mt-1">{companyStateError}</p>
+                <p className="text-red-600 text-xs sm:text-sm mt-1">{companyStateError}</p>
               )}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="companyZip">Zip Code *</Label>
+            <Label htmlFor="companyZip" className="text-sm sm:text-base font-medium">Zip Code *</Label>
             <div className="relative">
               <Input
                 type="text"
@@ -561,7 +552,7 @@ const Register = () => {
                 placeholder="Enter zip code"
                 value={formData.companyZip}
                 onChange={handleInputChange}
-                className={companyZipError ? 'border-red-500 focus:border-red-500' : ''}
+                className={`h-10 sm:h-11 text-sm sm:text-base ${companyZipError ? 'border-red-500 focus:border-red-500' : ''}`}
                 maxLength={5}
                 required
               />
@@ -570,13 +561,13 @@ const Register = () => {
               )}
             </div>
             {companyZipError && (
-              <p className="text-red-600 text-xs mt-1">{companyZipError}</p>
+              <p className="text-red-600 text-xs sm:text-sm mt-1">{companyZipError}</p>
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div className="space-y-2">
-              <Label htmlFor="noOfDevices">Number of Devices *</Label>
+              <Label htmlFor="noOfDevices" className="text-sm sm:text-base font-medium">Number of Devices *</Label>
               <Input
                 id="noOfDevices"
                 name="noOfDevices"
@@ -585,11 +576,11 @@ const Register = () => {
                 value={formData.noOfDevices}
                 disabled
                 readOnly
-                className="bg-gray-100 cursor-not-allowed text-gray-600"
+                className="bg-gray-100 cursor-not-allowed text-gray-600 h-10 sm:h-11 text-sm sm:text-base"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="noOfEmployees">Number of Employees *</Label>
+              <Label htmlFor="noOfEmployees" className="text-sm sm:text-base font-medium">Number of Employees *</Label>
               <Input
                 id="noOfEmployees"
                 name="noOfEmployees"
@@ -597,22 +588,22 @@ const Register = () => {
                 placeholder="Employees"
                 value={formData.noOfEmployees}
                 onChange={handleInputChange}
-                className={noOfEmployeesError ? 'border-red-500 focus:border-red-500' : ''}
+                className={`h-10 sm:h-11 text-sm sm:text-base ${noOfEmployeesError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
               {noOfEmployeesError && (
-                <p className="text-red-600 text-xs mt-1">{noOfEmployeesError}</p>
+                <p className="text-red-600 text-xs sm:text-sm mt-1">{noOfEmployeesError}</p>
               )}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="employmentType">Employment Types</Label>
-            <div className="border rounded-md p-2 min-h-[42px] flex flex-wrap gap-2 items-center focus-within:ring-2 focus-within:ring-primary focus-within:border-primary">
+            <Label htmlFor="employmentType" className="text-sm sm:text-base font-medium">Employment Types</Label>
+            <div className="border rounded-md p-2 sm:p-3 min-h-[40px] sm:min-h-[44px] flex flex-wrap gap-1 sm:gap-2 items-center focus-within:ring-2 focus-within:ring-primary focus-within:border-primary">
               {employmentTypes.map((type, index) => (
                 <span
                   key={index}
-                  className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary text-sm rounded-md"
+                  className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary text-xs sm:text-sm rounded-md"
                 >
                   {type}
                   {employmentTypes.length > 1 && (
@@ -633,13 +624,13 @@ const Register = () => {
                 onChange={(e) => setEmploymentTypeInput(e.target.value)}
                 onKeyDown={handleEmploymentTypeKeyDown}
                 placeholder={employmentTypes.length === 0 ? "Type and press comma to add" : "Add more..."}
-                className="flex-1 min-w-[120px] outline-none text-sm bg-transparent"
+                className="flex-1 min-w-[100px] sm:min-w-[120px] outline-none text-xs sm:text-sm bg-transparent"
               />
             </div>
-            <p className="text-xs text-muted-foreground">Type employment type and press comma to add. Default: General Employee</p>
+            <p className="text-xs sm:text-sm text-muted-foreground">Type employment type and press comma to add. Default: General Employee</p>
           </div>
 
-          <Button type="submit" className="w-full" size="lg">
+          <Button type="submit" className="w-full h-10 sm:h-11 text-sm sm:text-base" size="lg">
             Next
           </Button>
         </form>
@@ -656,18 +647,18 @@ const Register = () => {
 
   const renderStep2 = () => (
     <Card className="border-0 shadow-2xl">
-      <CardHeader className="space-y-1 text-center bg-primary text-primary-foreground rounded-t-xl">
-        <CardTitle className="text-2xl font-bold">Personal Information</CardTitle>
-        <CardDescription className="text-primary-foreground/80">
+      <CardHeader className="space-y-1 text-center bg-primary text-primary-foreground rounded-t-xl px-4 py-6 sm:px-6 sm:py-8">
+        <CardTitle className="text-xl sm:text-2xl lg:text-3xl font-bold">Personal Information</CardTitle>
+        <CardDescription className="text-primary-foreground/80 text-sm sm:text-base">
           Tell us about yourself
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-6 p-8">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8">
+        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div className="space-y-2">
-              <Label htmlFor="firstName">First Name *</Label>
+              <Label htmlFor="firstName" className="text-sm sm:text-base font-medium">First Name *</Label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
@@ -676,16 +667,16 @@ const Register = () => {
                   placeholder="First name"
                   value={formData.firstName}
                   onChange={handleInputChange}
-                  className={`pl-10 ${firstNameError ? 'border-red-500 focus:border-red-500' : ''}`}
+                  className={`pl-10 h-10 sm:h-11 text-sm sm:text-base ${firstNameError ? 'border-red-500 focus:border-red-500' : ''}`}
                   required
                 />
               </div>
               {firstNameError && (
-                <p className="text-red-600 text-xs mt-1">{firstNameError}</p>
+                <p className="text-red-600 text-xs sm:text-sm mt-1">{firstNameError}</p>
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name *</Label>
+              <Label htmlFor="lastName" className="text-sm sm:text-base font-medium">Last Name *</Label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
@@ -694,18 +685,18 @@ const Register = () => {
                   placeholder="Last name"
                   value={formData.lastName}
                   onChange={handleInputChange}
-                  className={`pl-10 ${lastNameError ? 'border-red-500 focus:border-red-500' : ''}`}
+                  className={`pl-10 h-10 sm:h-11 text-sm sm:text-base ${lastNameError ? 'border-red-500 focus:border-red-500' : ''}`}
                   required
                 />
               </div>
               {lastNameError && (
-                <p className="text-red-600 text-xs mt-1">{lastNameError}</p>
+                <p className="text-red-600 text-xs sm:text-sm mt-1">{lastNameError}</p>
               )}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email">Email Address *</Label>
+            <Label htmlFor="email" className="text-sm sm:text-base font-medium">Email Address *</Label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
@@ -715,17 +706,17 @@ const Register = () => {
                 placeholder="name@company.com"
                 value={formData.email}
                 onChange={handleInputChange}
-                className={`pl-10 ${emailError ? 'border-red-500 focus:border-red-500' : ''}`}
+                className={`pl-10 h-10 sm:h-11 text-sm sm:text-base ${emailError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
             </div>
             {emailError && (
-              <p className="text-red-600 text-xs mt-1">{emailError}</p>
+              <p className="text-red-600 text-xs sm:text-sm mt-1">{emailError}</p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phone">Phone Number *</Label>
+            <Label htmlFor="phone" className="text-sm sm:text-base font-medium">Phone Number *</Label>
             <PhoneInput
               defaultCountry="us"
               value={formData.phone}
@@ -740,16 +731,17 @@ const Register = () => {
                 '--react-international-phone-background-color': '#ffffff',
                 '--react-international-phone-text-color': '#000000',
                 '--react-international-phone-selected-dropdown-item-background-color': '#f3f4f6',
-                '--react-international-phone-height': '2.5rem'
+                '--react-international-phone-height': '2.75rem',
+                '--react-international-phone-font-size': '0.875rem'
               }}
             />
             {phoneError && (
-              <p className="text-red-600 text-xs mt-1">{phoneError}</p>
+              <p className="text-red-600 text-xs sm:text-sm mt-1">{phoneError}</p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="customerStreet">Street Address *</Label>
+            <Label htmlFor="customerStreet" className="text-sm sm:text-base font-medium">Street Address *</Label>
             <div className="relative">
               <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
@@ -758,50 +750,50 @@ const Register = () => {
                 placeholder="Enter street address"
                 value={formData.customerStreet}
                 onChange={handleInputChange}
-                className={`pl-10 ${customerStreetError ? 'border-red-500 focus:border-red-500' : ''}`}
+                className={`pl-10 h-10 sm:h-11 text-sm sm:text-base ${customerStreetError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
             </div>
             {customerStreetError && (
-              <p className="text-red-600 text-xs mt-1">{customerStreetError}</p>
+              <p className="text-red-600 text-xs sm:text-sm mt-1">{customerStreetError}</p>
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div className="space-y-2">
-              <Label htmlFor="customerCity">City *</Label>
+              <Label htmlFor="customerCity" className="text-sm sm:text-base font-medium">City *</Label>
               <Input
                 id="customerCity"
                 name="customerCity"
                 placeholder="City"
                 value={formData.customerCity}
                 onChange={handleInputChange}
-                className={customerCityError ? 'border-red-500 focus:border-red-500' : ''}
+                className={`h-10 sm:h-11 text-sm sm:text-base ${customerCityError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
               {customerCityError && (
-                <p className="text-red-600 text-xs mt-1">{customerCityError}</p>
+                <p className="text-red-600 text-xs sm:text-sm mt-1">{customerCityError}</p>
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="customerState">State *</Label>
+              <Label htmlFor="customerState" className="text-sm sm:text-base font-medium">State *</Label>
               <Input
                 id="customerState"
                 name="customerState"
                 placeholder="State"
                 value={formData.customerState}
                 onChange={handleInputChange}
-                className={customerStateError ? 'border-red-500 focus:border-red-500' : ''}
+                className={`h-10 sm:h-11 text-sm sm:text-base ${customerStateError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
               {customerStateError && (
-                <p className="text-red-600 text-xs mt-1">{customerStateError}</p>
+                <p className="text-red-600 text-xs sm:text-sm mt-1">{customerStateError}</p>
               )}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="customerZip">Zip Code *</Label>
+            <Label htmlFor="customerZip" className="text-sm sm:text-base font-medium">Zip Code *</Label>
             <div className="relative">
               <Input
                 id="customerZip"
@@ -809,7 +801,7 @@ const Register = () => {
                 placeholder="Enter zip code"
                 value={formData.customerZip}
                 onChange={handleInputChange}
-                className={customerZipError ? 'border-red-500 focus:border-red-500' : ''}
+                className={`h-10 sm:h-11 text-sm sm:text-base ${customerZipError ? 'border-red-500 focus:border-red-500' : ''}`}
                 maxLength={5}
                 required
               />
@@ -818,18 +810,24 @@ const Register = () => {
               )}
             </div>
             {customerZipError && (
-              <p className="text-red-600 text-xs mt-1">{customerZipError}</p>
+              <p className="text-red-600 text-xs sm:text-sm mt-1">{customerZipError}</p>
             )}
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Button type="button" variant="outline" onClick={handleBack} className="flex-1 py-2.5" size="lg">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <Button type="button" variant="outline" onClick={handleBack} className="flex-1 h-10 sm:h-11 text-sm sm:text-base" size="lg">
               Back
             </Button>
-            <Button type="submit" className="flex-1 py-2.5" size="lg" disabled={isLoading}>
+            <Button type="submit" className="flex-1 h-10 sm:h-11 text-sm sm:text-base" size="lg" disabled={isLoading}>
               {isLoading ? "Creating Account..." : "Create Account"}
             </Button>
           </div>
+          {generalError && (
+            <div className="p-2 sm:p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2 mt-3 sm:mt-4">
+              <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <p className="text-xs sm:text-sm text-red-600">{generalError}</p>
+            </div>
+          )}
         </form>
 
         <div className="text-center text-sm">
@@ -849,26 +847,26 @@ const Register = () => {
 
       <CenterLoadingOverlay show={centerLoading.show} message={centerLoading.message} />
 
-      <div className="min-h-screen flex flex-col md:flex-row pt-20 md:pt-0">
+      <div className="min-h-screen flex flex-col md:flex-row pt-16 sm:pt-20 md:pt-0">
         {/* Left side - Brand section (hidden on mobile) */}
-        <div className="hidden md:flex xl:w-1/2 md:w-1/2 bg-[#D9E9FB] flex-col justify-center items-center p-12 md:pt-32">
-          <div className="w-full max-w-lg flex flex-col items-center text-center space-y-8">
+        <div className="hidden md:flex xl:w-1/2 md:w-1/2 bg-[#D9E9FB] flex-col justify-center items-center p-6 lg:p-12 md:pt-24 lg:pt-32">
+          <div className="w-full max-w-lg flex flex-col items-center text-center space-y-6 lg:space-y-8">
             {/* Brand Logo */}
             <img
               src={tabtimelogo}
               alt="Tap-Time Logo"
-              className="w-48 xl:w-56 md:w-40 mx-auto"
+              className="w-32 md:w-40 lg:w-48 xl:w-56 mx-auto"
             />
-            <div className="space-y-4">
-              <h1 className="text-3xl xl:text-4xl md:text-3xl font-bold text-gray-800">
+            <div className="space-y-3 lg:space-y-4">
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800">
                 Employee Time Tracking
               </h1>
-              <p className="text-lg text-gray-700 leading-relaxed">
+              <p className="text-base lg:text-lg text-gray-700 leading-relaxed px-4">
                 One tap solution for simplifying and streamlining employee time
                 logging and reporting.
               </p>
             </div>
-            <div className="flex gap-8 text-gray-600 text-sm">
+            <div className="flex gap-4 sm:gap-6 lg:gap-8 text-gray-600 text-xs sm:text-sm">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                 <span>Secure</span>
@@ -886,37 +884,18 @@ const Register = () => {
         </div>
 
         {/* Right side - Registration form */}
-        <div className="w-full md:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center mt-0 md:mt-12 py-12 px-6 sm:px-8 md:px-12 lg:px-20">
+        <div className="w-full md:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center mt-0 md:mt-8 lg:mt-12 py-6 sm:py-8 lg:py-12 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-20">
           <div className="w-full max-w-md">
             {/* Logo (visible on mobile only) */}
-            <div className="text-center mb-8 md:hidden">
-              <img src={tabtimelogo} alt="TabTime Logo" className="mx-auto h-20 w-auto sm:h-25" />
+            <div className="text-center mb-6 sm:mb-8 md:hidden">
+              <img src={tabtimelogo} alt="TabTime Logo" className="mx-auto h-16 sm:h-20 w-auto" />
             </div>
 
-            {/* Progress Indicator
-            <div className="flex items-center justify-center mb-8">
-            <div className="flex items-center space-x-4">
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-                }`}>
-                1
-              </div>
-              <div className={`w-16 h-1 rounded ${currentStep >= 2 ? 'bg-primary' : 'bg-muted'
-                }`} />
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-                }`}>
-                2
-              </div>
-            </div>
-          </div>
-           */}
+
 
           {currentStep === 1 ? renderStep1() : renderStep2()}
 
-            {/* <div className="text-center mt-8">
-              <Link to="/" className="text-sm text-muted-foreground hover:text-foreground">
-                ← Back to home
-              </Link>
-            </div> */}
+
           </div>
         </div>
       </div>

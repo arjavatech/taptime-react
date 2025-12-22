@@ -30,17 +30,17 @@ const Header = () => {
 
   useEffect(() => {
     const checkAuthStatus = () => {
-      // Check both AuthContext (Supabase session) AND localStorage (backend validation)
-      // User must be authenticated with Supabase AND have backend user data stored
+      // Check Supabase session (auth tokens now in sessionStorage)
       const hasSupabaseAuth = !!(user && session);
-      const adminMail = localStorage.getItem("adminMail");
-      const hasBackendData = !!adminMail;
+      
+      // If no Supabase auth but localStorage has user data, clear it (browser was closed)
+      if (!hasSupabaseAuth && localStorage.getItem("adminMail")) {
+        localStorage.clear();
+      }
+      
+      setIsAuthenticated(hasSupabaseAuth);
 
-      // User is only truly authenticated if both conditions are met
-      const authenticated = hasSupabaseAuth && hasBackendData;
-      setIsAuthenticated(authenticated);
-
-      if (authenticated) {
+      if (hasSupabaseAuth) {
         const adminType = localStorage.getItem("adminType") || "";
         const email = localStorage.getItem("adminMail") || "";
         const userName = localStorage.getItem("userName") || "";

@@ -5,9 +5,8 @@ import Header from "../components/layout/Header";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { Alert, AlertDescription } from "../components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { Loader2, Eye, EyeOff, CheckCircle, XCircle, Mail, Lock, Crown, Shield, ArrowLeft, Check, AlertCircle } from "lucide-react";
+import { Loader2, Eye, EyeOff, Mail, Lock, Crown, Shield, Check, AlertCircle } from "lucide-react";
 import tabTimeLogo from "../assets/images/tap-time-logo.png";
 
 const Login = () => {
@@ -18,14 +17,8 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [selectedRole, setSelectedRole] = useState('owner');
-  const [showForm, setShowForm] = useState(true);
   const handleRoleSelect = (role) => {
     setSelectedRole(role);
-    setShowForm(true);
-  };
-
-  const handleBack = () => {
-    setShowForm(false);
   };
 
   const navigate = useNavigate();
@@ -196,8 +189,6 @@ const Login = () => {
         </div>
       )}
 
-
-
       <div className="min-h-screen flex flex-col lg:flex-row pt-16 sm:pt-20 lg:pt-0">
         {/* Left side - Brand section (hidden on mobile and tablet) */}
         <div className="hidden lg:flex lg:w-1/2 xl:w-1/2 bg-[#D9E9FB] flex-col justify-center items-center p-6 lg:p-8 xl:p-12 lg:pt-24 xl:pt-32">
@@ -299,8 +290,7 @@ const Login = () => {
                 </div>
 
                 {/* Login Form - Shows Below Role Cards */}
-                {showForm && (
-                  <div className="border-t border-gray-200 pt-4 sm:pt-6">
+                <div className="border-t border-gray-200 pt-4 sm:pt-6">
                     <div className="text-center mb-4 sm:mb-6">
                       <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-1 sm:mb-2">Welcome back</h3>
                       <p className="text-xs sm:text-sm text-gray-600">
@@ -457,13 +447,9 @@ const Login = () => {
                         </Link>
                       </div>
                     </div>
-                  </div>
-                )}
+                </div>
               </CardContent>
             </Card>
-
-
-
           </div>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { Mail, Phone, MapPin, Facebook, Twitter, Linkedin, Instagram } from "lucide-react"
+import { useAuth } from "../../contexts/AuthContext"
 import icodeLogoWhite from "../../assets/images/icode-logo-white.png"
 import facebookIcon from "../../assets/images/facebook.png"
 import twitterIcon from "../../assets/images/twitter.png"
@@ -9,38 +10,50 @@ import instagramIcon from "../../assets/images/instagram.png"
 import PrivacyPolicyModal from "../PrivacyPolicyModal"
 
 const Footer = () => {
+  const { user, session } = useAuth()
   const currentYear = new Date().getFullYear()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [userType, setUserType] = useState("")
   const [showPrivacyModal, setShowPrivacyModal] = useState(false)
   const location = useLocation()
 
   useEffect(() => {
     const checkAuthStatus = () => {
+      // Check both AuthContext (Supabase session) AND localStorage (backend validation)
+      const hasSupabaseAuth = !!(user && session)
       const adminMail = localStorage.getItem("adminMail")
-      setIsAuthenticated(!!adminMail)
+      const hasBackendData = !!adminMail
+      
+      // User is only truly authenticated if both conditions are met
+      const authenticated = hasSupabaseAuth && hasBackendData
+      setIsAuthenticated(authenticated)
+      
+      if (authenticated) {
+        const adminType = localStorage.getItem("adminType") || ""
+        setUserType(adminType)
+      } else {
+        setUserType("")
+      }
     }
     
     checkAuthStatus()
-  }, [location])
+  }, [user, session, location])
 
-  // Before Login (Public Navigation)
   const publicLinks = [
-    { href: "/", text: "Home" },
-    { href: "/login", text: "Login" },
-    { href: "/register", text: "Register" },
-    { href: "/contact-us", text: "Contact Us" },
-    { action: () => setShowPrivacyModal(true), text: "Privacy Policy" }
+    { to: "/", text: "Home" },
+    { to: "/login", text: "Login" },
+    { to: "/register", text: "Register" },
+    { to: "/contact-us", text: "Contact Us" }
   ]
 
-  // After Login (Authenticated Navigation)
   const authenticatedLinks = [
-    { href: "/device", text: "Device" },
-    { href: "/employee-management", text: "Employee Management" },
-    { href: "/reportsummary", text: "Report Summary" },
-    { href: "/reportsetting", text: "Report Settings" },
-    { href: "/profile", text: "Profile" },
-    { href: "/contact", text: "Contact Us" }
-  ].filter(link => !((link.text === "Report Settings" || link.text === "Device") && isAuthenticated))
+    ...(userType !== "Admin" ? [{ to: "/device", text: "Device" }] : []),
+    { to: "/employee-management", text: "Employee Management" },
+    { to: "/reportsummary", text: "Report Summary" },
+    ...(userType !== "Admin" ? [{ to: "/reportsetting", text: "Report Settings" }] : []),
+    { to: "/profile", text: "Profile" },
+    { to: "/contact", text: "Contact" }
+  ]
 
   const quickLinks = isAuthenticated ? authenticatedLinks : publicLinks
 
@@ -92,16 +105,9 @@ const Footer = () => {
                     >
                       {link.text}
                     </button>
-                  ) : link.href.startsWith('#') ? (
-                    <a
-                      href={link.href}
-                      className="text-primary-foreground/80 hover:text-primary-foreground transition-colors text-sm"
-                    >
-                      {link.text}
-                    </a>
                   ) : (
                     <Link
-                      to={link.href}
+                      to={link.to}
                       className="text-primary-foreground/80 hover:text-primary-foreground transition-colors text-sm"
                     >
                       {link.text}

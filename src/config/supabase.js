@@ -9,10 +9,35 @@ if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseAnonKey === 'pl
   console.warn('Using placeholder Supabase credentials. Please configure your .env file.');
 }
 
+// Custom storage that uses sessionStorage for auth tokens
+const customStorage = {
+  getItem: (key) => {
+    if (key.includes('supabase.auth.token')) {
+      return sessionStorage.getItem(key);
+    }
+    return localStorage.getItem(key);
+  },
+  setItem: (key, value) => {
+    if (key.includes('supabase.auth.token')) {
+      sessionStorage.setItem(key, value);
+    } else {
+      localStorage.setItem(key, value);
+    }
+  },
+  removeItem: (key) => {
+    if (key.includes('supabase.auth.token')) {
+      sessionStorage.removeItem(key);
+    } else {
+      localStorage.removeItem(key);
+    }
+  }
+};
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    storage: customStorage
   }
 });

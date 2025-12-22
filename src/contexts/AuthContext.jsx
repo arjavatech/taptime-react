@@ -34,22 +34,10 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     });
 
-    // Auto logout on browser/tab close
-    const handleBeforeUnload = () => {
-      if (session) {
-        localStorage.clear();
-        sessionStorage.clear();
-        supabase.auth.signOut();
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
     return () => {
       subscription.unsubscribe();
-      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [session]);
+  }, []);
 
   // Sign in with email and password
   const signInWithEmail = async (email, password) => {
@@ -106,7 +94,7 @@ export const AuthProvider = ({ children }) => {
   // Sign out
   const signOut = async () => {
     try {
-      // Clear sessionStorage first to remove cached OAuth state
+      // Clear sessionStorage first to remove cached OAuth state and browser session
       sessionStorage.clear();
 
       const { error } = await supabase.auth.signOut();

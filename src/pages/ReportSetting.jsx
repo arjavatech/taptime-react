@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import Header from "../components/layout/Header";
-import Footer from "../components/layout/Footer";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import Footer from "@/components/layout/Footer";
 import {
   getAllReportEmails,
   createReportEmail,
@@ -30,13 +30,11 @@ import {
 } from "lucide-react";
 import { HamburgerIcon } from "../components/icons/HamburgerIcon";
 import { GridIcon } from "../components/icons/GridIcon";
-import { useModalClose } from "../hooks/useModalClose";
+
 
 const ReportSetting = () => {
   const [isLoading, setIsLoading] = useState(true);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [emailSettings, setEmailSettings] = useState([]);
-  const [allEmailSettings, setAllEmailSettings] = useState([]);
   const [viewSettings, setViewSettings] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -62,8 +60,6 @@ const ReportSetting = () => {
 
   const frequencies = ["Daily", "Weekly", "Biweekly", "Monthly", "Bimonthly"];
   
-  // Modal close events disabled - modals only close via buttons
-
   const showToast = (message, type = "success") => {
     // Toast notifications removed
   };
@@ -75,9 +71,7 @@ const ReportSetting = () => {
 
     try {
       const data = await getAllReportEmails(company_id);
-      console.log('Raw API data:', data);
-      console.log('Data type:', typeof data);
-      console.log('Is array:', Array.isArray(data));
+
       
       // Handle different response formats
       let processedData = [];
@@ -92,30 +86,18 @@ const ReportSetting = () => {
         }
       }
       
-      console.log('Processed data:', processedData);
-      console.log('Processed data length:', processedData.length);
-      
-      setAllEmailSettings(processedData);
       setEmailSettings(processedData);
     } catch (error) {
-      console.error("Failed to load report settings:", error);
-      setAllEmailSettings([]);
       setEmailSettings([]);
     } finally {
       if (showLoading) setIsLoading(false);
-      if (isInitialLoad) {
-        setIsLoading(false);
-        setIsInitialLoad(false);
-      }
+
     }
   };
 
 
 
   const getFilteredAndSortedSettings = () => {
-    console.log('getFilteredAndSortedSettings called');
-    console.log('emailSettings:', emailSettings);
-    console.log('emailSettings length:', emailSettings.length);
     
     let filtered = emailSettings;
     
@@ -142,8 +124,6 @@ const ReportSetting = () => {
       return 0;
     });
     
-    console.log('filtered result:', filtered);
-    console.log('filtered length:', filtered.length);
     return filtered;
   };
 
@@ -229,7 +209,6 @@ const ReportSetting = () => {
   };
 
   const openDeleteModal = (setting) => {
-    console.log("Opening delete modal for setting:", setting);
     setCurrentSetting(setting);
     setCurrentEmail((setting.email || setting.company_reporter_email || "").trim());
     setModalError("");
@@ -298,7 +277,6 @@ const ReportSetting = () => {
         setModalSuccess("");
       }, 1000);
     } catch (error) {
-      console.error("Error saving report settings:", error);
       setModalError(error.message || "Failed to save email setting");
     } finally {
       setIsSubmitting(false);
@@ -326,7 +304,6 @@ const ReportSetting = () => {
         setModalSuccess("");
       }, 1000);
     } catch (error) {
-      console.error("Error updating report settings:", error);
       setModalError(error.message || "Failed to update email setting");
     } finally {
       setIsSubmitting(false);
@@ -350,7 +327,6 @@ const ReportSetting = () => {
         setModalSuccess("");
       }, 1000);
     } catch (error) {
-      console.error("Error deleting report settings:", error);
       setModalError(error.message || "Failed to delete email setting");
     } finally {
       setIsSubmitting(false);
@@ -389,7 +365,6 @@ const ReportSetting = () => {
       showToast("View settings updated successfully!");
       closeModals();
     } catch (error) {
-      console.error("Failed to update view setting:", error);
       showToast("Failed to update view settings", "error");
     } finally {
       setIsLoading(false);
@@ -1054,8 +1029,8 @@ const ReportSetting = () => {
           </Card>
         </div>
       )}
+      <Footer/>
 
-      <Footer />
     </div>
   );
 };
