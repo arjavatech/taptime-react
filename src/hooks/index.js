@@ -29,3 +29,6 @@ export { useModalClose } from './useModalClose';
 
 // Export ZIP code lookup hook
 export { useZipLookup } from './useZipLookup';
+
+// Export auto-logout hook
+export { useAutoLogout } from './useAutoLogout';

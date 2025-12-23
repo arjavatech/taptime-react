@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext, useCallback } fr
 import { supabase } from '../config/supabase';
 import { googleSignInCheck, getTimeZone } from '../api.js';
 import AccountDeletionModal from '../components/ui/AccountDeletionModal';
+import { useAutoLogout } from '../hooks/useAutoLogout';
 
 const AuthContext = createContext({});
 
@@ -20,6 +21,13 @@ export const AuthProvider = ({ children }) => {
   const [showAccountDeletionModal, setShowAccountDeletionModal] = useState(false);
   const [deletedAccountType, setDeletedAccountType] = useState('');
   const [accountDeleted, setAccountDeleted] = useState(false);
+
+  // Auto-logout for inactive users
+  useAutoLogout(() => {
+    if (user) {
+      signOut();
+    }
+  }, 5 * 60 * 1000); // 5 minutes
 
   // Check if account has been deleted
   const checkAccountDeletion = useCallback(async (email) => {

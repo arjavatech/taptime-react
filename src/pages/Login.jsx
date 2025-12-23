@@ -17,6 +17,8 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [selectedRole, setSelectedRole] = useState('owner');
+  const [rememberMe, setRememberMe] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
   const handleRoleSelect = (role) => {
     setSelectedRole(role);
   };
@@ -94,6 +96,13 @@ const Login = () => {
     if (!password) {
       setLoginError("Password is required");
       hasErrors = true;
+    }
+
+    // Check remember me checkbox
+    if (!rememberMe) {
+      setShowTooltip(true);
+      setTimeout(() => setShowTooltip(false), 3000);
+      return;
     }
 
     // Return early if validation fails
@@ -373,15 +382,23 @@ const Login = () => {
                           )}
 
                           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mt-4">
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center space-x-2 relative">
                               <input
                                 id="remember"
                                 type="checkbox"
+                                checked={rememberMe}
+                                onChange={(e) => setRememberMe(e.target.checked)}
                                 className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
                               />
                               <Label htmlFor="remember" className="text-xs sm:text-sm">
                                 Remember me
                               </Label>
+                              {showTooltip && (
+                                <div className="absolute bottom-full left-0 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-md shadow-lg z-10 whitespace-nowrap">
+                                  Please check 'Remember me' to proceed
+                                  <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                                </div>
+                              )}
                             </div>
                             <Link
                               to="/forgot-password"

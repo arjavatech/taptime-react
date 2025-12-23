@@ -454,7 +454,8 @@ const Profile = () => {
         is_verified: localStorage.getItem("isVerified") === "true",
         device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
         employee_count: parseInt(localStorage.getItem("noOfEmployees") || "30"),
-        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system"
+        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system",
+        employment_type: employmentTypes.join(',')
       };
 
       const formData = new FormData();
@@ -526,6 +527,7 @@ const Profile = () => {
 
     try {
       const updateData = {
+        cid: companyId,
         company_name: companyData.name || "",
         company_logo: companyData.logo || "",
         report_type: localStorage.getItem("reportType"),
@@ -546,10 +548,18 @@ const Profile = () => {
         is_verified: localStorage.getItem("isVerified") === "true",
         device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
         employee_count: parseInt(localStorage.getItem("noOfEmployees") || "30"),
-        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system"
+        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system",
+        employment_type: employmentTypes.join(',')
       };
 
-      const result = await updateProfile(companyId, updateData);
+      const formData = new FormData();
+      formData.append('company_data', JSON.stringify(updateData));
+
+      // Only add logo file if it has been changed
+      if (logoFile) {
+        formData.append('company_logo', logoFile);
+      }
+      const result = await updateProfile(companyId, formData);
 
 
       localStorage.setItem("firstName", adminData.firstName);
@@ -604,7 +614,6 @@ const Profile = () => {
         company_city: companyData.city || "",
         company_state: companyData.state || "",
         company_zip_code: companyData.companyZip || "",
-        employment_type: employmentTypes.join(','),
         first_name: personalData.firstName || "",
         last_name: personalData.lastName || "",
         email: personalData.email || "",
@@ -617,11 +626,16 @@ const Profile = () => {
         is_verified: true,
         device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
         employee_count: parseInt(localStorage.getItem("noOfEmployees") || "30"),
-        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system"
+        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system",
+        employment_type: employmentTypes.join(',')
       };
+
+      console.log(companyDataPayload);
+
 
       const formData = new FormData();
       formData.append('company_data', JSON.stringify(companyDataPayload));
+
 
       // Only add logo file if it has been changed
       if (logoFile) {
@@ -880,7 +894,6 @@ const Profile = () => {
                       style={{
                         '--react-international-phone-border-radius': '0.375rem',
                         '--react-international-phone-border-color': errors.phone ? '#ef4444' : '#e5e7eb',
-                        '--react-international-phone-background-color': '#ffffff',
                         '--react-international-phone-text-color': '#000000',
                         '--react-international-phone-selected-dropdown-item-background-color': '#f3f4f6',
                         '--react-international-phone-height': '2.5rem'
@@ -1146,7 +1159,7 @@ const Profile = () => {
                     {errors.companyZip && <p className="text-sm text-red-600">{errors.companyZip}</p>}
                   </div>
 
-                 
+
 
                   <div className="space-y-2 sm:col-span-2">
                     <Label htmlFor="employmentType">Employment Types</Label>
@@ -1301,7 +1314,6 @@ const Profile = () => {
                       style={{
                         '--react-international-phone-border-radius': '0.375rem',
                         '--react-international-phone-border-color': '#e5e7eb',
-                        '--react-international-phone-background-color': '#ffffff',
                         '--react-international-phone-text-color': '#000000',
                         '--react-international-phone-selected-dropdown-item-background-color': '#f3f4f6',
                         '--react-international-phone-height': '2.5rem'

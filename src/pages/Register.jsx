@@ -373,8 +373,8 @@ const Register = () => {
     setIsLoading(true);
 
     try {
-      // Extract only digits from phone number
-      const phoneDigits = formData.phone.replace(/\D/g, '').replace(/^1/, '');
+      // Send phone number in the same country format provided by the user
+      
 
       // Create plain object with proper field name mapping for API
       const submitData = {
@@ -390,7 +390,7 @@ const Register = () => {
         last_name: formData.lastName,
         email: formData.email,
         report_type: 'Weekly',
-        phone_number: phoneDigits,
+        phone_number: formData.phone,
         customer_address_line1: formData.customerStreet,
         customer_city: formData.customerCity,
         customer_state: formData.customerState,
