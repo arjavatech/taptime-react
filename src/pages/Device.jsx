@@ -74,7 +74,7 @@ const Device = () => {
     const limitStr = localStorage.getItem("device_count") || "";
     setMaxDevices(parseInt(limitStr, 10) || 1);
     loadDevices();
-  }, []);
+  }, []); // Only run once on component mount
 
   const [centerLoading, setCenterLoading] = useState({ show: false, message: "" });
 

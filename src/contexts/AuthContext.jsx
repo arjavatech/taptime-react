@@ -76,7 +76,7 @@ export const AuthProvider = ({ children }) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, []); // Only run once on mount
 
   // Check account deletion on page focus/visibility change
   useEffect(() => {

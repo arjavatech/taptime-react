@@ -123,7 +123,7 @@ const EmployeeList = () => {
     const email = localStorage.getItem("adminMail") || "";
     setGetEmail(email);
     loadEmployeeData();
-  }, []);
+  }, []); // Empty dependency array - only run once on mount
 
   useEffect(() => {
     filterEmployees();

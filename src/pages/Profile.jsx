@@ -29,7 +29,7 @@ const Profile = () => {
   // Utility function to capitalize first letter of each word
   const capitalizeFirst = (str) => {
     if (!str) return str;
-    return str.split(' ').map(word => 
+    return str.split(' ').map(word =>
       word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
     ).join(' ');
   };
@@ -98,7 +98,7 @@ const Profile = () => {
   });
 
   const [companyId, setCompanyId] = useState("");
-    
+
   // Check if user can edit company details
   const canEditCompany = userType === "SuperAdmin" || userType === "Owner";
 
@@ -159,7 +159,7 @@ const Profile = () => {
     };
 
     const actualField = fieldMap[field] || field;
-    
+
     setPersonalData(prev => ({ ...prev, [actualField]: value }));
 
     const errorField = field === "address" ? "customerStreet" :
@@ -285,7 +285,7 @@ const Profile = () => {
         pin: formData.adminPin,
         decryptedPassword: formData.decryptedPassword,
       });
-     
+
 
       setAdminData({
         firstName: formData.firstName,
@@ -468,7 +468,7 @@ const Profile = () => {
 
       const result = await updateProfile(companyId, formData);
 
-      
+
 
       // Reset logoFile after successful save
       setLogoFile(null);
@@ -539,7 +539,7 @@ const Profile = () => {
         email: adminData.email || "",
         phone_number: adminData.phone ? adminData.phone.replace(/\D/g, '') : "",
         customer_address_line1: personalData.address || "",
-        customer_address_line2:personalData.street2 || "",
+        customer_address_line2: personalData.street2 || "",
         customer_city: personalData.customerCity,
         customer_state: personalData.customerState || "",
         customer_zip_code: personalData.zipCode || "",
@@ -582,7 +582,7 @@ const Profile = () => {
       setTimeout(() => setSaveError(""), 3000);
       return;
     }
-    
+
     if (!validateCompanyForm()) {
       return;
     }
@@ -627,7 +627,7 @@ const Profile = () => {
       if (logoFile) {
         formData.append('company_logo', logoFile);
 
-        
+
       }
 
 
@@ -727,7 +727,7 @@ const Profile = () => {
       phone: "",
       pin: "",
     });
-    
+
     // Exit edit mode
     setIsEditing(prev => ({ ...prev, [type]: false }));
   };
@@ -1146,9 +1146,11 @@ const Profile = () => {
                     {errors.companyZip && <p className="text-sm text-red-600">{errors.companyZip}</p>}
                   </div>
 
+                 
+
                   <div className="space-y-2 sm:col-span-2">
                     <Label htmlFor="employmentType">Employment Types</Label>
-                    <div className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-0 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[42px] flex-wrap gap-2 items-center ${!isEditing.company ? 'opacity-50' : ''}`}>
+                    <div className={`flex min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-0 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[42px] flex-wrap gap-2 items-center ${!isEditing.company ? 'opacity-50' : ''}`}>
                       {employmentTypes.map((type, index) => (
                         <span
                           key={index}
@@ -1385,7 +1387,7 @@ const Profile = () => {
           )}
         </div>
       </div>
-<Footer/>
+      <Footer />
     </div>
   );
 };
