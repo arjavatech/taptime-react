@@ -454,6 +454,21 @@ const EmployeeList = () => {
       return;
     }
 
+    // Check for duplicate email when editing or creating admin/superadmin
+    if (formData.is_admin > 0 && formData.email) {
+      const emailExists = employees.some(emp => 
+        (!editingEmployee || emp.emp_id !== editingEmployee.emp_id) && 
+        emp.email && 
+        emp.email.toLowerCase() === formData.email.toLowerCase()
+      );
+      
+      if (emailExists) {
+        setModalError("Email already exists. Please use a different email address.");
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     setModalError("");
     setIsSubmitting(true);
 

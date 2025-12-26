@@ -8,6 +8,7 @@ import { Label } from "../components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Loader2, Eye, EyeOff, Mail, Lock, Crown, Shield, Check, AlertCircle } from "lucide-react";
 import tabTimeLogo from "../assets/images/tap-time-logo.png";
+import GoogleLoginRestrictionModal from "../components/ui/GoogleLoginRestrictionModal";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -19,6 +20,7 @@ const Login = () => {
   const [selectedRole, setSelectedRole] = useState('owner');
   const [rememberMe, setRememberMe] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
+  const [showGoogleRestrictionModal, setShowGoogleRestrictionModal] = useState(false);
   const handleRoleSelect = (role) => {
     setSelectedRole(role);
   };
@@ -52,15 +54,26 @@ const Login = () => {
             sessionStorage.removeItem('pending_oauth_callback');
             navigate('/employee-management');
           } else {
+            // Check if the error is specifically about Owner Google login restriction
+            if (result.error && result.error.includes('Owners do not have access to Google login')) {
+              console.log('Backend Owner restriction detected, showing modal');
+              sessionStorage.removeItem('pending_oauth_callback');
+              await signOut();
+              setLoading(false);
+              setIsProcessingOAuth(false);
+              setTimeout(() => {
+                setShowGoogleRestrictionModal(true);
+              }, 100);
+              return;
+            }
+            
             sessionStorage.removeItem('pending_oauth_callback');
             await signOut();
-            // OAuth errors handled inline, no popup
             setLoading(false);
           }
         } catch (error) {
           sessionStorage.removeItem('pending_oauth_callback');
           await signOut();
-          // OAuth errors handled inline, no popup
           setLoading(false);
         }
       } else if (user && localStorage.getItem('companyID')) {
@@ -143,6 +156,13 @@ const Login = () => {
   };
 
   const handleGoogleLogin = async () => {
+    // Check if Owner is trying to use Google login
+    if (selectedRole === 'owner') {
+      console.log('Frontend Owner check - showing modal');
+      setShowGoogleRestrictionModal(true);
+      return;
+    }
+
     setLoading(true);
     setLoginError("");
 
@@ -470,6 +490,12 @@ const Login = () => {
           </div>
         </div>
       </div>
+      
+      {/* Google Login Restriction Modal */}
+      <GoogleLoginRestrictionModal
+        isOpen={showGoogleRestrictionModal}
+        onClose={() => setShowGoogleRestrictionModal(false)}
+      />
     </>
   );
 };

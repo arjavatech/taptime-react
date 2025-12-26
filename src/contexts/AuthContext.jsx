@@ -1,4 +1,5 @@
-import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../config/supabase';
 import { googleSignInCheck, getTimeZone } from '../api.js';
 import AccountDeletionModal from '../components/ui/AccountDeletionModal';
@@ -15,6 +16,7 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -269,9 +271,9 @@ export const AuthProvider = ({ children }) => {
   const handleAccountDeletionModalClose = useCallback(async () => {
     setShowAccountDeletionModal(false);
     await signOut();
-    // Redirect to login page
-    window.location.href = '/login';
-  }, [signOut]);
+    // Use React Router navigation instead of hard redirect
+    navigate('/login', { replace: true });
+  }, [signOut, navigate]);
 
   // Check account deletion on navigation
   const checkOnNavigation = useCallback(async () => {
@@ -282,7 +284,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, [user, checkAccountDeletion]);
 
-  const value = {
+  const value = useMemo(() => ({
     user,
     session,
     loading,
@@ -294,7 +296,19 @@ export const AuthProvider = ({ children }) => {
     fetchBackendUserData,
     checkAccountDeletion,
     checkOnNavigation,
-  };
+  }), [
+    user,
+    session,
+    loading,
+    signInWithEmail,
+    signUpWithEmail,
+    signInWithGoogle,
+    signOut,
+    resetPassword,
+    fetchBackendUserData,
+    checkAccountDeletion,
+    checkOnNavigation,
+  ]);
 
   return (
     <AuthContext.Provider value={value}>

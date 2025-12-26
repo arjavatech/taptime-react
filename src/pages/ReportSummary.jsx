@@ -773,8 +773,8 @@ const Reports = () => {
         tableData = filteredData.map(record => [
           record.Pin || "",
           record.Name || "",
-          record.formattedCheckIn || convertToAmPm(record.CheckInTime) || "--",
-          record.formattedCheckOut || convertToAmPm(record.CheckOutTime) || "--",
+          record.formattedCheckIn || (record.CheckInTime ? convertToAmPm(record.CheckInTime) : "--"),
+          record.formattedCheckOut || (record.CheckOutTime ? convertToAmPm(record.CheckOutTime) : "--"),
           record.TimeWorked || record.timeWorked || "--",
           record.Type || ""
         ]);

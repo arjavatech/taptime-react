@@ -7,7 +7,13 @@ import tapTimeLogo from "../../assets/images/tap-time-logo.png";
 
 const Header = () => {
   const { user, session, signOut } = useAuth();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
+  // Initialize with current auth state to prevent flash
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    const hasSupabaseAuth = !!(user && session);
+    const isUserSetupComplete = localStorage.getItem("adminMail") && localStorage.getItem("adminType");
+    return hasSupabaseAuth && isUserSetupComplete;
+  });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -17,7 +23,7 @@ const Header = () => {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showReportsDropdown, setShowReportsDropdown] = useState(false);
   const [showMobileReportsDropdown, setShowMobileReportsDropdown] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(window.innerWidth <= 996);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -69,7 +75,7 @@ const Header = () => {
     };
 
     checkAuthStatus();
-  }, [user, session, location]);
+  }, [user, session]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -96,6 +102,9 @@ const Header = () => {
   }, [showProfileSidebar, showProfileDropdown]);
 
   useEffect(() => {
+    // Set initial collapsed state after component mounts
+    setIsCollapsed(window.innerWidth <= 996);
+    
     const handleResize = () => {
       setIsCollapsed(window.innerWidth <= 996);
     };
@@ -152,7 +161,7 @@ const Header = () => {
   const navItems = isAuthenticated ? authenticatedNavItems : publicNavItems;
 
   return (
-    <>
+      <>
       <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm">
         <div className="flex justify-between items-center h-20 px-4 sm:px-6 lg:px-8 max-w-full mx-auto">
           <div className="flex items-center">
@@ -162,10 +171,18 @@ const Header = () => {
                 alt="Tap Time Logo"
                 className="h-16 w-auto cursor-pointer"
                 onClick={() => setShowHomeModal(true)}
+                loading="eager"
+                decoding="async"
               />
             ) : (
               <Link to="/">
-                <img src={tapTimeLogo} alt="Tap Time Logo" className="h-16 w-auto" />
+                <img 
+                  src={tapTimeLogo} 
+                  alt="Tap Time Logo" 
+                  className="h-16 w-auto"
+                  loading="eager"
+                  decoding="async"
+                />
               </Link>
             )}
           </div>

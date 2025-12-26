@@ -150,14 +150,17 @@ export const googleSignInCheck = async (email) => {
     }
 
     const adminTypeValue = data.admin_type?.toString().toLowerCase();
-    const allowedTypes = ['admin', 'superadmin', 'owner'];
+    const allowedTypes = ['admin', 'superadmin'];
 
     if (!allowedTypes.includes(adminTypeValue)) {
+      if (adminTypeValue === 'owner') {
+        return { success: false, error: 'Owners do not have access to Google login. Please use email and password to sign in.' };
+      }
       return { success: false, error: `Access denied. Invalid admin type: "${data.admin_type}"` };
     }
 
     const companyID = data.cid;
-    const adminTypeMap = { admin: 'Admin', superadmin: 'SuperAdmin', owner: 'Owner' };
+    const adminTypeMap = { admin: 'Admin', superadmin: 'SuperAdmin' };
     const properCaseAdminType = adminTypeMap[adminTypeValue];
 
     const storeData = {
