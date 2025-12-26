@@ -106,7 +106,8 @@ const Header = () => {
 
   const isActive = (path) => {
     if (path === "/" && location.pathname === "/") return true;
-    if (path !== "/" && location.pathname.startsWith(path)) return true;
+    if (path === "/login" && (location.pathname === "/login" || location.pathname === "/forgot-password")) return true;
+    if (path !== "/" && path !== "/login" && location.pathname.startsWith(path)) return true;
     return false;
   };
   const toggleSidebar = () => {

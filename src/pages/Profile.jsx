@@ -798,7 +798,7 @@ const Profile = () => {
                 >
                   <Icon className="w-4 h-4" />
                   <span className="hidden sm:inline">{label}</span>
-                  <span className="sm:hidden">{key === "personal" ? "Personal" : "Company"}</span>
+                  <span className="sm:hidden">{key === "personal" ? "Personal" : key === "company" ? "Company" : key === "admin" && userType === "SuperAdmin" ? "Super Admin" : "Admin"}</span>
                 </button>
               ))}
             </nav>

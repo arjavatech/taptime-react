@@ -27,7 +27,7 @@ export const AuthProvider = ({ children }) => {
     if (user) {
       signOut();
     }
-  }, 5 * 60 * 1000); // 5 minutes
+  }, 5); // 5 minutes
 
   // Check if account has been deleted
   const checkAccountDeletion = useCallback(async (email) => {
@@ -190,6 +190,13 @@ export const AuthProvider = ({ children }) => {
   // Reset password
   const resetPassword = async (email) => {
     try {
+      // First check if email exists in database
+      const emailCheck = await googleSignInCheck(email);
+      
+      if (!emailCheck.success) {
+        return { data: null, error: "You are not a user" };
+      }
+
       const { data, error } = await supabase.auth.resetPasswordForEmail(email);
 
       if (error) throw error;
