@@ -32,6 +32,16 @@ const Header = () => {
 
   useEffect(() => {
     const checkAuthStatus = () => {
+      // Check if user is on login or public pages - force unauthenticated state
+      const isOnLoginPage = location.pathname === "/login" || location.pathname === "/forgot-password" || location.pathname === "/register";
+      
+      if (isOnLoginPage) {
+        setIsAuthenticated(false);
+        setUserType("");
+        setUserProfile({ name: "", email: "", picture: "" });
+        return;
+      }
+      
       // Check Supabase session (auth tokens in sessionStorage)
       const hasSupabaseAuth = !!(user && session);
       
@@ -71,7 +81,7 @@ const Header = () => {
     };
 
     checkAuthStatus();
-  }, [user, session]);
+  }, [user, session, location.pathname]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
