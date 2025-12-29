@@ -1,4 +1,3 @@
-// App.js (or your main component)
 import React from "react";
 import {
   BrowserRouter as Router,
@@ -20,37 +19,34 @@ import ReportSetting from "./pages/ReportSetting";
 import ForgotPassword from "./pages/ForgotPassword";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import RoleProtectedRoute from "./components/RoleProtectedRoute";
 
 
 function App() {
   return (
-    // <BrowserRouter>
     <Router>
       <AuthProvider>
         <div className="App">
-          {/* <Header /> */}
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/set-password" element={<SetPassword />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/contact-us" element={<GetInTouch/>}/>
-            <Route path="/employee-management" element={<ProtectedRoute><EmployeeList/></ProtectedRoute>} />
-            <Route path="/device" element={<ProtectedRoute><Device/></ProtectedRoute>}/>
-            <Route path="/profile" element={<ProtectedRoute><Profile/></ProtectedRoute>} />
-            <Route path="/contact" element={<ProtectedRoute><ContactUs/></ProtectedRoute>}/>            
-            <Route path="/reports" element={<ProtectedRoute><ReportSummary/></ProtectedRoute>}/>
-            <Route path="/reportsummary" element={<ProtectedRoute><ReportSummary/></ProtectedRoute>}/>
-            <Route path="/daywisereport" element={<ProtectedRoute><ReportSummary/></ProtectedRoute>}/>
-            <Route path="/salariedreport" element={<ProtectedRoute><ReportSummary/></ProtectedRoute>}/>
-            <Route path="/reportsetting" element={<ProtectedRoute><ReportSetting/></ProtectedRoute>}/>
-            {/* Add other routes as needed */}
+            <Route path="/contact-us" element={<GetInTouch />} />
+            <Route path="/employee-management" element={<ProtectedRoute><EmployeeList /></ProtectedRoute>} />
+            <Route path="/device" element={<RoleProtectedRoute allowedRoles={['Owner', 'SuperAdmin']}><Device /></RoleProtectedRoute>} />
+            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/contact" element={<ProtectedRoute><ContactUs /></ProtectedRoute>} />
+            <Route path="/reports" element={<ProtectedRoute><ReportSummary /></ProtectedRoute>} />
+            <Route path="/reportsummary" element={<ProtectedRoute><ReportSummary /></ProtectedRoute>} />
+            <Route path="/daywisereport" element={<ProtectedRoute><ReportSummary /></ProtectedRoute>} />
+            <Route path="/salariedreport" element={<ProtectedRoute><ReportSummary /></ProtectedRoute>} />
+            <Route path="/reportsetting" element={<RoleProtectedRoute allowedRoles={['Owner', 'SuperAdmin']}><ReportSetting /></RoleProtectedRoute>} />
           </Routes>
         </div>
       </AuthProvider>
     </Router>
-    // </BrowserRouter>
   );
 }
 

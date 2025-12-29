@@ -187,59 +187,64 @@ const ContactUs = () => {
       <Header isAuthenticated={true} />
 
       <section className="flex-grow bg-gray-50 px-4 sm:px-6 pt-25 pb-16">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">Contact Us</h1>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          <div className="text-center mb-8 sm:mb-12 lg:mb-16">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-gray-900 mb-3 sm:mb-4 lg:mb-6 px-2">
+              Contact Us
+            </h1>
+            <p className="text-sm sm:text-base lg:text-lg xl:text-xl text-gray-600 max-w-2xl lg:max-w-3xl mx-auto px-4">
               Get in touch with our team. We're here to help and answer any questions you might have.
             </p>
           </div>
 
-          <div className="grid lg:grid-cols-2 gap-12">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 lg:gap-12">
             {/* Contact Info */}
-            <div className="flex center">
-              <div className="bg-white rounded-lg shadow-sm border p-8 flex-1 flex flex-col">
-                <h2 className="text-2xl font-semibold text-gray-900 mb-6">Get in Touch</h2>
+            <div className="order-2 lg:order-1">
+              <div className="bg-white rounded-lg shadow-sm border p-4 sm:p-6 lg:p-8 h-full">
+                <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900 mb-4 sm:mb-6">
+                  Get in Touch
+                </h2>
 
-                <div className="space-y-6 flex-grow">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-[#02066F] rounded-lg flex items-center justify-center">
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="flex items-start sm:items-center space-x-3 sm:space-x-4">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#02066F] rounded-lg flex items-center justify-center flex-shrink-0">
+                      <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                       </svg>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Email</h3>
-                      <a href="mailto:contact@tap-time.com" className="text-[#02066F] hover:underline">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm sm:text-base font-semibold text-gray-900">Email</h3>
+                      <a href="mailto:contact@tap-time.com" className="text-xs sm:text-sm lg:text-base text-[#02066F] hover:underline break-all">
                         contact@tap-time.com
                       </a>
                     </div>
                   </div>
 
-
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-[#02066F] rounded-lg flex items-center justify-center">
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="flex items-start sm:items-center space-x-3 sm:space-x-4">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#02066F] rounded-lg flex items-center justify-center flex-shrink-0">
+                      <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                       </svg>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Phone</h3>
-                      <p className="text-gray-600">+1 (425) 999-9719</p>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm sm:text-base font-semibold text-gray-900">Phone</h3>
+                      <p className="text-xs sm:text-sm lg:text-base text-gray-600">+1 (425) 999-9719</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 bg-[#02066F] rounded-lg flex items-center justify-center">
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="flex items-start sm:items-center space-x-3 sm:space-x-4">
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-[#02066F] rounded-lg flex items-center justify-center flex-shrink-0">
+                      <svg className="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                       </svg>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Office</h3>
-                      <p className="text-gray-600">123 Business Ave, Suite 100<br />New York, NY 10001</p>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm sm:text-base font-semibold text-gray-900">Office</h3>
+                      <p className="text-xs sm:text-sm lg:text-base text-gray-600 leading-relaxed">
+                        123 Business Ave, Suite 100<br />New York, NY 10001
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -247,14 +252,16 @@ const ContactUs = () => {
             </div>
 
             {/* Contact Form */}
-            <div className="flex">
-              <div className="bg-white rounded-lg shadow-sm border p-8 flex-1">
-                <h2 className="text-2xl font-semibold text-gray-900 mb-6">Send Message</h2>
+            <div className="order-1 lg:order-2">
+              <div className="bg-white rounded-lg shadow-sm border p-4 sm:p-6 lg:p-8">
+                <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900 mb-4 sm:mb-6">
+                  Send Message
+                </h2>
 
-                <form className="space-y-6" onSubmit={handleSubmit}>
-                  <div className="grid sm:grid-cols-2 gap-6">
+                <form className="space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                     <div>
-                      <label htmlFor="cname" className="block text-sm font-medium text-gray-700 mb-2">
+                      <label htmlFor="cname" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                         Full Name *
                       </label>
                       <input
@@ -264,16 +271,16 @@ const ContactUs = () => {
                         onChange={(e) => setCname(e.target.value)}
                         onBlur={validCName}
                         placeholder="Enter your name"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#02066F] focus:border-[#02066F] transition-colors"
+                        className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#02066F] focus:border-[#02066F] transition-colors"
                         required
                       />
                       {errorName && (
-                        <p className="text-red-500 text-sm mt-1">{errorName}</p>
+                        <p className="text-red-500 text-xs sm:text-sm mt-1">{errorName}</p>
                       )}
                     </div>
 
                     <div>
-                      <label htmlFor="cemail" className="block text-sm font-medium text-gray-700 mb-2">
+                      <label htmlFor="cemail" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                         Email Address *
                       </label>
                       <input
@@ -283,17 +290,17 @@ const ContactUs = () => {
                         onChange={(e) => setCemail(e.target.value)}
                         onBlur={validCEmail}
                         placeholder="Enter your email"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#02066F] focus:border-[#02066F] transition-colors"
+                        className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#02066F] focus:border-[#02066F] transition-colors"
                         required
                       />
                       {errorEmail && (
-                        <p className="text-red-500 text-sm mt-1">{errorEmail}</p>
+                        <p className="text-red-500 text-xs sm:text-sm mt-1">{errorEmail}</p>
                       )}
                     </div>
                   </div>
 
                   <div>
-                    <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-2">
+                    <label htmlFor="phoneNumber" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                       Phone Number (Optional)
                     </label>
                     <PhoneInput
@@ -310,16 +317,17 @@ const ContactUs = () => {
                         '--react-international-phone-background-color': '#ffffff',
                         '--react-international-phone-text-color': '#000000',
                         '--react-international-phone-selected-dropdown-item-background-color': '#f3f4f6',
-                        '--react-international-phone-height': '3rem'
+                        '--react-international-phone-height': window.innerWidth < 640 ? '2.5rem' : '3rem',
+                        '--react-international-phone-font-size': window.innerWidth < 640 ? '0.875rem' : '1rem'
                       }}
                     />
                     {errorPhone && (
-                      <p className="text-red-500 text-sm mt-1">{errorPhone}</p>
+                      <p className="text-red-500 text-xs sm:text-sm mt-1">{errorPhone}</p>
                     )}
                   </div>
 
                   <div>
-                    <label htmlFor="question" className="block text-sm font-medium text-gray-700 mb-2">
+                    <label htmlFor="question" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                       Message *
                     </label>
                     <textarea
@@ -328,47 +336,47 @@ const ContactUs = () => {
                       onChange={(e) => setQuestion(e.target.value)}
                       onBlur={validCQueries}
                       placeholder="How can we help you?"
-                      rows="5"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#02066F] focus:border-[#02066F] transition-colors resize-none"
+                      rows={window.innerWidth < 640 ? "4" : "5"}
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#02066F] focus:border-[#02066F] transition-colors resize-none"
                       required
                     />
-                    <div className="flex justify-between items-center mt-2">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mt-2 gap-1 sm:gap-0">
                       {errorTextarea ? (
-                        <p className="text-red-500 text-sm">{errorTextarea}</p>
+                        <p className="text-red-500 text-xs sm:text-sm">{errorTextarea}</p>
                       ) : (
                         <span></span>
                       )}
-                      <span className="text-sm text-gray-500">
+                      <span className="text-xs sm:text-sm text-gray-500">
                         {question.length}/{maxMessageLength}
                       </span>
                     </div>
                   </div>
 
                   {submitSuccess && (
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2">
-                      <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                      <p className="text-sm text-green-600">{submitSuccess}</p>
+                    <div className="p-2 sm:p-3 bg-green-50 border border-green-200 rounded-lg flex items-start gap-2">
+                      <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-xs sm:text-sm text-green-600">{submitSuccess}</p>
                     </div>
                   )}
                   {submitError && (
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
-                      <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                      <p className="text-sm text-red-600">{submitError}</p>
+                    <div className="p-2 sm:p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-xs sm:text-sm text-red-600">{submitError}</p>
                     </div>
                   )}
 
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full bg-[#02066F] text-white py-3 px-6 rounded-lg font-medium hover:bg-[#030974] focus:ring-2 focus:ring-[#02066F] focus:ring-offset-2 disabled:opacity-50 transition-colors"
+                    className="w-full bg-[#02066F] text-white py-2 sm:py-3 px-4 sm:px-6 text-sm sm:text-base rounded-lg font-medium hover:bg-[#030974] focus:ring-2 focus:ring-[#02066F] focus:ring-offset-2 disabled:opacity-50 transition-colors"
                   >
                     {isSubmitting ? (
                       <div className="flex items-center justify-center">
-                        <Loader2 className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" />
-                        Sending...
+                        <Loader2 className="animate-spin -ml-1 mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5 text-white" />
+                        <span className="text-sm sm:text-base">Sending...</span>
                       </div>
                     ) : (
-                      'Send Message'
+                      <span className="text-sm sm:text-base">Send Message</span>
                     )}
                   </button>
                 </form>

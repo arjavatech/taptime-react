@@ -15,35 +15,55 @@ export const API_URLS = {
   signUp: `${API_BASE}/auth/sign_up`
 };
 
-// HTTP client
+// HTTP client with request deduplication
+const pendingRequests = new Map();
+
 const api = {
   async request(url, options = {}) {
-    try {
-      const response = await fetch(url, {
-        headers: { 'Content-Type': 'application/json' },
-        ...options
-      });
-      
-      if (!response.ok) {
-        // Try to get error details from response
-        const errorData = await response.json().catch(() => ({}));
-        const errorMsg = errorData.detail || errorData.error || `HTTP ${response.status}`;
-        
-        // Handle specific HTTP status codes that might indicate account deletion
-        if (response.status === 404 || errorMsg.toLowerCase().includes('not found')) {
-          throw new Error('Account not found - may have been deleted');
-        }
-        if (response.status === 403) {
-          throw new Error('Access denied - account may be inactive or deleted');
-        }
-        
-        throw new Error(errorMsg);
-      }
-      return await response.json();
-    } catch (error) {
-      console.error('API Error:', error);
-      throw error;
+    // Create a unique key for this request
+    const requestKey = `${options.method || 'GET'}-${url}-${JSON.stringify(options.body || {})}`;
+    
+    // If this exact request is already pending, return the existing promise
+    if (pendingRequests.has(requestKey)) {
+      return pendingRequests.get(requestKey);
     }
+    
+    const requestPromise = (async () => {
+      try {
+        const response = await fetch(url, {
+          headers: { 'Content-Type': 'application/json' },
+          ...options
+        });
+        
+        if (!response.ok) {
+          // Try to get error details from response
+          const errorData = await response.json().catch(() => ({}));
+          const errorMsg = errorData.detail || errorData.error || `HTTP ${response.status}`;
+          
+          // Handle specific HTTP status codes that might indicate account deletion
+          if (response.status === 404 || errorMsg.toLowerCase().includes('not found')) {
+            throw new Error('Account not found - may have been deleted');
+          }
+          if (response.status === 403) {
+            throw new Error('Access denied - account may be inactive or deleted');
+          }
+          
+          throw new Error(errorMsg);
+        }
+        return await response.json();
+      } catch (error) {
+        console.error('API Error:', error);
+        throw error;
+      } finally {
+        // Remove from pending requests when done
+        pendingRequests.delete(requestKey);
+      }
+    })();
+    
+    // Store the promise to prevent duplicate requests
+    pendingRequests.set(requestKey, requestPromise);
+    
+    return requestPromise;
   },
   get: (url) => api.request(url),
   post: (url, data) => api.request(url, { method: 'POST', body: JSON.stringify(data) }),
@@ -104,7 +124,7 @@ export const loginCheck = async (username, password) => {
   }
 };
 
-export const googleSignInCheck = async (email) => {
+export const googleSignInCheck = async (email, authMethod = 'google') => {
   try {
     const response = await fetch(`${API_BASE}/employee/login_check/${email}`, {
       headers: { 'Content-Type': 'application/json' }
@@ -130,15 +150,36 @@ export const googleSignInCheck = async (email) => {
     }
 
     const adminTypeValue = data.admin_type?.toString().toLowerCase();
-    const allowedTypes = ['admin', 'superadmin', 'owner'];
-
-    if (!allowedTypes.includes(adminTypeValue)) {
-      return { success: false, error: `Access denied. Invalid admin type: "${data.admin_type}"` };
+    
+    // CRITICAL: For Google OAuth, ONLY allow admin and superadmin - NEVER allow owner
+    if (authMethod === 'google') {
+      // Explicitly block owners from Google login
+      if (adminTypeValue === 'owner') {
+        return { success: false, error: 'Owners do not have access to Google login. Please use email and password to sign in.' };
+      }
+      
+      const allowedTypes = ['admin', 'superadmin'];
+      if (!allowedTypes.includes(adminTypeValue)) {
+        return { success: false, error: `Access denied. Google login not available for admin type: "${data.admin_type}"` };
+      }
+    }
+    // For email/password login, allow all types including owner
+    else if (authMethod === 'email') {
+      const allowedTypes = ['owner', 'admin', 'superadmin'];
+      if (!allowedTypes.includes(adminTypeValue)) {
+        return { success: false, error: `Access denied. Invalid admin type: "${data.admin_type}"` };
+      }
+    }
+    // For any other auth method, validate admin type exists
+    else {
+      if (!adminTypeValue || !['owner', 'admin', 'superadmin'].includes(adminTypeValue)) {
+        return { success: false, error: `Access denied. Invalid admin type: "${data.admin_type}"` };
+      }
     }
 
     const companyID = data.cid;
     const adminTypeMap = { admin: 'Admin', superadmin: 'SuperAdmin', owner: 'Owner' };
-    const properCaseAdminType = adminTypeMap[adminTypeValue];
+    const properCaseAdminType = adminTypeMap[adminTypeValue] || adminTypeValue;
 
     const storeData = {
       [STORAGE_KEYS.COMPANY_ID]: companyID,
@@ -170,9 +211,7 @@ export const googleSignInCheck = async (email) => {
       [STORAGE_KEYS.COMPANY_ZIP_CODE]: data.company_zip_code,
       employmentType: data.employment_type,
       last_modified_by: data.last_modified_by
-      
-
-    };
+   };
 
 
 

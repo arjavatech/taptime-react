@@ -19,7 +19,11 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
-  X
+  X,
+  CreditCard,
+  Users,
+  Monitor,
+  ArrowUpCircle
 } from "lucide-react";
 import { useZipLookup } from "../hooks";
 import { PhoneInput } from 'react-international-phone';
@@ -29,12 +33,12 @@ const Profile = () => {
   // Utility function to capitalize first letter of each word
   const capitalizeFirst = (str) => {
     if (!str) return str;
-    return str.split(' ').map(word => 
+    return str.split(' ').map(word =>
       word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
     ).join(' ');
   };
 
-  const [activeTab, setActiveTab] = useState("company");
+  const [activeTab, setActiveTab] = useState("personal");
   const [isEditing, setIsEditing] = useState({ personal: false, company: false, admin: false });
   const [isLoading, setIsLoading] = useState(true);
   const [userType, setUserType] = useState("");
@@ -98,7 +102,7 @@ const Profile = () => {
   });
 
   const [companyId, setCompanyId] = useState("");
-    
+
   // Check if user can edit company details
   const canEditCompany = userType === "SuperAdmin" || userType === "Owner";
 
@@ -159,7 +163,7 @@ const Profile = () => {
     };
 
     const actualField = fieldMap[field] || field;
-    
+
     setPersonalData(prev => ({ ...prev, [actualField]: value }));
 
     const errorField = field === "address" ? "customerStreet" :
@@ -265,9 +269,11 @@ const Profile = () => {
       setCompanyId(companyId);
       setUserType(userType);
 
-      // Auto-redirect Admin users to Admin Information tab
+      // Set default tab based on user type
       if (userType === "Admin" || userType === "SuperAdmin") {
         setActiveTab("admin");
+      } else if (userType === "Owner") {
+        setActiveTab("personal");
       }
 
       const formData = loadProfileData(adminDetails);
@@ -285,7 +291,7 @@ const Profile = () => {
         pin: formData.adminPin,
         decryptedPassword: formData.decryptedPassword,
       });
-     
+
 
       setAdminData({
         firstName: formData.firstName,
@@ -452,9 +458,10 @@ const Profile = () => {
         customer_state: personalData.customerState || "",
         customer_zip_code: personalData.zipCode || "",
         is_verified: localStorage.getItem("isVerified") === "true",
-        device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
-        employee_count: parseInt(localStorage.getItem("noOfEmployees") || "30"),
-        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system"
+        device_count: parseInt(localStorage.getItem("NoOfDevices")),
+        employee_count: parseInt(localStorage.getItem("NoOfEmployees")),
+        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system",
+        employment_type: employmentTypes.join(',')
       };
 
       const formData = new FormData();
@@ -468,7 +475,7 @@ const Profile = () => {
 
       const result = await updateProfile(companyId, formData);
 
-      
+
 
       // Reset logoFile after successful save
       setLogoFile(null);
@@ -526,6 +533,7 @@ const Profile = () => {
 
     try {
       const updateData = {
+        cid: companyId,
         company_name: companyData.name || "",
         company_logo: companyData.logo || "",
         report_type: localStorage.getItem("reportType"),
@@ -539,17 +547,25 @@ const Profile = () => {
         email: adminData.email || "",
         phone_number: adminData.phone ? adminData.phone.replace(/\D/g, '') : "",
         customer_address_line1: personalData.address || "",
-        customer_address_line2:personalData.street2 || "",
+        customer_address_line2: personalData.street2 || "",
         customer_city: personalData.customerCity,
         customer_state: personalData.customerState || "",
         customer_zip_code: personalData.zipCode || "",
         is_verified: localStorage.getItem("isVerified") === "true",
-        device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
-        employee_count: parseInt(localStorage.getItem("noOfEmployees") || "30"),
-        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system"
+        device_count: parseInt(localStorage.getItem("NoOfDevices") || "1"),
+        employee_count: parseInt(localStorage.getItem("NoOfEmployees") || "30"),
+        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system",
+        employment_type: employmentTypes.join(',')
       };
 
-      const result = await updateProfile(companyId, updateData);
+      const formData = new FormData();
+      formData.append('company_data', JSON.stringify(updateData));
+
+      // Only add logo file if it has been changed
+      if (logoFile) {
+        formData.append('company_logo', logoFile);
+      }
+      const result = await updateProfile(companyId, formData);
 
 
       localStorage.setItem("firstName", adminData.firstName);
@@ -582,7 +598,7 @@ const Profile = () => {
       setTimeout(() => setSaveError(""), 3000);
       return;
     }
-    
+
     if (!validateCompanyForm()) {
       return;
     }
@@ -604,7 +620,6 @@ const Profile = () => {
         company_city: companyData.city || "",
         company_state: companyData.state || "",
         company_zip_code: companyData.companyZip || "",
-        employment_type: employmentTypes.join(','),
         first_name: personalData.firstName || "",
         last_name: personalData.lastName || "",
         email: personalData.email || "",
@@ -615,19 +630,24 @@ const Profile = () => {
         customer_state: personalData.customerState || "",
         customer_zip_code: personalData.zipCode || "",
         is_verified: true,
-        device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
-        employee_count: parseInt(localStorage.getItem("noOfEmployees") || "30"),
-        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system"
+        device_count: parseInt(localStorage.getItem("NoOfDevices")),
+        employee_count: parseInt(localStorage.getItem("NoOfEmployees")),
+        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system",
+        employment_type: employmentTypes.join(',')
       };
+
+      console.log(companyDataPayload);
+
 
       const formData = new FormData();
       formData.append('company_data', JSON.stringify(companyDataPayload));
+
 
       // Only add logo file if it has been changed
       if (logoFile) {
         formData.append('company_logo', logoFile);
 
-        
+
       }
 
 
@@ -727,7 +747,7 @@ const Profile = () => {
       phone: "",
       pin: "",
     });
-    
+
     // Exit edit mode
     setIsEditing(prev => ({ ...prev, [type]: false }));
   };
@@ -772,7 +792,8 @@ const Profile = () => {
               {[
                 ...(userType !== "Admin" && userType !== "SuperAdmin" ? [{ key: "personal", label: "Personal Information", icon: User }] : []),
                 { key: "company", label: "Company Information", icon: Building },
-                ...(userType === "Admin" || userType === "SuperAdmin" ? [{ key: "admin", label: userType === "SuperAdmin" ? "Super Admin Information" : "Admin Information", icon: User }] : [])
+                ...(userType === "Admin" || userType === "SuperAdmin" ? [{ key: "admin", label: userType === "SuperAdmin" ? "Super Admin Information" : "Admin Information", icon: User }] : []),
+                ...(userType === "Owner" ? [{ key: "subscription", label: "Subscription", icon: CreditCard }] : [])
               ].map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}
@@ -784,7 +805,7 @@ const Profile = () => {
                 >
                   <Icon className="w-4 h-4" />
                   <span className="hidden sm:inline">{label}</span>
-                  <span className="sm:hidden">{key === "personal" ? "Personal" : "Company"}</span>
+                  <span className="sm:hidden">{key === "personal" ? "Personal" : key === "company" ? "Company" : key === "admin" && userType === "SuperAdmin" ? "Super Admin" : key === "subscription" ? "Plan" : "Admin"}</span>
                 </button>
               ))}
             </nav>
@@ -851,7 +872,7 @@ const Profile = () => {
                     {errors.lastName && <p className="text-sm text-red-600">{errors.lastName}</p>}
                   </div>
 
-                  <div className="space-y-2 sm:col-span-2">
+                  <div className="space-y-2">
                     <Label htmlFor="email">email Address</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
@@ -880,7 +901,6 @@ const Profile = () => {
                       style={{
                         '--react-international-phone-border-radius': '0.375rem',
                         '--react-international-phone-border-color': errors.phone ? '#ef4444' : '#e5e7eb',
-                        '--react-international-phone-background-color': '#ffffff',
                         '--react-international-phone-text-color': '#000000',
                         '--react-international-phone-selected-dropdown-item-background-color': '#f3f4f6',
                         '--react-international-phone-height': '2.5rem'
@@ -1146,9 +1166,11 @@ const Profile = () => {
                     {errors.companyZip && <p className="text-sm text-red-600">{errors.companyZip}</p>}
                   </div>
 
+
+
                   <div className="space-y-2 sm:col-span-2">
                     <Label htmlFor="employmentType">Employment Types</Label>
-                    <div className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-0 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[42px] flex-wrap gap-2 items-center ${!isEditing.company ? 'opacity-50' : ''}`}>
+                    <div className={`flex min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-0 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[42px] flex-wrap gap-2 items-center ${!isEditing.company ? 'opacity-50' : ''}`}>
                       {employmentTypes.map((type, index) => (
                         <span
                           key={index}
@@ -1299,7 +1321,6 @@ const Profile = () => {
                       style={{
                         '--react-international-phone-border-radius': '0.375rem',
                         '--react-international-phone-border-color': '#e5e7eb',
-                        '--react-international-phone-background-color': '#ffffff',
                         '--react-international-phone-text-color': '#000000',
                         '--react-international-phone-selected-dropdown-item-background-color': '#f3f4f6',
                         '--react-international-phone-height': '2.5rem'
@@ -1383,9 +1404,70 @@ const Profile = () => {
               </CardContent>
             </Card>
           )}
+
+          {activeTab === "subscription" && userType === "Owner" && (
+            <Card>
+              <CardHeader>
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="w-5 h-5" />
+                    Subscription Overview
+                  </CardTitle>
+                  <CardDescription>
+                    View your current plan details and upgrade options
+                  </CardDescription>
+                </div>
+              </CardHeader>
+
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="p-4 border rounded-lg">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Monitor className="w-5 h-5 text-primary" />
+                      <h3 className="font-medium">Total Devices</h3>
+                    </div>
+                    <p className="text-2xl font-bold text-primary">
+                      {localStorage.getItem("NoOfDevices")}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Active devices in your system
+                    </p>
+                  </div>
+
+                  <div className="p-4 border rounded-lg">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Users className="w-5 h-5 text-primary" />
+                      <h3 className="font-medium">Total Employees</h3>
+                    </div>
+                    <p className="text-2xl font-bold text-primary">
+                      {localStorage.getItem("NoOfEmployees")}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Registered employees
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-6 bg-muted rounded-lg border">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                      <h3 className="font-semibold text-lg mb-2">Upgrade Your Plan</h3>
+                      <p className="text-muted-foreground">
+                        Need more devices or employees? Upgrade your subscription to unlock additional capacity and features.
+                      </p>
+                    </div>
+                    <Button className="flex items-center gap-2">
+                      <ArrowUpCircle className="w-4 h-4" />
+                      Upgrade Plan
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
-<Footer/>
+      <Footer />
     </div>
   );
 };

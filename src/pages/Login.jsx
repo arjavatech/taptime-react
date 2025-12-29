@@ -8,6 +8,7 @@ import { Label } from "../components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Loader2, Eye, EyeOff, Mail, Lock, Crown, Shield, Check, AlertCircle } from "lucide-react";
 import tabTimeLogo from "../assets/images/tap-time-logo.png";
+import GoogleLoginRestrictionModal from "../components/ui/GoogleLoginRestrictionModal";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -17,6 +18,9 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [selectedRole, setSelectedRole] = useState('owner');
+  const [rememberMe, setRememberMe] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [showGoogleRestrictionModal, setShowGoogleRestrictionModal] = useState(false);
   const handleRoleSelect = (role) => {
     setSelectedRole(role);
   };
@@ -44,21 +48,32 @@ const Login = () => {
           const userName = user.user_metadata?.full_name || user.user_metadata?.name || user.email.split('@')[0];
           const userPicture = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
 
-          const result = await fetchBackendUserData(userEmail, userName, userPicture);
+          const result = await fetchBackendUserData(userEmail, userName, userPicture, 'google');
 
           if (result.success) {
             sessionStorage.removeItem('pending_oauth_callback');
             navigate('/employee-management');
           } else {
+            // Check if the error is specifically about Owner Google login restriction
+            if (result.error && result.error.includes('Owners do not have access to Google login')) {
+              console.log('Backend Owner restriction detected, showing modal');
+              sessionStorage.removeItem('pending_oauth_callback');
+              await signOut();
+              setLoading(false);
+              setIsProcessingOAuth(false);
+              setTimeout(() => {
+                setShowGoogleRestrictionModal(true);
+              }, 100);
+              return;
+            }
+            
             sessionStorage.removeItem('pending_oauth_callback');
             await signOut();
-            // OAuth errors handled inline, no popup
             setLoading(false);
           }
         } catch (error) {
           sessionStorage.removeItem('pending_oauth_callback');
           await signOut();
-          // OAuth errors handled inline, no popup
           setLoading(false);
         }
       } else if (user && localStorage.getItem('companyID')) {
@@ -96,6 +111,13 @@ const Login = () => {
       hasErrors = true;
     }
 
+    // Check remember me checkbox - remove forced requirement
+    // if (!rememberMe) {
+    //   setShowTooltip(true);
+    //   setTimeout(() => setShowTooltip(false), 3000);
+    //   return;
+    // }
+
     // Return early if validation fails
     if (hasErrors) {
       return;
@@ -104,7 +126,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const { data, error } = await signInWithEmail(email, password);
+      const { data, error } = await signInWithEmail(email, password, rememberMe);
 
       if (error) {
         setLoginError("Invalid user name or password");
@@ -115,7 +137,7 @@ const Login = () => {
         const userName = data.user.user_metadata?.full_name || data.user.user_metadata?.name || email.split('@')[0];
         const userPicture = data.user.user_metadata?.avatar_url || data.user.user_metadata?.picture || null;
 
-        const result = await fetchBackendUserData(data.user.email, userName, userPicture);
+        const result = await fetchBackendUserData(data.user.email, userName, userPicture, 'email');
 
         if (!result.success) {
           await signOut();
@@ -134,6 +156,13 @@ const Login = () => {
   };
 
   const handleGoogleLogin = async () => {
+    // Check if Owner is trying to use Google login
+    if (selectedRole === 'owner') {
+      console.log('Frontend Owner check - showing modal');
+      setShowGoogleRestrictionModal(true);
+      return;
+    }
+
     setLoading(true);
     setLoginError("");
 
@@ -373,15 +402,28 @@ const Login = () => {
                           )}
 
                           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mt-4">
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center space-x-2 relative">
                               <input
                                 id="remember"
                                 type="checkbox"
+                                checked={rememberMe}
+                                onChange={(e) => setRememberMe(e.target.checked)}
                                 className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
                               />
-                              <Label htmlFor="remember" className="text-xs sm:text-sm">
+                              <Label 
+                                htmlFor="remember" 
+                                className="text-xs sm:text-sm cursor-pointer"
+                                onMouseEnter={() => setShowTooltip(true)}
+                                onMouseLeave={() => setShowTooltip(false)}
+                              >
                                 Remember me
                               </Label>
+                              {showTooltip && (
+                                <div className="absolute bottom-full left-0 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-md shadow-lg z-10 whitespace-nowrap">
+                                  Check to stay logged in across browser sessions
+                                  <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                                </div>
+                              )}
                             </div>
                             <Link
                               to="/forgot-password"
@@ -453,6 +495,12 @@ const Login = () => {
           </div>
         </div>
       </div>
+      
+      {/* Google Login Restriction Modal */}
+      <GoogleLoginRestrictionModal
+        isOpen={showGoogleRestrictionModal}
+        onClose={() => setShowGoogleRestrictionModal(false)}
+      />
     </>
   );
 };

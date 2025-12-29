@@ -3,10 +3,13 @@ import { useAuth } from '../contexts/AuthContext';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
+  
+  // Check if user has completed full authentication flow
+  const isFullyAuthenticated = user && localStorage.getItem('companyID');
 
   if (loading) return <div>Loading...</div>;
   
-  return user ? children : <Navigate to="/login" replace />;
+  return isFullyAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
 export default ProtectedRoute;

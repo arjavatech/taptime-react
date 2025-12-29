@@ -773,8 +773,8 @@ const Reports = () => {
         tableData = filteredData.map(record => [
           record.Pin || "",
           record.Name || "",
-          record.formattedCheckIn || convertToAmPm(record.CheckInTime) || "--",
-          record.formattedCheckOut || convertToAmPm(record.CheckOutTime) || "--",
+          record.formattedCheckIn || (record.CheckInTime ? convertToAmPm(record.CheckInTime) : "--"),
+          record.formattedCheckOut || (record.CheckOutTime ? convertToAmPm(record.CheckOutTime) : "--"),
           record.TimeWorked || record.timeWorked || "--",
           record.Type || ""
         ]);
@@ -1148,42 +1148,87 @@ const Reports = () => {
 
         {/* Summary Statistics */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
-            <Card>
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center">
-                  <Users className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
-                  <div className="ml-3 sm:ml-4">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">Check-in employee</p>
-                    <p className="text-xl sm:text-2xl font-bold text-foreground">{summaryStats.presentEmployees}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center">
-                  <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
-                  <div className="ml-3 sm:ml-4">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">Currently working employee</p>
-                    <p className="text-xl sm:text-2xl font-bold text-foreground">{filteredData.filter(r => r.CheckInTime && !r.CheckOutTime).length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="sm:col-span-2 md:col-span-1">
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center">
-                  <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600" />
-                  <div className="ml-3 sm:ml-4">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Records</p>
-                    <p className="text-xl sm:text-2xl font-bold text-foreground">{filteredData.length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+            {activeTab === "today" && (
+              <>
+                <Card>
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex items-center">
+                      <Users className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+                      <div className="ml-3 sm:ml-4">
+                        <p className="text-xs sm:text-sm font-medium text-muted-foreground">Checked-in Employees</p>
+                        <p className="text-xl sm:text-2xl font-bold text-foreground">{summaryStats.presentEmployees}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex items-center">
+                      <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
+                      <div className="ml-3 sm:ml-4">
+                        <p className="text-xs sm:text-sm font-medium text-muted-foreground">Currently Working</p>
+                        <p className="text-xl sm:text-2xl font-bold text-foreground">{filteredData.filter(r => r.CheckInTime && !r.CheckOutTime).length}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+            
+            {(activeTab === "daywise" || activeTab === "summary" || activeTab === "salaried") && (
+              <>
+                <Card>
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex items-center">
+                      <Users className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+                      <div className="ml-3 sm:ml-4">
+                        <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Employees</p>
+                        <p className="text-xl sm:text-2xl font-bold text-foreground">{new Set(filteredData.map(r => r.EmployeeId)).size}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex items-center">
+                      <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
+                      <div className="ml-3 sm:ml-4">
+                        <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Records</p>
+                        <p className="text-xl sm:text-2xl font-bold text-foreground">{filteredData.length}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+            
+            {activeTab === "pending" && (
+              <>
+                <Card>
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex items-center">
+                      <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-orange-600" />
+                      <div className="ml-3 sm:ml-4">
+                        <p className="text-xs sm:text-sm font-medium text-muted-foreground">Pending Checkouts</p>
+                        <p className="text-xl sm:text-2xl font-bold text-foreground">{filteredData.length}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex items-center">
+                      <Users className="h-6 w-6 sm:h-8 sm:w-8 text-red-600" />
+                      <div className="ml-3 sm:ml-4">
+                        <p className="text-xs sm:text-sm font-medium text-muted-foreground">Affected Employees</p>
+                        <p className="text-xl sm:text-2xl font-bold text-foreground">{new Set(filteredData.map(r => r.EmployeeId)).size}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
           </div>
         </div>
 
@@ -1807,6 +1852,10 @@ const Reports = () => {
                                 <span className="text-xs sm:text-sm text-muted-foreground">Type</span>
                                 <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{record.Type}</span>
                               </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs sm:text-sm text-muted-foreground">Date Filed</span>
+                                <span className="text-xs sm:text-sm font-medium">{record.CheckInTime ? new Date(record.CheckInTime).toLocaleDateString() : '--'}</span>
+                              </div>
                               <div className="flex items-center gap-2 text-xs sm:text-sm">
                                 <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
                                 <span className="truncate">In: {formatTime(record.CheckInTime)}</span>
@@ -1846,6 +1895,7 @@ const Reports = () => {
                           <tr>
                             <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Employee ID</th>
                             <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Name</th>
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Date Filed</th>
                             <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Check-in Time</th>
                             <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Check-out Time</th>
                             <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Type</th>
@@ -1864,6 +1914,7 @@ const Reports = () => {
                               <tr key={index} className="hover:bg-gray-50">
                                 <td className="px-4 py-3 text-center font-medium">{record.Pin}</td>
                                 <td className="px-4 py-3 text-center">{record.Name}</td>
+                                <td className="px-4 py-3 text-center">{record.CheckInTime ? new Date(record.CheckInTime).toLocaleDateString() : '--'}</td>
                                 <td className="px-4 py-3 text-center">{formatTime(record.CheckInTime)}</td>
                                 <td className="px-4 py-3 text-center">
                                   <div className="flex flex-col items-center">
@@ -2095,7 +2146,7 @@ const Reports = () => {
       {/* Add Entry Modal */}
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
-          <Card id="add-entry-modal" className="w-full max-w-md max-h-[90vh] mx-4 overflow-hidden">
+          <Card id="add-entry-modal" className="w-full max-w-md max-h-[90vh] mx-4 overflow-hidden relative">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg sm:text-xl">
                 Add Entry
@@ -2121,6 +2172,7 @@ const Reports = () => {
                     }
                   }}
                   className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md text-sm"
+                  style={{ maxWidth: '100%' }}
                 >
                   <option value="">Select Employee</option>
                   {(employeeList || []).map((employee) => (
@@ -2149,6 +2201,7 @@ const Reports = () => {
                     }
                   }}
                   className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
+                  style={{ maxWidth: '100%' }}
                 >
                   <option value="">Select Employment Type</option>
                   {employmentTypes.map((type, index) => (

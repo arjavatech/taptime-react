@@ -7,6 +7,8 @@ import tapTimeLogo from "../../assets/images/tap-time-logo.png";
 
 const Header = () => {
   const { user, session, signOut } = useAuth();
+  
+  // Initialize as false to prevent showing authenticated UI before session validation
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -17,7 +19,7 @@ const Header = () => {
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showReportsDropdown, setShowReportsDropdown] = useState(false);
   const [showMobileReportsDropdown, setShowMobileReportsDropdown] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(window.innerWidth <= 996);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -30,12 +32,16 @@ const Header = () => {
 
   useEffect(() => {
     const checkAuthStatus = () => {
-      // Check Supabase session (auth tokens now in sessionStorage)
+      // Check Supabase session (auth tokens in sessionStorage)
       const hasSupabaseAuth = !!(user && session);
       
-      // If no Supabase auth but localStorage has user data, clear it (browser was closed)
-      if (!hasSupabaseAuth && localStorage.getItem("adminMail")) {
+      // If no Supabase auth, immediately clear localStorage and set as unauthenticated
+      if (!hasSupabaseAuth) {
         localStorage.clear();
+        setIsAuthenticated(false);
+        setUserType("");
+        setUserProfile({ name: "", email: "", picture: "" });
+        return;
       }
       
       // Only set authenticated if both Supabase auth exists AND user setup is complete
@@ -47,29 +53,25 @@ const Header = () => {
         const email = localStorage.getItem("adminMail") || "";
         const userName = localStorage.getItem("userName") || "";
         const userPictureUrl = localStorage.getItem("userPicture");
-
-        const fixedPictureUrl = userPictureUrl && !userPictureUrl.startsWith("http")
-          ? `https:${userPictureUrl}` : userPictureUrl;
+        
+        // Determine if this is a Google login by checking if user has a profile picture
+        // For email-based login, always use default avatar (no picture)
+        const isGoogleLogin = userPictureUrl && userPictureUrl.trim() !== "";
+        const profilePicture = isGoogleLogin 
+          ? (userPictureUrl.startsWith("http") ? userPictureUrl : `https:${userPictureUrl}`)
+          : "";
 
         setUserType(adminType);
         setUserProfile({
           name: userName,
           email: email,
-          picture: fixedPictureUrl || "",
-        });
-      } else {
-        // Reset user profile when not authenticated
-        setUserType("");
-        setUserProfile({
-          name: "",
-          email: "",
-          picture: "",
+          picture: profilePicture,
         });
       }
     };
 
     checkAuthStatus();
-  }, [user, session, location]);
+  }, [user, session]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -96,8 +98,11 @@ const Header = () => {
   }, [showProfileSidebar, showProfileDropdown]);
 
   useEffect(() => {
+    // Set initial collapsed state after component mounts
+    setIsCollapsed(window.innerWidth <= 996);
+    
     const handleResize = () => {
-      setIsCollapsed(window.innerWidth <= 996);
+        setIsCollapsed(window.innerWidth <= 996);
     };
 
     window.addEventListener('resize', handleResize);
@@ -106,7 +111,8 @@ const Header = () => {
 
   const isActive = (path) => {
     if (path === "/" && location.pathname === "/") return true;
-    if (path !== "/" && location.pathname.startsWith(path)) return true;
+    if (path === "/login" && (location.pathname === "/login" || location.pathname === "/forgot-password")) return true;
+    if (path !== "/" && path !== "/login" && location.pathname.startsWith(path)) return true;
     return false;
   };
   const toggleSidebar = () => {
@@ -130,7 +136,7 @@ const Header = () => {
   ];
 
   const authenticatedNavItems = [
-    ...(userType !== "Admin" ? [{ to: "/device", label: "Device" }] : []),
+    ...(userType === "Owner" || userType === "SuperAdmin" ? [{ to: "/device", label: "Device" }] : []),
     { to: "/employee-management", label: "Employee Management" },
     ...(userType === "Admin" ? [
       { to: "/reportsummary", label: "Report Summary" }
@@ -140,7 +146,7 @@ const Header = () => {
         dropdown: true,
         items: [
           { to: "/reportsummary", label: "Report Summary" },
-          { to: "/reportsetting", label: "Report Settings" }
+          ...(userType === "Owner" || userType === "SuperAdmin" ? [{ to: "/reportsetting", label: "Report Settings" }] : [])
         ]
       }
     ]),
@@ -151,7 +157,7 @@ const Header = () => {
   const navItems = isAuthenticated ? authenticatedNavItems : publicNavItems;
 
   return (
-    <>
+      <>
       <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm">
         <div className="flex justify-between items-center h-20 px-4 sm:px-6 lg:px-8 max-w-full mx-auto">
           <div className="flex items-center">
@@ -161,10 +167,18 @@ const Header = () => {
                 alt="Tap Time Logo"
                 className="h-16 w-auto cursor-pointer"
                 onClick={() => setShowHomeModal(true)}
+                loading="eager"
+                decoding="async"
               />
             ) : (
               <Link to="/">
-                <img src={tapTimeLogo} alt="Tap Time Logo" className="h-16 w-auto" />
+                <img 
+                  src={tapTimeLogo} 
+                  alt="Tap Time Logo" 
+                  className="h-16 w-auto"
+                  loading="eager"
+                  decoding="async"
+                />
               </Link>
             )}
           </div>
