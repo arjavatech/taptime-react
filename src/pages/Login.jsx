@@ -48,7 +48,7 @@ const Login = () => {
           const userName = user.user_metadata?.full_name || user.user_metadata?.name || user.email.split('@')[0];
           const userPicture = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
 
-          const result = await fetchBackendUserData(userEmail, userName, userPicture);
+          const result = await fetchBackendUserData(userEmail, userName, userPicture, 'google');
 
           if (result.success) {
             sessionStorage.removeItem('pending_oauth_callback');
@@ -111,12 +111,12 @@ const Login = () => {
       hasErrors = true;
     }
 
-    // Check remember me checkbox
-    if (!rememberMe) {
-      setShowTooltip(true);
-      setTimeout(() => setShowTooltip(false), 3000);
-      return;
-    }
+    // Check remember me checkbox - remove forced requirement
+    // if (!rememberMe) {
+    //   setShowTooltip(true);
+    //   setTimeout(() => setShowTooltip(false), 3000);
+    //   return;
+    // }
 
     // Return early if validation fails
     if (hasErrors) {
@@ -126,7 +126,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const { data, error } = await signInWithEmail(email, password);
+      const { data, error } = await signInWithEmail(email, password, rememberMe);
 
       if (error) {
         setLoginError("Invalid user name or password");
@@ -137,7 +137,7 @@ const Login = () => {
         const userName = data.user.user_metadata?.full_name || data.user.user_metadata?.name || email.split('@')[0];
         const userPicture = data.user.user_metadata?.avatar_url || data.user.user_metadata?.picture || null;
 
-        const result = await fetchBackendUserData(data.user.email, userName, userPicture);
+        const result = await fetchBackendUserData(data.user.email, userName, userPicture, 'email');
 
         if (!result.success) {
           await signOut();
@@ -410,12 +410,17 @@ const Login = () => {
                                 onChange={(e) => setRememberMe(e.target.checked)}
                                 className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
                               />
-                              <Label htmlFor="remember" className="text-xs sm:text-sm">
+                              <Label 
+                                htmlFor="remember" 
+                                className="text-xs sm:text-sm cursor-pointer"
+                                onMouseEnter={() => setShowTooltip(true)}
+                                onMouseLeave={() => setShowTooltip(false)}
+                              >
                                 Remember me
                               </Label>
                               {showTooltip && (
                                 <div className="absolute bottom-full left-0 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-md shadow-lg z-10 whitespace-nowrap">
-                                  Please check 'Remember me' to proceed
+                                  Check to stay logged in across browser sessions
                                   <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
                                 </div>
                               )}

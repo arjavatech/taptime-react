@@ -31,7 +31,7 @@ const Register = () => {
   const [companyCityError, setCompanyCityError] = useState('');
   const [companyStateError, setCompanyStateError] = useState('');
   const [companyZipError, setCompanyZipError] = useState('');
-
+  const [noOfDevicesError, setNoOfDevicesError] = useState('');
   const [noOfEmployeesError, setNoOfEmployeesError] = useState('');
 
   // Error states for Step 2
@@ -138,6 +138,7 @@ const Register = () => {
     if (name === 'companyCity') setCompanyCityError('');
     if (name === 'companyState') setCompanyStateError('');
     if (name === 'companyZip') setCompanyZipError('');
+    if (name === 'noOfDevices') setNoOfDevicesError('');
     if (name === 'noOfEmployees') setNoOfEmployeesError('');
     if (name === 'firstName') setFirstNameError('');
     if (name === 'lastName') setLastNameError('');
@@ -227,7 +228,7 @@ const Register = () => {
   };
 
   const validateStep1 = () => {
-    const { companyName, companyStreet, companyCity, companyState, companyZip, noOfEmployees } = formData;
+    const { companyName, companyStreet, companyCity, companyState, companyZip, noOfDevices, noOfEmployees } = formData;
 
     // Clear previous errors
     setCompanyNameError('');
@@ -236,7 +237,7 @@ const Register = () => {
     setCompanyCityError('');
     setCompanyStateError('');
     setCompanyZipError('');
-
+    setNoOfDevicesError('');
     setNoOfEmployeesError('');
 
     let hasErrors = false;
@@ -262,6 +263,10 @@ const Register = () => {
       hasErrors = true;
     } else if (!/^\d{5}$/.test(companyZip)) {
       setCompanyZipError('Zip code must be exactly 5 digits');
+      hasErrors = true;
+    }
+    if (!noOfDevices || Number(noOfDevices) <= 0) {
+      setNoOfDevicesError('Number of devices must be greater than 0');
       hasErrors = true;
     }
     if (!noOfEmployees || Number(noOfEmployees) <= 0) {
@@ -591,10 +596,13 @@ const Register = () => {
                 type="text"
                 placeholder="Devices"
                 value={formData.noOfDevices}
-                disabled
-                readOnly
-                className="bg-gray-100 cursor-not-allowed text-gray-600 h-10 sm:h-11 text-sm sm:text-base"
+                onChange={handleInputChange}
+                className={`h-10 sm:h-11 text-sm sm:text-base ${noOfDevicesError ? 'border-red-500 focus:border-red-500' : ''}`}
+                required
               />
+              {noOfDevicesError && (
+                <p className="text-red-600 text-xs sm:text-sm mt-1">{noOfDevicesError}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="noOfEmployees" className="text-sm sm:text-base font-medium">Number of Employees *</Label>

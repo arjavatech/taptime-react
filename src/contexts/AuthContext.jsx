@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }) => {
     if (user) {
       signOut();
     }
-  }, 5); // 5 minutes
+  }, 8); // 5 minutes
 
   // Check if account has been deleted
   const checkAccountDeletion = useCallback(async (email) => {
@@ -37,11 +37,9 @@ export const AuthProvider = ({ children }) => {
     if (accountDeleted) return true;
     
     try {
-      const result = await googleSignInCheck(email);
+      const result = await googleSignInCheck(email, 'email');
       if (!result.success && result.deleted) {
-        const adminType = localStorage.getItem('adminType') || 
-                         localStorage.getItem('ADMIN_TYPE') || 
-                         'Account';
+        const adminType = localStorage.getItem('adminType') || localStorage.getItem('ADMIN_TYPE') || 'Account';
         setDeletedAccountType(adminType);
         setShowAccountDeletionModal(true);
         setAccountDeleted(true);
@@ -69,8 +67,38 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+      // Check if user had "Remember Me" enabled
+      const rememberMe = localStorage.getItem('rememberMe') === 'true';
+      const storedSession = localStorage.getItem('supabase.auth.token');
+      
+      // If no active session but user had rememberMe enabled, try to restore
+      if (!session && rememberMe && storedSession) {
+        try {
+          const parsedSession = JSON.parse(storedSession);
+          // Check if stored session is still valid (not expired)
+          if (parsedSession.expires_at && new Date(parsedSession.expires_at * 1000) > new Date()) {
+            setSession(parsedSession);
+            setUser(parsedSession.user);
+          } else {
+            // Session expired, clean up
+            localStorage.removeItem('supabase.auth.token');
+            localStorage.removeItem('rememberMe');
+          }
+        } catch (e) {
+          // Invalid stored session, clean up
+          localStorage.removeItem('supabase.auth.token');
+          localStorage.removeItem('rememberMe');
+        }
+      } else {
+        setSession(session);
+        setUser(session?.user ?? null);
+      }
+      
+      // If no session but localStorage has user data, clear it
+      if (!session && localStorage.getItem("adminMail")) {
+              localStorage.clear();
+      }
+      
       setLoading(false);
     });
 
@@ -80,6 +108,12 @@ export const AuthProvider = ({ children }) => {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      
+      // Clear localStorage when session is lost
+      if (!session && localStorage.getItem("adminMail")) {
+        localStorage.clear();
+      }
+      
       setLoading(false);
     });
 
@@ -106,7 +140,7 @@ export const AuthProvider = ({ children }) => {
   }, [user, checkAccountDeletion, accountDeleted]);
 
   // Sign in with email and password
-  const signInWithEmail = async (email, password) => {
+  const signInWithEmail = async (email, password, rememberMe = false) => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -114,6 +148,20 @@ export const AuthProvider = ({ children }) => {
       });
 
       if (error) throw error;
+      
+      // Handle session persistence based on rememberMe preference
+      if (data.session) {
+        if (rememberMe) {
+          // Store session info in localStorage for persistence
+          localStorage.setItem('supabase.auth.token', JSON.stringify(data.session));
+          localStorage.setItem('rememberMe', 'true');
+        } else {
+          // Ensure localStorage is cleared for session-only login
+          localStorage.removeItem('supabase.auth.token');
+          localStorage.removeItem('rememberMe');
+        }
+      }
+      
       return { data, error: null };
     } catch (error) {
       return { data: null, error };
@@ -193,7 +241,7 @@ export const AuthProvider = ({ children }) => {
   const resetPassword = async (email) => {
     try {
       // First check if email exists in database
-      const emailCheck = await googleSignInCheck(email);
+      const emailCheck = await googleSignInCheck(email, 'email');
       
       if (!emailCheck.success) {
         return { data: null, error: "You are not a user" };
@@ -211,9 +259,9 @@ export const AuthProvider = ({ children }) => {
   // Fetch backend user data after Supabase authentication
   // Called for BOTH email/password and Google OAuth logins
   // Wrapped in useCallback to prevent unnecessary re-renders
-  const fetchBackendUserData = useCallback(async (email, userName = null, userPicture = null) => {
+  const fetchBackendUserData = useCallback(async (email, userName = null, userPicture = null, authMethod = 'google') => {
     try {
-      console.log(`fetchBackendUserData called with email: ${email}`);
+      console.log(`fetchBackendUserData called with email: ${email}, authMethod: ${authMethod}`);
 
       // Step 1: Check if account has been deleted
       const isDeleted = await checkAccountDeletion(email);
@@ -227,7 +275,8 @@ export const AuthProvider = ({ children }) => {
       // Step 2: Validate email with backend and get companyID
       // This validates the email exists in the backend employee database
       // and fetches company, timezone, and customer data
-      const result = await googleSignInCheck(email);
+      // CRITICAL: Pass the authMethod to ensure proper validation
+      const result = await googleSignInCheck(email, authMethod);
 
       console.log('googleSignInCheck API result:', result);
 

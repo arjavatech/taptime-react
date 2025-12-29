@@ -71,7 +71,7 @@ const Device = ({ accessDenied = false }) => {
   });
 
   useEffect(() => {
-    const limitStr = localStorage.getItem("device_count") || "";
+    const limitStr = localStorage.getItem("NoOfDevices") || "";
     setMaxDevices(parseInt(limitStr, 10) || 1);
     loadDevices();
   }, []); // Only run once on component mount
@@ -218,7 +218,9 @@ const Device = ({ accessDenied = false }) => {
 
     try {
       await deviceApi.delete(deviceToDelete.access_key, companyId);
-      const updatedDevices = devices.filter(device => device.AccessKey !== deviceToDelete.AccessKey);
+      const updatedDevices = devices.filter(device => 
+        (device.AccessKey || device.access_key) !== (deviceToDelete.AccessKey || deviceToDelete.access_key)
+      );
       setDevices(updatedDevices);
       setShowDeleteModal(false);
       setDeviceToDelete(null);

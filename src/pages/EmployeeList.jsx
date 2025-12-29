@@ -309,6 +309,12 @@ const EmployeeList = () => {
 
   // Modal handlers
   const openAddModal = (adminLevel = 0) => {
+    // Check employee limit before opening modal
+    if (!editingEmployee && maxEmployees && employees.length >= maxEmployees) {
+      setModalError(`Employee limit reached. Maximum ${maxEmployees} employees allowed.`);
+      return;
+    }
+    
     setEditingEmployee(null);
     setErrors({ first_name: "", last_name: "", phone_number: "", email: "" });
     setModalError("");
@@ -454,8 +460,21 @@ const EmployeeList = () => {
       return;
     }
 
+    // Check employee limit for new employees
+    if (!editingEmployee && maxEmployees && employees.length >= maxEmployees) {
+      setModalError(`Employee limit reached. Maximum ${maxEmployees} employees allowed.`);
+      return;
+    }
+
     // Check for duplicate email when editing or creating admin/superadmin
     if (formData.is_admin > 0 && formData.email) {
+      // Prevent using Owner's email
+      if (adminType === "Owner" && formData.email.toLowerCase() === loggedAdminEmail.toLowerCase()) {
+        setModalError("Owner email addresses cannot be used for this action.");
+        setIsSubmitting(false);
+        return;
+      }
+      
       const emailExists = employees.some(emp => 
         (!editingEmployee || emp.emp_id !== editingEmployee.emp_id) && 
         emp.email && 
@@ -595,11 +614,12 @@ const EmployeeList = () => {
                 <h1 className="text-xl sm:text-2xl font-bold text-foreground">Employee Management</h1>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Manage employees, admins, and super admins
+                  {maxEmployees && ` (${employees.length}/${maxEmployees} employees)`}
                 </p>
               </div>
               <Button
                 onClick={() => openAddModal(activeTab === "admins" ? 1 : activeTab === "superadmins" ? 2 : 0)}
-                disabled={activeTab === "superadmins" && adminType !== "Owner"}
+                disabled={(activeTab === "superadmins" && adminType !== "Owner") || (maxEmployees && employees.length >= maxEmployees)}
                 className="flex items-center justify-center gap-2 w-full sm:w-auto"
               >
                 <Plus className="w-4 h-4" />
@@ -611,6 +631,23 @@ const EmployeeList = () => {
 
         {/* Summary Statistics */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+          {/* Employee Limit Notice */}
+          {/* {maxEmployees && employees.length >= maxEmployees && (
+            <Card className="mb-6 border-amber-200 bg-amber-50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                    <Users className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-amber-900">Employee Limit Reached</h3>
+                    <p className="text-sm text-amber-700">You have reached the maximum of {maxEmployees} employees for your plan.</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )} */}
+          
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
             <Card
               className="cursor-pointer hover:shadow-lg transition-shadow"
@@ -620,7 +657,9 @@ const EmployeeList = () => {
                 <div className="flex items-center">
                   <Users className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
                   <div className="ml-3 sm:ml-4">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Employees</p>
+                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">
+                      Total Employees
+                    </p>
                     <p className="text-xl sm:text-2xl font-bold text-foreground">{employees.filter(emp => emp.is_admin === 0).length}</p>
                   </div>
                 </div>
@@ -805,7 +844,7 @@ const EmployeeList = () => {
                   <div className="flex justify-center">
                     <Button
                       onClick={() => openAddModal(activeTab === "admins" ? 1 : activeTab === "superadmins" ? 2 : 0)}
-                      disabled={activeTab === "superadmins" && adminType !== "Owner"}
+                      disabled={(activeTab === "superadmins" && adminType !== "Owner") || (maxEmployees && employees.length >= maxEmployees)}
                       className="flex items-center justify-center gap-2 w-full sm:w-auto"
                     >
                       <Plus className="w-4 h-4" />

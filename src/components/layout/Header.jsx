@@ -8,12 +8,8 @@ import tapTimeLogo from "../../assets/images/tap-time-logo.png";
 const Header = () => {
   const { user, session, signOut } = useAuth();
   
-  // Initialize with current auth state to prevent flash
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    const hasSupabaseAuth = !!(user && session);
-    const isUserSetupComplete = localStorage.getItem("adminMail") && localStorage.getItem("adminType");
-    return hasSupabaseAuth && isUserSetupComplete;
-  });
+  // Initialize as false to prevent showing authenticated UI before session validation
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -36,12 +32,16 @@ const Header = () => {
 
   useEffect(() => {
     const checkAuthStatus = () => {
-      // Check Supabase session (auth tokens now in sessionStorage)
+      // Check Supabase session (auth tokens in sessionStorage)
       const hasSupabaseAuth = !!(user && session);
       
-      // If no Supabase auth but localStorage has user data, clear it (browser was closed)
-      if (!hasSupabaseAuth && localStorage.getItem("adminMail")) {
+      // If no Supabase auth, immediately clear localStorage and set as unauthenticated
+      if (!hasSupabaseAuth) {
         localStorage.clear();
+        setIsAuthenticated(false);
+        setUserType("");
+        setUserProfile({ name: "", email: "", picture: "" });
+        return;
       }
       
       // Only set authenticated if both Supabase auth exists AND user setup is complete
@@ -53,23 +53,19 @@ const Header = () => {
         const email = localStorage.getItem("adminMail") || "";
         const userName = localStorage.getItem("userName") || "";
         const userPictureUrl = localStorage.getItem("userPicture");
-
-        const fixedPictureUrl = userPictureUrl && !userPictureUrl.startsWith("http")
-          ? `https:${userPictureUrl}` : userPictureUrl;
+        
+        // Determine if this is a Google login by checking if user has a profile picture
+        // For email-based login, always use default avatar (no picture)
+        const isGoogleLogin = userPictureUrl && userPictureUrl.trim() !== "";
+        const profilePicture = isGoogleLogin 
+          ? (userPictureUrl.startsWith("http") ? userPictureUrl : `https:${userPictureUrl}`)
+          : "";
 
         setUserType(adminType);
         setUserProfile({
           name: userName,
           email: email,
-          picture: fixedPictureUrl || "",
-        });
-      } else {
-        // Reset user profile when not authenticated
-        setUserType("");
-        setUserProfile({
-          name: "",
-          email: "",
-          picture: "",
+          picture: profilePicture,
         });
       }
     };
@@ -106,7 +102,7 @@ const Header = () => {
     setIsCollapsed(window.innerWidth <= 996);
     
     const handleResize = () => {
-      setIsCollapsed(window.innerWidth <= 996);
+        setIsCollapsed(window.innerWidth <= 996);
     };
 
     window.addEventListener('resize', handleResize);
@@ -140,7 +136,7 @@ const Header = () => {
   ];
 
   const authenticatedNavItems = [
-    ...(userType !== "Admin" ? [{ to: "/device", label: "Device" }] : []),
+    ...(userType === "Owner" || userType === "SuperAdmin" ? [{ to: "/device", label: "Device" }] : []),
     { to: "/employee-management", label: "Employee Management" },
     ...(userType === "Admin" ? [
       { to: "/reportsummary", label: "Report Summary" }
@@ -150,7 +146,7 @@ const Header = () => {
         dropdown: true,
         items: [
           { to: "/reportsummary", label: "Report Summary" },
-          { to: "/reportsetting", label: "Report Settings" }
+          ...(userType === "Owner" || userType === "SuperAdmin" ? [{ to: "/reportsetting", label: "Report Settings" }] : [])
         ]
       }
     ]),
