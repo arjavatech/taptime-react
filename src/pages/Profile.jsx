@@ -478,7 +478,7 @@ const Profile = () => {
 
 
       // Reset logoFile after successful save
-      setLogoFile(null);
+      // setLogoFile(null);
 
       // Update localStorage after successful API call
       if (userType === "Owner") {
@@ -654,7 +654,7 @@ const Profile = () => {
       const result = await updateProfile(companyId, formData);
 
       // Reset logoFile after successful save
-      setLogoFile(null);
+      // setLogoFile(null);
 
       // Update localStorage after successful API call
       localStorage.setItem("companyName", companyData.name);

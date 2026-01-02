@@ -70,20 +70,7 @@ const ContactUs = () => {
     }
   };
 
-  const validatePhoneNumber = () => {
-    if (phoneNumber.trim() === "") {
-      setErrorPhone("");
-      return false;
-    } else {
-      const digits = phoneNumber.replace(/\D/g, '');
-      if (digits.length < 10) {
-        setErrorPhone("Invalid phone number format");
-        return false;
-      }
-      setErrorPhone("");
-      return true;
-    }
-  };
+
 
   // Submit form
   const handleSubmit = async (e) => {
@@ -97,7 +84,6 @@ const ContactUs = () => {
     const isNameValid = validCName();
     const isEmailValid = validCEmail();
     const isValidMessage = validCQueries();
-    const isPhoneNumberValid = validatePhoneNumber();
 
     // Check required fields (name, email, question)
     const isRequiredFieldsValid =
@@ -107,7 +93,6 @@ const ContactUs = () => {
       isNameValid &&
       isEmailValid &&
       isValidMessage &&
-      isPhoneNumberValid &&
       isRequiredFieldsValid
     ) {
       setIsSubmitting(true);
@@ -307,13 +292,12 @@ const ContactUs = () => {
                       defaultCountry="us"
                       value={phoneNumber}
                       onChange={setPhoneNumber}
-                      onBlur={validatePhoneNumber}
-                      forceDialCode={true}
-                      className={errorPhone ? 'phone-input-error' : ''}
+                      
+                     
                       inputClassName="w-full"
                       style={{
                         '--react-international-phone-border-radius': '0.5rem',
-                        '--react-international-phone-border-color': errorPhone ? '#ef4444' : '#d1d5db',
+                        '--react-international-phone-border-color': '#d1d5db',
                         '--react-international-phone-background-color': '#ffffff',
                         '--react-international-phone-text-color': '#000000',
                         '--react-international-phone-selected-dropdown-item-background-color': '#f3f4f6',
@@ -321,9 +305,7 @@ const ContactUs = () => {
                         '--react-international-phone-font-size': window.innerWidth < 640 ? '0.875rem' : '1rem'
                       }}
                     />
-                    {errorPhone && (
-                      <p className="text-red-500 text-xs sm:text-sm mt-1">{errorPhone}</p>
-                    )}
+
                   </div>
 
                   <div>
