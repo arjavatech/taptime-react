@@ -324,6 +324,17 @@ const Profile = () => {
     initializeProfile();
   }, []);
 
+  // Email validation helper
+  const isValidEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) return false;
+    
+    const domain = email.split('@')[1];
+    // Check for valid domain patterns - must have proper structure
+    const validDomainRegex = /^[a-zA-Z0-9][a-zA-Z0-9.-]*[a-zA-Z0-9]\.[a-zA-Z]{2,}$/;
+    return validDomainRegex.test(domain);
+  };
+
   const validatePersonalForm = () => {
     let isValid = true;
     const newErrors = { ...errors };
@@ -352,8 +363,8 @@ const Profile = () => {
     if (!personalData.email || !personalData.email.trim()) {
       newErrors.email = "Please fill out this field";
       isValid = false;
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(personalData.email)) {
-      newErrors.email = "Valid email is required";
+    } else if (!isValidEmail(personalData.email)) {
+      newErrors.email = "Please enter a valid email address";
       isValid = false;
     }
 
@@ -419,6 +430,36 @@ const Profile = () => {
       isValid = false;
     } else if (companyData.companyZip.length !== 5) {
       newErrors.companyZip = "Zip code must be exactly 5 digits";
+      isValid = false;
+    }
+
+    setErrors(newErrors);
+    return isValid;
+  };
+
+  const validateAdminForm = () => {
+    let isValid = true;
+    const newErrors = { ...errors };
+
+    newErrors.firstName = "";
+    newErrors.lastName = "";
+    newErrors.email = "";
+
+    if (!adminData.firstName || !adminData.firstName.trim()) {
+      newErrors.firstName = "Please fill out this field";
+      isValid = false;
+    }
+
+    if (!adminData.lastName || !adminData.lastName.trim()) {
+      newErrors.lastName = "Please fill out this field";
+      isValid = false;
+    }
+
+    if (!adminData.email || !adminData.email.trim()) {
+      newErrors.email = "Please fill out this field";
+      isValid = false;
+    } else if (!isValidEmail(adminData.email)) {
+      newErrors.email = "Please enter a valid email address";
       isValid = false;
     }
 
@@ -522,6 +563,9 @@ const Profile = () => {
   };
 
   const handleSaveAdmin = async () => {
+    if (!validateAdminForm()) {
+      return;
+    }
 
     if (!companyId) {
       return;
@@ -1325,9 +1369,10 @@ const Profile = () => {
                         value={adminData.email}
                         onChange={(e) => handleAdminInputChange("email", e.target.value)}
                         disabled={!isEditing.admin}
-                        className="pl-10"
+                        className={`pl-10 ${errors.email ? "border-red-500" : ""}`}
                       />
                     </div>
+                    {errors.email && <p className="text-sm text-red-600">{errors.email}</p>}
                   </div>
 
                   <div className="space-y-2">
