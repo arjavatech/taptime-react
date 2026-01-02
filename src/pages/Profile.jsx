@@ -4,7 +4,7 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { updateProfile } from "../api.js";
+import { updateProfile, updateEmployeeWithData } from "../api.js";
 import { initializeUserSession, loadProfileData, logoutUser } from "./ProfilePageLogic.js";
 import Footer from "@/components/layout/Footer";
 import {
@@ -103,8 +103,8 @@ const Profile = () => {
 
   const [companyId, setCompanyId] = useState("");
 
-  // Check if user can edit company details
-  const canEditCompany = userType === "SuperAdmin" || userType === "Owner";
+  // Check if user can edit company details - only Owner is allowed
+  const canEditCompany = userType === "Owner";
 
   // ZIP code auto-fill callbacks
   const handleCompanyZipResult = useCallback((result) => {
@@ -478,7 +478,7 @@ const Profile = () => {
 
 
       // Reset logoFile after successful save
-      setLogoFile(null);
+      // setLogoFile(null);
 
       // Update localStorage after successful API call
       if (userType === "Owner") {
@@ -532,41 +532,28 @@ const Profile = () => {
     setIsSaving(true);
 
     try {
-      const updateData = {
-        cid: companyId,
-        company_name: companyData.name || "",
-        company_logo: companyData.logo || "",
-        report_type: localStorage.getItem("reportType"),
-        company_address_line1: companyData.address || "",
-        company_address_line2: companyData.street2 || "",
-        company_city: companyData.city || "",
-        company_state: companyData.state || "",
-        company_zip_code: companyData.companyZip || "",
+      // Get the logged admin data to find the employee ID
+      const loggedAdmin = JSON.parse(localStorage.getItem("loggedAdmin") || "{}");
+      const empId = loggedAdmin.emp_id;
+
+      if (!empId) {
+        throw new Error("Employee ID not found");
+      }
+
+      // Use updateEmployeeWithData for super admin and admin updates
+      const employeeUpdateData = {
         first_name: adminData.firstName || "",
         last_name: adminData.lastName || "",
         email: adminData.email || "",
         phone_number: adminData.phone ? adminData.phone.replace(/\D/g, '') : "",
-        customer_address_line1: personalData.address || "",
-        customer_address_line2: personalData.street2 || "",
-        customer_city: personalData.customerCity,
-        customer_state: personalData.customerState || "",
-        customer_zip_code: personalData.zipCode || "",
-        is_verified: localStorage.getItem("isVerified") === "true",
-        device_count: parseInt(localStorage.getItem("NoOfDevices") || "1"),
-        employee_count: parseInt(localStorage.getItem("NoOfEmployees") || "30"),
+        pin: adminData.pin || "",
+        is_admin: loggedAdmin.is_admin || 1,
+        is_active: true,
         last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system",
-        employment_type: employmentTypes.join(',')
+        c_id: companyId
       };
 
-      const formData = new FormData();
-      formData.append('company_data', JSON.stringify(updateData));
-
-      // Only add logo file if it has been changed
-      if (logoFile) {
-        formData.append('company_logo', logoFile);
-      }
-      const result = await updateProfile(companyId, formData);
-
+      const result = await updateEmployeeWithData(empId, employeeUpdateData);
 
       localStorage.setItem("firstName", adminData.firstName);
       localStorage.setItem("lastName", adminData.lastName);
@@ -592,9 +579,9 @@ const Profile = () => {
   };
 
   const handleSaveCompany = async () => {
-    // Check authorization
+    // Check authorization - only Owner can edit company data
     if (!canEditCompany) {
-      setSaveError("Only Super Admins and Owners are authorized to edit company details.");
+      setSaveError("Only Owners are authorized to edit company details.");
       setTimeout(() => setSaveError(""), 3000);
       return;
     }
@@ -654,7 +641,7 @@ const Profile = () => {
       const result = await updateProfile(companyId, formData);
 
       // Reset logoFile after successful save
-      setLogoFile(null);
+      // setLogoFile(null);
 
       // Update localStorage after successful API call
       localStorage.setItem("companyName", companyData.name);
@@ -1041,7 +1028,7 @@ const Profile = () => {
                   )}
                   {!canEditCompany && (
                     <div className="text-sm text-muted-foreground bg-muted px-3 py-2 rounded-md">
-                      Only Super Admins and Owners can edit company details
+                      Only Owners can edit company details
                     </div>
                   )}
                 </div>
