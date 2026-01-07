@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import LogoutModal from "../ui/LogoutModal";
 import Avatar from "../ui/Avatar";
+import CompanySwitcher from "../ui/CompanySwitcher";
 import tapTimeLogo from "../../assets/images/tap-time-logo.png";
 
 const Header = () => {
@@ -279,30 +280,44 @@ const Header = () => {
                   />
                 </button>
                 
-                {/* Desktop Profile Card */}
+                {/* Desktop Profile Menu */}
                 {showProfileDropdown && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowProfileDropdown(false)}></div>
-                    <div className="hidden lg:block absolute left-[-189px] top-full mt-2 z-50">
-                      <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-6 w-64">
-                        <div className="flex flex-col items-center text-center">
-                          <Avatar
-                            src={userProfile.picture}
-                            email={userProfile.email}
-                            size="lg"
-                            alt="Profile"
-                            className="mb-3"
-                          />
-                          {/* <h3 className="text-gray-900 font-medium text-lg mb-1">{userProfile.name || 'User'}</h3> */}
-                          <p className="text-black text-sm mb-4">{userProfile.email}</p>
+                    <div className="hidden lg:block absolute right-0 top-full mt-2 z-50">
+                      <div className="bg-white rounded-lg shadow-2xl border border-gray-200 min-w-[300px] overflow-hidden">
+                        {/* Profile Header */}
+                        <div className="px-6 py-5   ">
+                          <div className="flex items-center space-x-4">
+                            <Avatar
+                              src={userProfile.picture}
+                              email={userProfile.email}
+                              size="lg"
+                              alt="Profile"
+                              className="ring-2 ring-white/20"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[#02066F] font-medium truncate">{userProfile.email}</p>
+                              <p className="text-gray-600 text-xs mt-1">Account Settings</p>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Company Switcher Section */}
+                        <div className="px-6 py-4">
+                          <CompanySwitcher />
+                        </div>
+                        
+                        {/* Sign Out Section */}
+                        <div className="px-6 py-4 border-t border-gray-100">
                           <button
                             onClick={() => { setShowModal(true); setShowProfileDropdown(false); }}
-                            className="w-full bg-[#02066F]  text-white py-2 px-4 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center gap-2"
+                            className="w-full text-left px-4 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition-all duration-200 flex items-center space-x-3 rounded-md group"
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-5 h-5 text-gray-400 group-hover:text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                             </svg>
-                            Sign Out
+                            <span className="font-medium">Sign Out</span>
                           </button>
                         </div>
                       </div>

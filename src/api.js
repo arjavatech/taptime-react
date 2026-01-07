@@ -4,6 +4,10 @@ import { supabase } from './config/supabase';
 import { ENCRYPTION_KEY, STORAGE_KEYS } from './constants';
 
 
+const accessToken = localStorage.getItem("access_token");
+console.log("Access Token in api.js:", accessToken);
+
+
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://postgresql-restless-waterfall-2105.fly.dev').replace(/\/$/, '');
 export const API_URLS = {
@@ -30,8 +34,17 @@ const api = {
     
     const requestPromise = (async () => {
       try {
+        const authToken = localStorage.getItem("access_token");
+        const headers = { 'Content-Type': 'application/json' };
+        if (authToken) {
+          headers['Authorization'] = `Bearer ${authToken}`;
+        }
+        
         const response = await fetch(url, {
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            ...headers,
+            ...(options.headers || {})
+          },
           ...options
         });
         
@@ -108,13 +121,11 @@ export const loginCheck = async (username, password) => {
     const companyID = data.CID;
 
     localStorage.setItem(STORAGE_KEYS.COMPANY_ID, companyID);
-    localStorage.setItem(STORAGE_KEYS.COMPANY_NAME, data.CName);
-    localStorage.setItem(STORAGE_KEYS.COMPANY_LOGO, data.CLogo);
-    localStorage.setItem(STORAGE_KEYS.COMPANY_ADDRESS, data.CAddress);
-    localStorage.setItem(STORAGE_KEYS.USER_NAME, data.UserName);
-    localStorage.setItem(STORAGE_KEYS.PASSWORD, data.Password);
-    localStorage.setItem(STORAGE_KEYS.REPORT_TYPE, data.ReportType);
-    localStorage.setItem(STORAGE_KEYS.ADMIN_TYPE, 'customer');
+    localStorage.setItem(STORAGE_KEYS.COMPANY_NAME, data.company_name);
+    localStorage.setItem(STORAGE_KEYS.COMPANY_LOGO, data.company_logo);
+    localStorage.setItem(STORAGE_KEYS.COMPANY_ADDRESS1, data.company_address_line1);
+    localStorage.setItem(STORAGE_KEYS.REPORT_TYPE, data.report_type);
+    localStorage.setItem(STORAGE_KEYS.ADMIN_TYPE, data.admin_type);
     localStorage.setItem('passwordDecryptedValue', decryptPassword);
 
     return data.UserName === username && decryptPassword === password;
@@ -134,11 +145,11 @@ export const googleSignInCheck = async (email, authMethod = 'google') => {
     
     // Check if response contains error details (even with 200 status)
     if (data.detail || data.error) {
-      const errorMsg = data.detail || data.error;
+      const errorMsg = data.detail || data.error || '';
       // Check if error indicates account deletion/not found
-      if (errorMsg.toLowerCase().includes('not found') || 
+      if (typeof errorMsg === 'string' && (errorMsg.toLowerCase().includes('not found') || 
           errorMsg.toLowerCase().includes('deleted') ||
-          errorMsg.toLowerCase().includes('inactive')) {
+          errorMsg.toLowerCase().includes('inactive'))) {
         return { success: false, error: errorMsg, deleted: true };
       }
       return { success: false, error: errorMsg };
@@ -177,6 +188,13 @@ export const googleSignInCheck = async (email, authMethod = 'google') => {
       }
     }
 
+    // Handle Owner login data differently
+    if (adminTypeValue === 'owner') {
+      storeOwnerData(data);
+      const companyID = data.companies?.[0]?.cid;
+      return { success: true, companyID };
+    }
+
     const companyID = data.cid;
     const adminTypeMap = { admin: 'Admin', superadmin: 'SuperAdmin', owner: 'Owner' };
     const properCaseAdminType = adminTypeMap[adminTypeValue] || adminTypeValue;
@@ -210,17 +228,15 @@ export const googleSignInCheck = async (email, authMethod = 'google') => {
       [STORAGE_KEYS.CUSTOMER_STATE]: data.customer_state,
       [STORAGE_KEYS.COMPANY_ZIP_CODE]: data.company_zip_code,
       employmentType: data.employment_type,
-      last_modified_by: data.last_modified_by
+      last_modified_by: data.last_modified_by,
+
    };
-
-
-
 
     Object.entries(storeData).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
         console.log(`Storing in localStorage: ${key} = ${value}`);
         localStorage.setItem(key, value);
-        
+        console.log(`Stored ${key} successfully.`);
       }
     });
 
@@ -247,6 +263,7 @@ export const registerUser = async (signupData, companyLogoFile = null) => {
 
     const response = await fetch(`${API_URLS.signUp}`, {
       method: 'POST',
+      headers: { 'Authorization': `Bearer ${localStorage.getItem("access_token")}` },
       body: formData
       // Note: Don't set Content-Type header - browser will set it automatically with boundary
     });
@@ -279,9 +296,15 @@ export const fetchEmployeeData = async () => {
 
 export const createEmployeeWithData = async (employeeData) => {
   try {
+    const authToken = localStorage.getItem("access_token");
+    const headers = { 'Content-Type': 'application/json' };
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+    
     const response = await fetch(`${API_BASE}/employee/create`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(employeeData)
     });
 
@@ -525,6 +548,60 @@ export const getCustomerData = async (cid) => {
 
 
 // Company functions
+export const getUserCompanies = async (userEmail) => {
+  try {
+    return await api.get(`${API_BASE}/company/user/${userEmail}`);
+  } catch (error) {
+    console.error('Error fetching user companies:', error);
+    
+    // Handle account deletion scenarios
+    if (error.message && error.message.includes('Account not found - may have been deleted')) {
+      return { success: false, error: error.message, deleted: true };
+    }
+    
+    throw error;
+  }
+};
+
+export const addNewCompany = async (companyData, logoFile = null) => {
+  try {
+    const formData = new FormData();
+    
+    // Add company_data as JSON string
+    formData.append('company_data', JSON.stringify(companyData));
+    
+    // Add company_logo file if provided
+    if (logoFile) {
+      formData.append('company_logo', logoFile);
+    }
+    
+    const response = await fetch(`${API_BASE}/company/create`, {
+      method: 'POST',
+      body: formData
+      // Note: Don't set Content-Type header - browser will set it automatically with boundary
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error adding new company:', error);
+    throw error;
+  }
+};
+
+export const switchCompany = async (companyId, userId) => {
+  try {
+    return await api.post(`${API_BASE}/company/switch`, { companyId, userId });
+  } catch (error) {
+    console.error('Error switching company:', error);
+    throw error;
+  }
+};
+
 export const updateProfile = async (cid, data) => {
   const apiUrl = `${API_URLS.company}/update/${cid}`;
 
@@ -579,26 +656,216 @@ export const submitContactForm = async (userData) => {
   }
 };
 
+// Store Owner login data
+export const storeOwnerData = (ownerData) => {
+  try {
+    // Store admin type
+    localStorage.setItem(STORAGE_KEYS.ADMIN_TYPE, ownerData.admin_type);
+    
+    // Store all companies data
+    localStorage.setItem(STORAGE_KEYS.USER_COMPANIES, JSON.stringify(ownerData.companies));
+    localStorage.setItem('companies', JSON.stringify(ownerData.companies)); // Legacy support
+    
+    // Store user-level data (not company-specific)
+    if (ownerData.companies && ownerData.companies.length > 0) {
+      const firstCompany = ownerData.companies[0];
+      localStorage.setItem('auth_id', firstCompany.auth_id);
+      localStorage.setItem('first_name', firstCompany.first_name);
+      localStorage.setItem('last_name', firstCompany.last_name);
+      localStorage.setItem('firstName', firstCompany.first_name);
+      localStorage.setItem('lastName', firstCompany.last_name);
+      localStorage.setItem('phone_number', firstCompany.phone_number);
+      localStorage.setItem('phone', firstCompany.phone_number);
+      localStorage.setItem('phoneNumber', firstCompany.phone_number);
+      localStorage.setItem('is_verified', String(firstCompany.is_verified));
+      localStorage.setItem('employment_type', firstCompany.employment_type);
+      localStorage.setItem('employmentType', firstCompany.employment_type);
+      localStorage.setItem(STORAGE_KEYS.USER_NAME, `${firstCompany.first_name || ''} ${firstCompany.last_name || ''}`.trim());
+      
+      // Set first company as active by default
+      const lastSelected = localStorage.getItem('lastSelectedCompany');
+      const activeCompany = ownerData.companies.find(c => c.cid === lastSelected) || firstCompany;
+      setActiveCompany(activeCompany);
+    }
+    console.log('=== OWNER DATA STORED ===');
+    console.log('Companies:', ownerData.companies?.length || 0);
+    console.log('Admin Type:', ownerData.admin_type);
+  } catch (error) {
+    console.error('Error storing owner data:', error);
+  }
+};
+
+// Set active company data in localStorage
+export const setActiveCompany = (company) => {
+  try {
+    localStorage.setItem(STORAGE_KEYS.COMPANY_ID, company.cid);
+    localStorage.setItem(STORAGE_KEYS.COMPANY_NAME, company.company_name);
+    localStorage.setItem(STORAGE_KEYS.REPORT_TYPE, company.report_type);
+    localStorage.setItem(STORAGE_KEYS.ADMIN_MAIL, company.email);
+    localStorage.setItem(STORAGE_KEYS.NO_OF_DEVICES, String(company.device_count));
+    localStorage.setItem(STORAGE_KEYS.NO_OF_EMPLOYEES, String(company.employee_count));
+    localStorage.setItem(STORAGE_KEYS.COMPANY_ADDRESS1, company.company_address_line1 || '');
+    localStorage.setItem(STORAGE_KEYS.COMPANY_ADDRESS2, company.company_address_line2 || '');
+    localStorage.setItem(STORAGE_KEYS.COMPANY_CITY, company.company_city || '');
+    localStorage.setItem(STORAGE_KEYS.COMPANY_STATE, company.company_state || '');
+    localStorage.setItem(STORAGE_KEYS.COMPANY_ZIP, company.company_zip_code || '');
+    localStorage.setItem('companyZipCode', company.company_zip_code || '');
+    localStorage.setItem('companyZip', company.company_zip_code || '');
+    localStorage.setItem(STORAGE_KEYS.CUSTOMER_ADDRESS1, company.customer_address_line1 || '');
+    localStorage.setItem(STORAGE_KEYS.CUSTOMER_ADDRESS2, company.customer_address_line2 || '');
+    localStorage.setItem(STORAGE_KEYS.CUSTOMER_CITY, company.customer_city || '');
+    localStorage.setItem(STORAGE_KEYS.CUSTOMER_STATE, company.customer_state || '');
+    localStorage.setItem(STORAGE_KEYS.CUSTOMER_ZIP_CODE, company.customer_zip_code || '');
+    localStorage.setItem('lastSelectedCompany', company.cid);
+  } catch (error) {
+    console.error('Error setting active company:', error);
+  }
+};
+
+// Company-specific data cache management
+const COMPANY_DATA_CACHE = {};
+
+// Store company-specific data in memory cache
+export const cacheCompanyData = (companyId, dataType, data) => {
+  if (!COMPANY_DATA_CACHE[companyId]) {
+    COMPANY_DATA_CACHE[companyId] = {};
+  }
+  COMPANY_DATA_CACHE[companyId][dataType] = data;
+};
+
+// Get cached company data
+export const getCachedCompanyData = (companyId, dataType) => {
+  return COMPANY_DATA_CACHE[companyId]?.[dataType] || null;
+};
+
+// Clear cache for a specific company
+export const clearCompanyCache = (companyId) => {
+  delete COMPANY_DATA_CACHE[companyId];
+};
+
+// Get company-specific data with caching
+export const getCompanyData = async (companyId, dataType, fetchFunction) => {
+  // Check cache first
+  const cached = getCachedCompanyData(companyId, dataType);
+  if (cached) return cached;
+  
+  // Fetch from API if not cached
+  try {
+    const data = await fetchFunction(companyId);
+    cacheCompanyData(companyId, dataType, data);
+    return data;
+  } catch (error) {
+    console.error(`Error fetching ${dataType} for company ${companyId}:`, error);
+    return null;
+  }
+};
+
+// Switch to a different company and load its data
+// Switch to a different company and load its data
+export const switchToCompany = async (companyId) => {
+  try {
+    const companiesStr = localStorage.getItem(STORAGE_KEYS.USER_COMPANIES);
+    if (!companiesStr) throw new Error('No companies data found');
+    
+    const companies = JSON.parse(companiesStr);
+    const selectedCompany = companies.find(c => c.cid === companyId);
+    
+    if (!selectedCompany) throw new Error('Company not found');
+    
+    // Set the active company data
+    setActiveCompany(selectedCompany);
+    
+    // Pre-load essential company data
+    await Promise.allSettled([
+      getCompanyData(companyId, 'devices', getAllDevices),
+      getCompanyData(companyId, 'employees', (cid) => api.get(`${API_BASE}/employee/get_all/${cid}`)),
+      getCompanyData(companyId, 'reports', (cid) => getAllReportEmails(cid))
+    ]);
+    
+    // Trigger a custom event to notify components of company change
+    window.dispatchEvent(new CustomEvent('companyChanged', {
+      detail: { company: selectedCompany, companyId }
+    }));
+    
+    return selectedCompany;
+  } catch (error) {
+    console.error('Error switching company:', error);
+    throw error;
+  }
+};
+
+// Get all companies for the current user
+export const getUserCompaniesFromStorage = () => {
+  try {
+    const companiesStr = localStorage.getItem(STORAGE_KEYS.USER_COMPANIES);
+    return companiesStr ? JSON.parse(companiesStr) : [];
+  } catch (error) {
+    console.error('Error getting user companies from storage:', error);
+    return [];
+  }
+};
+
+// Get currently active company
+export const getCurrentCompany = () => {
+  try {
+    const companyId = localStorage.getItem(STORAGE_KEYS.COMPANY_ID);
+    if (!companyId) return null;
+    
+    const companies = getUserCompaniesFromStorage();
+    return companies.find(c => c.cid === companyId) || null;
+  } catch (error) {
+    console.error('Error getting current company:', error);
+    return null;
+  }
+};
+
 // Logout
 export const logout = () => {
   Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
   const legacyKeys = ['customId', 'customerID', 'firstName', 'lastName', 'address', 'phone', 'email', 'passwordDecryptedValue'];
   legacyKeys.forEach(key => localStorage.removeItem(key));
+  // Clear owner-specific data
+  const ownerKeys = ['companies', 'auth_id', 'first_name', 'last_name', 'phone_number', 'is_verified', 'employment_type', 'lastSelectedCompany', 'companyZipCode', 'companyZip', 'employmentType'];
+  ownerKeys.forEach(key => localStorage.removeItem(key));
+};
+
+// Retrieve stored owner data
+export const getStoredOwnerData = () => {
+  try {
+    const adminType = localStorage.getItem('admin_type');
+    const companiesStr = localStorage.getItem('companies');
+    const companies = companiesStr ? JSON.parse(companiesStr) : null;
+    
+    return {
+      admin_type: adminType,
+      companies: companies
+    };
+  } catch (error) {
+    console.error('Error retrieving owner data:', error);
+    return null;
+  }
 };
 
 // Supabase functions
 export const supabaseSignIn = async (email, password) => {
   try {
+    console.log('supabaseSignIn called with:', email);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    console.log('Supabase response:', { data, error });
     if (error) return { success: false, error: error.message };
-    if (data?.user) {
+    if (data?.user && data?.session) {
+      console.log('Session data:', data.session);
       localStorage.setItem(STORAGE_KEYS.USER_EMAIL, data.user.email);
       localStorage.setItem(STORAGE_KEYS.USER_ID, data.user.id);
       localStorage.setItem(STORAGE_KEYS.AUTH_METHOD, 'supabase');
+      
+      
       return { success: true, user: data.user, session: data.session };
     }
+    console.log('No user or session data');
     return { success: false, error: 'No user data returned' };
   } catch (error) {
+    console.log('supabaseSignIn error:', error);
     return { success: false, error: error.message };
   }
 };
@@ -611,5 +878,36 @@ export const supabaseSignOut = async () => {
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
+  }
+};
+
+
+
+
+export const getAllDevices = async (companyId) => {
+  try {
+    const data = await api.get(`${API_BASE}/device/get_all/${companyId}`);
+    return Array.isArray(data) ? data : [data];
+  } catch (error) {
+    console.error('Error fetching all devices:', error);
+    return [];
+  }
+};
+
+export const createDevice = async (deviceData) => {
+  try {
+    return await api.post(`${API_BASE}/device/create`, deviceData);
+  } catch (error) {
+    console.error('Error creating device:', error);
+    throw error;
+  }
+};
+
+export const deleteDevice = async (accessKey, companyId) => {
+  try {
+    return await api.put(`${API_BASE}/device/delete/${accessKey}/${companyId}/Admin`);
+  } catch (error) {
+    console.error('Error deleting device:', error);
+    throw error;
   }
 };

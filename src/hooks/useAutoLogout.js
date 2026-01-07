@@ -7,7 +7,11 @@ export const useAutoLogout = (onLogout, timeoutMinutes = 10) => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
-    timeoutRef.current = setTimeout(onLogout, timeoutMinutes * 60 * 1000);
+    timeoutRef.current = setTimeout(() => {
+      if (onLogout) {
+        onLogout();
+      }
+    }, timeoutMinutes * 60 * 1000);
   };
 
   useEffect(() => {

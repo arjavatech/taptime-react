@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import Footer from "@/components/layout/Footer";
+import { getAllDevices, createDevice, deleteDevice } from "../api.js";
 import {
   Plus,
   Copy,
@@ -19,38 +20,6 @@ import {
 } from "lucide-react";
 
 const Device = ({ accessDenied = false }) => {
-  // Device API functions
-  const deviceApi = {
-    getAll: async (companyId) => {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://postgresql-restless-waterfall-2105.fly.dev'}/device/get_all/${companyId}`);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      return response.json();
-    },
-    create: async (deviceData) => {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://postgresql-restless-waterfall-2105.fly.dev'}/device/create`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify(deviceData)
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-      }
-      return response.json();
-    },
-    delete: async (accessKey, companyId) => {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'https://postgresql-restless-waterfall-2105.fly.dev'}/device/delete/${accessKey}/${companyId}/Admin`, {
-        method: "PUT",
-        headers: { Accept: "application/json" }
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-      }
-      return response.json();
-    }
-  };
-
   const [devices, setDevices] = useState([]);
   const [globalLoading, setGlobalLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -96,7 +65,7 @@ const Device = ({ accessDenied = false }) => {
     }
 
     try {
-      const data = await deviceApi.getAll(companyId);
+      const data = await getAllDevices(companyId);
       if (data.error || data.length === 0) {
         setDevices([]);
       } else {
@@ -158,7 +127,7 @@ const Device = ({ accessDenied = false }) => {
     };
 
     try {
-      await deviceApi.create(newDevice);
+      await createDevice(newDevice);
       await loadDevices();
       showCenterLoading("Device added successfully!");
       setTimeout(() => hideCenterLoading(), 800);
@@ -217,7 +186,7 @@ const Device = ({ accessDenied = false }) => {
     showCenterLoading("Deleting device...");
 
     try {
-      await deviceApi.delete(deviceToDelete.access_key, companyId);
+      await deleteDevice(deviceToDelete.access_key, companyId);
       const updatedDevices = devices.filter(device => 
         (device.AccessKey || device.access_key) !== (deviceToDelete.AccessKey || deviceToDelete.access_key)
       );
@@ -370,8 +339,8 @@ const Device = ({ accessDenied = false }) => {
                           </tr>
                         </thead>
                         <tbody>
-                          {devices.map((device) => (
-                            <tr key={device.AccessKey || device.access_key} className="border-b hover:bg-muted/50">
+                          {devices.map((device, index) => (
+                            <tr key={device.AccessKey || device.access_key || `device-${index}`} className="border-b hover:bg-muted/50">
                               <td className="py-3 px-4">
                                 <div className="flex items-center gap-3">
                                   <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -444,8 +413,8 @@ const Device = ({ accessDenied = false }) => {
 
               {/* Mobile Card View */}
               <div className="md:hidden space-y-4">
-                {devices.map((device) => (
-                  <Card key={device.AccessKey || device.access_key} className="hover:shadow-lg transition-shadow">
+                {devices.map((device, index) => (
+                  <Card key={device.AccessKey || device.access_key || `device-mobile-${index}`} className="hover:shadow-lg transition-shadow">
                     <CardHeader className="pb-3">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0 flex-1">

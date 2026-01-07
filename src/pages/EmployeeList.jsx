@@ -6,6 +6,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import Footer from "../components/layout/Footer";
 import { useAuth } from "../contexts/AuthContext";
+import { STORAGE_KEYS } from "../constants/index.js";
 
 import {
   fetchEmployeeData,
@@ -32,13 +33,18 @@ import {
   ArrowUp,
   ArrowDown,
   ChevronDown,
-  Check
+  Check,
+  Upload,
+  FileText,
+  X
 } from "lucide-react";
 import { HamburgerIcon } from "../components/icons/HamburgerIcon";
 import { GridIcon } from "../components/icons/GridIcon";
 import CenterLoadingOverlay from "../components/ui/CenterLoadingOverlay";
 import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
+import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 
 const EmployeeList = () => {
   const { checkAccountDeletion } = useAuth();
@@ -60,6 +66,7 @@ const EmployeeList = () => {
   const [activeTab, setActiveTab] = useState("employees");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [globalLoading, setGlobalLoading] = useState(true);
   const [adminCount, setAdminCount] = useState(0);
@@ -73,6 +80,13 @@ const EmployeeList = () => {
   const [deleteError, setDeleteError] = useState("");
   const [deleteSuccess, setDeleteSuccess] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Bulk upload state
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [bulkUploadResults, setBulkUploadResults] = useState(null);
+  const [isBulkUploading, setIsBulkUploading] = useState(false);
+  const [bulkUploadError, setBulkUploadError] = useState("");
+  const [bulkUploadSuccess, setBulkUploadSuccess] = useState("");
 
   // Form data
   const [formData, setFormData] = useState({
@@ -580,12 +594,271 @@ const EmployeeList = () => {
         setEmployeeToDelete(null);
         setDeleteSuccess("");
         loadEmployeeData();
-      }, 3000);
+      }, 1000);
     } catch (error) {
       setDeleteError(error.message || "Failed to delete employee");
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  // Bulk upload handlers
+  const openBulkUploadModal = (adminLevel = 0) => {
+    setSelectedFile(null);
+    setBulkUploadResults(null);
+    setBulkUploadError("");
+    setBulkUploadSuccess("");
+    setFormData(prev => ({ ...prev, is_admin: adminLevel }));
+    setShowBulkUploadModal(true);
+  };
+
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const allowedTypes = [
+      'text/csv',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ];
+
+    if (!allowedTypes.includes(file.type) && !file.name.match(/\.(csv|xlsx|xls)$/i)) {
+      setBulkUploadError('Only CSV and Excel files are allowed.');
+      return;
+    }
+
+    setBulkUploadError('');
+    setSelectedFile(file);
+  };
+
+  const parseFileData = (file) => {
+    return new Promise((resolve, reject) => {
+      const fileExtension = file.name.split('.').pop().toLowerCase();
+      
+      if (fileExtension === 'csv') {
+        Papa.parse(file, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (results) => {
+            if (results.errors.length > 0) {
+              reject(new Error('CSV parsing error: ' + results.errors[0].message));
+            } else {
+              resolve(results.data);
+            }
+          },
+          error: (error) => reject(error)
+        });
+      } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+            resolve(jsonData);
+          } catch (error) {
+            reject(new Error('Excel parsing error: ' + error.message));
+          }
+        };
+        reader.onerror = () => reject(new Error('File reading error'));
+        reader.readAsArrayBuffer(file);
+      } else {
+        reject(new Error('Unsupported file format'));
+      }
+    });
+  };
+
+  const validateBulkData = (data) => {
+    const errors = [];
+    const validRows = [];
+    
+    data.forEach((row, index) => {
+      const rowNumber = index + 1;
+      const rowErrors = [];
+      
+      // Required fields validation
+      if (!row.first_name || !row.first_name.toString().trim()) {
+        rowErrors.push('First name is required');
+      }
+      if (!row.last_name || !row.last_name.toString().trim()) {
+        rowErrors.push('Last name is required');
+      }
+      if (!row.phone_number || !row.phone_number.toString().trim()) {
+        rowErrors.push('Phone number is required');
+      }
+      
+      // Email validation for admins/superadmins
+      if (formData.is_admin > 0) {
+        if (!row.email || !row.email.toString().trim()) {
+          rowErrors.push(`Email is required for ${formData.is_admin === 2 ? 'Super Admin' : 'Admin'} roles`);
+        } else {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(row.email.toString().trim())) {
+            rowErrors.push('Invalid email format');
+          }
+        }
+      }
+      
+      // Phone number format validation
+      if (row.phone_number) {
+        const digits = row.phone_number.toString().replace(/\D/g, '');
+        if (digits.length < 10) {
+          rowErrors.push('Invalid phone number format (minimum 10 digits required)');
+        }
+      }
+      
+      if (rowErrors.length > 0) {
+        errors.push({ row: rowNumber, errors: rowErrors });
+      } else {
+        // Generate PIN from phone number
+        const digits = row.phone_number.toString().replace(/\D/g, '').replace(/^1/, '');
+        const pin = digits.slice(-4);
+        
+        validRows.push({
+          first_name: row.first_name.toString().trim(),
+          last_name: row.last_name.toString().trim(),
+          phone_number: row.phone_number.toString().trim(),
+          email: row.email ? row.email.toString().trim() : '',
+          pin: pin,
+          is_admin: formData.is_admin,
+          is_active: true,
+          last_modified_by: 'Admin',
+          c_id: companyId || ''
+        });
+      }
+    });
+    
+    return { errors, validRows };
+  };
+
+  const handleBulkUpload = async () => {
+    if (!selectedFile) {
+      setBulkUploadError('Please select a file to upload.');
+      return;
+    }
+
+    setIsBulkUploading(true);
+    setBulkUploadError('');
+    setBulkUploadResults(null);
+
+    try {
+      // Parse file data
+      const fileData = await parseFileData(selectedFile);
+      
+      if (!fileData || fileData.length === 0) {
+        setBulkUploadError('The file is empty or contains no valid data.');
+        return;
+      }
+
+      // Validate data
+      const { errors, validRows } = validateBulkData(fileData);
+      
+      if (validRows.length === 0) {
+        setBulkUploadError('No valid rows found in the file.');
+        setBulkUploadResults({ errors, successful: [], failed: [], duplicates: { emails: [], phones: [], pins: [] } });
+        return;
+      }
+
+      // Check employee limit
+      if (maxEmployees && (employees.length + validRows.length) > maxEmployees) {
+        setBulkUploadError(`Adding ${validRows.length} employees would exceed the limit of ${maxEmployees} employees.`);
+        return;
+      }
+
+      // Pre-check for duplicates in bulk
+      const duplicates = { emails: [], phones: [], pins: [] };
+      const existingEmails = employees.map(e => e.email?.toLowerCase()).filter(Boolean);
+      const existingPhones = employees.map(e => e.phone_number);
+      const existingPins = employees.map(e => e.pin);
+      
+      validRows.forEach((row, index) => {
+        if (row.email && existingEmails.includes(row.email.toLowerCase())) {
+          duplicates.emails.push({ row: index + 1, email: row.email, name: `${row.first_name} ${row.last_name}` });
+        }
+        if (existingPhones.includes(row.phone_number)) {
+          duplicates.phones.push({ row: index + 1, phone: row.phone_number, name: `${row.first_name} ${row.last_name}` });
+        }
+        if (existingPins.includes(row.pin)) {
+          duplicates.pins.push({ row: index + 1, pin: row.pin, name: `${row.first_name} ${row.last_name}` });
+        }
+      });
+
+
+      if (duplicates.emails.length > 0) {
+        setBulkUploadError(`Found ${duplicates.emails.length} duplicate record(s). Please review and fix duplicates before uploading.`);
+        setBulkUploadResults({ errors, successful: [], failed: [], duplicates });
+        return;
+      }
+
+      // Process valid rows
+      const successful = [];
+      const failed = [];
+      const processedPins = [...existingPins];
+      
+      for (const rowData of validRows) {
+        try {
+          // Handle PIN conflicts with auto-generation
+          let finalPin = rowData.pin;
+          if (processedPins.includes(finalPin)) {
+            const newPin = generateAlternativePin(finalPin, processedPins);
+            if (newPin) {
+              finalPin = newPin;
+              processedPins.push(finalPin);
+            } else {
+              failed.push({ data: rowData, error: 'PIN conflict and no alternative available' });
+              continue;
+            }
+          } else {
+            processedPins.push(finalPin);
+          }
+          
+          const finalData = { ...rowData, pin: finalPin };
+          await createEmployeeWithData(finalData);
+          successful.push({ data: finalData, originalPin: rowData.pin !== finalPin ? rowData.pin : null });
+        } catch (error) {
+          failed.push({ data: rowData, error: error.message });
+        }
+      }
+      
+      setBulkUploadResults({ errors, successful, failed, duplicates: { emails: [], phones: [], pins: [] } });
+      
+      if (successful.length > 0) {
+        setBulkUploadSuccess(`Successfully uploaded ${successful.length} employee(s).`);
+        loadEmployeeData();
+      }
+      
+    } catch (error) {
+      setBulkUploadError('Error processing file: ' + error.message);
+    } finally {
+      setIsBulkUploading(false);
+    }
+  };
+
+  const downloadTemplate = () => {
+    const headers = formData.is_admin > 0 
+      ? ['first_name', 'last_name', 'phone_number', 'email']
+      : ['first_name', 'last_name', 'phone_number'];
+    
+    let csvContent = headers.join(',') + '\n';
+    
+    // Add sample data based on role
+    if (formData.is_admin > 0) {
+      csvContent += 'John,Doe,+1234567890,john.doe@company.com\n';
+      csvContent += 'Jane,Smith,+1987654321,jane.smith@company.com\n';
+    } else {
+      csvContent += 'John,Doe,+1234567890\n';
+      csvContent += 'Jane,Smith,+1987654321\n';
+    }
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${activeTab}_template.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
   };
 
   return (
@@ -617,14 +890,25 @@ const EmployeeList = () => {
                   {maxEmployees && ` (${employees.length}/${maxEmployees} employees)`}
                 </p>
               </div>
-              <Button
-                onClick={() => openAddModal(activeTab === "admins" ? 1 : activeTab === "superadmins" ? 2 : 0)}
-                disabled={(activeTab === "superadmins" && adminType !== "Owner") || (maxEmployees && employees.length >= maxEmployees)}
-                className="flex items-center justify-center gap-2 w-full sm:w-auto"
-              >
-                <Plus className="w-4 h-4" />
-                <span className="truncate">Add {activeTab === "admins" ? "Admin" : activeTab === "superadmins" ? "Super Admin" : "Employee"}</span>
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <Button
+                  onClick={() => openAddModal(activeTab === "admins" ? 1 : activeTab === "superadmins" ? 2 : 0)}
+                  disabled={(activeTab === "superadmins" && adminType !== "Owner") || (maxEmployees && employees.length >= maxEmployees)}
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="truncate">Add {activeTab === "admins" ? "Admin" : activeTab === "superadmins" ? "Super Admin" : "Employee"}</span>
+                </Button>
+                <Button
+                  onClick={() => openBulkUploadModal(activeTab === "admins" ? 1 : activeTab === "superadmins" ? 2 : 0)}
+                  disabled={(activeTab === "superadmins" && adminType !== "Owner") || (maxEmployees && employees.length >= maxEmployees)}
+                  variant="outline"
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span className="truncate">Bulk Upload</span>
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -841,7 +1125,7 @@ const EmployeeList = () => {
                   {searchQuery ? "Try adjusting your search criteria." : "Get started by adding your first employee."}
                 </p>
                 {!searchQuery && (
-                  <div className="flex justify-center">
+                  <div className="flex flex-col sm:flex-row gap-2 justify-center">
                     <Button
                       onClick={() => openAddModal(activeTab === "admins" ? 1 : activeTab === "superadmins" ? 2 : 0)}
                       disabled={(activeTab === "superadmins" && adminType !== "Owner") || (maxEmployees && employees.length >= maxEmployees)}
@@ -849,6 +1133,15 @@ const EmployeeList = () => {
                     >
                       <Plus className="w-4 h-4" />
                       Add {activeTab === "admins" ? "Admin" : activeTab === "superadmins" ? "Super Admin" : "Employee"}
+                    </Button>
+                    <Button
+                      onClick={() => openBulkUploadModal(activeTab === "admins" ? 1 : activeTab === "superadmins" ? 2 : 0)}
+                      disabled={(activeTab === "superadmins" && adminType !== "Owner") || (maxEmployees && employees.length >= maxEmployees)}
+                      variant="outline"
+                      className="flex items-center justify-center gap-2 w-full sm:w-auto"
+                    >
+                      <Upload className="w-4 h-4" />
+                      Bulk Upload
                     </Button>
                   </div>
                 )}
@@ -1237,6 +1530,242 @@ const EmployeeList = () => {
           </Card>
         </div>
       )}
+
+      {/* Bulk Upload Modal */}
+      {showBulkUploadModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto mx-4">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg sm:text-xl">
+                    Bulk Upload {formData.is_admin === 2 ? "Super Admins" : formData.is_admin === 1 ? "Admins" : "Employees"}
+                  </CardTitle>
+                  <CardDescription className="text-sm">
+                    Upload multiple employees using CSV or Excel files
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowBulkUploadModal(false)}
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-6">
+              {/* File Upload Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Select File</Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={downloadTemplate}
+                    className="text-xs"
+                  >
+                    <FileText className="w-3 h-3 mr-1" />
+                    Download Template
+                  </Button>
+                </div>
+                
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                  <input
+                    type="file"
+                    accept=".csv,.xlsx,.xls"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    id="bulk-upload-file"
+                  />
+                  <label htmlFor="bulk-upload-file" className="cursor-pointer">
+                    <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm text-gray-600 mb-1">
+                      Click to select or drag and drop your file
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Supports CSV and Excel files only
+                    </p>
+                  </label>
+                </div>
+                
+                {selectedFile && (
+                  <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                    <FileText className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm text-blue-800">{selectedFile.name}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedFile(null)}
+                      className="h-6 w-6 p-0 ml-auto"
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Required Fields Info */}
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <h4 className="text-sm font-medium mb-2">Required Columns:</h4>
+                <div className="text-xs text-gray-600 space-y-1">
+                  <div>• <strong>first_name</strong> - Employee's first name</div>
+                  <div>• <strong>last_name</strong> - Employee's last name</div>
+                  <div>• <strong>phone_number</strong> - Phone number (PIN will be auto-generated)</div>
+                  {formData.is_admin > 0 && (
+                    <div>• <strong>email</strong> - Email address for {formData.is_admin === 2 ? "Super Admin" : "Admin"}</div>
+                  )}
+                </div>
+                {formData.is_admin > 0 && (
+                  <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
+                    <strong>Note:</strong> Email is mandatory for  Super Admin and Admin roles and will be used for login access.
+                  </div>
+                )}
+              </div>
+
+              {/* Error Display */}
+              {bulkUploadError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-600">{bulkUploadError}</p>
+                </div>
+              )}
+
+              {/* Success Display */}
+              {bulkUploadSuccess && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-md flex items-start gap-2">
+                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-green-600">{bulkUploadSuccess}</p>
+                </div>
+              )}
+
+              {/* Results Display */}
+              {bulkUploadResults && (
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium">Upload Results:</h4>
+                  
+                  {/* Duplicates Summary */}
+                  {(bulkUploadResults.duplicates?.emails?.length > 0 ) && (
+                    <div className="p-3 bg-orange-50 border border-orange-200 rounded-md">
+                      <h5 className="text-sm font-medium text-orange-800 mb-2">
+                        Duplicate Records Found ({(bulkUploadResults.duplicates.emails?.length || 0) })
+                      </h5>
+                      <div className="space-y-2 text-xs">
+                        {bulkUploadResults.duplicates.emails?.length > 0 && (
+                          <div>
+                            <span className="font-medium text-orange-700">Duplicate Emails ({bulkUploadResults.duplicates.emails.length}):</span>
+                            <div className="max-h-20 overflow-y-auto mt-1 space-y-1">
+                              {bulkUploadResults.duplicates.emails.slice(0, 5).map((item, index) => (
+                                <div key={index} className="text-orange-600">
+                                  {item.email}
+                                </div>
+                              ))}
+                              {bulkUploadResults.duplicates.emails.length > 5 && (
+                                <div className="text-orange-600 font-medium">
+                                  ... and {bulkUploadResults.duplicates.emails.length - 5} more
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                       
+                      </div>
+                    </div>
+                  )}
+                  
+                  {bulkUploadResults.successful.length > 0 && (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                      <h5 className="text-sm font-medium text-green-800 mb-2">
+                        Successfully Added ({bulkUploadResults.successful.length})
+                      </h5>
+                      <div className="max-h-32 overflow-y-auto space-y-1">
+                        {bulkUploadResults.successful.slice(0, 10).map((item, index) => (
+                          <div key={index} className="text-xs text-green-700">
+                            {item.data.first_name} {item.data.last_name}
+                            {item.originalPin && (
+                              <span className="text-orange-600"> (PIN changed from {item.originalPin} to {item.data.pin})</span>
+                            )}
+                          </div>
+                        ))}
+                        {bulkUploadResults.successful.length > 10 && (
+                          <div className="text-xs text-green-700 font-medium">
+                            ... and {bulkUploadResults.successful.length - 10} more employees added successfully
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {bulkUploadResults.failed.length > 0 && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                      <h5 className="text-sm font-medium text-red-800 mb-2">
+                        Failed ({bulkUploadResults.failed.length})
+                      </h5>
+                      <div className="max-h-32 overflow-y-auto space-y-1">
+                        {bulkUploadResults.failed.slice(0, 10).map((item, index) => (
+                          <div key={index} className="text-xs text-red-700">
+                            {item.data.first_name} {item.data.last_name}: {item.error}
+                          </div>
+                        ))}
+                        {bulkUploadResults.failed.length > 10 && (
+                          <div className="text-xs text-red-700 font-medium">
+                            ... and {bulkUploadResults.failed.length - 10} more failed records
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {bulkUploadResults.errors.length > 0 && (
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                      <h5 className="text-sm font-medium text-yellow-800 mb-2">
+                        Validation Errors ({bulkUploadResults.errors.length})
+                      </h5>
+                      <div className="max-h-32 overflow-y-auto space-y-1">
+                        {bulkUploadResults.errors.slice(0, 10).map((item, index) => (
+                          <div key={index} className="text-xs text-yellow-700">
+                            Row {item.row}: {item.errors.join(', ')}
+                          </div>
+                        ))}
+                        {bulkUploadResults.errors.length > 10 && (
+                          <div className="text-xs text-yellow-700 font-medium">
+                            ... and {bulkUploadResults.errors.length - 10} more validation errors
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowBulkUploadModal(false)}
+                  className="flex-1 order-2 sm:order-1"
+                  disabled={isBulkUploading}
+                >
+                  {bulkUploadResults ? 'Close' : 'Cancel'}
+                </Button>
+                {!bulkUploadResults && (
+                  <Button
+                    onClick={handleBulkUpload}
+                    className="flex-1 order-1 sm:order-2"
+                    disabled={!selectedFile || isBulkUploading}
+                  >
+                    {isBulkUploading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    Upload {formData.is_admin === 2 ? "Super Admins" : formData.is_admin === 1 ? "Admins" : "Employees"}
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      
       <Footer/> 
 
     </div>

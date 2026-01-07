@@ -4,6 +4,8 @@ import { supabase } from '../config/supabase';
 import { googleSignInCheck, getTimeZone } from '../api.js';
 import AccountDeletionModal from '../components/ui/AccountDeletionModal';
 import { useAutoLogout } from '../hooks/useAutoLogout';
+import { useCompany } from './CompanyContext';
+import { STORAGE_KEYS } from '../constants/index.js';
 
 const AuthContext = createContext({});
 
@@ -17,6 +19,7 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
+  const { loadUserCompanies } = useCompany();
   const [user, setUser] = useState(null);
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -26,10 +29,8 @@ export const AuthProvider = ({ children }) => {
 
   // Auto-logout for inactive users
   useAutoLogout(() => {
-    if (user) {
-      signOut();
-    }
-  }, 8); // 5 minutes
+    signOut();
+  }, 8); // 8 minutes
 
   // Check if account has been deleted
   const checkAccountDeletion = useCallback(async (email) => {
@@ -67,6 +68,11 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('=== INITIAL SESSION DEBUG ===');
+      console.log('Raw session from getSession:', session);
+      console.log('Session access_token:', session?.access_token);
+      console.log('============================');
+      
       // Check if user had "Remember Me" enabled
       const rememberMe = localStorage.getItem('rememberMe') === 'true';
       const storedSession = localStorage.getItem('supabase.auth.token');
@@ -79,6 +85,10 @@ export const AuthProvider = ({ children }) => {
           if (parsedSession.expires_at && new Date(parsedSession.expires_at * 1000) > new Date()) {
             setSession(parsedSession);
             setUser(parsedSession.user);
+            // Store access token for API calls
+            if (parsedSession.access_token) {
+              localStorage.setItem("access_token", parsedSession.access_token);
+            }
           } else {
             // Session expired, clean up
             localStorage.removeItem('supabase.auth.token');
@@ -92,11 +102,20 @@ export const AuthProvider = ({ children }) => {
       } else {
         setSession(session);
         setUser(session?.user ?? null);
+        // Store access token for API calls if session exists
+        if (session?.access_token) {
+          localStorage.setItem("access_token", session.access_token);
+          console.log('Access token stored from initial session:', session.access_token);
+        }
       }
       
-      // If no session but localStorage has user data, clear it
-      if (!session && localStorage.getItem("adminMail")) {
-              localStorage.clear();
+      // If no session but localStorage has user data, clear it only on initial load
+      if (!session && localStorage.getItem("adminMail") && !rememberMe) {
+        // Only clear if this is not a remember me session
+        const hasValidSession = storedSession && rememberMe;
+        if (!hasValidSession) {
+          localStorage.clear();
+        }
       }
       
       setLoading(false);
@@ -106,11 +125,24 @@ export const AuthProvider = ({ children }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('=== AUTH STATE CHANGE DEBUG ===');
+      console.log('Event:', _event);
+      console.log('Session from onAuthStateChange:', session);
+      console.log('Session access_token:', session?.access_token);
+      console.log('===============================');
+      
       setSession(session);
       setUser(session?.user ?? null);
       
-      // Clear localStorage when session is lost
-      if (!session && localStorage.getItem("adminMail")) {
+      // Store access token for API calls when session changes
+      if (session?.access_token) {
+        localStorage.setItem("access_token", session.access_token);
+        console.log('Access token stored from auth state change:', session.access_token);
+      }
+      
+      // Only clear localStorage when session is lost AND user was actually logged out
+      // Don't clear on company switches or other internal state changes
+      if (!session && localStorage.getItem("adminMail") && _event === 'SIGNED_OUT') {
         localStorage.clear();
       }
       
@@ -124,10 +156,8 @@ export const AuthProvider = ({ children }) => {
 
   // Check account deletion on page focus/visibility change
   useEffect(() => {
-    if (!user || accountDeleted) return;
-
     const handleVisibilityChange = async () => {
-      if (!document.hidden) {
+      if (!document.hidden && user && !accountDeleted) {
         const userEmail = user?.email || localStorage.getItem('adminMail');
         if (userEmail) {
           await checkAccountDeletion(userEmail);
@@ -151,13 +181,22 @@ export const AuthProvider = ({ children }) => {
       
       // Handle session persistence based on rememberMe preference
       if (data.session) {
+        console.log('signInWithEmail session:', data.session);
+        localStorage.setItem("access_token", data.session.access_token);
+        console.log(localStorage.getItem("access_token"));
+        console.log("-----------------------------------------------------");
+
         if (rememberMe) {
           // Store session info in localStorage for persistence
           localStorage.setItem('supabase.auth.token', JSON.stringify(data.session));
+          
+          
+          console.log('Access token stored:', data.session.access_token);
           localStorage.setItem('rememberMe', 'true');
         } else {
           // Ensure localStorage is cleared for session-only login
           localStorage.removeItem('supabase.auth.token');
+          localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
           localStorage.removeItem('rememberMe');
         }
       }
@@ -262,6 +301,25 @@ export const AuthProvider = ({ children }) => {
   const fetchBackendUserData = useCallback(async (email, userName = null, userPicture = null, authMethod = 'google') => {
     try {
       console.log(`fetchBackendUserData called with email: ${email}, authMethod: ${authMethod}`);
+      
+      // For Google OAuth, generate a temporary token if no access_token is available
+      let accessToken = localStorage.getItem("access_token");
+      if (!accessToken && session) {
+        // Try to get a fresh session
+        const { data: { session: freshSession } } = await supabase.auth.getSession();
+        if (freshSession?.access_token) {
+          accessToken = freshSession.access_token;
+          localStorage.setItem("access_token", accessToken);
+          console.log('Fresh access token obtained:', accessToken);
+        } else {
+          // Generate a temporary token for API calls
+          accessToken = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          localStorage.setItem("access_token", accessToken);
+          console.log('Temporary access token generated:', accessToken);
+        }
+      }
+      
+      console.log("access_token:", accessToken);
 
       // Step 1: Check if account has been deleted
       const isDeleted = await checkAccountDeletion(email);
@@ -304,7 +362,8 @@ export const AuthProvider = ({ children }) => {
       // Step 4: Fetch timezone data
       await getTimeZone(companyID);
 
-      // Step 5: Fetch customer data
+      // Step 5: Load user's companies for company switching
+      await loadUserCompanies(email);
 
       return { success: true, companyID };
     } catch (error) {
@@ -314,7 +373,7 @@ export const AuthProvider = ({ children }) => {
         error: error.message || 'Failed to fetch user data from backend'
       };
     }
-  }, [checkAccountDeletion]); // Depend on checkAccountDeletion
+  }, [checkAccountDeletion, session]); // Depend on checkAccountDeletion and session
 
   // Handle account deletion modal close
   const handleAccountDeletionModalClose = useCallback(async () => {

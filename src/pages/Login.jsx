@@ -44,6 +44,12 @@ const Login = () => {
         setLoading(true);
 
         try {
+          console.log('=== OAUTH CALLBACK DEBUG ===');
+          console.log('User object:', user);
+          console.log('Session object:', session);
+          console.log('Access token:', session?.access_token);
+          console.log('============================');
+          
           const userEmail = user.email;
           const userName = user.user_metadata?.full_name || user.user_metadata?.name || user.email.split('@')[0];
           const userPicture = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
