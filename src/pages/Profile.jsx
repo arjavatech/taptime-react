@@ -38,7 +38,7 @@ const Profile = () => {
     ).join(' ');
   };
 
-  const [activeTab, setActiveTab] = useState("personal");
+  const [activeTab, setActiveTab] = useState("company");
   const [isEditing, setIsEditing] = useState({ personal: false, company: false, admin: false });
   const [isLoading, setIsLoading] = useState(true);
   const [userType, setUserType] = useState("");
@@ -273,7 +273,7 @@ const Profile = () => {
       if (userType === "Admin" || userType === "SuperAdmin") {
         setActiveTab("admin");
       } else if (userType === "Owner") {
-        setActiveTab("personal");
+        setActiveTab("company");
       }
 
       const formData = loadProfileData(adminDetails);
@@ -821,8 +821,9 @@ const Profile = () => {
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <nav className="flex space-x-4 sm:space-x-8 overflow-x-auto">
               {[
-                ...(userType !== "Admin" && userType !== "SuperAdmin" ? [{ key: "personal", label: "Personal Information", icon: User }] : []),
                 { key: "company", label: "Company Information", icon: Building },
+                ...(userType !== "Admin" && userType !== "SuperAdmin" ? [{ key: "personal", label: "Personal Information", icon: User }] : []),
+                
                 ...(userType === "Admin" || userType === "SuperAdmin" ? [{ key: "admin", label: userType === "SuperAdmin" ? "Super Admin Information" : "Admin Information", icon: User }] : []),
                 ...(userType === "Owner" ? [{ key: "subscription", label: "Subscription", icon: CreditCard }] : [])
               ].map(({ key, label, icon: Icon }) => (
@@ -904,7 +905,7 @@ const Profile = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="email">email Address</Label>
+                    <Label htmlFor="email">Email Address</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                       <Input

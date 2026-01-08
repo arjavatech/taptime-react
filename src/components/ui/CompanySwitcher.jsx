@@ -6,7 +6,7 @@ import { switchCompany, addNewCompany } from '../../api';
 import { STORAGE_KEYS } from '../../constants';
 import AddCompanyModal from './AddCompanyModal';
 
-const CompanySwitcher = () => {
+const CompanySwitcher = ({ onAddCompanyClick }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [companies, setCompanies] = useState([]);
   const [currentCompany, setCurrentCompany] = useState(null);
@@ -44,7 +44,7 @@ const CompanySwitcher = () => {
     
     setLoading(true);
     try {
-      await switchCompany(companyId, userEmail);
+      await switchCompany(companyId);
       
       // Update current company immediately
       const updatedCompanyId = localStorage.getItem(STORAGE_KEYS.COMPANY_ID);
@@ -53,9 +53,6 @@ const CompanySwitcher = () => {
       
       // Close the dropdown
       setIsOpen(false);
-      
-      // Emit custom event to notify other components
-      window.dispatchEvent(new CustomEvent('companyChanged', { detail: { companyId: updatedCompanyId } }));
     } catch (error) {
       console.error('Error switching company:', error);
     } finally {
@@ -63,8 +60,16 @@ const CompanySwitcher = () => {
     }
   };
 
+  const handleAddCompany = () => {
+    console.log('handleAddCompany called');
+    setIsOpen(false);
+    setShowAddModal(true);
+    console.log('showAddModal set to true');
+  };
+
   const handleAddCompanySuccess = () => {
     loadCompanies();
+    setShowAddModal(false);
   };
 
   if (!companies.length) {
@@ -127,7 +132,7 @@ const CompanySwitcher = () => {
           
           <button
             key="add-company"
-            onClick={() => setShowAddModal(true)}
+            onClick={handleAddCompany}
             className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-white hover:shadow-sm rounded-md transition-all duration-150 border border-dashed border-gray-300 hover:border-[#02066F]/30 mt-3"
           >
             <Plus className="w-7 h-7 text-gray-400 p-1" />
@@ -135,6 +140,7 @@ const CompanySwitcher = () => {
           </button>
         </div>
       </div>
+      
       
       <AddCompanyModal
         isOpen={showAddModal}

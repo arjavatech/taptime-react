@@ -40,7 +40,6 @@ import {
 } from "lucide-react";
 import { HamburgerIcon } from "../components/icons/HamburgerIcon";
 import { GridIcon } from "../components/icons/GridIcon";
-import CenterLoadingOverlay from "../components/ui/CenterLoadingOverlay";
 import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
 import Papa from 'papaparse';
@@ -195,6 +194,16 @@ const EmployeeList = () => {
       setGlobalLoading(false);
     }
   }, []);
+
+  // Listen for company changes
+  useEffect(() => {
+    const handleCompanyChange = () => {
+      loadEmployeeData();
+    };
+
+    window.addEventListener('companyChanged', handleCompanyChange);
+    return () => window.removeEventListener('companyChanged', handleCompanyChange);
+  }, [loadEmployeeData]);
 
   // Filter employees by type and search
   const filterEmployees = useCallback(() => {
@@ -483,11 +492,7 @@ const EmployeeList = () => {
     // Check for duplicate email when editing or creating admin/superadmin
     if (formData.is_admin > 0 && formData.email) {
       // Prevent using Owner's email
-      if (adminType === "Owner" && formData.email.toLowerCase() === loggedAdminEmail.toLowerCase()) {
-        setModalError("Owner email addresses cannot be used for this action.");
-        setIsSubmitting(false);
-        return;
-      }
+      
       
       const emailExists = employees.some(emp => 
         (!editingEmployee || emp.emp_id !== editingEmployee.emp_id) && 
@@ -876,8 +881,6 @@ const EmployeeList = () => {
         </div>
       )}
 
-      <CenterLoadingOverlay show={centerLoading.show} message={centerLoading.message} />
-
       <div className="pt-20 pb-8 flex-1 bg-gradient-to-br from-slate-50 to-blue-50">
         {/* Page Header */}
         <div className="border-b">
@@ -1231,55 +1234,55 @@ const EmployeeList = () => {
                   <table className="w-full">
                     <thead style={{ backgroundColor: '#01005a' }}>
                       <tr className="border-b">
-                        <th className="text-left p-4 font-medium text-sm text-white">Employee</th>
-                        <th className="text-left p-4 font-medium text-sm text-white">Role</th>
-                        <th className="text-left p-4 font-medium text-sm text-white">Contact</th>
-                        <th className="text-left p-4 font-medium text-sm text-white">Status</th>
-                        <th className="text-right p-4 font-medium text-sm text-white">Actions</th>
+                        <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white">Employee</th>
+                        <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white">Role</th>
+                        <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white">Contact</th>
+                        <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white">Status</th>
+                        <th className="text-right p-2 sm:p-4 font-medium text-xs sm:text-sm text-white">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {paginatedEmployees.map((employee) => (
                         <tr key={employee.emp_id} className="border-b hover:bg-muted/50">
-                          <td className="p-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                          <td className="p-2 sm:p-4">
+                            <div className="flex items-center gap-2 sm:gap-3">
+                              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
                                 {getEmployeeTypeIcon(employee.is_admin)}
                               </div>
-                              <div>
-                                <div className="font-medium text-sm">
+                              <div className="min-w-0">
+                                <div className="font-medium text-xs sm:text-sm truncate">
                                   {`${employee.first_name} ${employee.last_name}`}
                                 </div>
                                 <div className="text-xs text-muted-foreground">PIN: {employee.pin}</div>
                               </div>
                             </div>
                           </td>
-                          <td className="p-4">
+                          <td className="p-2 sm:p-4">
                             {getEmployeeTypeBadge(employee.is_admin)}
                           </td>
-                          <td className="p-4">
-                            <div className="text-sm space-y-1">
-                              {employee.email && <div>{employee.email}</div>}
-                              {employee.phone_number && <div className="text-muted-foreground font-mono">{formatPhoneNumber(employee.phone_number)}</div>}
+                          <td className="p-2 sm:p-4">
+                            <div className="text-xs sm:text-sm space-y-1">
+                              {employee.email && <div className="truncate">{employee.email}</div>}
+                              {employee.phone_number && <div className="text-muted-foreground font-mono text-xs">{formatPhoneNumber(employee.phone_number)}</div>}
                             </div>
                           </td>
-                          <td className="p-4">
-                            <span className={`px-2 py-1 rounded-full text-xs ${employee.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          <td className="p-2 sm:p-4">
+                            <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs ${employee.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                               }`}>
                               {employee.is_active ? 'Active' : 'Inactive'}
                             </span>
                           </td>
-                          <td className="p-4">
-                            <div className="flex items-center justify-end gap-1">
+                          <td className="p-2 sm:p-4">
+                            <div className="flex items-center justify-end gap-0.5 sm:gap-1">
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => openEditModal(employee)}
                                 disabled={adminType === "SuperAdmin" && employee.is_admin === 2 && 
                                          employee.email && employee.email.toLowerCase() === loggedAdminEmail.toLowerCase()}
-                                className="h-8 w-8 p-0"
+                                className="h-6 w-6 sm:h-8 sm:w-8 p-0"
                               >
-                                <Edit className="w-4 h-4" />
+                                <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
                               </Button>
                               <Button
                                 variant="ghost"
@@ -1287,9 +1290,9 @@ const EmployeeList = () => {
                                 onClick={() => openDeleteModal(employee)}
                                 disabled={adminType === "SuperAdmin" && employee.is_admin === 2 && 
                                          employee.email && employee.email.toLowerCase() === loggedAdminEmail.toLowerCase()}
-                                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                className="h-6 w-6 sm:h-8 sm:w-8 p-0 text-destructive hover:text-destructive"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                               </Button>
                             </div>
                           </td>

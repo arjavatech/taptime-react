@@ -8,7 +8,7 @@ import tapTimeLogo from "../../assets/images/tap-time-logo.png";
 
 const Header = () => {
   const { user, session, signOut } = useAuth();
-  
+
   // Initialize as false to prevent showing authenticated UI before session validation
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -25,7 +25,7 @@ const Header = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [userProfile, setUserProfile] = useState({ 
+  const [userProfile, setUserProfile] = useState({
     name: "",
     email: "",
     picture: "",
@@ -35,17 +35,17 @@ const Header = () => {
     const checkAuthStatus = () => {
       // Check if user is on login or public pages - force unauthenticated state
       const isOnLoginPage = location.pathname === "/login" || location.pathname === "/forgot-password" || location.pathname === "/register";
-      
+
       if (isOnLoginPage) {
         setIsAuthenticated(false);
         setUserType("");
         setUserProfile({ name: "", email: "", picture: "" });
         return;
       }
-      
+
       // Check Supabase session (auth tokens in sessionStorage)
       const hasSupabaseAuth = !!(user && session);
-      
+
       // If no Supabase auth, immediately clear localStorage and set as unauthenticated
       if (!hasSupabaseAuth) {
         localStorage.clear();
@@ -54,21 +54,21 @@ const Header = () => {
         setUserProfile({ name: "", email: "", picture: "" });
         return;
       }
-      
+
       // Only set authenticated if both Supabase auth exists AND user setup is complete
       const isUserSetupComplete = localStorage.getItem("adminMail") && localStorage.getItem("adminType");
-      setIsAuthenticated(hasSupabaseAuth && isUserSetupComplete);
+      setIsAuthenticated(hasSupabaseAuth && !!isUserSetupComplete);
 
       if (hasSupabaseAuth) {
         const adminType = localStorage.getItem("adminType") || "";
         const email = localStorage.getItem("adminMail") || "";
         const userName = localStorage.getItem("userName") || "";
         const userPictureUrl = localStorage.getItem("userPicture");
-        
+
         // Determine if this is a Google login by checking if user has a profile picture
         // For email-based login, always use default avatar (no picture)
         const isGoogleLogin = userPictureUrl && userPictureUrl.trim() !== "";
-        const profilePicture = isGoogleLogin 
+        const profilePicture = isGoogleLogin
           ? (userPictureUrl.startsWith("http") ? userPictureUrl : `https:${userPictureUrl}`)
           : "";
 
@@ -111,9 +111,9 @@ const Header = () => {
   useEffect(() => {
     // Set initial collapsed state after component mounts
     setIsCollapsed(window.innerWidth <= 996);
-    
+
     const handleResize = () => {
-        setIsCollapsed(window.innerWidth <= 996);
+      setIsCollapsed(window.innerWidth <= 996);
     };
 
     window.addEventListener('resize', handleResize);
@@ -152,8 +152,8 @@ const Header = () => {
     ...(userType === "Admin" ? [
       { to: "/reportsummary", label: "Report Summary" }
     ] : [
-      { 
-        label: "Reports", 
+      {
+        label: "Reports",
         dropdown: true,
         items: [
           { to: "/reportsummary", label: "Report Summary" },
@@ -168,7 +168,7 @@ const Header = () => {
   const navItems = isAuthenticated ? authenticatedNavItems : publicNavItems;
 
   return (
-      <>
+    <>
       <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm">
         <div className="flex justify-between items-center h-20 px-4 sm:px-6 lg:px-8 max-w-full mx-auto">
           <div className="flex items-center">
@@ -183,9 +183,9 @@ const Header = () => {
               />
             ) : (
               <Link to="/">
-                <img 
-                  src={tapTimeLogo} 
-                  alt="Tap Time Logo" 
+                <img
+                  src={tapTimeLogo}
+                  alt="Tap Time Logo"
                   className="h-16 w-auto"
                   loading="eager"
                   decoding="async"
@@ -201,11 +201,10 @@ const Header = () => {
                   key={index}
                   href={item.href}
                   onClick={item.onClick}
-                  className={`${
-                    item.href === "#contact" && location.hash === "#contact"
+                  className={`${item.href === "#contact" && location.hash === "#contact"
                       ? "text-[#02066F] bg-blue-50"
                       : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
-                  } px-3 py-2 text-base font-medium rounded-md transition-all duration-150`}
+                    } px-3 py-2 text-base font-medium rounded-md transition-all duration-150`}
                 >
                   {item.label}
                 </a>
@@ -213,11 +212,10 @@ const Header = () => {
                 <div key={index} className="relative reports-dropdown">
                   <button
                     onClick={() => setShowReportsDropdown(!showReportsDropdown)}
-                    className={`${
-                      location.pathname.includes("/report")
+                    className={`${location.pathname.includes("/report")
                         ? "text-[#02066F] bg-blue-50"
                         : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
-                    } px-3 py-2 text-base font-medium rounded-md transition-all duration-150 flex items-center gap-1`}
+                      } px-3 py-2 text-base font-medium rounded-md transition-all duration-150 flex items-center gap-1`}
                   >
                     {item.label}
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -231,11 +229,10 @@ const Header = () => {
                           key={subIndex}
                           to={subItem.to}
                           onClick={() => setShowReportsDropdown(false)}
-                          className={`${
-                            isActive(subItem.to)
+                          className={`${isActive(subItem.to)
                               ? "text-[#02066F] bg-blue-50"
                               : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
-                          } block px-4 py-2 text-sm font-medium first:rounded-t-md last:rounded-b-md`}
+                            } block px-4 py-2 text-sm font-medium first:rounded-t-md last:rounded-b-md`}
                         >
                           {subItem.label}
                         </Link>
@@ -247,11 +244,10 @@ const Header = () => {
                 <Link
                   key={index}
                   to={item.to}
-                  className={`${
-                    isActive(item.to)
+                  className={`${isActive(item.to)
                       ? "text-[#02066F] bg-blue-50"
                       : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
-                  } px-3 py-2 text-base font-medium rounded-md transition-all duration-150`}
+                    } px-3 py-2 text-base font-medium rounded-md transition-all duration-150`}
                 >
                   {item.label}
                 </Link>
@@ -279,7 +275,7 @@ const Header = () => {
                     alt="Profile"
                   />
                 </button>
-                
+
                 {/* Desktop Profile Menu */}
                 {showProfileDropdown && (
                   <>
@@ -302,19 +298,26 @@ const Header = () => {
                             </div>
                           </div>
                         </div>
-                        
+
                         {/* Company Switcher Section */}
-                        <div className="px-6 py-4">
-                          <CompanySwitcher />
-                        </div>
-                        
+                        {(() => {
+                          const adminType = localStorage.getItem("adminType");
+                          const storedCompanies = localStorage.getItem("userCompanies");
+                          const hasCompanies = adminType === "Owner" && storedCompanies && JSON.parse(storedCompanies).length > 0;
+                          return hasCompanies ? (
+                            <div className="px-6 py-4">
+                              <CompanySwitcher onAddCompanyClick={() => setShowProfileDropdown(false)} />
+                            </div>
+                          ) : null;
+                        })()}
+
                         {/* Sign Out Section */}
                         <div className="px-6 py-4 border-t border-gray-100">
                           <button
                             onClick={() => { setShowModal(true); setShowProfileDropdown(false); }}
-                            className="w-full text-left px-4 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition-all duration-200 flex items-center space-x-3 rounded-md group"
+                            className="w-full text-center justify-center px-4 py-3 bg-[#02066F] text-white rounded-md font-medium text-base transition-all duration-200 flex items-center space-x-3 rounded-md group"
                           >
-                            <svg className="w-5 h-5 text-gray-400 group-hover:text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-5 h-5 text-white " fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                             </svg>
                             <span className="font-medium">Sign Out</span>
@@ -337,124 +340,112 @@ const Header = () => {
 
         {/* Mobile Sidebar */}
         {sidebarOpen && (
-        <>
-          <div className="lg:hidden fixed inset-0 z-40" onClick={toggleSidebar}></div>
-          <aside className="fixed top-0 left-0 h-full w-64 bg-white shadow-xl z-50 border-r flex flex-col">
-            <div className="flex items-center justify-between px-4 py-4 border-b">
-              <img className="h-10 w-auto" src={tapTimeLogo} alt="Tap Time Logo" />
-              <button onClick={toggleSidebar} className="text-gray-400 hover:text-black">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <nav className="flex-1 px-4 py-4 space-y-1">
-              {navItems.map((item, index) => (
-                item.href ? (
-                  <a
-                    key={index}
-                    href={item.href}
-                    onClick={item.onClick}
-                    className="block px-3 py-2 text-gray-700 hover:text-[#02066F] hover:bg-gray-50 rounded-md font-medium text-base"
-                  >
-                    {item.label}
-                  </a>
-                ) : item.dropdown ? (
-                  <div key={index}>
-                    <button
-                      onClick={() => setShowMobileReportsDropdown(!showMobileReportsDropdown)}
-                      className="w-full text-left px-3 py-2 text-gray-700 hover:text-[#02066F] hover:bg-gray-50 rounded-md font-medium text-base flex items-center justify-between"
-                    >
-                      {item.label}
-                      <svg className={`w-4 h-4 transition-transform ${showMobileReportsDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                    {showMobileReportsDropdown && item.items.map((subItem, subIndex) => (
-                      <Link
-                        key={subIndex}
-                        to={subItem.to}
-                        className={`block px-6 py-2 rounded-md font-medium text-sm ml-3 ${
-                          isActive(subItem.to) 
-                            ? "text-[#02066F] bg-blue-50" 
-                            : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
-                        }`}
-                        onClick={toggleSidebar}
-                      >
-                        {subItem.label}
-                      </Link>
-                    ))}
-                  </div>
-                ) : (
-                  <Link
-                    key={index}
-                    to={item.to}
-                    className={`block px-3 py-2 rounded-md font-medium text-base ${
-                      isActive(item.to) 
-                        ? "text-[#02066F] bg-blue-50" 
-                        : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
-                    }`}
-                    onClick={toggleSidebar}
-                  >
-                    {item.label}
-                  </Link>
-                )
-              ))}
-            </nav>
-            {isAuthenticated && (
-              <div className="px-4 pb-4">
-                <button 
-                  className="w-full px-3 py-2 text-[#02066F] hover:text-[#030974] hover:bg-blue-50 rounded-md font-medium text-left text-base" 
-                  onClick={() => { setShowModal(true); setSidebarOpen(false); }}
-                >
-                  Sign Out
+          <>
+            <div className="lg:hidden fixed inset-0 z-40" onClick={toggleSidebar}></div>
+            <aside className="fixed top-0 left-0 h-full w-64 bg-white shadow-xl z-50 border-r flex flex-col">
+              <div className="flex items-center justify-between px-4 py-4 border-b">
+                <img className="h-10 w-auto" src={tapTimeLogo} alt="Tap Time Logo" />
+                <button onClick={toggleSidebar} className="text-gray-400 hover:text-black">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
-            )}
-          </aside>
-        </>
-      )}
-      </header>
+              <nav className="flex-1 px-4 py-4 space-y-1">
+                {navItems.map((item, index) => (
+                  item.href ? (
+                    <a
+                      key={index}
+                      href={item.href}
+                      onClick={item.onClick}
+                      className="block px-3 py-2 text-gray-700 hover:text-[#02066F] hover:bg-gray-50 rounded-md font-medium text-base"
+                    >
+                      {item.label}
+                    </a>
+                  ) : item.dropdown ? (
+                    <div key={index}>
+                      <button
+                        onClick={() => setShowMobileReportsDropdown(!showMobileReportsDropdown)}
+                        className={`w-full text-left px-3 py-2 rounded-md font-medium text-base flex items-center justify-between ${location.pathname.includes("/report")
+                            ? "text-[#02066F] bg-blue-50"
+                            : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
+                          }`}
+                      >
+                        {item.label}
+                        <svg className={`w-4 h-4 transition-transform ${showMobileReportsDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      {showMobileReportsDropdown && item.items.map((subItem, subIndex) => (
+                        <Link
+                          key={subIndex}
+                          to={subItem.to}
+                          className={`block px-6 py-2 rounded-md font-medium text-sm ml-3 ${isActive(subItem.to)
+                              ? "text-[#02066F] bg-blue-50"
+                              : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
+                            }`}
+                          onClick={toggleSidebar}
+                        >
+                          {subItem.label}
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <Link
+                      key={index}
+                      to={item.to}
+                      className={`block px-3 py-2 rounded-md font-medium text-base ${isActive(item.to)
+                          ? "text-[#02066F] bg-blue-50"
+                          : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
+                        }`}
+                      onClick={toggleSidebar}
+                    >
+                      {item.label}
+                    </Link>
+                  )
+                ))}
+              </nav>
+              {isAuthenticated && (
+                <div className="px-4 pb-4">
+                  {(() => {
+                    const adminType = localStorage.getItem("adminType");
+                    const storedCompanies = localStorage.getItem("userCompanies");
+                    console.log("Mobile - adminType:", adminType);
+                    console.log("Mobile - storedCompanies:", storedCompanies);
 
-      {/* Mobile Profile Sidebar */}
-      {isAuthenticated && showProfileSidebar && (
-        <>
-          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 animate-in fade-in-0 duration-200" onClick={() => setShowProfileSidebar(false)}></div>
-          <div className="fixed top-0 right-0 h-full w-80 bg-white shadow-xl z-50 border-l animate-in slide-in-from-right-0 duration-300">
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h3 className="text-lg font-semibold text-gray-900">Profile</h3>
-              <button onClick={() => setShowProfileSidebar(false)} className="text-gray-400 hover:text-black">
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="px-6 py-6">
-              <div className="flex items-center space-x-4 mb-6">
-                <Avatar
-                  src={userProfile.picture}
-                  email={userProfile.email}
-                  size="lg"
-                  alt="Profile"
-                />
-                <div>
-                  <h4 className="text-lg font-medium text-gray-900">{userProfile.name}</h4>
-                  <p className="text-sm text-gray-500">{userProfile.email}</p>
+                    let hasCompanies = false;
+                    if (adminType === "Owner" && storedCompanies) {
+                      try {
+                        const companies = JSON.parse(storedCompanies);
+                        hasCompanies = companies.length > 0;
+                        console.log("Mobile - parsed companies:", companies);
+                      } catch (e) {
+                        console.log("Mobile - error parsing companies:", e);
+                      }
+                    }
+
+                    console.log("Mobile - hasCompanies:", hasCompanies);
+                    return hasCompanies ? (
+                      <div className="mb-6">
+                        <CompanySwitcher onAddCompanyClick={() => setShowProfileSidebar(false)} />
+                      </div>
+                    ) : null;
+                  })()}
+                  <button
+                    onClick={() => { setShowModal(true); setShowProfileDropdown(false); }}
+                    className="w-full text-center justify-center px-2 py-2 bg-[#02066F] text-white rounded-md text-sm transition-all duration-200 flex items-center space-x-3 rounded-md group"
+                  >
+                    <svg className="w-5 h-5 text-white " fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    <span className="font-medium">Sign Out</span>
+                  </button>
                 </div>
-              </div>
-              <button
-                onClick={() => { setShowModal(true); setShowProfileSidebar(false); }}
-                className="w-full flex items-center justify-center px-4 py-2 bg-gradient-to-r from-[#01005a] to-[#01005a]/90 text-white font-medium rounded-lg hover:brightness-105 transition-all duration-200"
-              >
-                <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                Sign Out
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+              )}
+            </aside>
+          </>
+        )}
+      </header>
 
       <LogoutModal
         isOpen={showModal}
@@ -463,7 +454,7 @@ const Header = () => {
         userName={userProfile.name}
       />
 
-      
+
     </>
   );
 };

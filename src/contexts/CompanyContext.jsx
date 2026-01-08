@@ -16,32 +16,66 @@ export const CompanyProvider = ({ children }) => {
   const [currentCompany, setCurrentCompany] = useState(null);
   const [userCompanies, setUserCompanies] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadingPromise, setLoadingPromise] = useState(null);
+
+  // Handle extension context errors
+  useEffect(() => {
+    const handleError = (event) => {
+      if (event.error?.message?.includes('Extension context invalidated')) {
+        event.preventDefault();
+      }
+    };
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
 
   // Load user's companies when email is available
-  const loadUserCompanies = useCallback(async (userEmail) => {
+  const loadUserCompanies = useCallback(async (userEmail) => {  
     if (!userEmail) return;
     
-    setLoading(true);
-    try {
-      const companies = await getUserCompanies(userEmail);
-      setUserCompanies(companies);
-      
-      // Set current company from localStorage or default to first company
-      const savedCompanyId = localStorage.getItem('lastSelectedCompany') || localStorage.getItem(STORAGE_KEYS.COMPANY_ID);
-      const savedCompany = companies.find(c => c.CID === savedCompanyId);
-      
-      if (savedCompany) {
-        setCurrentCompany(savedCompany);
-      } else if (companies.length > 0) {
-        // Default to first company if no saved company or saved company not found
-        switchToCompany(companies[0]);
-      }
-    } catch (error) {
-      console.error('Error loading user companies:', error);
-    } finally {
-      setLoading(false);
+    // If already loading for this email, return the existing promise
+    if (loadingPromise) {
+      return loadingPromise;
     }
-  }, []);
+    
+    setLoading(true);
+    const promise = (async () => {
+      try {
+        const result = await getUserCompanies(userEmail);
+        
+        // Handle error responses from API
+        if (result && result.success === false) {
+          console.error('Failed to load companies:', result.error);
+          setUserCompanies([]);
+          return;
+        }
+        
+        // Ensure companies is an array
+        const companies = Array.isArray(result) ? result : [];
+        setUserCompanies(companies);
+        
+        // Set current company from localStorage or default to first company
+        const savedCompanyId = localStorage.getItem('lastSelectedCompany') || localStorage.getItem(STORAGE_KEYS.COMPANY_ID);
+        const savedCompany = companies.find(c => c.CID === savedCompanyId);
+        
+        if (savedCompany) {
+          setCurrentCompany(savedCompany);
+        } else if (companies.length > 0) {
+          // Default to first company if no saved company or saved company not found
+          switchToCompany(companies[0]);
+        }
+      } catch (error) {
+        console.error('Error loading user companies:', error);
+        setUserCompanies([]);
+      } finally {
+        setLoading(false);
+        setLoadingPromise(null);
+      }
+    })();
+    
+    setLoadingPromise(promise);
+    return promise;
+  }, [loadingPromise]);
 
   // Switch to a different company
   const switchToCompany = useCallback((company) => {

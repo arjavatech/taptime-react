@@ -363,7 +363,15 @@ export const AuthProvider = ({ children }) => {
       await getTimeZone(companyID);
 
       // Step 5: Load user's companies for company switching
-      await loadUserCompanies(email);
+      const companiesResult = await loadUserCompanies(email);
+      
+      // Check if companies loading failed due to account deletion
+      if (companiesResult && companiesResult.success === false && companiesResult.deleted) {
+        return {
+          success: false,
+          error: 'Account has been deleted'
+        };
+      }
 
       return { success: true, companyID };
     } catch (error) {

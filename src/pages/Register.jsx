@@ -105,7 +105,7 @@ const Register = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    
+
     // Only allow numbers for device and employee count fields
     if ((name === 'noOfDevices' || name === 'noOfEmployees') && value && !/^\d+$/.test(value)) {
       return;
@@ -122,16 +122,16 @@ const Register = () => {
     if ((name === 'firstName' || name === 'lastName') && value && !/^[a-zA-Z\s]*$/.test(value)) {
       return;
     }
-    
+
     // Auto-capitalize first character for text fields (exclude email and numeric fields)
     let processedValue = value;
     const numericFields = ['noOfDevices', 'noOfEmployees', 'companyZip', 'customerZip'];
     const emailFields = ['email'];
-    
+
     if (!numericFields.includes(name) && !emailFields.includes(name) && processedValue.length > 0) {
       processedValue = processedValue.charAt(0).toUpperCase() + processedValue.slice(1);
     }
-    
+
     // Clear errors when user types
     if (name === 'companyName') setCompanyNameError('');
     if (name === 'companyStreet') setCompanyStreetError('');
@@ -147,7 +147,7 @@ const Register = () => {
     if (name === 'customerCity') setCustomerCityError('');
     if (name === 'customerState') setCustomerStateError('');
     if (name === 'customerZip') setCustomerZipError('');
-    
+
     setFormData(prev => ({
       ...prev,
       [name]: processedValue
@@ -161,7 +161,7 @@ const Register = () => {
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
       const allowedExtensions = ['.jpg', '.jpeg', '.png'];
       const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
-      
+
       if (!allowedTypes.includes(file.type) || !allowedExtensions.includes(fileExtension)) {
         setCompanyLogoError('Please upload a valid image file (JPEG or PNG)');
         return;
@@ -278,7 +278,7 @@ const Register = () => {
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
       const allowedExtensions = ['.jpg', '.jpeg', '.png'];
       const fileExtension = logoFile.name.toLowerCase().substring(logoFile.name.lastIndexOf('.'));
-      
+
       if (!allowedTypes.includes(logoFile.type) || !allowedExtensions.includes(fileExtension)) {
         setCompanyLogoError('Please upload a valid image file (JPEG or PNG)');
         hasErrors = true;
@@ -379,7 +379,7 @@ const Register = () => {
 
     try {
       // Send phone number in the same country format provided by the user
-      
+
 
       // Create plain object with proper field name mapping for API
       const submitData = {
@@ -415,19 +415,21 @@ const Register = () => {
         }, 800);
       } else {
         const errorMessage = response.error || response.message || 'Registration failed';
-        
-        if (errorMessage.includes('email') && errorMessage.includes('already')) {
+
+        if (errorMessage.includes('Email with email =') && errorMessage.includes('already exists')) {
+          setGeneralError("this email id is already registered in another company. Please use a different email id : ." + formData.email);
+        } else if (errorMessage.includes('This email address is already registered')) {
           setEmailError('This email address is already registered');
         } else if (errorMessage.includes('company') && errorMessage.includes('exists')) {
           setCompanyNameError('Company name already exists');
         } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
           setGeneralError('Network error. Please check your connection and try again');
         } else {
-          setEmailError(errorMessage);
+          setGeneralError(errorMessage);
         }
       }
     } catch (error) {
-      
+
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
         setGeneralError('Network error. Please check your internet connection and try again');
       } else if (error.message.includes('timeout')) {
@@ -435,9 +437,9 @@ const Register = () => {
       } else if (error.message.includes('500')) {
         setGeneralError('Server error. Please try again later');
       } else if (error.message.includes('409')) {
-        setEmailError('Email or company name already exists');
+        setGeneralError('Email or company name already exists');
       } else if (error.message.includes('400')) {
-        setEmailError('Invalid data provided. Please check your information');
+        setGeneralError('Invalid data provided. Please check your information');
       } else {
         setGeneralError('Registration failed. Please try again');
       }
@@ -919,7 +921,7 @@ const Register = () => {
 
 
 
-          {currentStep === 1 ? renderStep1() : renderStep2()}
+            {currentStep === 1 ? renderStep1() : renderStep2()}
 
 
           </div>

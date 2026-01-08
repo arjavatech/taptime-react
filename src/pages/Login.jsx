@@ -224,7 +224,7 @@ const Login = () => {
         </div>
       )}
 
-      <div className="min-h-screen flex flex-col lg:flex-row pt-16 sm:pt-20 lg:pt-0">
+      <div className="min-h-screen flex flex-col lg:flex-row pt-14 sm:pt-16 md:pt-18 lg:pt-0">
         {/* Left side - Brand section (hidden on mobile and tablet) */}
         <div className="hidden lg:flex lg:w-1/2 xl:w-1/2 bg-[#D9E9FB] flex-col justify-center items-center p-6 lg:p-8 xl:p-12 lg:pt-24 xl:pt-32">
           <div className="w-full max-w-lg flex flex-col items-center text-center space-y-6 lg:space-y-8">
@@ -261,74 +261,74 @@ const Login = () => {
         </div>
 
         {/* Right side - Login form */}
-        <div className="w-full lg:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center py-6 sm:py-8 lg:py-12 px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-20 min-h-[calc(100vh-4rem)] lg:min-h-screen">
-          <div className="w-full max-w-sm sm:max-w-md">
+        <div className="w-full lg:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center py-4 sm:py-6 md:py-8 lg:py-25 px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-20 min-h-[calc(100vh-3.5rem)] sm:min-h-[calc(100vh-4rem)] md:min-h-[calc(100vh-4.5rem)] lg:min-h-screen">
+          <div className="w-full max-w-xs sm:max-w-sm md:max-w-md">
             {/* Logo (visible on mobile and tablet only) */}
-            <div className="text-center mb-6 sm:mb-8 lg:hidden">
-              <img src={tabTimeLogo} alt="TabTime Logo" className="mx-auto h-16 sm:h-20 w-auto" />
+            <div className="text-center mb-4 sm:mb-6 md:mb-8 lg:hidden">
+              <img src={tabTimeLogo} alt="TabTime Logo" className="mx-auto h-12 sm:h-16 md:h-20 w-auto" />
             </div>
 
             {/* Unified Login Section */}
-            <Card className="border-0 shadow-lg sm:shadow-2xl bg-gradient-to-br from-white via-gray-50/50 to-white backdrop-blur-sm">
+            <Card className="border-0 shadow-md sm:shadow-lg md:shadow-2xl bg-gradient-to-br from-white via-gray-50/50 to-white backdrop-blur-sm">
               {/* Role Selection Cards - Always Visible */}
-              <CardContent className="p-4 sm:p-6 lg:p-8">
-                <div className="text-center mb-4 sm:mb-6">
-                  <h2 className="text-base sm:text-lg font-bold text-gray-900">Select Your Access</h2>
+              <CardContent className="p-3 sm:p-4 md:p-6 lg:p-8">
+                <div className="text-center mb-3 sm:mb-4 md:mb-6">
+                  <h2 className="text-sm sm:text-base md:text-lg font-bold text-gray-900">Select Your Access</h2>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
+                <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4 md:mb-6">
                   <div 
-                    className={`relative cursor-pointer transition-all duration-300 ease-out p-3 sm:p-4 rounded-lg border-2 text-center group h-20 sm:h-24 flex flex-col justify-center ${
+                    className={`relative cursor-pointer transition-all duration-300 ease-out p-2 sm:p-3 md:p-4 rounded-lg border-2 text-center group h-16 sm:h-20 md:h-24 flex flex-col justify-center touch-manipulation ${
                       selectedRole === 'owner' 
                         ? 'border-[#01005a] bg-gradient-to-br from-[#01005a]/8 via-[#01005a]/4 to-transparent shadow-xl shadow-[#01005a]/20' 
-                        : 'border-gray-200 hover:border-[#01005a]/40 hover:shadow-lg hover:shadow-[#01005a]/10 hover:bg-gradient-to-br hover:from-[#01005a]/3 hover:to-transparent'
+                        : 'border-gray-200 hover:border-[#01005a]/40 hover:shadow-lg hover:shadow-[#01005a]/10 hover:bg-gradient-to-br hover:from-[#01005a]/3 hover:to-transparent active:scale-95'
                     }`}
                     onClick={() => handleRoleSelect('owner')}
                   >
                     {selectedRole === 'owner' && (
-                      <div className="absolute top-2 right-2 w-4 h-4 bg-[#01005a] rounded-full flex items-center justify-center">
-                        <Check className="w-2.5 h-2.5 text-white" />
+                      <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-3 h-3 sm:w-4 sm:h-4 bg-[#01005a] rounded-full flex items-center justify-center">
+                        <Check className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-white" />
                       </div>
                     )}
-                    <div className={`mx-auto w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-[#01005a] to-[#01005a]/80 rounded-lg flex items-center justify-center mb-1 sm:mb-2 transition-all duration-300 ${
+                    <div className={`mx-auto w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 bg-gradient-to-br from-[#01005a] to-[#01005a]/80 rounded-lg flex items-center justify-center mb-1 sm:mb-1 md:mb-2 transition-all duration-300 ${
                       selectedRole === 'owner' ? 'scale-105 shadow-lg' : 'group-hover:scale-105 group-hover:shadow-md'
                     }`}>
-                      <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                      <Crown className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-white" />
                     </div>
-                    <h3 className={`text-xs sm:text-sm font-medium transition-colors ${
+                    <h3 className={`text-xs sm:text-xs md:text-sm font-medium transition-colors ${
                       selectedRole === 'owner' ? 'text-[#01005a]' : 'text-gray-900 group-hover:text-[#01005a]'
                     }`}>Owner</h3>
                   </div>
                   
                   <div 
-                    className={`relative cursor-pointer transition-all duration-300 ease-out p-3 sm:p-4 rounded-lg border-2 text-center group h-20 sm:h-24 flex flex-col justify-center ${
+                    className={`relative cursor-pointer transition-all duration-300 ease-out p-2 sm:p-3 md:p-4 rounded-lg border-2 text-center group h-16 sm:h-20 md:h-24 flex flex-col justify-center touch-manipulation ${
                       selectedRole === 'admin' 
                         ? 'border-[#01005a] bg-gradient-to-br from-[#01005a]/8 via-[#01005a]/4 to-transparent shadow-xl shadow-[#01005a]/20' 
-                        : 'border-gray-200 hover:border-[#01005a]/40 hover:shadow-lg hover:shadow-[#01005a]/10 hover:bg-gradient-to-br hover:from-[#01005a]/3 hover:to-transparent'
+                        : 'border-gray-200 hover:border-[#01005a]/40 hover:shadow-lg hover:shadow-[#01005a]/10 hover:bg-gradient-to-br hover:from-[#01005a]/3 hover:to-transparent active:scale-95'
                     }`}
                     onClick={() => handleRoleSelect('admin')}
                   >
                     {selectedRole === 'admin' && (
-                      <div className="absolute top-2 right-2 w-4 h-4 bg-[#01005a] rounded-full flex items-center justify-center">
-                        <Check className="w-2.5 h-2.5 text-white" />
+                      <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-3 h-3 sm:w-4 sm:h-4 bg-[#01005a] rounded-full flex items-center justify-center">
+                        <Check className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-white" />
                       </div>
                     )}
-                    <div className={`mx-auto w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-[#01005a] to-[#01005a]/80 rounded-lg flex items-center justify-center mb-1 sm:mb-2 transition-all duration-300 ${
+                    <div className={`mx-auto w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 bg-gradient-to-br from-[#01005a] to-[#01005a]/80 rounded-lg flex items-center justify-center mb-1 sm:mb-1 md:mb-2 transition-all duration-300 ${
                       selectedRole === 'admin' ? 'scale-105 shadow-lg' : 'group-hover:scale-105 group-hover:shadow-md'
                     }`}>
-                      <Shield className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                      <Shield className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-white" />
                     </div>
-                    <h3 className={`text-xs sm:text-sm font-medium transition-colors leading-tight ${
+                    <h3 className={`text-xs sm:text-xs md:text-sm font-medium transition-colors leading-tight ${
                       selectedRole === 'admin' ? 'text-[#01005a]' : 'text-gray-900 group-hover:text-[#01005a]'
                     }`}>Admin / Super Admin</h3>
                   </div>
                 </div>
 
                 {/* Login Form - Shows Below Role Cards */}
-                <div className="border-t border-gray-200 pt-4 sm:pt-6">
-                    <div className="text-center mb-4 sm:mb-6">
-                      <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-1 sm:mb-2">Welcome back</h3>
-                      <p className="text-xs sm:text-sm text-gray-600">
+                <div className="border-t border-gray-200 pt-3 sm:pt-4 md:pt-6">
+                    <div className="text-center mb-3 sm:mb-4 md:mb-6">
+                      <h3 className="text-sm sm:text-base md:text-lg font-bold text-gray-900 mb-1 sm:mb-1 md:mb-2">Welcome back</h3>
+                      <p className="text-xs sm:text-xs md:text-sm text-gray-600 px-2">
                         {selectedRole === 'owner' 
                           ? 'Enter your credentials to access your account'
                           : 'Sign in with your Google account to continue'
@@ -336,15 +336,15 @@ const Login = () => {
                       </p>
                     </div>
 
-                    <div className="space-y-4 sm:space-y-5">
+                    <div className="space-y-3 sm:space-y-4 md:space-y-5">
 
               
                       {selectedRole === 'owner' && (
-                        <form onSubmit={handleEmailLogin} className="space-y-3 sm:space-y-4">
-                          <div className="space-y-1 sm:space-y-2">
-                            <Label htmlFor="email" className="text-sm sm:text-base">Email</Label>
+                        <form onSubmit={handleEmailLogin} className="space-y-2 sm:space-y-3 md:space-y-4">
+                          <div className="space-y-1 sm:space-y-1 md:space-y-2">
+                            <Label htmlFor="email" className="text-xs sm:text-sm md:text-base">Email</Label>
                             <div className="relative">
-                              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-3.5 h-3.5 sm:w-4 sm:h-4" />
                               <Input
                                 id="email"
                                 name="email"
@@ -356,20 +356,20 @@ const Login = () => {
                                   setEmailError("");
                                   setLoginError("");
                                 }}
-                                className="pl-10 h-10 sm:h-11 text-sm sm:text-base"
+                                className="pl-9 sm:pl-10 h-9 sm:h-10 md:h-11 text-xs sm:text-sm md:text-base touch-manipulation"
                                 disabled={loading}
                                 required
                               />
                             </div>
                             {emailError && (
-                              <p className="text-red-600 text-xs sm:text-sm mt-1">{emailError}</p>
+                              <p className="text-red-600 text-xs sm:text-xs md:text-sm mt-1">{emailError}</p>
                             )}
                           </div>
 
-                          <div className="space-y-1 sm:space-y-2">
-                            <Label htmlFor="password" className="text-sm sm:text-base">Password</Label>
+                          <div className="space-y-1 sm:space-y-1 md:space-y-2">
+                            <Label htmlFor="password" className="text-xs sm:text-sm md:text-base">Password</Label>
                             <div className="relative">
-                              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                              <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-3.5 h-3.5 sm:w-4 sm:h-4" />
                               <Input
                                 id="password"
                                 name="password"
@@ -385,47 +385,47 @@ const Login = () => {
                                 onPaste={(e) => e.preventDefault()}
                                 onCut={(e) => e.preventDefault()}
                                 onContextMenu={(e) => e.preventDefault()}
-                                className="pl-10 pr-10 h-10 sm:h-11 text-sm sm:text-base"
+                                className="pl-9 sm:pl-10 pr-9 sm:pr-10 h-9 sm:h-10 md:h-11 text-xs sm:text-sm md:text-base touch-manipulation"
                                 disabled={loading}
                                 required
                               />
                               <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 touch-manipulation"
                               >
-                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                {showPassword ? <EyeOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                               </button>
                             </div>
                           </div>
 
                           {/* Login Error Display */}
                           {loginError && (
-                            <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
-                              <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
-                              <p className="text-xs sm:text-sm text-red-600">{loginError}</p>
+                            <div className="p-2 sm:p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                              <AlertCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                              <p className="text-xs sm:text-xs md:text-sm text-red-600">{loginError}</p>
                             </div>
                           )}
 
-                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0 mt-4">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 md:gap-0 mt-3 sm:mt-4">
                             <div className="flex items-center space-x-2 relative">
                               <input
                                 id="remember"
                                 type="checkbox"
                                 checked={rememberMe}
                                 onChange={(e) => setRememberMe(e.target.checked)}
-                                className="w-4 h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2"
+                                className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2 touch-manipulation"
                               />
                               <Label 
                                 htmlFor="remember" 
-                                className="text-xs sm:text-sm cursor-pointer"
+                                className="text-xs sm:text-xs md:text-sm cursor-pointer touch-manipulation"
                                 onMouseEnter={() => setShowTooltip(true)}
                                 onMouseLeave={() => setShowTooltip(false)}
                               >
                                 Remember me
                               </Label>
                               {showTooltip && (
-                                <div className="absolute bottom-full left-0 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-md shadow-lg z-10 whitespace-nowrap">
+                                <div className="absolute bottom-full left-0 mb-2 px-2 sm:px-3 py-1 sm:py-2 bg-gray-800 text-white text-xs rounded-md shadow-lg z-10 whitespace-nowrap max-w-48 sm:max-w-none">
                                   Check to stay logged in across browser sessions
                                   <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
                                 </div>
@@ -433,16 +433,16 @@ const Login = () => {
                             </div>
                             <Link
                               to="/forgot-password"
-                              className="text-xs sm:text-sm text-primary hover:underline"
+                              className="text-xs sm:text-xs md:text-sm text-primary hover:underline touch-manipulation"
                             >
                               Forgot password?
                             </Link>
                           </div>
 
-                          <Button type="submit" className="w-full bg-[#01005a] hover:bg-[#01005a]/90 mt-4 h-10 sm:h-11 text-sm sm:text-base" disabled={loading}>
+                          <Button type="submit" className="w-full bg-[#01005a] hover:bg-[#01005a]/90 active:bg-[#01005a]/95 mt-3 sm:mt-4 h-9 sm:h-10 md:h-11 text-xs sm:text-sm md:text-base touch-manipulation" disabled={loading}>
                             {loading ? (
                               <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                <Loader2 className="mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
                                 Signing in...
                               </>
                             ) : (
@@ -453,22 +453,22 @@ const Login = () => {
                       )}
 
                       {selectedRole === 'admin' && (
-                        <div className="space-y-3 sm:space-y-4">
+                        <div className="space-y-2 sm:space-y-3 md:space-y-4">
                           <Button
                             type="button"
                             variant="outline"
-                            className="w-full h-10 sm:h-11 text-sm sm:text-base"
+                            className="w-full h-9 sm:h-10 md:h-11 text-xs sm:text-sm md:text-base touch-manipulation active:scale-95"
                             onClick={handleGoogleLogin}
                             disabled={loading}
                           >
                             {loading ? (
                               <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                <Loader2 className="mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
                                 Signing in...
                               </>
                             ) : (
                               <>
-                                <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
+                                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" viewBox="0 0 24 24">
                                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -480,17 +480,17 @@ const Login = () => {
                           </Button>
                           {/* Login Error Display */}
                           {loginError && (
-                            <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
-                              <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
-                              <p className="text-xs sm:text-sm text-red-600">{loginError}</p>
+                            <div className="p-2 sm:p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                              <AlertCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                              <p className="text-xs sm:text-xs md:text-sm text-red-600">{loginError}</p>
                             </div>
                           )}
                         </div>
                       )}
 
-                      <div className="text-center text-xs sm:text-sm">
+                      <div className="text-center text-xs sm:text-xs md:text-sm">
                         <span className="text-muted-foreground">Don't have an account? </span>
-                        <Link to="/register" className="text-primary hover:underline font-medium">
+                        <Link to="/register" className="text-primary hover:underline font-medium touch-manipulation">
                           Sign up
                         </Link>
                       </div>

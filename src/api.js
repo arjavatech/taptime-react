@@ -261,6 +261,7 @@ export const registerUser = async (signupData, companyLogoFile = null) => {
       formData.append('company_logo', companyLogoFile);
     }
 
+
     const response = await fetch(`${API_URLS.signUp}`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${localStorage.getItem("access_token")}` },
@@ -550,7 +551,8 @@ export const getCustomerData = async (cid) => {
 // Company functions
 export const getUserCompanies = async (userEmail) => {
   try {
-    return await api.get(`${API_BASE}/company/user/${userEmail}`);
+    const data = await api.get(`${API_BASE}/company/user/${userEmail}`);
+    return data;
   } catch (error) {
     console.error('Error fetching user companies:', error);
     
@@ -559,7 +561,13 @@ export const getUserCompanies = async (userEmail) => {
       return { success: false, error: error.message, deleted: true };
     }
     
-    throw error;
+    // Handle 404 errors as potential account deletion
+    if (error.message && error.message.includes('HTTP 404')) {
+      return { success: false, error: 'Account not found - may have been deleted', deleted: true };
+    }
+    
+    // Return error object instead of throwing
+    return { success: false, error: error.message || 'Failed to fetch companies' };
   }
 };
 
@@ -577,6 +585,7 @@ export const addNewCompany = async (companyData, logoFile = null) => {
     
     const response = await fetch(`${API_BASE}/company/create`, {
       method: 'POST',
+      headers: { 'Authorization': `Bearer ${localStorage.getItem("access_token")}` },
       body: formData
       // Note: Don't set Content-Type header - browser will set it automatically with boundary
     });
@@ -586,16 +595,46 @@ export const addNewCompany = async (companyData, logoFile = null) => {
       throw new Error(errorData.detail || `HTTP ${response.status}`);
     }
     
-    return await response.json();
+    const response_data = await response.json();
+    
+    // Extract company data from response
+    const newCompany = response_data.data;
+    
+    // Update stored companies list with new company
+    const existingCompanies = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_COMPANIES) || '[]');
+    existingCompanies.push(newCompany);
+    localStorage.setItem(STORAGE_KEYS.USER_COMPANIES, JSON.stringify(existingCompanies));
+    
+    // Refresh page to show updated company list
+    window.location.reload();
+    
+    return response_data;
   } catch (error) {
     console.error('Error adding new company:', error);
     throw error;
   }
 };
 
-export const switchCompany = async (companyId, userId) => {
+export const switchCompany = async (companyId) => {
   try {
-    return await api.post(`${API_BASE}/company/switch`, { companyId, userId });
+    const companies = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_COMPANIES) || '[]');
+    const selectedCompany = companies.find(company => company.cid === companyId);
+    
+    if (selectedCompany) {
+      // Clear cached data for all companies to ensure fresh data load
+      Object.keys(COMPANY_DATA_CACHE).forEach(cid => clearCompanyCache(cid));
+      
+      // Set the new active company
+      setActiveCompany(selectedCompany);
+      localStorage.setItem('lastSelectedCompany', companyId);
+      
+      // Refresh the page to ensure all components load with new company data
+      window.location.reload();
+      
+      return selectedCompany;
+    }
+    
+    throw new Error('Company not found');
   } catch (error) {
     console.error('Error switching company:', error);
     throw error;
@@ -612,7 +651,7 @@ export const updateProfile = async (cid, data) => {
     const response = await fetch(apiUrl, {
       method: 'PUT',
       // Don't set Content-Type for FormData - browser sets it with boundary
-      headers: isFormData ? {} : { 'Content-Type': 'application/json' },
+      headers: isFormData ? { 'Authorization': `Bearer ${localStorage.getItem("access_token")}` } : { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem("access_token")}` },
       body: isFormData ? data : JSON.stringify(data)
     });
 
@@ -630,7 +669,7 @@ export const updateEmployeeWithData = async (cid, data) => {
   try {
     const response = await fetch(apiUrl, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem("access_token")}` },
       body: JSON.stringify(data)
     });
     

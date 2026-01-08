@@ -60,7 +60,7 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    
+
     // Only allow numbers for device and employee count fields
     if ((name === 'noOfDevices' || name === 'noOfEmployees') && value && !/^\d+$/.test(value)) {
       return;
@@ -69,18 +69,18 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
     if (name === 'companyZip' && value && !/^\d{0,5}$/.test(value)) {
       return;
     }
-    
+
     // Auto-capitalize first character for text fields (exclude numeric fields)
     let processedValue = value;
     const numericFields = ['noOfDevices', 'noOfEmployees', 'companyZip'];
-    
+
     if (!numericFields.includes(name) && processedValue.length > 0) {
       processedValue = processedValue.charAt(0).toUpperCase() + processedValue.slice(1);
     }
-    
+
     // Clear errors when user types
     setErrors(prev => ({ ...prev, [name]: '' }));
-    
+
     setFormData(prev => ({
       ...prev,
       [name]: processedValue
@@ -94,7 +94,7 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
       const allowedExtensions = ['.jpg', '.jpeg', '.png'];
       const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
-      
+
       if (!allowedTypes.includes(file.type) || !allowedExtensions.includes(fileExtension)) {
         setErrors(prev => ({ ...prev, companyLogo: 'Please upload a valid image file (JPEG or PNG)' }));
         return;
@@ -104,10 +104,10 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
       setLogoFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
-      setFormData(prev => ({
-        ...prev,
-        companyLogo: reader.result
-      }));
+        setFormData(prev => ({
+          ...prev,
+          companyLogo: reader.result
+        }));
       };
       reader.readAsDataURL(file);
     }
@@ -205,7 +205,7 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
 
     try {
       const userEmail = localStorage.getItem('adminMail') || localStorage.getItem('email') || '';
-      
+
       // Get customer contact and address data from localStorage
       const firstName = localStorage.getItem('firstName') || '';
       const lastName = localStorage.getItem('lastName') || '';
@@ -215,7 +215,7 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
       const customerCity = localStorage.getItem('customerCity') || '';
       const customerState = localStorage.getItem('customerState') || '';
       const customerZip = localStorage.getItem('customerZipCode') || '';
-      
+
       // Create company data object matching API specification
       const companyData = {
         company_name: formData.companyName,
@@ -242,7 +242,7 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
       await addNewCompany(companyData, logoFile);
 
       setSuccess('Company added successfully!');
-      
+
       setTimeout(() => {
         onSuccess?.();
         handleClose();
@@ -280,102 +280,89 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
       <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto mx-4">
-        <CardHeader className="space-y-1 bg-primary text-primary-foreground rounded-t-xl px-6 py-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-xl font-bold">Add New Company</CardTitle>
-              <CardDescription className="text-primary-foreground/80">
-                Enter company information to create a new company
-              </CardDescription>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClose}
-              className="h-8 w-8 p-0 text-primary-foreground hover:bg-primary-foreground/20"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-lg sm:text-xl">Add New Company</CardTitle>
+          <CardDescription className="text-sm">
+            Enter company information to create a new company
+          </CardDescription>
         </CardHeader>
 
-        <CardContent className="space-y-6 p-6">
+        <CardContent className="space-y-4">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="companyName" className="text-sm font-medium">Company Name *</Label>
-              <div className="relative">
-                <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="companyName" className="text-sm font-medium">Company Name *</Label>
                 <Input
                   id="companyName"
                   name="companyName"
                   placeholder="Enter company name"
                   value={formData.companyName}
                   onChange={handleInputChange}
-                  className={`pl-10 ${errors.companyName ? 'border-red-500 focus:border-red-500' : ''}`}
+                  className={`text-sm ${errors.companyName ? 'border-red-500 focus:border-red-500' : ''}`}
                   required
                 />
+                {errors.companyName && (
+                  <p className="text-red-600 text-xs mt-1">{errors.companyName}</p>
+                )}
               </div>
-              {errors.companyName && (
-                <p className="text-red-600 text-xs mt-1">{errors.companyName}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="companyLogo" className="text-sm font-medium">Company Logo</Label>
-              {formData.companyLogo ? (
-                <div className="flex items-center gap-3 p-3 border rounded-md bg-gray-50">
-                  <img
-                    src={formData.companyLogo}
-                    alt="Company Logo Preview"
-                    className="w-12 h-12 object-cover rounded"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-700 truncate">{logoFileName}</p>
-                    <p className="text-xs text-gray-500">Image selected</p>
+              <div className="space-y-2">
+                <Label htmlFor="companyLogo" className="text-sm font-medium">Company Logo</Label>
+                {formData.companyLogo ? (
+                  <div className="flex items-center gap-3 p-3 border rounded-md bg-gray-50">
+                    <img
+                      src={formData.companyLogo}
+                      alt="Company Logo Preview"
+                      className="w-12 h-12 object-cover rounded"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-700 truncate">{logoFileName}</p>
+                      <p className="text-xs text-gray-500">Image selected</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveLogo}
+                      className="text-red-500 hover:text-red-700 text-sm font-medium px-2"
+                    >
+                      Remove
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleRemoveLogo}
-                    className="text-red-500 hover:text-red-700 text-sm font-medium px-2"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ) : (
-                <Input
-                  id="companyLogo"
-                  name="companyLogo"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                />
-              )}
+                ) : (
+                  <Input
+                    id="companyLogo"
+                    name="companyLogo"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                  />
+                )}
+              </div>
             </div>
 
             <div className="space-y-4">
               <h3 className="text-lg font-semibold text-gray-900">Company Address</h3>
-              
-              <div className="space-y-2">
-                <Label htmlFor="companyStreet" className="text-sm font-medium">Street Address *</Label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input
-                    id="companyStreet"
-                    name="companyStreet"
-                    placeholder="Enter company street address"
-                    value={formData.companyStreet}
-                    onChange={handleInputChange}
-                    className={`pl-10 ${errors.companyStreet ? 'border-red-500 focus:border-red-500' : ''}`}
-                    required
-                  />
-                </div>
-                {errors.companyStreet && (
-                  <p className="text-red-600 text-xs mt-1">{errors.companyStreet}</p>
-                )}
-              </div>
-
               <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="companyStreet" className="text-sm font-medium">Street Address *</Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                    <Input
+                      id="companyStreet"
+                      name="companyStreet"
+                      placeholder="Enter company street address"
+                      value={formData.companyStreet}
+                      onChange={handleInputChange}
+                      className={`pl-10 ${errors.companyStreet ? 'border-red-500 focus:border-red-500' : ''}`}
+                      required
+                    />
+                  </div>
+                  {errors.companyStreet && (
+                    <p className="text-red-600 text-xs mt-1">{errors.companyStreet}</p>
+                  )}
+                </div>
+
+
                 <div className="space-y-2">
                   <Label htmlFor="companyCity" className="text-sm font-medium">City *</Label>
                   <Input
@@ -406,30 +393,32 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
                     <p className="text-red-600 text-xs mt-1">{errors.companyState}</p>
                   )}
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="companyZip" className="text-sm font-medium">Zip Code *</Label>
-                <div className="relative">
-                  <Input
-                    type="text"
-                    id="companyZip"
-                    name="companyZip"
-                    placeholder="Enter company zip code"
-                    value={formData.companyZip}
-                    onChange={handleInputChange}
-                    className={errors.companyZip ? 'border-red-500 focus:border-red-500' : ''}
-                    maxLength={5}
-                    required
-                  />
-                  {zipLoading && (
-                    <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+                <div className="space-y-2">
+                  <Label htmlFor="companyZip" className="text-sm font-medium">Zip Code *</Label>
+                  <div className="relative">
+                    <Input
+                      type="text"
+                      id="companyZip"
+                      name="companyZip"
+                      placeholder="Enter company zip code"
+                      value={formData.companyZip}
+                      onChange={handleInputChange}
+                      className={errors.companyZip ? 'border-red-500 focus:border-red-500' : ''}
+                      maxLength={5}
+                      required
+                    />
+                    {zipLoading && (
+                      <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
+                  {errors.companyZip && (
+                    <p className="text-red-600 text-xs mt-1">{errors.companyZip}</p>
                   )}
                 </div>
-                {errors.companyZip && (
-                  <p className="text-red-600 text-xs mt-1">{errors.companyZip}</p>
-                )}
               </div>
+
+
             </div>
 
             <div className="space-y-2">

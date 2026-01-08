@@ -9,7 +9,6 @@ const CenterLoadingOverlay = ({ show, message }) => {
       <div className="bg-white rounded-lg p-6 shadow-xl animate-in zoom-in-95 duration-200">
         <div className="flex items-center space-x-3">
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
-          <span className="font-medium text-sm">{message}</span>
         </div>
       </div>
     </div>

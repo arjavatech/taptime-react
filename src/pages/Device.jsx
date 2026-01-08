@@ -45,6 +45,18 @@ const Device = ({ accessDenied = false }) => {
     loadDevices();
   }, []); // Only run once on component mount
 
+  // Listen for company changes
+  useEffect(() => {
+    const handleCompanyChange = () => {
+      const limitStr = localStorage.getItem("NoOfDevices") || "";
+      setMaxDevices(parseInt(limitStr, 10) || 1);
+      loadDevices();
+    };
+
+    window.addEventListener('companyChanged', handleCompanyChange);
+    return () => window.removeEventListener('companyChanged', handleCompanyChange);
+  }, []);
+
   const [centerLoading, setCenterLoading] = useState({ show: false, message: "" });
 
   const showCenterLoading = (message) => {
