@@ -280,27 +280,27 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto mx-4">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-lg sm:text-xl">Add New Company</CardTitle>
-          <CardDescription className="text-sm">
+    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop p-4">
+      <Card className="w-full max-w-2xl max-h-[95vh] overflow-y-auto">
+        <CardHeader className="pb-4 px-4 sm:px-6">
+          <CardTitle className="text-base sm:text-lg md:text-xl">Add New Company</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">
             Enter company information to create a new company
           </CardDescription>
         </CardHeader>
 
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 px-4 sm:px-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="companyName" className="text-sm font-medium">Company Name *</Label>
+                <Label htmlFor="companyName" className="text-xs sm:text-sm font-medium">Company Name *</Label>
                 <Input
                   id="companyName"
                   name="companyName"
-                  placeholder="Enter company name"
+                  placeholder="Company name"
                   value={formData.companyName}
                   onChange={handleInputChange}
-                  className={`text-sm ${errors.companyName ? 'border-red-500 focus:border-red-500' : ''}`}
+                  className={`text-xs sm:text-sm ${errors.companyName ? 'border-red-500 focus:border-red-500' : ''}`}
                   required
                 />
                 {errors.companyName && (
@@ -308,7 +308,7 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="companyLogo" className="text-sm font-medium">Company Logo</Label>
+                <Label htmlFor="companyLogo" className="text-xs sm:text-sm font-medium">Company Logo</Label>
                 {formData.companyLogo ? (
                   <div className="flex items-center gap-3 p-3 border rounded-md bg-gray-50">
                     <img
@@ -317,13 +317,13 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
                       className="w-12 h-12 object-cover rounded"
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-700 truncate">{logoFileName}</p>
+                      <p className="text-xs sm:text-sm font-medium text-gray-700 truncate">{logoFileName}</p>
                       <p className="text-xs text-gray-500">Image selected</p>
                     </div>
                     <button
                       type="button"
                       onClick={handleRemoveLogo}
-                      className="text-red-500 hover:text-red-700 text-sm font-medium px-2"
+                      className="text-red-500 hover:text-red-700 text-xs sm:text-sm font-medium px-2"
                     >
                       Remove
                     </button>
@@ -341,16 +341,16 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900">Company Address</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900">Company Address</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="companyStreet" className="text-sm font-medium">Street Address *</Label>
+                  <Label htmlFor="companyStreet" className="text-xs sm:text-sm font-medium">Street Address *</Label>
                   <div className="relative">
                     <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                     <Input
                       id="companyStreet"
                       name="companyStreet"
-                      placeholder="Enter company street address"
+                      placeholder="Street address"
                       value={formData.companyStreet}
                       onChange={handleInputChange}
                       className={`pl-10 ${errors.companyStreet ? 'border-red-500 focus:border-red-500' : ''}`}
@@ -364,7 +364,7 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
 
 
                 <div className="space-y-2">
-                  <Label htmlFor="companyCity" className="text-sm font-medium">City *</Label>
+                  <Label htmlFor="companyCity" className="text-xs sm:text-sm font-medium">City *</Label>
                   <Input
                     id="companyCity"
                     name="companyCity"
@@ -379,7 +379,7 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="companyState" className="text-sm font-medium">State *</Label>
+                  <Label htmlFor="companyState" className="text-xs sm:text-sm font-medium">State *</Label>
                   <Input
                     id="companyState"
                     name="companyState"
@@ -395,13 +395,13 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="companyZip" className="text-sm font-medium">Zip Code *</Label>
+                  <Label htmlFor="companyZip" className="text-xs sm:text-sm font-medium">Zip Code *</Label>
                   <div className="relative">
                     <Input
                       type="text"
                       id="companyZip"
                       name="companyZip"
-                      placeholder="Enter company zip code"
+                      placeholder="Zip code"
                       value={formData.companyZip}
                       onChange={handleInputChange}
                       className={errors.companyZip ? 'border-red-500 focus:border-red-500' : ''}
@@ -422,13 +422,13 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="reportType" className="text-sm font-medium">Report Type *</Label>
+              <Label htmlFor="reportType" className="text-xs sm:text-sm font-medium">Report Type *</Label>
               <select
                 id="reportType"
                 name="reportType"
                 value={formData.reportType}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-xs sm:text-sm"
                 required
               >
                 <option value="Daily">Daily</option>
@@ -437,14 +437,14 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="noOfDevices" className="text-sm font-medium">Number of Devices *</Label>
+                <Label htmlFor="noOfDevices" className="text-xs sm:text-sm font-medium">Number of Devices *</Label>
                 <Input
                   id="noOfDevices"
                   name="noOfDevices"
                   type="text"
-                  placeholder="Devices"
+                  placeholder="# Devices"
                   value={formData.noOfDevices}
                   onChange={handleInputChange}
                   className={errors.noOfDevices ? 'border-red-500 focus:border-red-500' : ''}
@@ -455,7 +455,7 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
                 )}
               </div>
               <div className="space-y-2">
-                <Label htmlFor="noOfEmployees" className="text-sm font-medium">Number of Employees *</Label>
+                <Label htmlFor="noOfEmployees" className="text-xs sm:text-sm font-medium">Number of Employees *</Label>
                 <Input
                   id="noOfEmployees"
                   name="noOfEmployees"
@@ -473,12 +473,12 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="employmentType" className="text-sm font-medium">Employment Types</Label>
+              <Label htmlFor="employmentType" className="text-xs sm:text-sm font-medium">Employment Types</Label>
               <div className="border border-textMuted rounded-md p-3 min-h-[44px] flex flex-wrap gap-2 items-center focus-within:ring-1 focus-within:ring-textMuted focus-within:border-textMuted">
                 {employmentTypes.map((type, index) => (
                   <span
                     key={index}
-                    className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary text-sm rounded-md"
+                    className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary text-xs sm:text-sm rounded-md"
                   >
                     {type}
                     {employmentTypes.length > 1 && (
@@ -498,18 +498,18 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
                   value={employmentTypeInput}
                   onChange={(e) => setEmploymentTypeInput(e.target.value)}
                   onKeyDown={handleEmploymentTypeKeyDown}
-                  placeholder={employmentTypes.length === 0 ? "Type and press comma to add" : "Add more..."}
-                  className="flex-1 min-w-[120px] outline-none text-sm bg-transparent"
+                  placeholder={employmentTypes.length === 0 ? "Type and press comma" : "Add more..."}
+                  className="flex-1 min-w-[120px] outline-none text-xs sm:text-sm bg-transparent"
                 />
               </div>
-              <p className="text-sm text-muted-foreground">Type employment type and press comma to add. Default: General Employee</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">Type employment type and press comma to add. Default: General Employee</p>
             </div>
 
             {/* Success message */}
             {success && (
               <div className="p-3 bg-green-50 border border-green-200 rounded-md flex items-start gap-2">
                 <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-green-600">{success}</p>
+                <p className="text-xs sm:text-sm text-green-600">{success}</p>
               </div>
             )}
 
@@ -517,23 +517,23 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
             {error && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
                 <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-600">{error}</p>
+                <p className="text-xs sm:text-sm text-red-600">{error}</p>
               </div>
             )}
 
-            <div className="flex gap-3 pt-4">
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleClose}
-                className="flex-1"
+                className="flex-1 order-2 sm:order-1"
                 disabled={isLoading}
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                className="flex-1"
+                className="flex-1 order-1 sm:order-2"
                 disabled={isLoading}
               >
                 {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}

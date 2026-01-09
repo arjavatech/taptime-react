@@ -77,50 +77,48 @@ const CompanySwitcher = ({ onAddCompanyClick }) => {
   }
 
   return (
-    <div className="w-full bg-gray-50 rounded-lg border border-gray-200">
+    <div className="w-full rounded-[15px] border border-gray-200">
       <Button
         variant="ghost"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between gap-2 px-3 py-3 h-auto hover:bg-gray-100 rounded-lg"
+        className="w-full flex items-center justify-between gap-2 px-3 py-3 h-auto hover:bg-white hover:text-[#02066F]"
         disabled={loading}
       >
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-[#02066F] flex items-center justify-center text-white text-sm font-semibold shadow-sm">
-            {currentCompany?.company_name?.charAt(0)?.toUpperCase() || currentCompany?.CName?.charAt(0)?.toUpperCase() || 'C'}
-          </div>
-          <div className="flex flex-col items-start">
-            <span className="text-sm font-semibold text-gray-900 truncate">{currentCompany?.company_name || currentCompany?.CName || 'Unknown Company'}</span>
-            <span className="text-xs text-gray-500">{companies.length} companies</span>
+        <div className="flex items-center justify-between w-full">
+          {isOpen ? 'Hide more accounts' : 'Show more accounts'}
+          <div className="flex -space-x-1 items-center justify-end">
+            {companies.filter(company => (company.cid || company.CID) !== currentCompanyId).slice(0, 2).map((company, index) => (
+              <div key={company.cid || company.CID} className="w-6 h-6 rounded-full bg-[#02066F] flex items-center justify-center text-white text-xs font-semibold border-2 border-white">
+                {(company.company_name || company.CName)?.charAt(0)?.toUpperCase() || 'C'}
+              </div>
+            ))}
+            {companies.filter(company => (company.cid || company.CID) !== currentCompanyId).length > 2 && (
+              <div className="w-6 h-6 rounded-full bg-[#02066F] flex items-center justify-center text-white text-xs font-semibold border-2 border-white">
+                +{companies.filter(company => (company.cid || company.CID) !== currentCompanyId).length - 2}
+              </div>
+            )}
           </div>
         </div>
         <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </Button>
 
       <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+        <div className="h-px w-full bg-gray-200 mb-2" />
         <div className="px-2 pb-2 space-y-1">
-          <div className="h-px bg-gray-200 mx-2 mb-2" />
-          {companies.map((company) => (
+          
+          {companies.filter(company => (company.cid || company.CID) !== currentCompanyId).map((company) => (
+            
             <button
               key={company.cid || company.CID}
               onClick={() => handleCompanySwitch(company.cid || company.CID)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-150 ${
-                (company.cid || company.CID) === currentCompanyId
-                  ? 'bg-[#02066F]/10 border border-[#02066F]/20 shadow-sm'
-                  : 'hover:bg-white hover:shadow-sm border border-transparent'
-              }`}
+              className="group w-full flex items-center gap-3 px-3 py-2.5 transition-all duration-150 border-b border-[gray-300] hover:bg-white hover:shadow-smtransparent "
               disabled={loading}
             >
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-semibold ${
-                (company.cid || company.CID) === currentCompanyId
-                  ? 'bg-[#02066F]'
-                  : 'bg-gray-400'
-              }`}>
+              <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-semibold bg-[#02066F] ">
                 {(company.company_name || company.CName)?.charAt(0)?.toUpperCase() || 'C'}
               </div>
               <div className="flex-1 text-left">
-                <div className={`font-medium text-sm ${
-                  (company.cid || company.CID) === currentCompanyId ? 'text-[#02066F]' : 'text-gray-700'
-                }`}>
+                <div className="font-medium text-sm text-[#02066F] ">
                   {company.company_name || company.CName || 'Unknown Company'}
                 </div>
               </div>
@@ -130,15 +128,16 @@ const CompanySwitcher = ({ onAddCompanyClick }) => {
             </button>
           ))}
           
-          <button
+          
+        </div>
+        <button
             key="add-company"
             onClick={handleAddCompany}
-            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-white hover:shadow-sm rounded-md transition-all duration-150 border border-dashed border-gray-300 hover:border-[#02066F]/30 mt-3"
+            className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-white hover:shadow-sm  transition-all duration-150 border-t border-[gray-300]"
           >
-            <Plus className="w-7 h-7 text-gray-400 p-1" />
-            <span className="flex-1 text-left font-medium text-sm text-gray-600">Add company</span>
+            <Plus className="w-7 h-7 text-[#02066F] p-1" />
+            <span className="flex-1 text-left font-medium text-sm text-[#02066F]">Add company</span>
           </button>
-        </div>
       </div>
       
       

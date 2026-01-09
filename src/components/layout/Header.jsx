@@ -29,6 +29,7 @@ const Header = () => {
     name: "",
     email: "",
     picture: "",
+    companyName: ""
   });
 
   useEffect(() => {
@@ -64,6 +65,7 @@ const Header = () => {
         const email = localStorage.getItem("adminMail") || "";
         const userName = localStorage.getItem("userName") || "";
         const userPictureUrl = localStorage.getItem("userPicture");
+        const companyName = localStorage.getItem("companyName") || "";
 
         // Determine if this is a Google login by checking if user has a profile picture
         // For email-based login, always use default avatar (no picture)
@@ -77,6 +79,7 @@ const Header = () => {
           name: userName,
           email: email,
           picture: profilePicture,
+          companyName: companyName
         });
       }
     };
@@ -202,8 +205,8 @@ const Header = () => {
                   href={item.href}
                   onClick={item.onClick}
                   className={`${item.href === "#contact" && location.hash === "#contact"
-                      ? "text-[#02066F] bg-blue-50"
-                      : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
+                    ? "text-[#02066F] bg-blue-50"
+                    : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
                     } px-3 py-2 text-base font-medium rounded-md transition-all duration-150`}
                 >
                   {item.label}
@@ -213,8 +216,8 @@ const Header = () => {
                   <button
                     onClick={() => setShowReportsDropdown(!showReportsDropdown)}
                     className={`${location.pathname.includes("/report")
-                        ? "text-[#02066F] bg-blue-50"
-                        : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
+                      ? "text-[#02066F] bg-blue-50"
+                      : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
                       } px-3 py-2 text-base font-medium rounded-md transition-all duration-150 flex items-center gap-1`}
                   >
                     {item.label}
@@ -230,8 +233,8 @@ const Header = () => {
                           to={subItem.to}
                           onClick={() => setShowReportsDropdown(false)}
                           className={`${isActive(subItem.to)
-                              ? "text-[#02066F] bg-blue-50"
-                              : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
+                            ? "text-[#02066F] bg-blue-50"
+                            : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
                             } block px-4 py-2 text-sm font-medium first:rounded-t-md last:rounded-b-md`}
                         >
                           {subItem.label}
@@ -245,8 +248,8 @@ const Header = () => {
                   key={index}
                   to={item.to}
                   className={`${isActive(item.to)
-                      ? "text-[#02066F] bg-blue-50"
-                      : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
+                    ? "text-[#02066F] bg-blue-50"
+                    : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
                     } px-3 py-2 text-base font-medium rounded-md transition-all duration-150`}
                 >
                   {item.label}
@@ -284,7 +287,7 @@ const Header = () => {
                       <div className="bg-white rounded-lg shadow-2xl border border-gray-200 min-w-[300px] overflow-hidden">
                         {/* Profile Header */}
                         <div className="px-6 py-5   ">
-                          <div className="flex items-center space-x-4">
+                          <div className="flex items-center justify-center space-x-4">
                             <Avatar
                               src={userProfile.picture}
                               email={userProfile.email}
@@ -292,10 +295,11 @@ const Header = () => {
                               alt="Profile"
                               className="ring-2 ring-white/20"
                             />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-[#02066F] font-medium truncate">{userProfile.email}</p>
-                              <p className="text-gray-600 text-xs mt-1">Account Settings</p>
-                            </div>
+
+                          </div>
+                          <div className="flex-1 min-w-0 py-3 text-center">
+                            <p className="text-[#02066F] font-medium truncate">{userProfile.companyName}</p>
+                            <p className="text-gray-600 text-sm mt-1">{userProfile.email}</p>
                           </div>
                         </div>
 
@@ -305,14 +309,14 @@ const Header = () => {
                           const storedCompanies = localStorage.getItem("userCompanies");
                           const hasCompanies = adminType === "Owner" && storedCompanies && JSON.parse(storedCompanies).length > 0;
                           return hasCompanies ? (
-                            <div className="px-6 py-4">
+                            <div className="px-6">
                               <CompanySwitcher onAddCompanyClick={() => setShowProfileDropdown(false)} />
                             </div>
                           ) : null;
                         })()}
 
                         {/* Sign Out Section */}
-                        <div className="px-6 py-4 border-t border-gray-100">
+                        <div className="px-6 py-4">
                           <button
                             onClick={() => { setShowModal(true); setShowProfileDropdown(false); }}
                             className="w-full text-center justify-center px-4 py-3 bg-[#02066F] text-white rounded-md font-medium text-base transition-all duration-200 flex items-center space-x-3 rounded-md group"
@@ -367,8 +371,8 @@ const Header = () => {
                       <button
                         onClick={() => setShowMobileReportsDropdown(!showMobileReportsDropdown)}
                         className={`w-full text-left px-3 py-2 rounded-md font-medium text-base flex items-center justify-between ${location.pathname.includes("/report")
-                            ? "text-[#02066F] bg-blue-50"
-                            : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
+                          ? "text-[#02066F] bg-blue-50"
+                          : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
                           }`}
                       >
                         {item.label}
@@ -381,8 +385,8 @@ const Header = () => {
                           key={subIndex}
                           to={subItem.to}
                           className={`block px-6 py-2 rounded-md font-medium text-sm ml-3 ${isActive(subItem.to)
-                              ? "text-[#02066F] bg-blue-50"
-                              : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
+                            ? "text-[#02066F] bg-blue-50"
+                            : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
                             }`}
                           onClick={toggleSidebar}
                         >
@@ -395,8 +399,8 @@ const Header = () => {
                       key={index}
                       to={item.to}
                       className={`block px-3 py-2 rounded-md font-medium text-base ${isActive(item.to)
-                          ? "text-[#02066F] bg-blue-50"
-                          : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
+                        ? "text-[#02066F] bg-blue-50"
+                        : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
                         }`}
                       onClick={toggleSidebar}
                     >
