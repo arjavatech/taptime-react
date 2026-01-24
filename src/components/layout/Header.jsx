@@ -140,6 +140,7 @@ const Header = () => {
 
   const publicNavItems = [
     { to: "/", label: "Home" },
+    { to: "/pricing", label: "Pricing" },
     { to: "/login", label: "Login" },
     { to: "/register", label: "Register" },
     { to: "/contact-us", label: "Contact Us" },

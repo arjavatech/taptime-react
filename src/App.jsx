@@ -9,6 +9,8 @@ import HomePage from "./pages/HomePage";
 import Login from "./pages/Login";
 import SetPassword from "./pages/SetPassword";
 import Register from "./pages/Register";
+import RegisterSuccess from "./pages/RegisterSuccess";
+import Pricing from "./pages/Pricing";
 import EmployeeList from "./pages/EmployeeList";
 import Device from "./pages/Device";
 import Profile from "./pages/Profile";
@@ -29,10 +31,12 @@ function App() {
         <div className="App">
           <Routes>
             <Route path="/" element={<HomePage />} />
+            <Route path="/pricing" element={<Pricing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/set-password" element={<SetPassword />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/register/success" element={<RegisterSuccess />} />
             <Route path="/contact-us" element={<GetInTouch />} />
             <Route path="/employee-management" element={<ProtectedRoute><EmployeeList /></ProtectedRoute>} />
             <Route path="/device" element={<RoleProtectedRoute allowedRoles={['Owner', 'SuperAdmin']}><Device /></RoleProtectedRoute>} />

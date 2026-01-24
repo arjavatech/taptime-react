@@ -233,7 +233,7 @@ export const googleSignInCheck = async (email, authMethod = 'google') => {
 
 
 
-export const registerUser = async (signupData, companyLogoFile = null) => {
+export const registerUser = async (signupData, companyLogoFile = null, stripeSessionId = null) => {
   try {
     const formData = new FormData();
 
@@ -243,6 +243,11 @@ export const registerUser = async (signupData, companyLogoFile = null) => {
     // Add company_logo file if provided
     if (companyLogoFile) {
       formData.append('company_logo', companyLogoFile);
+    }
+
+    // Add Stripe session ID if provided
+    if (stripeSessionId) {
+      formData.append('stripe_session_id', stripeSessionId);
     }
 
     const response = await fetch(`${API_URLS.signUp}`, {
@@ -610,6 +615,143 @@ export const supabaseSignOut = async () => {
     localStorage.clear();
     return { success: true };
   } catch (error) {
+    return { success: false, error: error.message };
+  }
+};
+
+// ============================================
+// Subscription/Stripe Functions
+// ============================================
+
+/**
+ * Create a Stripe Checkout session for subscription
+ * @param {string} cid - Company ID
+ * @param {string} priceId - Stripe Price ID
+ * @param {number} quantity - Number of employees
+ * @param {string} successUrl - URL to redirect after successful payment
+ * @param {string} cancelUrl - URL to redirect if user cancels
+ * @returns {Promise} - Checkout URL and session ID
+ */
+/**
+ * Create Stripe checkout session for registration
+ * @param {Object} registrationData
+ * @param {string} registrationData.email
+ * @param {string} registrationData.company_name
+ * @param {number} registrationData.quantity - Number of employees
+ * @param {string} registrationData.price_id
+ * @param {number} [registrationData.trial_period_days=14] - Trial days (0 for no trial)
+ * @param {string} registrationData.success_url
+ * @param {string} registrationData.cancel_url
+ */
+export const createCheckoutSessionForRegistration = async (registrationData) => {
+  try {
+    const data = await api.post(`${API_BASE}/subscription/create-checkout-session-registration`, registrationData);
+    return { success: true, data };
+  } catch (error) {
+    console.error('Create checkout session for registration error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const createCheckoutSession = async (cid, priceId, quantity, successUrl, cancelUrl) => {
+  try {
+    const data = await api.post(`${API_BASE}/subscription/create-checkout-session`, {
+      cid,
+      price_id: priceId,
+      quantity,
+      success_url: successUrl,
+      cancel_url: cancelUrl
+    });
+    return { success: true, data };
+  } catch (error) {
+    console.error('Create checkout session error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Get all available subscription plans
+ * @returns {Promise} - List of subscription plans
+ */
+export const getSubscriptionPlans = async () => {
+  try {
+    const data = await api.get(`${API_BASE}/subscription/plans`);
+    return { success: true, plans: data.plans };
+  } catch (error) {
+    console.error('Get subscription plans error:', error);
+    return { success: false, error: error.message, plans: [] };
+  }
+};
+
+/**
+ * Get subscription status for a company
+ * @param {string} cid - Company ID
+ * @returns {Promise} - Subscription status including trial info
+ */
+export const getSubscriptionStatus = async (cid) => {
+  try {
+    const data = await api.get(`${API_BASE}/subscription/status/${cid}`);
+    return { success: true, data };
+  } catch (error) {
+    console.error('Get subscription status error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Cancel subscription
+ * @param {string} cid - Company ID
+ * @param {boolean} atPeriodEnd - If true, cancel at end of billing period. If false, cancel immediately.
+ * @returns {Promise} - Cancellation result
+ */
+export const cancelSubscription = async (cid, atPeriodEnd = true) => {
+  try {
+    const data = await api.post(`${API_BASE}/subscription/cancel/${cid}`, {
+      at_period_end: atPeriodEnd
+    });
+    return { success: true, data };
+  } catch (error) {
+    console.error('Cancel subscription error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Change subscription plan (upgrade/downgrade)
+ * @param {string} cid - Company ID
+ * @param {string} newPriceId - New Stripe Price ID
+ * @param {number} quantity - Optional new employee count
+ * @returns {Promise} - Plan change result
+ */
+export const changeSubscriptionPlan = async (cid, newPriceId, quantity = null) => {
+  try {
+    const requestData = { new_price_id: newPriceId };
+    if (quantity !== null) {
+      requestData.quantity = quantity;
+    }
+
+    const data = await api.post(`${API_BASE}/subscription/change-plan/${cid}`, requestData);
+    return { success: true, data };
+  } catch (error) {
+    console.error('Change subscription plan error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Create Stripe Customer Portal session
+ * @param {string} cid - Company ID
+ * @param {string} returnUrl - URL to redirect after portal session
+ * @returns {Promise} - Portal URL
+ */
+export const createCustomerPortalSession = async (cid, returnUrl) => {
+  try {
+    const data = await api.post(`${API_BASE}/subscription/customer-portal/${cid}`, {
+      return_url: returnUrl
+    });
+    return { success: true, portalUrl: data.portal_url };
+  } catch (error) {
+    console.error('Create customer portal session error:', error);
     return { success: false, error: error.message };
   }
 };

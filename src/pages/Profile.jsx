@@ -7,6 +7,7 @@ import { Label } from "../components/ui/label";
 import { updateProfile, updateEmployeeWithData } from "../api.js";
 import { initializeUserSession, loadProfileData, logoutUser } from "./ProfilePageLogic.js";
 import Footer from "@/components/layout/Footer";
+import SubscriptionManagement from "../components/SubscriptionManagement";
 import {
   User,
   Building,
@@ -1438,64 +1439,7 @@ const Profile = () => {
           )}
 
           {activeTab === "subscription" && userType === "Owner" && (
-            <Card>
-              <CardHeader>
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <CreditCard className="w-5 h-5" />
-                    Subscription Overview
-                  </CardTitle>
-                  <CardDescription>
-                    View your current plan details and upgrade options
-                  </CardDescription>
-                </div>
-              </CardHeader>
-
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="p-4 border rounded-lg">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Monitor className="w-5 h-5 text-primary" />
-                      <h3 className="font-medium">Total Devices</h3>
-                    </div>
-                    <p className="text-2xl font-bold text-primary">
-                      {localStorage.getItem("NoOfDevices")}
-                    </p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Active devices in your system
-                    </p>
-                  </div>
-
-                  <div className="p-4 border rounded-lg">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Users className="w-5 h-5 text-primary" />
-                      <h3 className="font-medium">Total Employees</h3>
-                    </div>
-                    <p className="text-2xl font-bold text-primary">
-                      {localStorage.getItem("NoOfEmployees")}
-                    </p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Registered employees
-                    </p>
-                  </div>
-                </div>
-
-                <div className="p-6 bg-muted rounded-lg border">
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div>
-                      <h3 className="font-semibold text-lg mb-2">Upgrade Your Plan</h3>
-                      <p className="text-muted-foreground">
-                        Need more devices or employees? Upgrade your subscription to unlock additional capacity and features.
-                      </p>
-                    </div>
-                    <Button className="flex items-center gap-2">
-                      <ArrowUpCircle className="w-4 h-4" />
-                      Upgrade Plan
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <SubscriptionManagement />
           )}
         </div>
       </div>
