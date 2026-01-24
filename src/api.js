@@ -233,6 +233,44 @@ export const googleSignInCheck = async (email, authMethod = 'google') => {
 
 
 
+/**
+ * Create a pending registration (Step 1 of new webhook-based registration flow)
+ * Saves registration data before Stripe payment
+ * @param {Object} registrationData - Registration form data
+ * @param {File} companyLogoFile - Company logo file (optional)
+ * @returns {Promise} - registration_id to use for checkout session
+ */
+export const createPendingRegistration = async (registrationData, companyLogoFile = null) => {
+  try {
+    const formData = new FormData();
+
+    // Add registration_data as JSON string
+    formData.append('registration_data', JSON.stringify(registrationData));
+
+    // Add company_logo file if provided
+    if (companyLogoFile) {
+      formData.append('company_logo', companyLogoFile);
+    }
+
+    const response = await fetch(`${API_BASE}/auth/pending-registration`, {
+      method: 'POST',
+      body: formData
+      // Note: Don't set Content-Type header - browser will set it automatically with boundary
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    return { success: true, data };
+  } catch (error) {
+    console.error('Create pending registration error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 export const registerUser = async (signupData, companyLogoFile = null, stripeSessionId = null) => {
   try {
     const formData = new FormData();

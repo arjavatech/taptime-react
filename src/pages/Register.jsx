@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { registerUser, getSubscriptionPlans, createCheckoutSessionForRegistration } from '../api.js';
+import { createPendingRegistration, getSubscriptionPlans, createCheckoutSessionForRegistration } from '../api.js';
 import { useZipLookup } from '../hooks';
 import Header from "../components/layout/Header";
 import { Button } from "../components/ui/button";
@@ -417,17 +417,22 @@ const Register = () => {
         last_modified_by: 'Admin'
       };
 
-      // 1. Save registration data to sessionStorage (persists better across Stripe redirects)
-      sessionStorage.setItem('pendingRegistration', JSON.stringify(submitData));
+      // NEW WEBHOOK-BASED REGISTRATION FLOW
+      // Step 1: Save pending registration to database (before payment)
+      console.log('Step 1: Creating pending registration...');
+      const pendingRegResponse = await createPendingRegistration(submitData, logoFile);
 
-      // 2. Convert and save logo to sessionStorage if exists
-      if (logoFile) {
-        const base64Logo = await fileToBase64(logoFile);
-        sessionStorage.setItem('pendingRegistrationLogo', base64Logo);
-        sessionStorage.setItem('pendingRegistrationLogoName', logoFile.name);
+      if (!pendingRegResponse.success) {
+        setGeneralError(pendingRegResponse.error || 'Failed to save registration. Please try again.');
+        setIsLoading(false);
+        return;
       }
 
-      // 3. Get subscription plans to get the price ID
+      const registrationId = pendingRegResponse.data.registration_id;
+      console.log('✅ Pending registration created:', registrationId);
+
+      // Step 2: Get subscription plans to get the price ID
+      console.log('Step 2: Loading subscription plans...');
       const plansResponse = await getSubscriptionPlans();
 
       if (!plansResponse.success || !plansResponse.plans || plansResponse.plans.length === 0) {
@@ -438,37 +443,32 @@ const Register = () => {
 
       const priceId = plansResponse.plans[0].stripe_price_id;
 
-      // 4. Create Stripe Checkout session for registration
+      // Step 3: Create Stripe Checkout session with registration_id
+      // Webhook will use registration_id to create account automatically
+      console.log('Step 3: Creating checkout session...');
       const quantity = parseInt(formData.noOfEmployees, 10);
-      const successUrl = `${window.location.origin}/register/success?session_id={CHECKOUT_SESSION_ID}`;
-      const cancelUrl = `${window.location.origin}/register`;
+      const successUrl = `${window.location.origin}/register/success`;  // No session_id needed!
+      const cancelUrl = `${window.location.origin}/register?retry=true`;
 
       const checkoutResponse = await createCheckoutSessionForRegistration({
-        email: formData.email,
-        company_name: formData.companyName,
-        quantity: quantity,
+        registration_id: registrationId,  // CRITICAL: Links checkout to pending registration
         price_id: priceId,
-        trial_period_days: wantsTrial ? 14 : 0,  // Dynamic trial
+        quantity: quantity,
+        trial_period_days: wantsTrial ? 14 : 0,
         success_url: successUrl,
         cancel_url: cancelUrl
       });
 
       if (checkoutResponse.success) {
-        // 5. Redirect to Stripe Checkout
+        // Step 4: Redirect to Stripe Checkout
+        // After payment completes, webhook will automatically create account
+        console.log('✅ Redirecting to Stripe checkout...');
         window.location.href = checkoutResponse.data.checkout_url;
       } else {
-        // Clear sessionStorage on error
-        sessionStorage.removeItem('pendingRegistration');
-        sessionStorage.removeItem('pendingRegistrationLogo');
-        sessionStorage.removeItem('pendingRegistrationLogoName');
-
         setGeneralError('Failed to create checkout session. Please try again.');
       }
     } catch (error) {
-      // Clear sessionStorage on error
-      sessionStorage.removeItem('pendingRegistration');
-      sessionStorage.removeItem('pendingRegistrationLogo');
-      sessionStorage.removeItem('pendingRegistrationLogoName');
+      console.error('Registration flow error:', error);
 
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
         setGeneralError('Network error. Please check your internet connection and try again');
