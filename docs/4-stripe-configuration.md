@@ -144,7 +144,7 @@ After creating the endpoint:
 2. Scroll to **Signing secret**
 3. Click **Reveal** or **Copy**
 4. Copy the secret (starts with `whsec_`)
-   - Example: `whsec_AbCdEfGhIjKlMnOpQrStUvWxYz1234567890`
+   - Example: `whsec_xxxxxxxxxxxxxxxxxxxxx`
 
 **Save this secret!** Add to backend `.env`:
 
