@@ -93,6 +93,25 @@ const RegisterSuccess = () => {
         clearTimeout(timeout);
 
         if (response.success) {
+          // Check if registration succeeded but Stripe data is missing
+          if (!response.stripe_customer_id) {
+            console.warn('⚠️ Registration succeeded but Stripe data not linked');
+            console.warn('Session ID:', sessionId);
+            console.warn('Company ID:', response.company_id);
+            console.warn('This might indicate a Stripe linking issue during registration');
+
+            // Log to debug info
+            setDebugInfo(prev => ({
+              ...prev,
+              stripeWarning: 'Stripe data not linked',
+              companyId: response.company_id,
+              sessionId: sessionId
+            }));
+
+            // Note: We still show success because the account was created
+            // The backend logs should capture this issue for support team to investigate
+          }
+
           // 5. Clear sessionStorage
           sessionStorage.removeItem('pendingRegistration');
           sessionStorage.removeItem('pendingRegistrationLogo');
