@@ -11,6 +11,12 @@ const RegisterSuccess = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [debugInfo, setDebugInfo] = useState({
+    sessionId: null,
+    hasStorageData: false,
+    apiCalled: false,
+    apiError: null
+  });
 
   // Helper function to convert base64 back to File
   const base64ToFile = (base64, filename) => {
@@ -27,55 +33,88 @@ const RegisterSuccess = () => {
 
   useEffect(() => {
     const completeRegistration = async () => {
+      console.log('=== RegisterSuccess: Component Mounted ===');
+
+      // Set timeout protection (30 seconds)
+      const timeout = setTimeout(() => {
+        console.error('TIMEOUT: Registration taking too long');
+        setError('Registration is taking too long. Please contact support if this persists.');
+        setLoading(false);
+      }, 30000);
+
       try {
         // 1. Get session_id from URL
         const sessionId = searchParams.get('session_id');
+        console.log('1. Session ID from URL:', sessionId);
+        setDebugInfo(prev => ({ ...prev, sessionId }));
 
         if (!sessionId) {
+          console.error('FAILED: No session_id in URL');
           setError('Invalid session. Please try registering again.');
           setLoading(false);
+          clearTimeout(timeout);
           return;
         }
 
-        // 2. Retrieve registration data from localStorage
-        const registrationData = localStorage.getItem('pendingRegistration');
-        const logoData = localStorage.getItem('pendingRegistrationLogo');
-        const logoName = localStorage.getItem('pendingRegistrationLogoName');
+        // 2. Retrieve registration data from sessionStorage
+        const registrationData = sessionStorage.getItem('pendingRegistration');
+        const logoData = sessionStorage.getItem('pendingRegistrationLogo');
+        const logoName = sessionStorage.getItem('pendingRegistrationLogoName');
+
+        console.log('2. Registration data exists:', !!registrationData);
+        console.log('   Logo data exists:', !!logoData);
+        setDebugInfo(prev => ({ ...prev, hasStorageData: !!registrationData }));
 
         if (!registrationData) {
-          setError('Registration data not found. Please try registering again.');
+          console.error('FAILED: No registration data in sessionStorage');
+          console.log('Available sessionStorage keys:', Object.keys(sessionStorage));
+          setError('Registration data lost. This can happen if you cleared your browser data or waited too long. Please try registering again.');
           setLoading(false);
+          clearTimeout(timeout);
           return;
         }
 
         const submitData = JSON.parse(registrationData);
+        console.log('3. Parsed registration data for email:', submitData.email);
 
         // 3. Convert base64 back to File if logo exists
         let companyLogo = null;
         if (logoData && logoName) {
           companyLogo = base64ToFile(logoData, logoName);
+          console.log('4. Company logo converted:', logoName);
         }
 
         // 4. Call sign_up API with Stripe session_id
+        console.log('5. Calling registerUser API...');
+        setDebugInfo(prev => ({ ...prev, apiCalled: true }));
         const response = await registerUser(submitData, companyLogo, sessionId);
+        console.log('6. API response received:', response.success ? 'SUCCESS' : 'FAILED');
+
+        clearTimeout(timeout);
 
         if (response.success) {
-          // 5. Clear localStorage
-          localStorage.removeItem('pendingRegistration');
-          localStorage.removeItem('pendingRegistrationLogo');
-          localStorage.removeItem('pendingRegistrationLogoName');
+          // 5. Clear sessionStorage
+          sessionStorage.removeItem('pendingRegistration');
+          sessionStorage.removeItem('pendingRegistrationLogo');
+          sessionStorage.removeItem('pendingRegistrationLogoName');
+          console.log('7. sessionStorage cleared, showing success modal');
 
           // 6. Show success modal
           setLoading(false);
           setShowSuccessModal(true);
         } else {
           const errorMessage = response.error || response.message || 'Registration failed';
+          console.error('API Error:', errorMessage);
+          setDebugInfo(prev => ({ ...prev, apiError: errorMessage }));
           setError(errorMessage);
           setLoading(false);
         }
       } catch (error) {
-        console.error('Registration error:', error);
-        setError('An unexpected error occurred. Please contact support.');
+        clearTimeout(timeout);
+        console.error('=== RegisterSuccess ERROR ===', error);
+        console.error('Error stack:', error.stack);
+        setDebugInfo(prev => ({ ...prev, apiError: error.message }));
+        setError(error.message || 'An unexpected error occurred. Please contact support.');
         setLoading(false);
       }
     };
@@ -109,6 +148,15 @@ const RegisterSuccess = () => {
             </div>
             <h2 className="text-xl sm:text-2xl font-semibold text-gray-800 text-center">Registration Error</h2>
             <p className="text-sm sm:text-base text-gray-600 text-center">{error}</p>
+
+            {/* Debug info for troubleshooting */}
+            <details className="bg-gray-50 p-3 rounded text-xs">
+              <summary className="cursor-pointer font-semibold">Debug Information</summary>
+              <pre className="mt-2 whitespace-pre-wrap">
+                {JSON.stringify(debugInfo, null, 2)}
+              </pre>
+            </details>
+
             <div className="flex flex-col gap-3 pt-4">
               <button
                 onClick={() => navigate('/register')}

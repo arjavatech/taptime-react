@@ -417,14 +417,14 @@ const Register = () => {
         last_modified_by: 'Admin'
       };
 
-      // 1. Save registration data to localStorage
-      localStorage.setItem('pendingRegistration', JSON.stringify(submitData));
+      // 1. Save registration data to sessionStorage (persists better across Stripe redirects)
+      sessionStorage.setItem('pendingRegistration', JSON.stringify(submitData));
 
-      // 2. Convert and save logo to localStorage if exists
+      // 2. Convert and save logo to sessionStorage if exists
       if (logoFile) {
         const base64Logo = await fileToBase64(logoFile);
-        localStorage.setItem('pendingRegistrationLogo', base64Logo);
-        localStorage.setItem('pendingRegistrationLogoName', logoFile.name);
+        sessionStorage.setItem('pendingRegistrationLogo', base64Logo);
+        sessionStorage.setItem('pendingRegistrationLogoName', logoFile.name);
       }
 
       // 3. Get subscription plans to get the price ID
@@ -457,18 +457,18 @@ const Register = () => {
         // 5. Redirect to Stripe Checkout
         window.location.href = checkoutResponse.data.checkout_url;
       } else {
-        // Clear localStorage on error
-        localStorage.removeItem('pendingRegistration');
-        localStorage.removeItem('pendingRegistrationLogo');
-        localStorage.removeItem('pendingRegistrationLogoName');
+        // Clear sessionStorage on error
+        sessionStorage.removeItem('pendingRegistration');
+        sessionStorage.removeItem('pendingRegistrationLogo');
+        sessionStorage.removeItem('pendingRegistrationLogoName');
 
         setGeneralError('Failed to create checkout session. Please try again.');
       }
     } catch (error) {
-      // Clear localStorage on error
-      localStorage.removeItem('pendingRegistration');
-      localStorage.removeItem('pendingRegistrationLogo');
-      localStorage.removeItem('pendingRegistrationLogoName');
+      // Clear sessionStorage on error
+      sessionStorage.removeItem('pendingRegistration');
+      sessionStorage.removeItem('pendingRegistrationLogo');
+      sessionStorage.removeItem('pendingRegistrationLogoName');
 
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
         setGeneralError('Network error. Please check your internet connection and try again');
