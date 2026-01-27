@@ -102,6 +102,8 @@ const Profile = () => {
   });
 
   const [companyId, setCompanyId] = useState("");
+  const [deviceCount, setDeviceCount] = useState(localStorage.getItem("NoOfDevices") || "0");
+  const [employeeCount, setEmployeeCount] = useState(localStorage.getItem("NoOfEmployees") || "0");
 
   // Check if user can edit company details - only Owner is allowed
   const canEditCompany = userType === "Owner";
@@ -322,6 +324,36 @@ const Profile = () => {
     };
 
     initializeProfile();
+  }, []);
+
+  // Listen for company changes and update profile data
+  useEffect(() => {
+    const handleCompanyChange = async () => {
+      const { companyId, userType, adminDetails } = await initializeUserSession();
+      const formData = loadProfileData(adminDetails);
+      
+      // Update company data with new logo
+      const storedEmploymentType = localStorage.getItem("employmentType") || "";
+      setCompanyData({
+        name: formData.companyName,
+        address: formData.companyStreet,
+        street2: formData.companyStreet2,
+        city: formData.companyCity,
+        state: formData.companyState,
+        companyZip: formData.companyZip,
+        logo: formData.logo,
+        employmentType: storedEmploymentType.split(',').filter(t => t.trim()).join(','),
+      });
+      
+      setEmploymentTypes(storedEmploymentType.split(',').filter(t => t.trim()));
+      
+      // Update device and employee counts
+      setDeviceCount(localStorage.getItem("NoOfDevices") || "0");
+      setEmployeeCount(localStorage.getItem("NoOfEmployees") || "0");
+    };
+
+    window.addEventListener('companyChanged', handleCompanyChange);
+    return () => window.removeEventListener('companyChanged', handleCompanyChange);
   }, []);
 
   // Email validation helper
@@ -1460,7 +1492,7 @@ const Profile = () => {
                       <h3 className="font-medium">Total Devices</h3>
                     </div>
                     <p className="text-2xl font-bold text-primary">
-                      {localStorage.getItem("NoOfDevices")}
+                      {deviceCount}
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
                       Active devices in your system
@@ -1473,7 +1505,7 @@ const Profile = () => {
                       <h3 className="font-medium">Total Employees</h3>
                     </div>
                     <p className="text-2xl font-bold text-primary">
-                      {localStorage.getItem("NoOfEmployees")}
+                      {employeeCount}
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
                       Registered employees

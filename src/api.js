@@ -324,6 +324,37 @@ export const createEmployeeWithData = async (employeeData) => {
   }
 };
 
+export const bulkUploadEmployees = async (companyId, adminType, file) => {
+  try {
+    const formData = new FormData();
+    formData.append('company_id', companyId);
+    formData.append('admin_type', adminType);
+    formData.append('file', file);
+
+    const authToken = localStorage.getItem("access_token");
+    const headers = {};
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const response = await fetch(`${API_BASE}/employee/bulk-upload`, {
+      method: 'POST',
+      headers,
+      body: formData
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Bulk upload error:', error);
+    throw error;
+  }
+};
+
 
 export const deleteEmployeeById = async (empId) => {
   try {

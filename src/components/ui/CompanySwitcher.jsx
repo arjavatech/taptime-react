@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from './button';
 import { Card, CardContent } from './card';
 import { switchCompany, addNewCompany } from '../../api';
 import { STORAGE_KEYS } from '../../constants';
 import AddCompanyModal from './AddCompanyModal';
 
-const CompanySwitcher = ({ onAddCompanyClick }) => {
+const CompanySwitcher = ({ onAddCompanyClick, onCompanySwitch }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [companies, setCompanies] = useState([]);
   const [currentCompany, setCurrentCompany] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const navigate = useNavigate();
 
-  const userEmail = localStorage.getItem(STORAGE_KEYS.ADMIN_MAIL);
   const adminType = localStorage.getItem(STORAGE_KEYS.ADMIN_TYPE);
   const currentCompanyId = localStorage.getItem(STORAGE_KEYS.COMPANY_ID);
 
@@ -44,15 +45,53 @@ const CompanySwitcher = ({ onAddCompanyClick }) => {
     
     setLoading(true);
     try {
-      await switchCompany(companyId);
+      // Use switchToCompany instead of switchCompany to avoid page reload
+      const companies = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_COMPANIES) || '[]');
+      const selectedCompany = companies.find(company => company.cid === companyId);
       
-      // Update current company immediately
-      const updatedCompanyId = localStorage.getItem(STORAGE_KEYS.COMPANY_ID);
-      const updatedCompany = companies.find(c => c.cid === updatedCompanyId || c.CID === updatedCompanyId);
-      setCurrentCompany(updatedCompany);
-      
-      // Close the dropdown
-      setIsOpen(false);
+      if (selectedCompany) {
+        // Set the new active company without page reload
+        localStorage.setItem(STORAGE_KEYS.COMPANY_ID, selectedCompany.cid);
+        localStorage.setItem(STORAGE_KEYS.COMPANY_NAME, selectedCompany.company_name);
+        localStorage.setItem(STORAGE_KEYS.REPORT_TYPE, selectedCompany.report_type);
+        localStorage.setItem(STORAGE_KEYS.ADMIN_MAIL, selectedCompany.email);
+        
+        // Update company logo if available
+        if (selectedCompany.company_logo) {
+          localStorage.setItem(STORAGE_KEYS.COMPANY_LOGO, selectedCompany.company_logo);
+        } else {
+          localStorage.removeItem(STORAGE_KEYS.COMPANY_LOGO);
+        }
+        
+        // Update device and employee counts
+        if (selectedCompany.device_count !== undefined) {
+          localStorage.setItem(STORAGE_KEYS.NO_OF_DEVICES, selectedCompany.device_count.toString());
+        }
+        if (selectedCompany.employee_count !== undefined) {
+          localStorage.setItem(STORAGE_KEYS.NO_OF_EMPLOYEES, selectedCompany.employee_count.toString());
+        }
+        
+        localStorage.setItem('lastSelectedCompany', companyId);
+        
+        // Update current company immediately
+        setCurrentCompany(selectedCompany);
+        
+        // Close the dropdown
+        setIsOpen(false);
+        
+        // Close parent dropdown if callback provided
+        if (onCompanySwitch) {
+          onCompanySwitch();
+        }
+        
+        // Dispatch company change event for other components to listen
+        window.dispatchEvent(new CustomEvent('companyChanged', {
+          detail: { company: selectedCompany, companyId }
+        }));
+        
+        // Navigate to Employee Management page
+        navigate('/employee-management');
+      }
     } catch (error) {
       console.error('Error switching company:', error);
     } finally {

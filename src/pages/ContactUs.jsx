@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import Header from "../components/layout/Header";
 import Footer from "../components/layout/Footer";
@@ -22,6 +22,11 @@ const ContactUs = () => {
   const [submitSuccess, setSubmitSuccess] = useState("");
   const [submitError, setSubmitError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [globalLoading, setGlobalLoading] = useState(true);
+
+  useEffect(() => {
+    setGlobalLoading(false);
+  }, []);
 
   // Regular expressions
   const isAlpha = /^[a-zA-Z\s]+$/;
@@ -96,6 +101,7 @@ const ContactUs = () => {
       isRequiredFieldsValid
     ) {
       setIsSubmitting(true);
+      setGlobalLoading(true);
       try {
         await callContactUsCreateAPiData();
         setSubmitSuccess("Message sent successfully!");
@@ -114,6 +120,7 @@ const ContactUs = () => {
         }, 3000);
       } finally {
         setIsSubmitting(false);
+        setGlobalLoading(false);
       }
     } else {
       // Trigger validation messages for required fields
@@ -170,6 +177,17 @@ const ContactUs = () => {
   return (
     <div className="min-h-screen flex flex-col">
       <Header isAuthenticated={true} />
+
+      {/* Loading Overlay */}
+      {globalLoading && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <div className="bg-white rounded-lg p-6 shadow-xl">
+            <div className="flex items-center space-x-3">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          </div>
+        </div>
+      )}
 
       <section className="flex-grow bg-gray-50 px-4 sm:px-6 pt-25 pb-16">
         <div className="max-w-7xl mx-auto">

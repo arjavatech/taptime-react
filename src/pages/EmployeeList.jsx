@@ -12,7 +12,8 @@ import {
   fetchEmployeeData,
   createEmployeeWithData,
   updateEmployeeWithData,
-  deleteEmployeeById
+  deleteEmployeeById,
+  bulkUploadEmployees
 } from "../api.js";
 import {
   Plus,
@@ -50,7 +51,7 @@ const EmployeeList = () => {
   // Utility function to capitalize first letter of each word
   const capitalizeFirst = (str) => {
     if (!str) return str;
-    return str.split(' ').map(word => 
+    return str.split(' ').map(word =>
       word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
     ).join(' ');
   };
@@ -337,7 +338,7 @@ const EmployeeList = () => {
       setModalError(`Employee limit reached. Maximum ${maxEmployees} employees allowed.`);
       return;
     }
-    
+
     setEditingEmployee(null);
     setErrors({ first_name: "", last_name: "", phone_number: "", email: "" });
     setModalError("");
@@ -358,11 +359,11 @@ const EmployeeList = () => {
 
   const openEditModal = (employee) => {
     // Prevent super admin from editing their own account
-    if (adminType === "SuperAdmin" && employee.is_admin === 2 && 
-        employee.email && employee.email.toLowerCase() === loggedAdminEmail.toLowerCase()) {
+    if (adminType === "SuperAdmin" && employee.is_admin === 2 &&
+      employee.email && employee.email.toLowerCase() === loggedAdminEmail.toLowerCase()) {
       return;
     }
-    
+
     setEditingEmployee(employee);
     setErrors({ first_name: "", last_name: "", phone_number: "", email: "" });
     setModalError("");
@@ -383,11 +384,11 @@ const EmployeeList = () => {
 
   const openDeleteModal = (employee) => {
     // Prevent super admin from deleting their own account
-    if (adminType === "SuperAdmin" && employee.is_admin === 2 && 
-        employee.email && employee.email.toLowerCase() === loggedAdminEmail.toLowerCase()) {
+    if (adminType === "SuperAdmin" && employee.is_admin === 2 &&
+      employee.email && employee.email.toLowerCase() === loggedAdminEmail.toLowerCase()) {
       return;
     }
-    
+
     setEmployeeToDelete(employee);
     setDeleteError("");
     setDeleteSuccess("");
@@ -397,9 +398,9 @@ const EmployeeList = () => {
   // Format phone number display with country code
   const formatPhoneNumber = useCallback((phone) => {
     if (!phone) return "";
-    
+
     const digits = phone.replace(/\D/g, "");
-    
+
     if (digits.length > 10 || (digits.length === 11 && digits.startsWith('1'))) {
       const countryCode = digits.slice(0, -10);
       const areaCode = digits.slice(-10, -7);
@@ -407,11 +408,11 @@ const EmployeeList = () => {
       const lastPart = digits.slice(-4);
       return `+${countryCode} (${areaCode}) ${firstPart}-${lastPart}`;
     }
-    
+
     if (digits.length === 10) {
       return `+1 (${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
     }
-    
+
     return phone;
   }, []);
 
@@ -492,14 +493,14 @@ const EmployeeList = () => {
     // Check for duplicate email when editing or creating admin/superadmin
     if (formData.is_admin > 0 && formData.email) {
       // Prevent using Owner's email
-      
-      
-      const emailExists = employees.some(emp => 
-        (!editingEmployee || emp.emp_id !== editingEmployee.emp_id) && 
-        emp.email && 
+
+
+      const emailExists = employees.some(emp =>
+        (!editingEmployee || emp.emp_id !== editingEmployee.emp_id) &&
+        emp.email &&
         emp.email.toLowerCase() === formData.email.toLowerCase()
       );
-      
+
       if (emailExists) {
         setModalError("Email already exists. Please use a different email address.");
         setIsSubmitting(false);
@@ -582,16 +583,16 @@ const EmployeeList = () => {
 
     try {
       await deleteEmployeeById(employeeToDelete.emp_id);
-      
+
       // Check if the deleted employee is the current logged-in user
       const currentUserEmail = localStorage.getItem('adminMail');
-      if (currentUserEmail && employeeToDelete.email && 
-          currentUserEmail.toLowerCase() === employeeToDelete.email.toLowerCase()) {
+      if (currentUserEmail && employeeToDelete.email &&
+        currentUserEmail.toLowerCase() === employeeToDelete.email.toLowerCase()) {
         // Trigger immediate account deletion check for current user
         await checkAccountDeletion(currentUserEmail);
         return; // Don't show success message as user will be logged out
       }
-      
+
       setDeleteSuccess("Employee deleted successfully!");
 
       setTimeout(() => {
@@ -621,106 +622,153 @@ const EmployeeList = () => {
     const file = event.target.files[0];
     if (!file) return;
 
+    // Reset previous errors
+    setBulkUploadError('');
+    setBulkUploadResults(null);
+    setBulkUploadSuccess('');
+
+    // File size validation (10MB limit)
+    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+    if (file.size > maxSize) {
+      setBulkUploadError('File size too large. Please select a file smaller than 10MB.');
+      event.target.value = ''; // Clear the input
+      return;
+    }
+
+    // File type validation
     const allowedTypes = [
       'text/csv',
       'application/vnd.ms-excel',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     ];
 
-    if (!allowedTypes.includes(file.type) && !file.name.match(/\.(csv|xlsx|xls)$/i)) {
-      setBulkUploadError('Only CSV and Excel files are allowed.');
+    const allowedExtensions = /\.(csv|xlsx|xls)$/i;
+    
+    if (!allowedTypes.includes(file.type) && !allowedExtensions.test(file.name)) {
+      setBulkUploadError('Invalid file format. Please select a CSV (.csv) or Excel (.xlsx, .xls) file.');
+      event.target.value = ''; // Clear the input
       return;
     }
 
-    setBulkUploadError('');
+    // File name validation
+    if (file.name.length > 100) {
+      setBulkUploadError('File name too long. Please rename your file to be shorter than 100 characters.');
+      event.target.value = ''; // Clear the input
+      return;
+    }
+
+    // Check for special characters in filename that might cause issues
+    const invalidChars = /[<>:"|?*]/;
+    if (invalidChars.test(file.name)) {
+      setBulkUploadError('File name contains invalid characters. Please remove special characters like < > : " | ? *');
+      event.target.value = ''; // Clear the input
+      return;
+    }
+
     setSelectedFile(file);
   };
 
-  const parseFileData = (file) => {
-    return new Promise((resolve, reject) => {
-      const fileExtension = file.name.split('.').pop().toLowerCase();
-      
-      if (fileExtension === 'csv') {
-        Papa.parse(file, {
-          header: true,
-          skipEmptyLines: true,
-          complete: (results) => {
-            if (results.errors.length > 0) {
-              reject(new Error('CSV parsing error: ' + results.errors[0].message));
-            } else {
-              resolve(results.data);
-            }
-          },
-          error: (error) => reject(error)
-        });
-      } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          try {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const sheetName = workbook.SheetNames[0];
-            const worksheet = workbook.Sheets[sheetName];
-            const jsonData = XLSX.utils.sheet_to_json(worksheet);
-            resolve(jsonData);
-          } catch (error) {
-            reject(new Error('Excel parsing error: ' + error.message));
-          }
-        };
-        reader.onerror = () => reject(new Error('File reading error'));
-        reader.readAsArrayBuffer(file);
-      } else {
-        reject(new Error('Unsupported file format'));
-      }
-    });
-  };
+  
 
   const validateBulkData = (data) => {
     const errors = [];
     const validRows = [];
-    
+    const seenEmails = new Set();
+    const seenPhones = new Set();
+
+    if (!data || data.length === 0) {
+      return { 
+        errors: [{ row: 0, errors: ['File is empty or contains no valid data'] }], 
+        validRows: [] 
+      };
+    }
+
     data.forEach((row, index) => {
       const rowNumber = index + 1;
       const rowErrors = [];
+
+      // Check if row is completely empty
+      const hasAnyData = Object.values(row).some(value => 
+        value !== null && value !== undefined && value.toString().trim() !== ''
+      );
       
-      // Required fields validation
+      if (!hasAnyData) {
+        rowErrors.push('Row is empty');
+        errors.push({ row: rowNumber, errors: rowErrors });
+        return;
+      }
+
+      // Required fields validation with detailed messages
       if (!row.first_name || !row.first_name.toString().trim()) {
-        rowErrors.push('First name is required');
+        rowErrors.push('First name is required and cannot be empty');
+      } else {
+        const firstName = row.first_name.toString().trim();
+        if (firstName.length < 2) {
+          rowErrors.push('First name must be at least 2 characters long');
+        } else if (firstName.length > 50) {
+          rowErrors.push('First name cannot exceed 50 characters');
+        } else if (!/^[a-zA-Z\s'-]+$/.test(firstName)) {
+          rowErrors.push('First name can only contain letters, spaces, hyphens, and apostrophes');
+        }
       }
+
       if (!row.last_name || !row.last_name.toString().trim()) {
-        rowErrors.push('Last name is required');
+        rowErrors.push('Last name is required and cannot be empty');
+      } else {
+        const lastName = row.last_name.toString().trim();
+        if (lastName.length < 2) {
+          rowErrors.push('Last name must be at least 2 characters long');
+        } else if (lastName.length > 50) {
+          rowErrors.push('Last name cannot exceed 50 characters');
+        } else if (!/^[a-zA-Z\s'-]+$/.test(lastName)) {
+          rowErrors.push('Last name can only contain letters, spaces, hyphens, and apostrophes');
+        }
       }
+
       if (!row.phone_number || !row.phone_number.toString().trim()) {
-        rowErrors.push('Phone number is required');
+        rowErrors.push('Phone number is required and cannot be empty');
+      } else {
+        const phoneStr = row.phone_number.toString().trim();
+        const digits = phoneStr.replace(/\D/g, '');
+        
+        if (digits.length < 10) {
+          rowErrors.push('Phone number must contain at least 10 digits');
+        } else if (digits.length > 15) {
+          rowErrors.push('Phone number cannot exceed 15 digits');
+        } else if (seenPhones.has(digits)) {
+          rowErrors.push('Duplicate phone number found in the file');
+        } else {
+          seenPhones.add(digits);
+        }
       }
-      
-      // Email validation for admins/superadmins
+
+      // Email validation for admins/superadmins with detailed messages
       if (formData.is_admin > 0) {
         if (!row.email || !row.email.toString().trim()) {
           rowErrors.push(`Email is required for ${formData.is_admin === 2 ? 'Super Admin' : 'Admin'} roles`);
         } else {
+          const email = row.email.toString().trim().toLowerCase();
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          if (!emailRegex.test(row.email.toString().trim())) {
-            rowErrors.push('Invalid email format');
+          
+          if (!emailRegex.test(email)) {
+            rowErrors.push('Invalid email format (example: user@company.com)');
+          } else if (email.length > 100) {
+            rowErrors.push('Email address cannot exceed 100 characters');
+          } else if (seenEmails.has(email)) {
+            rowErrors.push('Duplicate email found in the file');
+          } else {
+            seenEmails.add(email);
           }
         }
       }
-      
-      // Phone number format validation
-      if (row.phone_number) {
-        const digits = row.phone_number.toString().replace(/\D/g, '');
-        if (digits.length < 10) {
-          rowErrors.push('Invalid phone number format (minimum 10 digits required)');
-        }
-      }
-      
+
       if (rowErrors.length > 0) {
         errors.push({ row: rowNumber, errors: rowErrors });
       } else {
         // Generate PIN from phone number
         const digits = row.phone_number.toString().replace(/\D/g, '').replace(/^1/, '');
         const pin = digits.slice(-4);
-        
+
         validRows.push({
           first_name: row.first_name.toString().trim(),
           last_name: row.last_name.toString().trim(),
@@ -734,7 +782,7 @@ const EmployeeList = () => {
         });
       }
     });
-    
+
     return { errors, validRows };
   };
 
@@ -744,127 +792,87 @@ const EmployeeList = () => {
       return;
     }
 
+    // Check employee limit before processing
+    if (maxEmployees && employees.length >= maxEmployees) {
+      setBulkUploadError(`Cannot upload employees. You have reached the maximum limit of ${maxEmployees} employees for your plan.`);
+      return;
+    }
+
     setIsBulkUploading(true);
     setBulkUploadError('');
     setBulkUploadResults(null);
+    setBulkUploadSuccess('');
 
     try {
-      // Parse file data
-      const fileData = await parseFileData(selectedFile);
+      const adminType = formData.is_admin === 2 ? 'SuperAdmin' : formData.is_admin === 1 ? 'Admin' : 'Employee';
+      const result = await bulkUploadEmployees(companyId, adminType, selectedFile);
       
-      if (!fileData || fileData.length === 0) {
-        setBulkUploadError('The file is empty or contains no valid data.');
-        return;
-      }
-
-      // Validate data
-      const { errors, validRows } = validateBulkData(fileData);
+      setBulkUploadResults(result);
       
-      if (validRows.length === 0) {
-        setBulkUploadError('No valid rows found in the file.');
-        setBulkUploadResults({ errors, successful: [], failed: [], duplicates: { emails: [], phones: [], pins: [] } });
-        return;
-      }
-
-      // Check employee limit
-      if (maxEmployees && (employees.length + validRows.length) > maxEmployees) {
-        setBulkUploadError(`Adding ${validRows.length} employees would exceed the limit of ${maxEmployees} employees.`);
-        return;
-      }
-
-      // Pre-check for duplicates in bulk
-      const duplicates = { emails: [], phones: [], pins: [] };
-      const existingEmails = employees.map(e => e.email?.toLowerCase()).filter(Boolean);
-      const existingPhones = employees.map(e => e.phone_number);
-      const existingPins = employees.map(e => e.pin);
-      
-      validRows.forEach((row, index) => {
-        if (row.email && existingEmails.includes(row.email.toLowerCase())) {
-          duplicates.emails.push({ row: index + 1, email: row.email, name: `${row.first_name} ${row.last_name}` });
+      // Generate detailed success message based on results
+      if (result.successful?.length > 0 || (result && !result.failed?.length && !result.errors?.length)) {
+        let successMsg = `Successfully uploaded ${result.successful?.length || 0} ${adminType.toLowerCase()}${(result.successful?.length || 0) > 1 ? 's' : ''}.`;
+        
+        if (result.failed?.length > 0) {
+          successMsg += ` ${result.failed.length} record${result.failed.length > 1 ? 's' : ''} failed to upload.`;
         }
-        if (existingPhones.includes(row.phone_number)) {
-          duplicates.phones.push({ row: index + 1, phone: row.phone_number, name: `${row.first_name} ${row.last_name}` });
+        
+        if (result.duplicates?.emails?.length > 0) {
+          successMsg += ` ${result.duplicates.emails.length} duplicate email${result.duplicates.emails.length > 1 ? 's' : ''} were skipped.`;
         }
-        if (existingPins.includes(row.pin)) {
-          duplicates.pins.push({ row: index + 1, pin: row.pin, name: `${row.first_name} ${row.last_name}` });
+        
+        setBulkUploadSuccess(successMsg);
+        
+        // Only auto-close if there are no failed records or validation errors
+        if (!result.failed?.length && !result.errors?.length) {
+          setTimeout(() => {
+            setShowBulkUploadModal(false);
+            setSelectedFile(null);
+            setBulkUploadResults(null);
+            setBulkUploadError('');
+            setBulkUploadSuccess('');
+          }, 2000);
         }
-      });
-
-
-      if (duplicates.emails.length > 0) {
-        setBulkUploadError(`Found ${duplicates.emails.length} duplicate record(s). Please review and fix duplicates before uploading.`);
-        setBulkUploadResults({ errors, successful: [], failed: [], duplicates });
-        return;
-      }
-
-      // Process valid rows
-      const successful = [];
-      const failed = [];
-      const processedPins = [...existingPins];
-      
-      for (const rowData of validRows) {
-        try {
-          // Handle PIN conflicts with auto-generation
-          let finalPin = rowData.pin;
-          if (processedPins.includes(finalPin)) {
-            const newPin = generateAlternativePin(finalPin, processedPins);
-            if (newPin) {
-              finalPin = newPin;
-              processedPins.push(finalPin);
-            } else {
-              failed.push({ data: rowData, error: 'PIN conflict and no alternative available' });
-              continue;
-            }
-          } else {
-            processedPins.push(finalPin);
-          }
-          
-          const finalData = { ...rowData, pin: finalPin };
-          await createEmployeeWithData(finalData);
-          successful.push({ data: finalData, originalPin: rowData.pin !== finalPin ? rowData.pin : null });
-        } catch (error) {
-          failed.push({ data: rowData, error: error.message });
-        }
+      } else if (result.failed?.length > 0 || result.errors?.length > 0) {
+        setBulkUploadError('Upload completed with errors. Please review the results below.');
+      } else {
+        // If API returns success but no clear result structure, show success
+        setBulkUploadSuccess('Bulk upload completed successfully!');
+        setTimeout(() => {
+          setShowBulkUploadModal(false);
+          setSelectedFile(null);
+          setBulkUploadResults(null);
+          setBulkUploadError('');
+          setBulkUploadSuccess('');
+        }, 2000);
       }
       
-      setBulkUploadResults({ errors, successful, failed, duplicates: { emails: [], phones: [], pins: [] } });
-      
-      if (successful.length > 0) {
-        setBulkUploadSuccess(`Successfully uploaded ${successful.length} employee(s).`);
-        loadEmployeeData();
-      }
-      
+      // Refresh employee data
+      loadEmployeeData();
     } catch (error) {
-      setBulkUploadError('Error processing file: ' + error.message);
+      console.error('Bulk upload error:', error);
+      
+      // Handle specific error types
+      if (error.message?.includes('file format')) {
+        setBulkUploadError('Invalid file format. Please upload a valid CSV or Excel file.');
+      } else if (error.message?.includes('file size')) {
+        setBulkUploadError('File size too large. Please upload a smaller file (max 10MB).');
+      } else if (error.message?.includes('network')) {
+        setBulkUploadError('Network error occurred. Please check your connection and try again.');
+      } else if (error.message?.includes('permission')) {
+        setBulkUploadError('You do not have permission to perform bulk uploads.');
+      } else if (error.message?.includes('limit')) {
+        setBulkUploadError('Employee limit exceeded. Cannot add more employees to your plan.');
+      } else if (error.message?.includes('company')) {
+        setBulkUploadError('Company information is missing. Please contact support.');
+      } else {
+        setBulkUploadError(`Upload failed: ${error.message || 'An unexpected error occurred. Please try again.'}`);
+      }
     } finally {
       setIsBulkUploading(false);
     }
   };
 
-  const downloadTemplate = () => {
-    const headers = formData.is_admin > 0 
-      ? ['first_name', 'last_name', 'phone_number', 'email']
-      : ['first_name', 'last_name', 'phone_number'];
-    
-    let csvContent = headers.join(',') + '\n';
-    
-    // Add sample data based on role
-    if (formData.is_admin > 0) {
-      csvContent += 'John,Doe,+1234567890,john.doe@company.com\n';
-      csvContent += 'Jane,Smith,+1987654321,jane.smith@company.com\n';
-    } else {
-      csvContent += 'John,Doe,+1234567890\n';
-      csvContent += 'Jane,Smith,+1987654321\n';
-    }
-    
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${activeTab}_template.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -919,7 +927,7 @@ const EmployeeList = () => {
         {/* Summary Statistics */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
           {/* Employee Limit Notice */}
-           {maxEmployees && employees.length >= maxEmployees && (
+          {maxEmployees && employees.length >= maxEmployees && (
             <Card className="mb-6 border-amber-200 bg-amber-50">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
@@ -934,7 +942,7 @@ const EmployeeList = () => {
               </CardContent>
             </Card>
           )}
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
             <Card
               className="cursor-pointer hover:shadow-lg transition-shadow"
@@ -1002,8 +1010,8 @@ const EmployeeList = () => {
                   key={key}
                   onClick={() => setActiveTab(key)}
                   className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center gap-1 sm:gap-2 whitespace-nowrap ${activeTab === key
-                      ? "border-primary text-primary"
-                      : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
                     }`}
                 >
                   <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -1077,8 +1085,8 @@ const EmployeeList = () => {
                         document.getElementById('sort-dropdown').classList.add('hidden');
                       }}
                       className={`w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center justify-between transition-colors ${sortConfig.key === key && sortConfig.direction === direction
-                          ? 'bg-primary/10 text-primary'
-                          : 'text-foreground'
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-foreground'
                         }`}
                     >
                       <div className="flex items-center gap-2">
@@ -1175,8 +1183,8 @@ const EmployeeList = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => openEditModal(employee)}
-                            disabled={adminType === "SuperAdmin" && employee.is_admin === 2 && 
-                                     employee.email && employee.email.toLowerCase() === loggedAdminEmail.toLowerCase()}
+                            disabled={adminType === "SuperAdmin" && employee.is_admin === 2 &&
+                              employee.email && employee.email.toLowerCase() === loggedAdminEmail.toLowerCase()}
                             className="h-7 w-7 sm:h-8 sm:w-8 p-0"
                           >
                             <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -1185,8 +1193,8 @@ const EmployeeList = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => openDeleteModal(employee)}
-                            disabled={adminType === "SuperAdmin" && employee.is_admin === 2 && 
-                                     employee.email && employee.email.toLowerCase() === loggedAdminEmail.toLowerCase()}
+                            disabled={adminType === "SuperAdmin" && employee.is_admin === 2 &&
+                              employee.email && employee.email.toLowerCase() === loggedAdminEmail.toLowerCase()}
                             className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-destructive hover:text-destructive"
                           >
                             <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -1278,8 +1286,8 @@ const EmployeeList = () => {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => openEditModal(employee)}
-                                disabled={adminType === "SuperAdmin" && employee.is_admin === 2 && 
-                                         employee.email && employee.email.toLowerCase() === loggedAdminEmail.toLowerCase()}
+                                disabled={adminType === "SuperAdmin" && employee.is_admin === 2 &&
+                                  employee.email && employee.email.toLowerCase() === loggedAdminEmail.toLowerCase()}
                                 className="h-6 w-6 sm:h-8 sm:w-8 p-0"
                               >
                                 <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -1288,8 +1296,8 @@ const EmployeeList = () => {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => openDeleteModal(employee)}
-                                disabled={adminType === "SuperAdmin" && employee.is_admin === 2 && 
-                                         employee.email && employee.email.toLowerCase() === loggedAdminEmail.toLowerCase()}
+                                disabled={adminType === "SuperAdmin" && employee.is_admin === 2 &&
+                                  employee.email && employee.email.toLowerCase() === loggedAdminEmail.toLowerCase()}
                                 className="h-6 w-6 sm:h-8 sm:w-8 p-0 text-destructive hover:text-destructive"
                               >
                                 <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -1471,7 +1479,7 @@ const EmployeeList = () => {
                   {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   {editingEmployee ? "Update" : "Add"} {
                     formData.is_admin === 2 ? "Super Admin" :
-                    formData.is_admin === 1 ? "Admin" : "Employee"
+                      formData.is_admin === 1 ? "Admin" : "Employee"
                   }
                 </Button>
               </div>
@@ -1564,17 +1572,51 @@ const EmployeeList = () => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-medium">Select File</Label>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={downloadTemplate}
-                    className="text-xs"
-                  >
-                    <FileText className="w-3 h-3 mr-1" />
-                    Download Template
-                  </Button>
+                  {selectedFile && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Preview/validate file before upload
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                          try {
+                            let data;
+                            if (selectedFile.name.endsWith('.csv')) {
+                              const csv = Papa.parse(e.target.result, { header: true, skipEmptyLines: true });
+                              data = csv.data;
+                            } else {
+                              const workbook = XLSX.read(e.target.result, { type: 'binary' });
+                              const sheetName = workbook.SheetNames[0];
+                              data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+                            }
+                            
+                            const validation = validateBulkData(data);
+                            if (validation.errors.length > 0) {
+                              setBulkUploadResults({ errors: validation.errors, validRows: validation.validRows });
+                              setBulkUploadError(`Found ${validation.errors.length} validation error${validation.errors.length > 1 ? 's' : ''} in the file. Please review and fix before uploading.`);
+                            } else {
+                              setBulkUploadError('');
+                              setBulkUploadSuccess(`File validated successfully! Ready to upload ${validation.validRows.length} record${validation.validRows.length > 1 ? 's' : ''}.`);
+                            }
+                          } catch (error) {
+                            setBulkUploadError('Error reading file: ' + error.message);
+                          }
+                        };
+                        
+                        if (selectedFile.name.endsWith('.csv')) {
+                          reader.readAsText(selectedFile);
+                        } else {
+                          reader.readAsBinaryString(selectedFile);
+                        }
+                      }}
+                      className="text-xs"
+                    >
+                      Validate File
+                    </Button>
+                  )}
                 </div>
-                
+
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                   <input
                     type="file"
@@ -1593,7 +1635,7 @@ const EmployeeList = () => {
                     </p>
                   </label>
                 </div>
-                
+
                 {selectedFile && (
                   <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
                     <FileText className="w-4 h-4 text-blue-600" />
@@ -1630,9 +1672,24 @@ const EmployeeList = () => {
 
               {/* Error Display */}
               {bulkUploadError && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
-                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-red-600">{bulkUploadError}</p>
+                <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-red-800 mb-1">Upload Error</h4>
+                      <p className="text-sm text-red-600">{bulkUploadError}</p>
+                      {bulkUploadError.includes('file format') && (
+                        <div className="mt-2 text-xs text-red-500">
+                          <p>Supported formats: CSV (.csv), Excel (.xlsx, .xls)</p>
+                        </div>
+                      )}
+                      {bulkUploadError.includes('limit') && (
+                        <div className="mt-2 text-xs text-red-500">
+                          <p>Consider upgrading your plan to add more employees.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -1648,15 +1705,15 @@ const EmployeeList = () => {
               {bulkUploadResults && (
                 <div className="space-y-4">
                   <h4 className="text-sm font-medium">Upload Results:</h4>
-                  
+
                   {/* Duplicates Summary */}
-                  {(bulkUploadResults.duplicates?.emails?.length > 0 ) && (
+                  {(bulkUploadResults.duplicates?.emails?.length > 0) && (
                     <div className="p-3 bg-orange-50 border border-orange-200 rounded-md">
                       <h5 className="text-sm font-medium text-orange-800 mb-2">
-                        Duplicate Records Found ({(bulkUploadResults.duplicates.emails?.length || 0) })
+                        Duplicate Records Found ({(bulkUploadResults.duplicates?.emails?.length || 0)})
                       </h5>
                       <div className="space-y-2 text-xs">
-                        {bulkUploadResults.duplicates.emails?.length > 0 && (
+                        {bulkUploadResults.duplicates?.emails?.length > 0 && (
                           <div>
                             <span className="font-medium text-orange-700">Duplicate Emails ({bulkUploadResults.duplicates.emails.length}):</span>
                             <div className="max-h-20 overflow-y-auto mt-1 space-y-1">
@@ -1673,12 +1730,11 @@ const EmployeeList = () => {
                             </div>
                           </div>
                         )}
-                       
                       </div>
                     </div>
                   )}
-                  
-                  {bulkUploadResults.successful.length > 0 && (
+
+                  {bulkUploadResults.successful?.length > 0 && (
                     <div className="p-3 bg-green-50 border border-green-200 rounded-md">
                       <h5 className="text-sm font-medium text-green-800 mb-2">
                         Successfully Added ({bulkUploadResults.successful.length})
@@ -1686,9 +1742,9 @@ const EmployeeList = () => {
                       <div className="max-h-32 overflow-y-auto space-y-1">
                         {bulkUploadResults.successful.slice(0, 10).map((item, index) => (
                           <div key={index} className="text-xs text-green-700">
-                            {item.data.first_name} {item.data.last_name}
+                            {item.data?.first_name} {item.data?.last_name}
                             {item.originalPin && (
-                              <span className="text-orange-600"> (PIN changed from {item.originalPin} to {item.data.pin})</span>
+                              <span className="text-orange-600"> (PIN changed from {item.originalPin} to {item.data?.pin})</span>
                             )}
                           </div>
                         ))}
@@ -1700,8 +1756,8 @@ const EmployeeList = () => {
                       </div>
                     </div>
                   )}
-                  
-                  {bulkUploadResults.failed.length > 0 && (
+
+                  {bulkUploadResults.failed?.length > 0 && (
                     <div className="p-3 bg-red-50 border border-red-200 rounded-md">
                       <h5 className="text-sm font-medium text-red-800 mb-2">
                         Failed ({bulkUploadResults.failed.length})
@@ -1709,7 +1765,7 @@ const EmployeeList = () => {
                       <div className="max-h-32 overflow-y-auto space-y-1">
                         {bulkUploadResults.failed.slice(0, 10).map((item, index) => (
                           <div key={index} className="text-xs text-red-700">
-                            {item.data.first_name} {item.data.last_name}: {item.error}
+                            {item.data?.first_name} {item.data?.last_name}: {item.error}
                           </div>
                         ))}
                         {bulkUploadResults.failed.length > 10 && (
@@ -1720,23 +1776,31 @@ const EmployeeList = () => {
                       </div>
                     </div>
                   )}
-                  
-                  {bulkUploadResults.errors.length > 0 && (
+
+                  {bulkUploadResults.errors?.length > 0 && (
                     <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
                       <h5 className="text-sm font-medium text-yellow-800 mb-2">
-                        Validation Errors ({bulkUploadResults.errors.length})
+                        Validation Errors ({bulkUploadResults.errors.length} rows with issues)
                       </h5>
-                      <div className="max-h-32 overflow-y-auto space-y-1">
-                        {bulkUploadResults.errors.slice(0, 10).map((item, index) => (
-                          <div key={index} className="text-xs text-yellow-700">
-                            Row {item.row}: {item.errors.join(', ')}
+                      <div className="max-h-40 overflow-y-auto space-y-2">
+                        {bulkUploadResults.errors.slice(0, 15).map((item, index) => (
+                          <div key={index} className="text-xs bg-white p-2 rounded border border-yellow-100">
+                            <div className="font-medium text-yellow-800 mb-1">Row {item.row}:</div>
+                            <ul className="list-disc list-inside space-y-0.5 text-yellow-700">
+                              {item.errors?.map((error, errorIndex) => (
+                                <li key={errorIndex}>{error}</li>
+                              ))}
+                            </ul>
                           </div>
                         ))}
-                        {bulkUploadResults.errors.length > 10 && (
-                          <div className="text-xs text-yellow-700 font-medium">
-                            ... and {bulkUploadResults.errors.length - 10} more validation errors
+                        {bulkUploadResults.errors.length > 15 && (
+                          <div className="text-xs text-yellow-700 font-medium bg-white p-2 rounded border border-yellow-100">
+                            ... and {bulkUploadResults.errors.length - 15} more rows with validation errors
                           </div>
                         )}
+                      </div>
+                      <div className="mt-2 p-2 bg-yellow-100 rounded text-xs text-yellow-800">
+                        <strong>Tip:</strong> Fix these errors in your file and try uploading again.
                       </div>
                     </div>
                   )}
@@ -1768,8 +1832,8 @@ const EmployeeList = () => {
           </Card>
         </div>
       )}
-      
-      <Footer/> 
+
+      <Footer />
 
     </div>
   );

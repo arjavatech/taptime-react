@@ -87,6 +87,17 @@ const Header = () => {
     checkAuthStatus();
   }, [user, session, location.pathname]);
 
+  // Listen for company changes
+  useEffect(() => {
+    const handleCompanyChange = () => {
+      const companyName = localStorage.getItem("companyName") || "";
+      setUserProfile(prev => ({ ...prev, companyName }));
+    };
+
+    window.addEventListener('companyChanged', handleCompanyChange);
+    return () => window.removeEventListener('companyChanged', handleCompanyChange);
+  }, []);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownOpen && !event.target.closest('.relative')) {
@@ -310,7 +321,7 @@ const Header = () => {
                           const hasCompanies = adminType === "Owner" && storedCompanies && JSON.parse(storedCompanies).length > 0;
                           return hasCompanies ? (
                             <div className="px-6">
-                              <CompanySwitcher onAddCompanyClick={() => setShowProfileDropdown(false)} />
+                              <CompanySwitcher onAddCompanyClick={() => setShowProfileDropdown(false)} onCompanySwitch={() => setShowProfileDropdown(false)} />
                             </div>
                           ) : null;
                         })()}
@@ -319,7 +330,7 @@ const Header = () => {
                         <div className="px-6 py-4">
                           <button
                             onClick={() => { setShowModal(true); setShowProfileDropdown(false); }}
-                            className="w-full text-center justify-center px-4 py-3 bg-[#02066F] text-white rounded-md font-medium text-base transition-all duration-200 flex items-center space-x-3 rounded-md group"
+                            className="w-full text-center justify-center py-2 cursor-pointer bg-[#02066F] text-white rounded-md font-medium text-base transition-all duration-200 flex items-center space-x-3 rounded-md group"
                           >
                             <svg className="w-5 h-5 text-white " fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

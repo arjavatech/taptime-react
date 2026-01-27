@@ -7,6 +7,8 @@ import { Input } from "../components/ui/input"
 import { Textarea } from "../components/ui/textarea"
 import { Label } from "../components/ui/label"
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react"
+import { PhoneInput } from 'react-international-phone'
+import 'react-international-phone/style.css'
 
 const GetInTouch = () => {
   const [formData, setFormData] = useState({
@@ -22,9 +24,26 @@ const GetInTouch = () => {
   const [submitError, setSubmitError] = useState("")
 
   const handleInputChange = (e) => {
+    const { name, value } = e.target
+
+    // Auto-capitalize first character for text fields (exclude email)
+    let processedValue = value
+    const emailFields = ['email']
+
+    if (!emailFields.includes(name) && processedValue.length > 0) {
+      processedValue = processedValue.charAt(0).toUpperCase() + processedValue.slice(1)
+    }
+
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [name]: processedValue
+    })
+  }
+
+  const handlePhoneChange = (phone) => {
+    setFormData({
+      ...formData,
+      phone: phone
     })
   }
 
@@ -93,6 +112,7 @@ const GetInTouch = () => {
                       name="firstName"
                       value={formData.firstName}
                       onChange={handleInputChange}
+                      placeholder="Enter your first name"
                       className="text-sm sm:text-base h-9 sm:h-10 lg:h-11"
                       required
                     />
@@ -104,6 +124,7 @@ const GetInTouch = () => {
                       name="lastName"
                       value={formData.lastName}
                       onChange={handleInputChange}
+                      placeholder="Enter your last name"
                       className="text-sm sm:text-base h-9 sm:h-10 lg:h-11"
                       required
                     />
@@ -119,19 +140,29 @@ const GetInTouch = () => {
                       type="email"
                       value={formData.email}
                       onChange={handleInputChange}
+                      placeholder="your.email@example.com"
                       className="text-sm sm:text-base h-9 sm:h-10 lg:h-11"
                       required
                     />
                   </div>
                   <div className="space-y-1 sm:space-y-2">
                     <Label htmlFor="phone" className="text-xs sm:text-sm font-medium">Phone</Label>
-                    <Input
-                      id="phone"
-                      name="phone"
-                      type="tel"
+                    <PhoneInput
+                      defaultCountry="us"
                       value={formData.phone}
-                      onChange={handleInputChange}
-                      className="text-sm sm:text-base h-9 sm:h-10 lg:h-11"
+                      onChange={handlePhoneChange}
+                      disableDialCodePrefill={false}
+                      forceDialCode={true}
+                      inputClassName="w-full"
+                      style={{
+                        '--react-international-phone-border-radius': '0.375rem',
+                        '--react-international-phone-border-color': '#e5e7eb',
+                        '--react-international-phone-background-color': '#ffffff',
+                        '--react-international-phone-text-color': '#000000',
+                        '--react-international-phone-selected-dropdown-item-background-color': '#f3f4f6',
+                        '--react-international-phone-height': '2.75rem',
+                        '--react-international-phone-font-size': '0.875rem'
+                      }}
                     />
                   </div>
                 </div>
@@ -143,6 +174,7 @@ const GetInTouch = () => {
                     name="company"
                     value={formData.company}
                     onChange={handleInputChange}
+                    placeholder="Your company name"
                     className="text-sm sm:text-base h-9 sm:h-10 lg:h-11"
                   />
                 </div>
