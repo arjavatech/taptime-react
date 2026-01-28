@@ -490,6 +490,50 @@ export const fetchDateRangeReport = async (companyId, startDate, endDate) => {
   }
 };
 
+export const bulkUploadReportData = async (companyId, file) => {
+  try {
+    const formData = new FormData();
+    formData.append('company_id', companyId);
+    formData.append('last_modified_by', localStorage.getItem("adminMail") || "Admin");
+    formData.append('file', file);
+
+    const authToken = localStorage.getItem("access_token");
+    const headers = {};
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
+    const response = await fetch(`${API_BASE}/dailyreport/bulk-upload`, {
+      method: 'POST',
+      headers,
+      body: formData
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log('Bulk upload API response:', result);
+    
+    // Handle different response formats
+    if (result.message || result.successful || result.failed) {
+      return result;
+    }
+    
+    // If response doesn't have expected structure, create one
+    return {
+      successful: result.success ? [{ message: result.message || 'Upload completed' }] : [],
+      failed: result.success ? [] : [{ error: result.message || 'Upload failed' }],
+      message: result.message || 'Upload completed'
+    };
+  } catch (error) {
+    console.error('Bulk upload report data error:', error);
+    throw error;
+  }
+};
+
 export const fetchPendingCheckouts = async (companyId) => {
   try {
     const data = await api.get(`${API_BASE}/dailyreport/pending_checkout/${companyId}`);

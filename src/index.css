@@ -3,6 +3,19 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Custom responsive breakpoints */
+@media (min-width: 475px) {
+  .xs\:flex-row { flex-direction: row; }
+  .xs\:flex-col { flex-direction: column; }
+  .xs\:grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+  .xs\:order-1 { order: 1; }
+  .xs\:order-2 { order: 2; }
+  .xs\:w-auto { width: auto; }
+  .xs\:flex-none { flex: none; }
+  .xs\:text-left { text-align: left; }
+  .xs\:inline { display: inline; }
+}
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

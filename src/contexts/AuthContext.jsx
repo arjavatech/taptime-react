@@ -353,6 +353,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('userName', userName);
       }
       if (userPicture) {
+        console.log('Storing userPicture:', userPicture);
         localStorage.setItem('userPicture', userPicture);
       } else {
         // Remove any existing userPicture to ensure fallback is used

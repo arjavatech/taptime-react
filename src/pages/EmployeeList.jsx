@@ -37,7 +37,9 @@ import {
   Check,
   Upload,
   FileText,
-  X
+  X,
+  Download,
+  FileDown
 } from "lucide-react";
 import { HamburgerIcon } from "../components/icons/HamburgerIcon";
 import { GridIcon } from "../components/icons/GridIcon";
@@ -45,6 +47,8 @@ import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const EmployeeList = () => {
   const { checkAccountDeletion } = useAuth();
@@ -122,7 +126,14 @@ const EmployeeList = () => {
   const [paginatedEmployees, setPaginatedEmployees] = useState([]);
 
   const getItemsPerPage = () => {
-    return (viewMode === "grid" || window.innerWidth < 1024) ? 6 : 10;
+    const width = window.innerWidth;
+    if (viewMode === "grid") {
+      if (width < 475) return 4;  // xs screens
+      if (width < 640) return 6;  // sm screens
+      if (width < 1024) return 8; // md screens
+      return 12; // lg+ screens
+    }
+    return width < 1024 ? 6 : 10; // table view
   };
 
   // Get values from localStorage
@@ -131,6 +142,79 @@ const EmployeeList = () => {
   const adminType = localStorage.getItem("adminType");
   const companyId = localStorage.getItem("companyID");
   const loggedAdminEmail = localStorage.getItem("adminMail") || "";
+
+  // Role-based download access helper
+  const canDownloadEmployee = (employee) => {
+    if (adminType === "Owner") return true;
+    if (adminType === "SuperAdmin") return employee.is_admin <= 1;
+    if (adminType === "Admin") return employee.is_admin === 0;
+    return false;
+  };
+
+
+
+  // Download all filtered employees
+  const downloadAllCSV = () => {
+    const csvData = [
+      ['Name', 'PIN', 'Phone', 'Email', 'Role', 'Status']
+    ];
+    
+    filteredEmployees.forEach(employee => {
+      if (canDownloadEmployee(employee)) {
+        csvData.push([
+          `${employee.first_name} ${employee.last_name}`,
+          employee.pin,
+          employee.phone_number || '',
+          employee.email || '',
+          employee.is_admin === 2 ? 'Super Admin' : employee.is_admin === 1 ? 'Admin' : 'Employee',
+          employee.is_active ? 'Active' : 'Inactive'
+        ]);
+      }
+    });
+    
+    const csvContent = csvData.map(row => row.map(field => `"${field}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${activeTab}_data.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const downloadAllPDF = () => {
+    const doc = new jsPDF();
+    
+    // Add title
+    doc.setFontSize(16);
+    doc.text(`${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} List`, 14, 20);
+    
+    // Prepare table data
+    const tableData = [];
+    filteredEmployees.forEach(employee => {
+      if (canDownloadEmployee(employee)) {
+        tableData.push([
+          `${employee.first_name} ${employee.last_name}`,
+          employee.pin,
+          employee.phone_number || 'N/A',
+          employee.email || 'N/A',
+          employee.is_admin === 2 ? 'Super Admin' : employee.is_admin === 1 ? 'Admin' : 'Employee',
+          employee.is_active ? 'Active' : 'Inactive'
+        ]);
+      }
+    });
+    
+    // Create table using autoTable
+    autoTable(doc, {
+      head: [['Name', 'PIN', 'Phone', 'Email', 'Role', 'Status']],
+      body: tableData,
+      startY: 30,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [1, 0, 90] }
+    });
+    
+    doc.save(`${activeTab}_data.pdf`);
+  };
 
   // Initialize component
   useEffect(() => {
@@ -149,18 +233,20 @@ const EmployeeList = () => {
 
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 1024 && viewMode === "table") {
+      if (window.innerWidth < 650 && viewMode === "table") {
         setViewMode("grid");
       }
+      // Force re-pagination on resize
+      filterEmployees();
     };
 
-    if (window.innerWidth < 1024) {
+    if (window.innerWidth < 650) {
       setViewMode("grid");
     }
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [viewMode]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -620,7 +706,10 @@ const EmployeeList = () => {
 
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
-    if (!file) return;
+    if (!file) {
+      setSelectedFile(null);
+      return;
+    }
 
     // Reset previous errors
     setBulkUploadError('');
@@ -632,6 +721,7 @@ const EmployeeList = () => {
     if (file.size > maxSize) {
       setBulkUploadError('File size too large. Please select a file smaller than 10MB.');
       event.target.value = ''; // Clear the input
+      setSelectedFile(null);
       return;
     }
 
@@ -647,6 +737,7 @@ const EmployeeList = () => {
     if (!allowedTypes.includes(file.type) && !allowedExtensions.test(file.name)) {
       setBulkUploadError('Invalid file format. Please select a CSV (.csv) or Excel (.xlsx, .xls) file.');
       event.target.value = ''; // Clear the input
+      setSelectedFile(null);
       return;
     }
 
@@ -654,6 +745,7 @@ const EmployeeList = () => {
     if (file.name.length > 100) {
       setBulkUploadError('File name too long. Please rename your file to be shorter than 100 characters.');
       event.target.value = ''; // Clear the input
+      setSelectedFile(null);
       return;
     }
 
@@ -662,6 +754,7 @@ const EmployeeList = () => {
     if (invalidChars.test(file.name)) {
       setBulkUploadError('File name contains invalid characters. Please remove special characters like < > : " | ? *');
       event.target.value = ''; // Clear the input
+      setSelectedFile(null);
       return;
     }
 
@@ -806,6 +899,7 @@ const EmployeeList = () => {
     try {
       const adminType = formData.is_admin === 2 ? 'SuperAdmin' : formData.is_admin === 1 ? 'Admin' : 'Employee';
       const result = await bulkUploadEmployees(companyId, adminType, selectedFile);
+      console.log('Employee upload result:', result); // Debug log
       
       setBulkUploadResults(result);
       
@@ -835,6 +929,16 @@ const EmployeeList = () => {
         }
       } else if (result.failed?.length > 0 || result.errors?.length > 0) {
         setBulkUploadError('Upload completed with errors. Please review the results below.');
+      } else if (result.message || result.success) {
+        // Handle case where API returns success but different format
+        setBulkUploadSuccess(result.message || 'Bulk upload completed successfully!');
+        setTimeout(() => {
+          setShowBulkUploadModal(false);
+          setSelectedFile(null);
+          setBulkUploadResults(null);
+          setBulkUploadError('');
+          setBulkUploadSuccess('');
+        }, 2000);
       } else {
         // If API returns success but no clear result structure, show success
         setBulkUploadSuccess('Bulk upload completed successfully!');
@@ -1042,7 +1146,10 @@ const EmployeeList = () => {
                 className="pl-10 text-sm"
               />
             </div>
-            <div className="flex items-center gap-2 justify-between sm:justify-start">
+            <div className="flex  items-center gap-2 justify-between sm:justify-start">
+              {/* Download Buttons */}
+              
+              
               <div className="relative">
                 <Button
                   variant="outline"
@@ -1106,7 +1213,8 @@ const EmployeeList = () => {
                   variant={viewMode === "table" ? "default" : "ghost"}
                   size="sm"
                   onClick={() => setViewMode("table")}
-                  className="h-8 w-8 p-0"
+                  disabled={window.innerWidth < 650}
+                  className="h-8 w-8 p-0 disabled:opacity-50"
                 >
                   <HamburgerIcon className="w-4 h-4" />
                 </Button>
@@ -1119,6 +1227,32 @@ const EmployeeList = () => {
                   <GridIcon className="w-4 h-4" />
                 </Button>
               </div>
+
+              
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={downloadAllCSV}
+                disabled={!filteredEmployees.some(emp => canDownloadEmployee(emp))}
+                className="flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
+              >
+                <Download className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Download CSV</span>
+                <span className="sm:hidden">CSV</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={downloadAllPDF}
+                disabled={!filteredEmployees.some(emp => canDownloadEmployee(emp))}
+                className="flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
+              >
+                <FileDown className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Download PDF</span>
+                <span className="sm:hidden">PDF</span>
+              </Button>
             </div>
           </div>
         </div>
@@ -1239,14 +1373,14 @@ const EmployeeList = () => {
             ) : (
               <Card>
                 <div className="overflow-x-auto">
-                  <table className="w-full">
+                  <table className="w-full min-w-[600px]">
                     <thead style={{ backgroundColor: '#01005a' }}>
                       <tr className="border-b">
-                        <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white">Employee</th>
-                        <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white">Role</th>
-                        <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white">Contact</th>
-                        <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white">Status</th>
-                        <th className="text-right p-2 sm:p-4 font-medium text-xs sm:text-sm text-white">Actions</th>
+                        <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Employee</th>
+                        <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">Role</th>
+                        <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[140px]">Contact</th>
+                        <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[70px]">Status</th>
+                        <th className="text-right p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1270,12 +1404,12 @@ const EmployeeList = () => {
                           </td>
                           <td className="p-2 sm:p-4">
                             <div className="text-xs sm:text-sm space-y-1">
-                              {employee.email && <div className="truncate">{employee.email}</div>}
-                              {employee.phone_number && <div className="text-muted-foreground font-mono text-xs">{formatPhoneNumber(employee.phone_number)}</div>}
+                              {employee.email && <div className="truncate max-w-[150px] sm:max-w-[200px] lg:max-w-[250px]">{employee.email}</div>}
+                              {employee.phone_number && <div className="text-muted-foreground font-mono text-xs truncate">{formatPhoneNumber(employee.phone_number)}</div>}
                             </div>
                           </td>
                           <td className="p-2 sm:p-4">
-                            <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs ${employee.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                            <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-xs whitespace-nowrap ${employee.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                               }`}>
                               {employee.is_active ? 'Active' : 'Inactive'}
                             </span>
@@ -1559,7 +1693,17 @@ const EmployeeList = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setShowBulkUploadModal(false)}
+                  onClick={() => {
+                    setShowBulkUploadModal(false);
+                    // Clear all bulk upload state when modal is closed
+                    setSelectedFile(null);
+                    setBulkUploadResults(null);
+                    setBulkUploadError('');
+                    setBulkUploadSuccess('');
+                    // Reset file input
+                    const fileInput = document.getElementById('bulk-upload-file');
+                    if (fileInput) fileInput.value = '';
+                  }}
                   className="h-8 w-8 p-0"
                 >
                   <X className="w-4 h-4" />
@@ -1643,7 +1787,15 @@ const EmployeeList = () => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setSelectedFile(null)}
+                      onClick={() => {
+                        setSelectedFile(null);
+                        setBulkUploadError('');
+                        setBulkUploadResults(null);
+                        setBulkUploadSuccess('');
+                        // Reset file input
+                        const fileInput = document.getElementById('bulk-upload-file');
+                        if (fileInput) fileInput.value = '';
+                      }}
                       className="h-6 w-6 p-0 ml-auto"
                     >
                       <X className="w-3 h-3" />
@@ -1811,22 +1963,31 @@ const EmployeeList = () => {
               <div className="flex flex-col sm:flex-row gap-3 pt-4">
                 <Button
                   variant="outline"
-                  onClick={() => setShowBulkUploadModal(false)}
+                  onClick={() => {
+                    setShowBulkUploadModal(false);
+                    // Clear all bulk upload state when modal is closed
+                    setSelectedFile(null);
+                    setBulkUploadResults(null);
+                    setBulkUploadError('');
+                    setBulkUploadSuccess('');
+                    // Reset file input
+                    const fileInput = document.getElementById('bulk-upload-file');
+                    if (fileInput) fileInput.value = '';
+                  }}
                   className="flex-1 order-2 sm:order-1"
                   disabled={isBulkUploading}
                 >
                   {bulkUploadResults ? 'Close' : 'Cancel'}
                 </Button>
-                {!bulkUploadResults && (
-                  <Button
-                    onClick={handleBulkUpload}
-                    className="flex-1 order-1 sm:order-2"
-                    disabled={!selectedFile || isBulkUploading}
-                  >
-                    {isBulkUploading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    Upload {formData.is_admin === 2 ? "Super Admins" : formData.is_admin === 1 ? "Admins" : "Employees"}
-                  </Button>
-                )}
+                <Button
+                  onClick={handleBulkUpload}
+                  className="flex-1 order-1 sm:order-2"
+                  disabled={!selectedFile || isBulkUploading}
+                  style={{ display: bulkUploadResults ? 'none' : 'block' }}
+                >
+                  {isBulkUploading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Upload {formData.is_admin === 2 ? "Super Admins" : formData.is_admin === 1 ? "Admins" : "Employees"}
+                </Button>
               </div>
             </CardContent>
           </Card>

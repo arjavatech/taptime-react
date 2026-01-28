@@ -70,9 +70,19 @@ const Header = () => {
         // Determine if this is a Google login by checking if user has a profile picture
         // For email-based login, always use default avatar (no picture)
         const isGoogleLogin = userPictureUrl && userPictureUrl.trim() !== "";
-        const profilePicture = isGoogleLogin
-          ? (userPictureUrl.startsWith("http") ? userPictureUrl : `https:${userPictureUrl}`)
-          : "";
+        let profilePicture = "";
+        if (isGoogleLogin) {
+          let imageUrl = userPictureUrl.startsWith("http") ? userPictureUrl : `https:${userPictureUrl}`;
+          // Fix Google profile picture URL - try different formats
+          if (imageUrl.includes('googleusercontent.com')) {
+            // Remove existing size parameters and use a simple format
+            imageUrl = imageUrl.replace(/=s\d+-c$/, '').replace(/=s\d+$/, '');
+            // Add size parameter that works better
+            imageUrl += '?sz=200';
+          }
+          profilePicture = imageUrl;
+        }
+
 
         setUserType(adminType);
         setUserProfile({
@@ -309,7 +319,7 @@ const Header = () => {
 
                           </div>
                           <div className="flex-1 min-w-0 py-3 text-center">
-                            <p className="text-[#02066F] font-medium truncate">{userProfile.companyName}</p>
+                            <p className="text-[#02066F] font-medium truncate">{userProfile.name || userProfile.companyName}</p>
                             <p className="text-gray-600 text-sm mt-1">{userProfile.email}</p>
                           </div>
                         </div>
