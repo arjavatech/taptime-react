@@ -184,10 +184,15 @@ const EmployeeList = () => {
 
   const downloadAllPDF = () => {
     const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
     
-    // Add title
+    // Add header with blue background
+    doc.setFillColor(1, 0, 90);
+    doc.rect(0, 0, pageWidth, 25, 'F');
+    doc.setTextColor(255, 255, 255);
     doc.setFontSize(16);
-    doc.text(`${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} List`, 14, 20);
+    doc.text(`${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} List`, pageWidth / 2, 15, { align: 'center' });
     
     // Prepare table data
     const tableData = [];
@@ -208,10 +213,17 @@ const EmployeeList = () => {
     autoTable(doc, {
       head: [['Name', 'PIN', 'Phone', 'Email', 'Role', 'Status']],
       body: tableData,
-      startY: 30,
+      startY: 35,
       styles: { fontSize: 8 },
       headStyles: { fillColor: [1, 0, 90] }
     });
+    
+    // Add footer with blue background
+    doc.setFillColor(1, 0, 90);
+    doc.rect(0, pageHeight - 20, pageWidth, 20, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    doc.text('© 2026 TapTime by Arjava Technologies. All rights reserved.', pageWidth / 2, pageHeight - 10, { align: 'center' });
     
     doc.save(`${activeTab}_data.pdf`);
   };
