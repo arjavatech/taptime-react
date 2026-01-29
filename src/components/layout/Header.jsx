@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import LogoutModal from "../ui/LogoutModal";
 import Avatar from "../ui/Avatar";
-import CompanySwitcher from "../ui/CompanySwitcher";
+// import CompanySwitcher from "../ui/CompanySwitcher";
 import tapTimeLogo from "../../assets/images/tap-time-logo.png";
 
 const Header = () => {
@@ -164,7 +164,8 @@ const Header = () => {
   };
 
   const publicNavItems = [
-    { to: "/", label: "Home" },
+    { to: "/", label: "Home" },    
+    { to: "/pricing", label: "Pricing" },
     { to: "/login", label: "Login" },
     { to: "/register", label: "Register" },
     { to: "/contact-us", label: "Contact Us" },
@@ -307,7 +308,7 @@ const Header = () => {
                     <div className="hidden lg:block absolute right-0 top-full mt-2 z-50">
                       <div className="bg-white rounded-lg shadow-2xl border border-gray-200 min-w-[300px] overflow-hidden">
                         {/* Profile Header */}
-                        <div className="px-6 py-5   ">
+                        <div className="px-6 py-5">
                           <div className="flex items-center justify-center space-x-4">
                             <Avatar
                               src={userProfile.picture}
@@ -325,7 +326,7 @@ const Header = () => {
                         </div>
 
                         {/* Company Switcher Section */}
-                        {(() => {
+                        {/* {(() => {
                           const adminType = localStorage.getItem("adminType");
                           const storedCompanies = localStorage.getItem("userCompanies");
                           const hasCompanies = adminType === "Owner" && storedCompanies && JSON.parse(storedCompanies).length > 0;
@@ -334,10 +335,10 @@ const Header = () => {
                               <CompanySwitcher onAddCompanyClick={() => setShowProfileDropdown(false)} onCompanySwitch={() => setShowProfileDropdown(false)} />
                             </div>
                           ) : null;
-                        })()}
+                        })()} */}
 
                         {/* Sign Out Section */}
-                        <div className="px-6 py-4">
+                        <div className="px-6 pb-4">
                           <button
                             onClick={() => { setShowModal(true); setShowProfileDropdown(false); }}
                             className="w-full text-center justify-center py-2 cursor-pointer bg-[#02066F] text-white rounded-md font-medium text-base transition-all duration-200 flex items-center space-x-3 rounded-md group"
@@ -432,7 +433,7 @@ const Header = () => {
               </nav>
               {isAuthenticated && (
                 <div className="px-4 pb-4">
-                  {(() => {
+                  {/* {(() => {
                     const adminType = localStorage.getItem("adminType");
                     const storedCompanies = localStorage.getItem("userCompanies");
                     console.log("Mobile - adminType:", adminType);
@@ -451,11 +452,11 @@ const Header = () => {
 
                     console.log("Mobile - hasCompanies:", hasCompanies);
                     return hasCompanies ? (
-                      <div className="mb-6">
-                        <CompanySwitcher onAddCompanyClick={() => setShowProfileSidebar(false)} />
-                      </div>
+                      // <div className="mb-6">
+                      //   <CompanySwitcher onAddCompanyClick={() => setShowProfileSidebar(false)} />
+                      // </div>
                     ) : null;
-                  })()}
+                  })()} */}
                   <button
                     onClick={() => { setShowModal(true); setShowProfileDropdown(false); }}
                     className="w-full text-center justify-center px-2 py-2 bg-[#02066F] text-white rounded-md text-sm transition-all duration-200 flex items-center space-x-3 rounded-md group"

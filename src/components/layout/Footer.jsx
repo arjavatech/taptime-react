@@ -41,6 +41,7 @@ const Footer = () => {
 
   const publicLinks = [
     { to: "/", text: "Home" },
+    { to: "/pricing", label: "Pricing" },
     { to: "/login", text: "Login" },
     { to: "/register", text: "Register" },
     { to: "/contact-us", text: "Contact Us" }
@@ -78,9 +79,9 @@ const Footer = () => {
               Powered by Arjava Technologies - Your trusted partner for innovative employee time tracking solutions that streamline workforce management.
             </p>
             <div className="flex space-x-4">
-              {socialLinks.map((social, i) => (
+              {socialLinks.map((social) => (
                 <a 
-                  key={i} 
+                  key={social.href} 
                   href={social.href} 
                   target="_blank" 
                   rel="noopener noreferrer" 
@@ -97,7 +98,7 @@ const Footer = () => {
             <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
             <ul className="space-y-3">
               {quickLinks.map((link) => (
-                <li key={link.text}>
+                <li key={link.to || link.text}>
                   {link.action ? (
                     <button
                       onClick={link.action}

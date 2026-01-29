@@ -4,9 +4,6 @@ import { supabase } from './config/supabase';
 import { ENCRYPTION_KEY, STORAGE_KEYS } from './constants';
 
 
-const accessToken = localStorage.getItem("access_token");
-console.log("Access Token in api.js:", accessToken);
-
 
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://postgresql-restless-waterfall-2105.fly.dev').replace(/\/$/, '');
@@ -119,10 +116,12 @@ export const loginCheck = async (username, password) => {
     const data = await api.get(`${API_BASE}/company/getuser/${username}`);
     const decryptPassword = await decrypt(data.Password, ENCRYPTION_KEY);
     const companyID = data.CID;
+    
 
     localStorage.setItem(STORAGE_KEYS.COMPANY_ID, companyID);
     localStorage.setItem(STORAGE_KEYS.COMPANY_NAME, data.company_name);
     localStorage.setItem(STORAGE_KEYS.COMPANY_LOGO, data.company_logo);
+    localStorage.setItem('companyLogo', data.company_logo);
     localStorage.setItem(STORAGE_KEYS.COMPANY_ADDRESS1, data.company_address_line1);
     localStorage.setItem(STORAGE_KEYS.REPORT_TYPE, data.report_type);
     localStorage.setItem(STORAGE_KEYS.ADMIN_TYPE, data.admin_type);
@@ -137,11 +136,7 @@ export const loginCheck = async (username, password) => {
 
 export const googleSignInCheck = async (email, authMethod = 'google') => {
   try {
-    const response = await fetch(`${API_BASE}/employee/login_check/${email}`, {
-      headers: { 'Content-Type': 'application/json' }
-    });
-    
-    const data = await response.json();
+    const data = await api.get(`${API_BASE}/employee/login_check/${email}`);
     
     // Check if response contains error details (even with 200 status)
     if (data.detail || data.error) {
@@ -153,11 +148,6 @@ export const googleSignInCheck = async (email, authMethod = 'google') => {
         return { success: false, error: errorMsg, deleted: true };
       }
       return { success: false, error: errorMsg };
-    }
-    
-    // If no error, proceed with normal validation
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
     }
 
     const adminTypeValue = data.admin_type?.toString().toLowerCase();
@@ -198,6 +188,8 @@ export const googleSignInCheck = async (email, authMethod = 'google') => {
     const companyID = data.cid;
     const adminTypeMap = { admin: 'Admin', superadmin: 'SuperAdmin', owner: 'Owner' };
     const properCaseAdminType = adminTypeMap[adminTypeValue] || adminTypeValue;
+    localStorage.setItem("companyLogo", data.company_logo);
+    console.log('Storing company logo in localStorage:', data.company_logo);
 
     const storeData = {
       [STORAGE_KEYS.COMPANY_ID]: companyID,
@@ -623,29 +615,6 @@ export const getCustomerData = async (cid) => {
 };
 
 
-// Company functions
-export const getUserCompanies = async (userEmail) => {
-  try {
-    const data = await api.get(`${API_BASE}/company/user/${userEmail}`);
-    return data;
-  } catch (error) {
-    console.error('Error fetching user companies:', error);
-    
-    // Handle account deletion scenarios
-    if (error.message && error.message.includes('Account not found - may have been deleted')) {
-      return { success: false, error: error.message, deleted: true };
-    }
-    
-    // Handle 404 errors as potential account deletion
-    if (error.message && error.message.includes('HTTP 404')) {
-      return { success: false, error: 'Account not found - may have been deleted', deleted: true };
-    }
-    
-    // Return error object instead of throwing
-    return { success: false, error: error.message || 'Failed to fetch companies' };
-  }
-};
-
 export const addNewCompany = async (companyData, logoFile = null) => {
   try {
     const formData = new FormData();
@@ -729,7 +698,7 @@ export const updateProfile = async (cid, data) => {
       headers: isFormData ? { 'Authorization': `Bearer ${localStorage.getItem("access_token")}` } : { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem("access_token")}` },
       body: isFormData ? data : JSON.stringify(data)
     });
-    
+
 
     if (!response.ok) throw new Error(`Error: ${response.status}`);
     return await response.json();
@@ -795,6 +764,7 @@ export const storeOwnerData = (ownerData) => {
       localStorage.setItem('is_verified', String(firstCompany.is_verified));
       localStorage.setItem('employment_type', firstCompany.employment_type);
       localStorage.setItem('employmentType', firstCompany.employment_type);
+      localStorage.setItem('companyLogo', firstCompany.company_logo || '');
       localStorage.setItem(STORAGE_KEYS.USER_NAME, `${firstCompany.first_name || ''} ${firstCompany.last_name || ''}`.trim());
       
       // Set first company as active by default
@@ -802,9 +772,6 @@ export const storeOwnerData = (ownerData) => {
       const activeCompany = ownerData.companies.find(c => c.cid === lastSelected) || firstCompany;
       setActiveCompany(activeCompany);
     }
-    console.log('=== OWNER DATA STORED ===');
-    console.log('Companies:', ownerData.companies?.length || 0);
-    console.log('Admin Type:', ownerData.admin_type);
   } catch (error) {
     console.error('Error storing owner data:', error);
   }
@@ -1024,5 +991,186 @@ export const deleteDevice = async (accessKey, companyId) => {
   } catch (error) {
     console.error('Error deleting device:', error);
     throw error;
+  }
+};
+
+
+
+
+
+
+// ============================================
+// Subscription/Stripe Functions
+// ============================================
+
+/**
+ * Create a Stripe Checkout session for subscription
+ * @param {string} cid - Company ID
+ * @param {string} priceId - Stripe Price ID
+ * @param {number} quantity - Number of employees
+ * @param {string} successUrl - URL to redirect after successful payment
+ * @param {string} cancelUrl - URL to redirect if user cancels
+ * @returns {Promise} - Checkout URL and session ID
+ */
+/**
+ * Create Stripe checkout session for registration
+ * @param {Object} registrationData
+ * @param {string} registrationData.email
+ * @param {string} registrationData.company_name
+ * @param {number} registrationData.quantity - Number of employees
+ * @param {string} registrationData.price_id
+ * @param {number} [registrationData.trial_period_days=14] - Trial days (0 for no trial)
+ * @param {string} registrationData.success_url
+ * @param {string} registrationData.cancel_url
+ */
+export const createCheckoutSessionForRegistration = async (registrationData) => {
+  try {
+    const data = await api.post(`${API_BASE}/subscription/create-checkout-session-registration`, registrationData);
+    return { success: true, data };
+  } catch (error) {
+    console.error('Create checkout session for registration error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+export const createCheckoutSession = async (cid, priceId, quantity, successUrl, cancelUrl) => {
+  try {
+    const data = await api.post(`${API_BASE}/subscription/create-checkout-session`, {
+      cid,
+      price_id: priceId,
+      quantity,
+      success_url: successUrl,
+      cancel_url: cancelUrl
+    });
+    return { success: true, data };
+  } catch (error) {
+    console.error('Create checkout session error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Get all available subscription plans
+ * @returns {Promise} - List of subscription plans
+ */
+export const getSubscriptionPlans = async () => {
+  try {
+    const data = await api.get(`${API_BASE}/subscription/plans`);
+    return { success: true, plans: data.plans };
+  } catch (error) {
+    console.error('Get subscription plans error:', error);
+    return { success: false, error: error.message, plans: [] };
+  }
+};
+
+/**
+ * Get subscription status for a company
+ * @param {string} cid - Company ID
+ * @returns {Promise} - Subscription status including trial info
+ */
+export const getSubscriptionStatus = async (cid) => {
+  try {
+    const data = await api.get(`${API_BASE}/subscription/status/${cid}`);
+    return { success: true, data };
+  } catch (error) {
+    console.error('Get subscription status error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Cancel subscription
+ * @param {string} cid - Company ID
+ * @param {boolean} atPeriodEnd - If true, cancel at end of billing period. If false, cancel immediately.
+ * @returns {Promise} - Cancellation result
+ */
+export const cancelSubscription = async (cid, atPeriodEnd = true) => {
+  try {
+    const data = await api.post(`${API_BASE}/subscription/cancel/${cid}`, {
+      at_period_end: atPeriodEnd
+    });
+    return { success: true, data };
+  } catch (error) {
+    console.error('Cancel subscription error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Change subscription plan (upgrade/downgrade)
+ * @param {string} cid - Company ID
+ * @param {string} newPriceId - New Stripe Price ID
+ * @param {number} quantity - Optional new employee count
+ * @returns {Promise} - Plan change result
+ */
+export const changeSubscriptionPlan = async (cid, newPriceId, quantity = null) => {
+  try {
+    const requestData = { new_price_id: newPriceId };
+    if (quantity !== null) {
+      requestData.quantity = quantity;
+    }
+
+    const data = await api.post(`${API_BASE}/subscription/change-plan/${cid}`, requestData);
+    return { success: true, data };
+  } catch (error) {
+    console.error('Change subscription plan error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Create Stripe Customer Portal session
+ * @param {string} cid - Company ID
+ * @param {string} returnUrl - URL to redirect after portal session
+ * @returns {Promise} - Portal URL
+ */
+export const createCustomerPortalSession = async (cid, returnUrl) => {
+  try {
+    const data = await api.post(`${API_BASE}/subscription/customer-portal/${cid}`, {
+      return_url: returnUrl
+    });
+    return { success: true, portalUrl: data.portal_url };
+  } catch (error) {
+    console.error('Create customer portal session error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+
+/**
+ * Create a pending registration (Step 1 of new webhook-based registration flow)
+ * Saves registration data before Stripe payment
+ * @param {Object} registrationData - Registration form data
+ * @param {File} companyLogoFile - Company logo file (optional)
+ * @returns {Promise} - registration_id to use for checkout session
+ */
+export const createPendingRegistration = async (registrationData, companyLogoFile = null) => {
+  try {
+    const formData = new FormData();
+
+    // Add registration_data as JSON string
+    formData.append('registration_data', JSON.stringify(registrationData));
+
+    // Add company_logo file if provided
+    if (companyLogoFile) {
+      formData.append('company_logo', companyLogoFile);
+    }
+
+    const response = await fetch(`${API_BASE}/auth/pending-registration`, {
+      method: 'POST',
+      body: formData
+      // Note: Don't set Content-Type header - browser will set it automatically with boundary
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || `HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    return { success: true, data };
+  } catch (error) {
+    console.error('Create pending registration error:', error);
+    return { success: false, error: error.message };
   }
 };

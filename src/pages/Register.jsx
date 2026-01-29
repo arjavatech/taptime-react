@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { registerUser } from '../api.js';
+import { Link, useSearchParams } from 'react-router-dom';
+import { createPendingRegistration, getSubscriptionPlans, createCheckoutSessionForRegistration } from '../api.js';
 import { useZipLookup } from '../hooks';
 import Header from "../components/layout/Header";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { Mail, User, Building, Phone, MapPin, X, Loader2, AlertCircle } from "lucide-react";
+import { Mail, User, Building, Phone, MapPin, X, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import tabtimelogo from "../assets/images/tap-time-logo.png";
 import RegistrationSuccessModal from "../components/ui/RegistrationSuccessModal";
 import CenterLoadingOverlay from "../components/ui/CenterLoadingOverlay";
@@ -17,6 +17,13 @@ import 'react-international-phone/style.css';
 
 
 const Register = () => {
+  // Get trial parameter from URL
+  const [searchParams] = useSearchParams();
+  const [wantsTrial, setWantsTrial] = useState(() => {
+    const trialParam = searchParams.get('trial');
+    return trialParam === null ? true : trialParam === 'true'; // Default to true
+  });
+
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [logoFileName, setLogoFileName] = useState('');
@@ -105,7 +112,7 @@ const Register = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-
+    
     // Only allow numbers for device and employee count fields
     if ((name === 'noOfDevices' || name === 'noOfEmployees') && value && !/^\d+$/.test(value)) {
       return;
@@ -122,16 +129,16 @@ const Register = () => {
     if ((name === 'firstName' || name === 'lastName') && value && !/^[a-zA-Z\s]*$/.test(value)) {
       return;
     }
-
+    
     // Auto-capitalize first character for text fields (exclude email and numeric fields)
     let processedValue = value;
     const numericFields = ['noOfDevices', 'noOfEmployees', 'companyZip', 'customerZip'];
     const emailFields = ['email'];
-
+    
     if (!numericFields.includes(name) && !emailFields.includes(name) && processedValue.length > 0) {
       processedValue = processedValue.charAt(0).toUpperCase() + processedValue.slice(1);
     }
-
+    
     // Clear errors when user types
     if (name === 'companyName') setCompanyNameError('');
     if (name === 'companyStreet') setCompanyStreetError('');
@@ -147,7 +154,7 @@ const Register = () => {
     if (name === 'customerCity') setCustomerCityError('');
     if (name === 'customerState') setCustomerStateError('');
     if (name === 'customerZip') setCustomerZipError('');
-
+    
     setFormData(prev => ({
       ...prev,
       [name]: processedValue
@@ -161,7 +168,7 @@ const Register = () => {
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
       const allowedExtensions = ['.jpg', '.jpeg', '.png'];
       const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
-
+      
       if (!allowedTypes.includes(file.type) || !allowedExtensions.includes(fileExtension)) {
         setCompanyLogoError('Please upload a valid image file (JPEG or PNG)');
         return;
@@ -278,7 +285,7 @@ const Register = () => {
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
       const allowedExtensions = ['.jpg', '.jpeg', '.png'];
       const fileExtension = logoFile.name.toLowerCase().substring(logoFile.name.lastIndexOf('.'));
-
+      
       if (!allowedTypes.includes(logoFile.type) || !allowedExtensions.includes(fileExtension)) {
         setCompanyLogoError('Please upload a valid image file (JPEG or PNG)');
         hasErrors = true;
@@ -370,6 +377,16 @@ const Register = () => {
     setCurrentStep(1);
   };
 
+  // Helper function to convert File to base64 for localStorage
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -378,9 +395,6 @@ const Register = () => {
     setIsLoading(true);
 
     try {
-      // Send phone number in the same country format provided by the user
-
-
       // Create plain object with proper field name mapping for API
       const submitData = {
         company_name: formData.companyName,
@@ -403,32 +417,58 @@ const Register = () => {
         last_modified_by: 'Admin'
       };
 
+      // NEW WEBHOOK-BASED REGISTRATION FLOW
+      // Step 1: Save pending registration to database (before payment)
+      console.log('Step 1: Creating pending registration...');
+      const pendingRegResponse = await createPendingRegistration(submitData, logoFile);
 
-      // Pass signup data and logo file separately - API uses multipart/form-data
-      const response = await registerUser(submitData, logoFile);
+      if (!pendingRegResponse.success) {
+        setGeneralError(pendingRegResponse.error || 'Failed to save registration. Please try again.');
+        setIsLoading(false);
+        return;
+      }
 
-      if (response.success) {
-        showCenterLoading('Processing registration...');
-        setTimeout(() => {
-          hideCenterLoading();
-          setShowSuccessModal(true);
-        }, 800);
+      const registrationId = pendingRegResponse.data.registration_id;
+      console.log('✅ Pending registration created:', registrationId);
+
+      // Step 2: Get subscription plans to get the price ID
+      console.log('Step 2: Loading subscription plans...');
+      const plansResponse = await getSubscriptionPlans();
+
+      if (!plansResponse.success || !plansResponse.plans || plansResponse.plans.length === 0) {
+        setGeneralError('Unable to load subscription plans. Please try again.');
+        setIsLoading(false);
+        return;
+      }
+
+      const priceId = plansResponse.plans[0].stripe_price_id;
+
+      // Step 3: Create Stripe Checkout session with registration_id
+      // Webhook will use registration_id to create account automatically
+      console.log('Step 3: Creating checkout session...');
+      const quantity = parseInt(formData.noOfEmployees, 10);
+      const successUrl = `${window.location.origin}/register/success`;  // No session_id needed!
+      const cancelUrl = `${window.location.origin}/register?retry=true`;
+
+      const checkoutResponse = await createCheckoutSessionForRegistration({
+        registration_id: registrationId,  // CRITICAL: Links checkout to pending registration
+        price_id: priceId,
+        quantity: quantity,
+        trial_period_days: wantsTrial ? 14 : 0,
+        success_url: successUrl,
+        cancel_url: cancelUrl
+      });
+
+      if (checkoutResponse.success) {
+        // Step 4: Redirect to Stripe Checkout
+        // After payment completes, webhook will automatically create account
+        console.log('✅ Redirecting to Stripe checkout...');
+        window.location.href = checkoutResponse.data.checkout_url;
       } else {
-        const errorMessage = response.error || response.message || 'Registration failed';
-
-        if (errorMessage.includes('Email with email =') && errorMessage.includes('already exists')) {
-          setGeneralError("this email id is already registered in another company. Please use a different email id : ." + formData.email);
-        } else if (errorMessage.includes('This email address is already registered')) {
-          setEmailError('This email address is already registered');
-        } else if (errorMessage.includes('company') && errorMessage.includes('exists')) {
-          setCompanyNameError('Company name already exists');
-        } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
-          setGeneralError('Network error. Please check your connection and try again');
-        } else {
-          setGeneralError(errorMessage);
-        }
+        setGeneralError('Failed to create checkout session. Please try again.');
       }
     } catch (error) {
+      console.error('Registration flow error:', error);
 
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
         setGeneralError('Network error. Please check your internet connection and try again');
@@ -436,12 +476,8 @@ const Register = () => {
         setGeneralError('Request timeout. Please try again');
       } else if (error.message.includes('500')) {
         setGeneralError('Server error. Please try again later');
-      } else if (error.message.includes('409')) {
-        setGeneralError('Email or company name already exists');
-      } else if (error.message.includes('400')) {
-        setGeneralError('Invalid data provided. Please check your information');
       } else {
-        setGeneralError('Registration failed. Please try again');
+        setGeneralError('Failed to start checkout process. Please try again');
       }
     } finally {
       setIsLoading(false);
@@ -677,11 +713,66 @@ const Register = () => {
       <CardHeader className="space-y-1 text-center bg-primary text-primary-foreground rounded-t-xl px-4 py-6 sm:px-6 sm:py-8">
         <CardTitle className="text-xl sm:text-2xl lg:text-3xl font-bold">Personal Information</CardTitle>
         <CardDescription className="text-primary-foreground/80 text-sm sm:text-base">
-          Tell us about yourself
+          {wantsTrial ? (
+            <>You've selected the 14-day free trial. Complete your details to get started.</>
+          ) : (
+            <>You've selected direct subscription. Complete your details to proceed to payment.</>
+          )}
         </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8">
+        {/* Trial preference selection */}
+        <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Free Trial Card */}
+          <div
+            onClick={() => setWantsTrial(true)}
+            className={`
+              cursor-pointer p-4 rounded-lg border-2 transition-all
+              ${wantsTrial
+                ? 'border-primary bg-primary/10'
+                : 'border-muted bg-transparent hover:border-primary/50'
+              }
+            `}
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className="font-semibold text-base mb-1">14-Day Free Trial</p>
+                <p className="text-sm text-muted-foreground">
+                  Try free for 14 days, then $1/employee/month
+                </p>
+              </div>
+              {wantsTrial && (
+                <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 ml-2" />
+              )}
+            </div>
+          </div>
+
+          {/* Direct Subscription Card */}
+          <div
+            onClick={() => setWantsTrial(false)}
+            className={`
+              cursor-pointer p-4 rounded-lg border-2 transition-all
+              ${!wantsTrial
+                ? 'border-primary bg-primary/10'
+                : 'border-muted bg-transparent hover:border-primary/50'
+              }
+            `}
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <p className="font-semibold text-base mb-1">Subscribe Now</p>
+                <p className="text-sm text-muted-foreground">
+                  Pay $1/employee/month starting today
+                </p>
+              </div>
+              {!wantsTrial && (
+                <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 ml-2" />
+              )}
+            </div>
+          </div>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div className="space-y-2">
@@ -846,8 +937,16 @@ const Register = () => {
               Back
             </Button>
             <Button type="submit" className="flex-1 h-10 sm:h-11 text-sm sm:text-base" size="lg" disabled={isLoading}>
-              {isLoading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-              {isLoading ? "Creating Account..." : "Create Account"}
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Processing...
+                </>
+              ) : wantsTrial ? (
+                'Start Free Trial'
+              ) : (
+                'Proceed to Payment'
+              )}
             </Button>
           </div>
           {generalError && (
@@ -921,7 +1020,7 @@ const Register = () => {
 
 
 
-            {currentStep === 1 ? renderStep1() : renderStep2()}
+          {currentStep === 1 ? renderStep1() : renderStep2()}
 
 
           </div>

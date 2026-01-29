@@ -320,6 +320,7 @@ const Profile = () => {
       // Initialize employmentTypes array from stored CSV
       setEmploymentTypes(storedEmploymentType.split(',').filter(t => t.trim()));
 
+
       setIsLoading(false);
     };
 
@@ -560,7 +561,7 @@ const Profile = () => {
         localStorage.setItem("companyStreet2", companyData.street2 || "");
         localStorage.setItem("companyCity", companyData.city);
         localStorage.setItem("companyState", companyData.state);
-        localStorage.setItem("companyZip", companyData.zipCode);
+        localStorage.setItem("companyZip", companyData.companyZip);
         if (companyData.logo) {
           localStorage.setItem("companyLogo", companyData.logo);
         }
@@ -576,7 +577,7 @@ const Profile = () => {
       localStorage.setItem("customerStreet2", personalData.street2 || "");
       localStorage.setItem("customerCity", personalData.customerCity);
       localStorage.setItem("customerState", personalData.customerState);
-      localStorage.setItem("customerZip", personalData.customerZip);
+      localStorage.setItem("customerZip", personalData.zipCode);
 
       setSaveSuccess("Personal information updated successfully!");
       setTimeout(() => {
@@ -725,7 +726,7 @@ const Profile = () => {
       localStorage.setItem("companyStreet2", companyData.street2 || "");
       localStorage.setItem("companyCity", companyData.city);
       localStorage.setItem("companyState", companyData.state);
-      localStorage.setItem("companyZip", companyData.zipCode);
+      localStorage.setItem("companyZip", companyData.companyZip);
       localStorage.setItem("employmentType", companyData.employmentType);
       if (companyData.logo) {
         localStorage.setItem("companyLogo", companyData.logo);
@@ -780,8 +781,9 @@ const Profile = () => {
         street2: formData.companyStreet2,
         city: formData.companyCity,
         state: formData.companyState,
-        zipCode: formData.companyZip,
-        logo: formData.logo
+        companyZip: formData.companyZip,
+        logo: formData.logo,
+        employmentType: formData.employmentType || ""
       });
     } else if (type === "admin") {
       setAdminData({
@@ -1117,7 +1119,15 @@ const Profile = () => {
                   <div className="relative">
                     <div className="w-16 h-16 sm:w-20 sm:h-20 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
                       {companyData.logo ? (
-                        <img src={companyData.logo} alt="Company Logo" className="w-full h-full object-cover" />
+                        <img 
+                          src={companyData.logo} 
+                          alt="Company Logo" 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            console.log('Logo failed to load:', companyData.logo);
+                            e.target.style.display = 'none';
+                          }}
+                        />
                       ) : (
                         <Building className="w-6 h-6 sm:w-8 sm:h-8 text-muted-foreground" />
                       )}

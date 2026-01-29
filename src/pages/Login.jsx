@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import Header from "../components/layout/Header";
@@ -28,6 +28,12 @@ const Login = () => {
   const navigate = useNavigate();
   const { signInWithEmail, signInWithGoogle, signOut, user, session, loading: authLoading, fetchBackendUserData } = useAuth();
   const [isProcessingOAuth, setIsProcessingOAuth] = useState(false);
+  const fetchBackendUserDataRef = useRef(fetchBackendUserData);
+  
+  // Update ref when fetchBackendUserData changes
+  useEffect(() => {
+    fetchBackendUserDataRef.current = fetchBackendUserData;
+  }, [fetchBackendUserData]);
 
   // Clear companyID from localStorage when login page loads
   useEffect(() => {
@@ -54,7 +60,7 @@ const Login = () => {
           const userName = user.user_metadata?.full_name || user.user_metadata?.name || user.email.split('@')[0];
           const userPicture = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
 
-          const result = await fetchBackendUserData(userEmail, userName, userPicture, 'google');
+          const result = await fetchBackendUserDataRef.current(userEmail, userName, userPicture, 'google');
 
           if (result.success) {
             sessionStorage.removeItem('pending_oauth_callback');
@@ -88,7 +94,7 @@ const Login = () => {
     };
 
     handleOAuthCallback();
-  }, [session, user, authLoading, navigate, isProcessingOAuth, fetchBackendUserData, signOut]);
+  }, [session, user, authLoading, navigate, isProcessingOAuth, signOut]); // Removed fetchBackendUserData from dependencies
 
   const handleEmailLogin = async (e) => {
     e?.preventDefault();
@@ -143,7 +149,7 @@ const Login = () => {
         const userName = data.user.user_metadata?.full_name || data.user.user_metadata?.name || email.split('@')[0];
         const userPicture = data.user.user_metadata?.avatar_url || data.user.user_metadata?.picture || null;
 
-        const result = await fetchBackendUserData(data.user.email, userName, userPicture, 'email');
+        const result = await fetchBackendUserDataRef.current(data.user.email, userName, userPicture, 'email');
 
         if (!result.success) {
           await signOut();

@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
-import { getUserCompanies } from '../api.js';
+import { googleSignInCheck } from '../api.js';
 import { STORAGE_KEYS } from '../constants';
 
 const CompanyContext = createContext({});
@@ -41,7 +41,26 @@ export const CompanyProvider = ({ children }) => {
     setLoading(true);
     const promise = (async () => {
       try {
-        const result = await getUserCompanies(userEmail);
+        // Check if user is an owner - owners should not use Google login
+        const adminType = localStorage.getItem(STORAGE_KEYS.ADMIN_TYPE);
+        if (adminType === 'owner') {
+          // For owners, get companies from localStorage instead of Google login
+          const storedCompanies = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_COMPANIES) || '[]');
+          setUserCompanies(storedCompanies);
+          
+          // Set current company from localStorage or default to first company
+          const savedCompanyId = localStorage.getItem('lastSelectedCompany') || localStorage.getItem(STORAGE_KEYS.COMPANY_ID);
+          const savedCompany = storedCompanies.find(c => c.cid === savedCompanyId);
+          
+          if (savedCompany) {
+            setCurrentCompany(savedCompany);
+          } else if (storedCompanies.length > 0) {
+            setCurrentCompany(storedCompanies[0]);
+          }
+          return;
+        }
+        
+        const result = await googleSignInCheck(userEmail);
         
         // Handle error responses from API
         if (result && result.success === false) {
@@ -83,16 +102,22 @@ export const CompanyProvider = ({ children }) => {
 
     setCurrentCompany(company);
     
+    // Handle different company data structures (owner vs Google user)
+    const companyId = company.cid || company.CID;
+    const companyName = company.company_name || company.CName;
+    const companyLogo = company.company_logo || company.CLogo;
+    const reportType = company.report_type || company.ReportType;
+    
     // Update localStorage with new company data
     const companyData = {
-      [STORAGE_KEYS.COMPANY_ID]: company.CID,
-      [STORAGE_KEYS.COMPANY_NAME]: company.CName,
-      [STORAGE_KEYS.COMPANY_LOGO]: company.CLogo,
+      [STORAGE_KEYS.COMPANY_ID]: companyId,
+      [STORAGE_KEYS.COMPANY_NAME]: companyName,
+      [STORAGE_KEYS.COMPANY_LOGO]: companyLogo,
       [STORAGE_KEYS.ADMIN_TYPE]: company.admin_type,
-      [STORAGE_KEYS.REPORT_TYPE]: company.ReportType,
+      [STORAGE_KEYS.REPORT_TYPE]: reportType,
       [STORAGE_KEYS.NO_OF_DEVICES]: company.device_count?.toString() || '0',
       [STORAGE_KEYS.NO_OF_EMPLOYEES]: company.employee_count?.toString() || '0',
-      'lastSelectedCompany': company.CID // Remember user's preference
+      'lastSelectedCompany': companyId // Remember user's preference
     };
 
     Object.entries(companyData).forEach(([key, value]) => {
