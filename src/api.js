@@ -729,6 +729,7 @@ export const updateProfile = async (cid, data) => {
       headers: isFormData ? { 'Authorization': `Bearer ${localStorage.getItem("access_token")}` } : { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem("access_token")}` },
       body: isFormData ? data : JSON.stringify(data)
     });
+    
 
     if (!response.ok) throw new Error(`Error: ${response.status}`);
     return await response.json();
