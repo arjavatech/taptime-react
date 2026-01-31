@@ -159,8 +159,24 @@ export const AuthProvider = ({ children }) => {
     };
   }, []); // Only run once on mount
 
-  // Check account deletion only on initial load and when explicitly needed
-  // Removed automatic checks on page focus/visibility to prevent unnecessary API calls
+  // Check account deletion on page focus/visibility change
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      // Only check when page becomes visible and user is logged in
+      if (!document.hidden && user && !accountDeleted && !loading && !isLoginInProgress) {
+        const userEmail = user?.email || localStorage.getItem('adminMail');
+        if (userEmail) {
+          await checkAccountDeletion(userEmail);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user, checkAccountDeletion, accountDeleted, loading, isLoginInProgress]);
 
   // Sign in with email and password
   const signInWithEmail = async (email, password, rememberMe = false) => {
