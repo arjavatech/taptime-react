@@ -32,3 +32,6 @@ export { useZipLookup } from './useZipLookup';
 
 // Export auto-logout hook
 export { useAutoLogout } from './useAutoLogout';
+
+// Export subscription check hook
+export { default as useSubscriptionCheck } from './useSubscriptionCheck';

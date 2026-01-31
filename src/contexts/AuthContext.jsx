@@ -28,6 +28,7 @@ export const AuthProvider = ({ children }) => {
   const [accountDeleted, setAccountDeleted] = useState(false);
   const [isLoginInProgress, setIsLoginInProgress] = useState(false);
 
+  
   // Auto-logout for inactive users
   useAutoLogout(() => {
     signOut();
@@ -40,20 +41,33 @@ export const AuthProvider = ({ children }) => {
     
     try {
       const result = await googleSignInCheck(email, 'email');
-      if (!result.success && result.deleted) {
-        const adminType = localStorage.getItem('adminType') || localStorage.getItem('ADMIN_TYPE') || 'Account';
-        setDeletedAccountType(adminType);
-        setShowAccountDeletionModal(true);
-        setAccountDeleted(true);
-        return true;
+      
+      if (!result.success) {
+        // Check if error message indicates account deletion
+        const errorMsg = (result.error || '').toLowerCase();
+        if (result.deleted || 
+            errorMsg.includes('not found') || 
+            errorMsg.includes('deleted') || 
+            errorMsg.includes('may have been deleted')) {
+          console.log('Account detected as deleted, showing modal');
+          const adminType = localStorage.getItem('adminType') || localStorage.getItem('ADMIN_TYPE') || 'Account';
+          setDeletedAccountType(adminType);
+          setShowAccountDeletionModal(true);
+          setAccountDeleted(true);
+          return true;
+        }
       }
       return false;
     } catch (error) {
+      console.log('Account deletion check error:', error);
       // If API call fails, check error message for deletion indicators
       const errorMsg = error.message.toLowerCase();
       if (errorMsg.includes('not found') || 
           errorMsg.includes('deleted') || 
-          errorMsg.includes('404')) {
+          errorMsg.includes('404') ||
+          errorMsg.includes('403') ||
+          errorMsg.includes('access denied')) {
+        console.log('Account deletion detected from error, showing modal');
         const adminType = localStorage.getItem('adminType') || 
                          localStorage.getItem('ADMIN_TYPE') || 
                          'Account';
@@ -145,22 +159,35 @@ export const AuthProvider = ({ children }) => {
     };
   }, []); // Only run once on mount
 
-  // Check account deletion on page focus/visibility change
+  // Check account deletion on page focus/visibility change and periodically
   useEffect(() => {
     const handleVisibilityChange = async () => {
-      // Skip if login is in progress, loading, or account already deleted
-      if (document.hidden || !user || accountDeleted || loading || isLoginInProgress) {
-        return;
+      // Only check when page becomes visible and user is logged in
+      if (!document.hidden && user && !accountDeleted && !loading && !isLoginInProgress) {
+        const userEmail = user?.email || localStorage.getItem('adminMail');
+        if (userEmail) {
+          await checkAccountDeletion(userEmail);
+        }
       }
-      
-      const userEmail = user?.email || localStorage.getItem('adminMail');
-      if (userEmail) {
-        await checkAccountDeletion(userEmail);
+    };
+
+  // Periodic check every 30 seconds for active users
+    const periodicCheck = async () => {
+      if (user && !accountDeleted && !loading && !isLoginInProgress && !document.hidden) {
+        const userEmail = user?.email || localStorage.getItem('adminMail');
+        if (userEmail) {
+          await checkAccountDeletion(userEmail);
+        }
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    const intervalId = setInterval(periodicCheck, 30000); // Check every 30 seconds
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(intervalId);
+    };
   }, [user, checkAccountDeletion, accountDeleted, loading, isLoginInProgress]);
 
   // Sign in with email and password
@@ -389,6 +416,15 @@ export const AuthProvider = ({ children }) => {
     }
   }, [user, checkAccountDeletion]);
 
+  // Test function to manually trigger account deletion modal
+  const testAccountDeletionModal = useCallback(() => {
+    console.log('Manually triggering account deletion modal');
+    const adminType = localStorage.getItem('adminType') || localStorage.getItem('ADMIN_TYPE') || 'Account';
+    setDeletedAccountType(adminType);
+    setShowAccountDeletionModal(true);
+    setAccountDeleted(true);
+  }, []);
+
   const value = useMemo(() => ({
     user,
     session,
@@ -401,6 +437,7 @@ export const AuthProvider = ({ children }) => {
     fetchBackendUserData,
     checkAccountDeletion,
     checkOnNavigation,
+    testAccountDeletionModal, // Add test function
   }), [
     user,
     session,
@@ -413,6 +450,7 @@ export const AuthProvider = ({ children }) => {
     fetchBackendUserData,
     checkAccountDeletion,
     checkOnNavigation,
+    testAccountDeletionModal,
   ]);
 
   return (

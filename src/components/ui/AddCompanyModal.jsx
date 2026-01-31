@@ -3,9 +3,9 @@ import { Button } from './button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './card';
 import { Input } from './input';
 import { Label } from './label';
-import { Building, MapPin, X, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { Building, MapPin, X, Loader2, AlertCircle, CheckCircle, CheckCircle2 } from 'lucide-react';
 import { useZipLookup } from '../../hooks';
-import { addNewCompany } from '../../api';
+import { addNewCompany, getSubscriptionPlans, createCheckoutSessionForRegistration, createPendingRegistration } from '../../api';
 
 const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -13,6 +13,7 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
   const [logoFile, setLogoFile] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [wantsTrial, setWantsTrial] = useState(true);
 
   // Form data state
   const [formData, setFormData] = useState({
@@ -238,15 +239,56 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
         last_modified_by: userEmail
       };
 
-      // Call the API to add the company
-      await addNewCompany(companyData, logoFile);
+      if (wantsTrial || !wantsTrial) {
+        // Payment flow - create pending registration first
+        const pendingRegResponse = await createPendingRegistration(companyData, logoFile);
+        
+        if (!pendingRegResponse.success) {
+          setError(pendingRegResponse.error || 'Failed to save company data. Please try again.');
+          return;
+        }
 
-      setSuccess('Company added successfully!');
+        const registrationId = pendingRegResponse.data.registration_id;
 
-      setTimeout(() => {
-        onSuccess?.();
-        handleClose();
-      }, 1500);
+        // Get subscription plans
+        const plansResponse = await getSubscriptionPlans();
+        
+        if (!plansResponse.success || !plansResponse.plans || plansResponse.plans.length === 0) {
+          setError('Unable to load subscription plans. Please try again.');
+          return;
+        }
+
+        const priceId = plansResponse.plans[0].stripe_price_id;
+        const quantity = parseInt(formData.noOfEmployees, 10);
+        const successUrl = `${window.location.origin}/employee-management`;
+        const cancelUrl = `${window.location.origin}/employee-management`;
+
+        // Create checkout session
+        const checkoutResponse = await createCheckoutSessionForRegistration({
+          registration_id: registrationId,
+          price_id: priceId,
+          quantity: quantity,
+          trial_period_days: wantsTrial ? 14 : 0,
+          success_url: successUrl,
+          cancel_url: cancelUrl
+        });
+
+        if (checkoutResponse.success) {
+          // Redirect to Stripe checkout
+          window.location.href = checkoutResponse.data.checkout_url;
+        } else {
+          setError('Failed to create checkout session. Please try again.');
+        }
+      } else {
+        // Direct company creation without payment
+        await addNewCompany(companyData, logoFile);
+        setSuccess('Company added successfully!');
+        
+        setTimeout(() => {
+          onSuccess?.();
+          handleClose();
+        }, 1500);
+      }
 
     } catch (error) {
       setError(error.message || 'Failed to add company');
@@ -274,6 +316,7 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
     setErrors({});
     setError('');
     setSuccess('');
+    setWantsTrial(true);
     onClose();
   };
 
@@ -472,6 +515,60 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
               </div>
             </div>
 
+            {/* Payment Mode Selection */}
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-sm font-medium">Payment Mode</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Free Trial Card */}
+                <div
+                  onClick={() => setWantsTrial(true)}
+                  className={`
+                    cursor-pointer p-3 rounded-lg border-2 transition-all
+                    ${wantsTrial
+                      ? 'border-primary bg-primary/10'
+                      : 'border-muted bg-transparent hover:border-primary/50'
+                    }
+                  `}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm mb-1">14-Day Free Trial</p>
+                      <p className="text-xs text-muted-foreground">
+                        Try free for 14 days, then $1/employee/month
+                      </p>
+                    </div>
+                    {wantsTrial && (
+                      <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 ml-2" />
+                    )}
+                  </div>
+                </div>
+
+                {/* Direct Subscription Card */}
+                <div
+                  onClick={() => setWantsTrial(false)}
+                  className={`
+                    cursor-pointer p-3 rounded-lg border-2 transition-all
+                    ${!wantsTrial
+                      ? 'border-primary bg-primary/10'
+                      : 'border-muted bg-transparent hover:border-primary/50'
+                    }
+                  `}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm mb-1">Subscribe Now</p>
+                      <p className="text-xs text-muted-foreground">
+                        Pay $1/employee/month starting today
+                      </p>
+                    </div>
+                    {!wantsTrial && (
+                      <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 ml-2" />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="employmentType" className="text-xs sm:text-sm font-medium">Employment Types</Label>
               <div className="border border-textMuted rounded-md p-3 min-h-[44px] flex flex-wrap gap-2 items-center focus-within:ring-1 focus-within:ring-textMuted focus-within:border-textMuted">
@@ -537,7 +634,7 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
                 disabled={isLoading}
               >
                 {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                {isLoading ? "Adding Company..." : "Add Company"}
+                {isLoading ? "Processing..." : wantsTrial ? "Start Free Trial" : "Subscribe Now"}
               </Button>
             </div>
           </form>
