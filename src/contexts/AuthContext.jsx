@@ -159,7 +159,7 @@ export const AuthProvider = ({ children }) => {
     };
   }, []); // Only run once on mount
 
-  // Check account deletion on page focus/visibility change and periodically
+  // Check account deletion on page focus/visibility change
   useEffect(() => {
     const handleVisibilityChange = async () => {
       // Only check when page becomes visible and user is logged in
@@ -171,22 +171,10 @@ export const AuthProvider = ({ children }) => {
       }
     };
 
-  // Periodic check every 30 seconds for active users
-    const periodicCheck = async () => {
-      if (user && !accountDeleted && !loading && !isLoginInProgress && !document.hidden) {
-        const userEmail = user?.email || localStorage.getItem('adminMail');
-        if (userEmail) {
-          await checkAccountDeletion(userEmail);
-        }
-      }
-    };
-
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    const intervalId = setInterval(periodicCheck, 30000); // Check every 30 seconds
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      clearInterval(intervalId);
     };
   }, [user, checkAccountDeletion, accountDeleted, loading, isLoginInProgress]);
 
