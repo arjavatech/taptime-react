@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../config/supabase';
-import { googleSignInCheck, getTimeZone } from '../api.js';
+import { googleSignInCheck, getTimeZone, clearApiCache } from '../api.js';
 import AccountDeletionModal from '../components/ui/AccountDeletionModal';
 import { useAutoLogout } from '../hooks/useAutoLogout';
 import { useCompany } from './CompanyContext';
@@ -159,36 +159,8 @@ export const AuthProvider = ({ children }) => {
     };
   }, []); // Only run once on mount
 
-  // Check account deletion on page focus/visibility change and periodically
-  useEffect(() => {
-    const handleVisibilityChange = async () => {
-      // Only check when page becomes visible and user is logged in
-      if (!document.hidden && user && !accountDeleted && !loading && !isLoginInProgress) {
-        const userEmail = user?.email || localStorage.getItem('adminMail');
-        if (userEmail) {
-          await checkAccountDeletion(userEmail);
-        }
-      }
-    };
-
-  // Periodic check every 30 seconds for active users
-    const periodicCheck = async () => {
-      if (user && !accountDeleted && !loading && !isLoginInProgress && !document.hidden) {
-        const userEmail = user?.email || localStorage.getItem('adminMail');
-        if (userEmail) {
-          await checkAccountDeletion(userEmail);
-        }
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    const intervalId = setInterval(periodicCheck, 30000); // Check every 30 seconds
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      clearInterval(intervalId);
-    };
-  }, [user, checkAccountDeletion, accountDeleted, loading, isLoginInProgress]);
+  // Check account deletion only on initial load and when explicitly needed
+  // Removed automatic checks on page focus/visibility to prevent unnecessary API calls
 
   // Sign in with email and password
   const signInWithEmail = async (email, password, rememberMe = false) => {
@@ -265,6 +237,9 @@ export const AuthProvider = ({ children }) => {
   // Sign out
   const signOut = async () => {
     try {
+      // Clear API cache to prevent stale data
+      clearApiCache();
+      
       // Clear sessionStorage first to remove cached OAuth state and browser session
       sessionStorage.clear();
 
@@ -284,6 +259,7 @@ export const AuthProvider = ({ children }) => {
       // Even if logout fails, clear local storage to ensure user is logged out locally
       localStorage.clear();
       sessionStorage.clear();
+      clearApiCache();
       
       // For 403 errors, treat as successful logout since session is already invalid
       if (error.status === 403) {
@@ -407,14 +383,14 @@ export const AuthProvider = ({ children }) => {
     navigate('/login', { replace: true });
   }, [signOut, navigate]);
 
-  // Check account deletion on navigation
+  // Check account deletion on navigation - only when explicitly called
   const checkOnNavigation = useCallback(async () => {
     if (!user) return;
     const userEmail = user?.email || localStorage.getItem('adminMail');
-    if (userEmail) {
+    if (userEmail && !accountDeleted) {
       await checkAccountDeletion(userEmail);
     }
-  }, [user, checkAccountDeletion]);
+  }, [user, checkAccountDeletion, accountDeleted]);
 
   // Test function to manually trigger account deletion modal
   const testAccountDeletionModal = useCallback(() => {

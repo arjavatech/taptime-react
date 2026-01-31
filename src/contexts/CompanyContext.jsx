@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { googleSignInCheck } from '../api.js';
 import { STORAGE_KEYS } from '../constants';
+import { validateAndSwitchCompany } from '../utils/subscriptionUtils.js';
 
 const CompanyContext = createContext({});
 
@@ -29,6 +30,23 @@ export const CompanyProvider = ({ children }) => {
     return () => window.removeEventListener('error', handleError);
   }, []);
 
+  // Periodic subscription validation for owners - reduced frequency
+  useEffect(() => {
+    const adminType = localStorage.getItem(STORAGE_KEYS.ADMIN_TYPE);
+    if (adminType !== 'Owner' && adminType !== 'owner') return;
+
+    const checkSubscription = async () => {
+      if (userCompanies.length > 0) {
+        await validateAndSwitchCompany(userCompanies, switchToCompany);
+      }
+    };
+
+    // Check every 30 minutes instead of 5 minutes to reduce API calls
+    const interval = setInterval(checkSubscription, 30 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, [userCompanies]); // Remove switchToCompany from dependencies
+
   // Load user's companies when email is available
   const loadUserCompanies = useCallback(async (userEmail) => {  
     if (!userEmail) return;
@@ -48,15 +66,8 @@ export const CompanyProvider = ({ children }) => {
           const storedCompanies = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_COMPANIES) || '[]');
           setUserCompanies(storedCompanies);
           
-          // Set current company from localStorage or default to first company
-          const savedCompanyId = localStorage.getItem('lastSelectedCompany') || localStorage.getItem(STORAGE_KEYS.COMPANY_ID);
-          const savedCompany = storedCompanies.find(c => c.cid === savedCompanyId);
-          
-          if (savedCompany) {
-            setCurrentCompany(savedCompany);
-          } else if (storedCompanies.length > 0) {
-            setCurrentCompany(storedCompanies[0]);
-          }
+          // Validate subscription and auto-switch if needed
+          await validateAndSwitchCompany(storedCompanies, switchToCompany);
           return;
         }
         
@@ -81,7 +92,7 @@ export const CompanyProvider = ({ children }) => {
           setCurrentCompany(savedCompany);
         } else if (companies.length > 0) {
           // Default to first company if no saved company or saved company not found
-          switchToCompany(companies[0]);
+          await switchToCompany(companies[0]);
         }
       } catch (error) {
         console.error('Error loading user companies:', error);
@@ -94,11 +105,51 @@ export const CompanyProvider = ({ children }) => {
     
     setLoadingPromise(promise);
     return promise;
-  }, [loadingPromise]);
+  }, [loadingPromise]); // Remove switchToCompany from dependencies
 
   // Switch to a different company
-  const switchToCompany = useCallback((company) => {
+  const switchToCompany = useCallback(async (company) => {
     if (!company) return;
+
+    // Check subscription status before switching (for owners)
+    const adminType = localStorage.getItem(STORAGE_KEYS.ADMIN_TYPE);
+    if (adminType === 'Owner') {
+      try {
+        const { getSubscriptionStatus } = await import('../api.js');
+        const subscriptionStatus = await getSubscriptionStatus(company.cid || company.CID);
+        
+        if (subscriptionStatus.success && subscriptionStatus.data) {
+          const { is_subscription_valid, subscription_message } = subscriptionStatus.data;
+          
+          // If subscription is invalid and expired, try to find another valid company
+          if (is_subscription_valid === false && 
+              subscription_message && 
+              (subscription_message.toLowerCase().includes('expired') || 
+               subscription_message.includes('Your subscription has expired. Please renew to continue.'))) {
+            
+            console.log(`Company ${company.company_name || company.CName} subscription expired, searching for alternative...`);
+            
+            // Find a company with valid subscription
+            for (const altCompany of userCompanies) {
+              if ((altCompany.cid || altCompany.CID) === (company.cid || company.CID)) continue;
+              
+              const altSubscription = await getSubscriptionStatus(altCompany.cid || altCompany.CID);
+              if (altSubscription.success && 
+                  altSubscription.data && 
+                  altSubscription.data.is_subscription_valid !== false) {
+                
+                console.log(`Auto-switching to company ${altCompany.company_name || altCompany.CName} with valid subscription`);
+                company = altCompany; // Use the valid company instead
+                break;
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error checking subscription during company switch:', error);
+        // Continue with original company if check fails
+      }
+    }
 
     setCurrentCompany(company);
     
@@ -130,7 +181,7 @@ export const CompanyProvider = ({ children }) => {
     window.dispatchEvent(new CustomEvent('companyChanged', { 
       detail: { company } 
     }));
-  }, []);
+  }, [userCompanies]);
 
   // Get current company's admin type for the user
   const getCurrentAdminType = useCallback(() => {
@@ -142,6 +193,11 @@ export const CompanyProvider = ({ children }) => {
     return userCompanies.length > 1;
   }, [userCompanies]);
 
+  // Validate current company subscription and switch if needed
+  const validateCurrentCompanySubscription = useCallback(async () => {
+    return await validateAndSwitchCompany(userCompanies, switchToCompany);
+  }, [userCompanies]); // Remove switchToCompany from dependencies
+
   const value = {
     currentCompany,
     userCompanies,
@@ -149,7 +205,8 @@ export const CompanyProvider = ({ children }) => {
     loadUserCompanies,
     switchToCompany,
     getCurrentAdminType,
-    hasMultipleCompanies
+    hasMultipleCompanies,
+    validateCurrentCompanySubscription
   };
 
   return (

@@ -16,7 +16,7 @@ const Header = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showHomeModal, setShowHomeModal] = useState(false);
-  const [userType, setUserType] = useState("");
+  const [userType, setUserType] = useState(localStorage.getItem("adminType") || "");
   const [showProfileSidebar, setShowProfileSidebar] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showReportsDropdown, setShowReportsDropdown] = useState(false);

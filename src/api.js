@@ -16,13 +16,29 @@ export const API_URLS = {
   signUp: `${API_BASE}/auth/sign_up`
 };
 
-// HTTP client with request deduplication
+// HTTP client with request deduplication and caching
 const pendingRequests = new Map();
+const requestCache = new Map();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache for GET requests
+
+// Clear API cache - useful after login/logout or when data changes
+export const clearApiCache = () => {
+  requestCache.clear();
+  pendingRequests.clear();
+};
 
 const api = {
   async request(url, options = {}) {
-    // Create a unique key for this request
-    const requestKey = `${options.method || 'GET'}-${url}-${JSON.stringify(options.body || {})}`;
+    const method = options.method || 'GET';
+    const requestKey = `${method}-${url}-${JSON.stringify(options.body || {})}`;
+    
+    // For GET requests, check cache first
+    if (method === 'GET') {
+      const cached = requestCache.get(requestKey);
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        return cached.data;
+      }
+    }
     
     // If this exact request is already pending, return the existing promise
     if (pendingRequests.has(requestKey)) {
@@ -60,7 +76,18 @@ const api = {
           
           throw new Error(errorMsg);
         }
-        return await response.json();
+        
+        const data = await response.json();
+        
+        // Cache GET requests
+        if (method === 'GET') {
+          requestCache.set(requestKey, {
+            data,
+            timestamp: Date.now()
+          });
+        }
+        
+        return data;
       } catch (error) {
         console.error('API Error:', error);
         throw error;
@@ -180,12 +207,29 @@ export const googleSignInCheck = async (email, authMethod = 'google') => {
 
     // Handle Owner login data differently
     if (adminTypeValue === 'owner') {
+      // Check for subscription validity and auto-switch if needed
+      const validCompany = await handleOwnerCompanySelection(data);
+      if (!validCompany) {
+        return { success: false, error: 'All company subscriptions have expired. Please renew to continue.' };
+      }
       storeOwnerData(data);
-      const companyID = data.companies?.[0]?.cid;
+      const companyID = validCompany.cid;
       return { success: true, companyID };
     }
 
     const companyID = data.cid;
+    
+    // Check subscription status for non-owner users
+    const subscriptionStatus = await getSubscriptionStatus(companyID);
+    if (subscriptionStatus.success && subscriptionStatus.data) {
+      const { is_subscription_valid, subscription_message } = subscriptionStatus.data;
+      
+      if (is_subscription_valid === false && 
+          subscription_message && 
+          subscription_message.includes('Your subscription has expired. Please renew to continue.')) {
+        return { success: false, error: 'Your subscription has expired. Please renew to continue.' };
+      }
+    }
     const adminTypeMap = { admin: 'Admin', superadmin: 'SuperAdmin', owner: 'Owner' };
     const properCaseAdminType = adminTypeMap[adminTypeValue] || adminTypeValue;
     localStorage.setItem("companyLogo", data.company_logo);
@@ -228,7 +272,6 @@ export const googleSignInCheck = async (email, authMethod = 'google') => {
       if (value !== undefined && value !== null) {
         console.log(`Storing in localStorage: ${key} = ${value}`);
         localStorage.setItem(key, value);
-        console.log(`Stored ${key} successfully.`);
       }
     });
 
@@ -740,6 +783,63 @@ export const submitContactForm = async (userData) => {
   }
 };
 
+// Handle owner company selection with subscription validation
+export const handleOwnerCompanySelection = async (ownerData) => {
+  try {
+    if (!ownerData.companies || ownerData.companies.length === 0) {
+      return null;
+    }
+
+    // Get last selected company or default to first
+    const lastSelected = localStorage.getItem('lastSelectedCompany');
+    let selectedCompany = ownerData.companies.find(c => c.cid === lastSelected) || ownerData.companies[0];
+
+    // Check subscription status for selected company
+    const subscriptionStatus = await getSubscriptionStatus(selectedCompany.cid);
+    
+    if (subscriptionStatus.success && subscriptionStatus.data) {
+      const { is_subscription_valid, subscription_message } = subscriptionStatus.data;
+      
+      // If subscription is invalid and message indicates expiration (handle both generic and specific messages)
+      if (is_subscription_valid === false && 
+          subscription_message && 
+          (subscription_message.toLowerCase().includes('expired') || 
+           subscription_message.includes('Your subscription has expired. Please renew to continue.'))) {
+        
+        console.log(`Company ${selectedCompany.company_name} subscription expired, searching for valid company...`);
+        
+        // Find a company with valid subscription
+        for (const company of ownerData.companies) {
+          if (company.cid === selectedCompany.cid) continue; // Skip current company
+          
+          const companySubscription = await getSubscriptionStatus(company.cid);
+          if (companySubscription.success && 
+              companySubscription.data && 
+              companySubscription.data.is_subscription_valid !== false) {
+            
+            console.log(`Switching to company ${company.company_name} with valid subscription`);
+            selectedCompany = company;
+            localStorage.setItem('lastSelectedCompany', company.cid);
+            break;
+          }
+        }
+        
+        // If no valid company found, return null
+        if (selectedCompany.cid === (ownerData.companies.find(c => c.cid === lastSelected) || ownerData.companies[0]).cid) {
+          console.log('No companies with valid subscriptions found');
+          return null;
+        }
+      }
+    }
+
+    return selectedCompany;
+  } catch (error) {
+    console.error('Error handling owner company selection:', error);
+    // Return first company as fallback
+    return ownerData.companies?.[0] || null;
+  }
+};
+
 // Store Owner login data
 export const storeOwnerData = (ownerData) => {
   try {
@@ -767,7 +867,7 @@ export const storeOwnerData = (ownerData) => {
       localStorage.setItem('companyLogo', firstCompany.company_logo || '');
       localStorage.setItem(STORAGE_KEYS.USER_NAME, `${firstCompany.first_name || ''} ${firstCompany.last_name || ''}`.trim());
       
-      // Set first company as active by default
+      // Set active company (will be the one selected by handleOwnerCompanySelection)
       const lastSelected = localStorage.getItem('lastSelectedCompany');
       const activeCompany = ownerData.companies.find(c => c.cid === lastSelected) || firstCompany;
       setActiveCompany(activeCompany);
@@ -903,6 +1003,9 @@ export const getCurrentCompany = () => {
 
 // Logout
 export const logout = () => {
+  // Clear API cache
+  clearApiCache();
+  
   Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
   const legacyKeys = ['customId', 'customerID', 'firstName', 'lastName', 'address', 'phone', 'email', 'passwordDecryptedValue'];
   legacyKeys.forEach(key => localStorage.removeItem(key));

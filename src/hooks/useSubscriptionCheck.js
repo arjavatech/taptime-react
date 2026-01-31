@@ -5,16 +5,16 @@ import { STORAGE_KEYS } from '../constants';
 
 /**
  * Custom hook to check subscription/trial status
- * Redirects to subscription page if trial expired
+ * Only checks when explicitly called or on mount - no automatic periodic checks
  *
  * Usage:
- * const { subscriptionStatus, isTrialExpired, loading } = useSubscriptionCheck();
+ * const { subscriptionStatus, isTrialExpired, loading, refetch } = useSubscriptionCheck();
  *
  * @param {boolean} shouldRedirect - If true, auto-redirect to subscription page when trial expired
- * @param {number} checkInterval - How often to check (in milliseconds). Default: 5 minutes
- * @returns {object} - { subscriptionStatus, isTrialExpired, loading, error }
+ * @param {boolean} enablePeriodicCheck - If true, enables periodic checking (default: false)
+ * @returns {object} - { subscriptionStatus, isTrialExpired, loading, error, refetch }
  */
-const useSubscriptionCheck = (shouldRedirect = true, checkInterval = 5 * 60 * 1000) => {
+const useSubscriptionCheck = (shouldRedirect = true, enablePeriodicCheck = false) => {
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
   const [isTrialExpired, setIsTrialExpired] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -75,14 +75,17 @@ const useSubscriptionCheck = (shouldRedirect = true, checkInterval = 5 * 60 * 10
     // Initial check
     checkSubscription();
 
-    // Set up periodic check
-    const interval = setInterval(() => {
-      checkSubscription();
-    }, checkInterval);
+    // Set up periodic check only if enabled
+    if (enablePeriodicCheck) {
+      const checkInterval = 5 * 60 * 1000; // 5 minutes
+      const interval = setInterval(() => {
+        checkSubscription();
+      }, checkInterval);
 
-    // Cleanup
-    return () => clearInterval(interval);
-  }, [checkInterval, shouldRedirect]);
+      // Cleanup
+      return () => clearInterval(interval);
+    }
+  }, [enablePeriodicCheck, shouldRedirect]);
 
   return {
     subscriptionStatus,

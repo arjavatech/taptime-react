@@ -19,7 +19,7 @@ const PrivacyPolicyModal = ({ isOpen, onClose }) => {
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6">
           <div className="space-y-3 sm:space-y-4 text-foreground text-sm sm:text-base">
-            <p>Last updated: October 1, 2024</p>
+            <p>Last updated: October 1, 2025</p>
             <p>This Privacy Policy describes Our policies and procedures on the collection, use and disclosure of Your information when You use the Service and tells You about Your privacy rights and how the law protects You.</p>
             <p>We use Your Personal data to provide and improve the Service. By using the Service, You agree to the collection and use of information in accordance with this Privacy Policy.</p>
             
