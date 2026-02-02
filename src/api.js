@@ -1241,6 +1241,20 @@ export const createCustomerPortalSession = async (cid, returnUrl) => {
 
 
 /**
+ * Get company invoices with date range filter
+ */
+export const getCompanyInvoices = async (cid, months = 6) => {
+  try {
+    const data = await api.get(`${API_BASE}/subscription/invoices/${cid}?months=${months}`);
+    return { success: true, data };
+  } catch (error) {
+    console.error('Get company invoices error:', error);
+    return { success: false, error: error.message, data: { invoices: [], total_count: 0 } };
+  }
+};
+
+
+/**
  * Create a pending registration (Step 1 of new webhook-based registration flow)
  * Saves registration data before Stripe payment
  * @param {Object} registrationData - Registration form data

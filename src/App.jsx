@@ -20,6 +20,7 @@ import GetInTouch from "./pages/GetInTouch";
 import ReportSummary from "./pages/ReportSummary";
 import ReportSetting from "./pages/ReportSetting";
 import ForgotPassword from "./pages/ForgotPassword";
+import Invoices from "./pages/Invoices";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CompanyProvider } from "./contexts/CompanyContext";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -43,6 +44,7 @@ function App() {
               <Route path="/contact-us" element={<GetInTouch />} />
               <Route path="/employee-management" element={<ProtectedRoute><EmployeeList /></ProtectedRoute>} />
               <Route path="/device" element={<RoleProtectedRoute allowedRoles={['Owner', 'SuperAdmin']}><Device /></RoleProtectedRoute>} />
+              <Route path="/invoices" element={<RoleProtectedRoute allowedRoles={['Owner', 'SuperAdmin']}><Invoices /></RoleProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/contact" element={<ProtectedRoute><ContactUs /></ProtectedRoute>} />
               <Route path="/reports" element={<ProtectedRoute><ReportSummary /></ProtectedRoute>} />

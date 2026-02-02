@@ -193,7 +193,10 @@ const Header = () => {
   ];
 
   const authenticatedNavItems = [
-    ...(userType === "Owner" || userType === "SuperAdmin" ? [{ to: "/device", label: "Device" }] : []),
+    ...(userType === "Owner" || userType === "SuperAdmin" ? [
+      { to: "/device", label: "Device" },
+      { to: "/invoices", label: "Invoices" }
+    ] : []),
     { to: "/employee-management", label: "Employee Management" },
     ...(userType === "Admin" ? [
       { to: "/reportsummary", label: "Report Summary" }
