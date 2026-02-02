@@ -1,11 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from './button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './card';
 import { Input } from './input';
 import { Label } from './label';
 import { Building, MapPin, X, Loader2, AlertCircle, CheckCircle, CheckCircle2 } from 'lucide-react';
 import { useZipLookup } from '../../hooks';
-import { addNewCompany, getSubscriptionPlans, createCheckoutSessionForRegistration, createPendingRegistration } from '../../api';
+import { addNewCompany, getSubscriptionPlans, createCheckoutSessionForRegistration, createPendingRegistration, getUserContactInfo } from '../../api';
 
 const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -14,6 +14,8 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [wantsTrial, setWantsTrial] = useState(true);
+  const [customerInfo, setCustomerInfo] = useState(null);
+  const [loadingCustomerInfo, setLoadingCustomerInfo] = useState(false);
 
   // Form data state
   const [formData, setFormData] = useState({
@@ -58,6 +60,63 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
 
   // ZIP code lookup hook
   const { isLoading: zipLoading } = useZipLookup(formData.companyZip, handleZipResult);
+
+  // Fetch customer info when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchCustomerInfo();
+    }
+  }, [isOpen]);
+
+  const fetchCustomerInfo = async () => {
+    setLoadingCustomerInfo(true);
+    setError('');
+
+    try {
+      const userEmail = localStorage.getItem('adminMail') || localStorage.getItem('email');
+
+      if (!userEmail) {
+        setError('Unable to determine user email. Please log in again.');
+        setLoadingCustomerInfo(false);
+        return;
+      }
+
+      // Try to get from backend first
+      const response = await getUserContactInfo(userEmail);
+
+      if (response.success) {
+        setCustomerInfo(response.data);
+      } else {
+        // Fallback to localStorage with validation
+        const firstName = localStorage.getItem('firstName') || '';
+        const lastName = localStorage.getItem('lastName') || '';
+        const phoneNumber = localStorage.getItem('phoneNumber') || localStorage.getItem('phone') || '';
+
+        // Validate required fields
+        if (!firstName || !lastName || !phoneNumber) {
+          setError('Unable to load your contact information. Please refresh the page and try again.');
+          setLoadingCustomerInfo(false);
+          return;
+        }
+
+        setCustomerInfo({
+          first_name: firstName,
+          last_name: lastName,
+          email: userEmail,
+          phone_number: phoneNumber,
+          customer_address_line1: localStorage.getItem('customerAddress1') || localStorage.getItem('address') || '',
+          customer_city: localStorage.getItem('customerCity') || '',
+          customer_state: localStorage.getItem('customerState') || '',
+          customer_zip_code: localStorage.getItem('customerZipCode') || ''
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching customer info:', error);
+      setError('Failed to load customer information. Please try again.');
+    } finally {
+      setLoadingCustomerInfo(false);
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -205,38 +264,39 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
     setError('');
 
     try {
-      const userEmail = localStorage.getItem('adminMail') || localStorage.getItem('email') || '';
+      // Validate customer info is loaded
+      if (!customerInfo) {
+        setError('Customer information not loaded. Please close and reopen the modal.');
+        setIsLoading(false);
+        return;
+      }
 
-      // Get customer contact and address data from localStorage
-      const firstName = localStorage.getItem('firstName') || '';
-      const lastName = localStorage.getItem('lastName') || '';
-      const email = localStorage.getItem('email') || localStorage.getItem('adminMail') || '';
-      const phoneNumber = localStorage.getItem('phoneNumber') || localStorage.getItem('phone') || '';
-      const customerAddress = localStorage.getItem('customerAddress1') || localStorage.getItem('address') || '';
-      const customerCity = localStorage.getItem('customerCity') || '';
-      const customerState = localStorage.getItem('customerState') || '';
-      const customerZip = localStorage.getItem('customerZipCode') || '';
+      if (!customerInfo.first_name || !customerInfo.last_name || !customerInfo.email || !customerInfo.phone_number) {
+        setError('Incomplete customer contact information. Please contact support.');
+        setIsLoading(false);
+        return;
+      }
 
       // Create company data object matching API specification
       const companyData = {
         company_name: formData.companyName,
-        first_name: firstName,
-        last_name: lastName,
-        email: email,
-        phone_number: phoneNumber,
+        first_name: customerInfo.first_name,
+        last_name: customerInfo.last_name,
+        email: customerInfo.email,
+        phone_number: customerInfo.phone_number,
         company_address_line1: formData.companyStreet,
         company_city: formData.companyCity,
         company_state: formData.companyState,
         company_zip_code: formData.companyZip,
-        customer_address_line1: customerAddress,
-        customer_city: customerCity,
-        customer_state: customerState,
-        customer_zip_code: customerZip,
+        customer_address_line1: customerInfo.customer_address_line1 || '',
+        customer_city: customerInfo.customer_city || '',
+        customer_state: customerInfo.customer_state || '',
+        customer_zip_code: customerInfo.customer_zip_code || '',
         report_type: formData.reportType,
         device_count: parseInt(formData.noOfDevices, 10),
         employee_count: parseInt(formData.noOfEmployees, 10),
         employment_type: employmentTypes.join(','),
-        last_modified_by: userEmail
+        last_modified_by: customerInfo.email
       };
 
       if (wantsTrial || !wantsTrial) {
@@ -330,6 +390,12 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
           <CardDescription className="text-xs sm:text-sm">
             Enter company information to create a new company
           </CardDescription>
+          {loadingCustomerInfo && (
+            <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-md mt-2">
+              <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+              <p className="text-xs sm:text-sm text-blue-600">Loading your contact information...</p>
+            </div>
+          )}
         </CardHeader>
 
         <CardContent className="space-y-4 px-4 sm:px-6">
@@ -631,10 +697,16 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
               <Button
                 type="submit"
                 className="flex-1 order-1 sm:order-2"
-                disabled={isLoading}
+                disabled={isLoading || loadingCustomerInfo || !customerInfo}
               >
-                {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                {isLoading ? "Processing..." : wantsTrial ? "Start Free Trial" : "Subscribe Now"}
+                {(isLoading || loadingCustomerInfo) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {loadingCustomerInfo
+                  ? "Loading user info..."
+                  : isLoading
+                    ? "Processing..."
+                    : wantsTrial
+                      ? "Start Free Trial"
+                      : "Subscribe Now"}
               </Button>
             </div>
           </form>

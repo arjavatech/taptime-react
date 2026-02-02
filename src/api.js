@@ -1277,3 +1277,42 @@ export const createPendingRegistration = async (registrationData, companyLogoFil
     return { success: false, error: error.message };
   }
 };
+
+/**
+ * Get user's contact information for adding additional companies
+ * @param {string} email - User's email address
+ * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ */
+export const getUserContactInfo = async (email) => {
+  const accessToken = localStorage.getItem("access_token");
+
+  try {
+    const response = await fetch(`${API_BASE}/auth/user-contact-info?email=${encodeURIComponent(email)}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.detail || 'Failed to fetch user contact info'
+      };
+    }
+
+    return {
+      success: true,
+      data: data
+    };
+  } catch (error) {
+    console.error('getUserContactInfo error:', error);
+    return {
+      success: false,
+      error: error.message || 'Network error fetching user contact info'
+    };
+  }
+};
