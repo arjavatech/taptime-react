@@ -21,6 +21,7 @@ const Avatar = ({
 }) => {
   const [imageError, setImageError] = useState(false);
   
+  
   // Extract first letter from Gmail address for fallback
   const getFallbackLetter = (emailAddress) => {
     if (!emailAddress || typeof emailAddress !== 'string') return '?';
@@ -40,6 +41,7 @@ const Avatar = ({
 
   // Show fallback if no src, image error, or src is empty/null
   const showFallback = !src || imageError || (typeof src === 'string' && src.trim() === '');
+  
 
   return (
     <div className={`${sizeClass} rounded-full overflow-hidden ${className}`}>
@@ -52,7 +54,13 @@ const Avatar = ({
           src={src}
           alt={alt}
           className="h-full w-full object-cover"
-          onError={() => setImageError(true)}
+          crossOrigin="anonymous"
+          referrerPolicy="no-referrer"
+          onError={() => {
+            console.log('Image failed to load:', src);
+            setImageError(true);
+          }}
+         
         />
       )}
     </div>

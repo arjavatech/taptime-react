@@ -38,7 +38,7 @@ const Profile = () => {
     ).join(' ');
   };
 
-  const [activeTab, setActiveTab] = useState("personal");
+  const [activeTab, setActiveTab] = useState("company");
   const [isEditing, setIsEditing] = useState({ personal: false, company: false, admin: false });
   const [isLoading, setIsLoading] = useState(true);
   const [userType, setUserType] = useState("");
@@ -102,6 +102,8 @@ const Profile = () => {
   });
 
   const [companyId, setCompanyId] = useState("");
+  const [deviceCount, setDeviceCount] = useState(localStorage.getItem("NoOfDevices") || "0");
+  const [employeeCount, setEmployeeCount] = useState(localStorage.getItem("NoOfEmployees") || "0");
 
   // Check if user can edit company details - only Owner is allowed
   const canEditCompany = userType === "Owner";
@@ -273,7 +275,7 @@ const Profile = () => {
       if (userType === "Admin" || userType === "SuperAdmin") {
         setActiveTab("admin");
       } else if (userType === "Owner") {
-        setActiveTab("personal");
+        setActiveTab("company");
       }
 
       const formData = loadProfileData(adminDetails);
@@ -318,10 +320,41 @@ const Profile = () => {
       // Initialize employmentTypes array from stored CSV
       setEmploymentTypes(storedEmploymentType.split(',').filter(t => t.trim()));
 
+
       setIsLoading(false);
     };
 
     initializeProfile();
+  }, []);
+
+  // Listen for company changes and update profile data
+  useEffect(() => {
+    const handleCompanyChange = async () => {
+      const { companyId, userType, adminDetails } = await initializeUserSession();
+      const formData = loadProfileData(adminDetails);
+      
+      // Update company data with new logo
+      const storedEmploymentType = localStorage.getItem("employmentType") || "";
+      setCompanyData({
+        name: formData.companyName,
+        address: formData.companyStreet,
+        street2: formData.companyStreet2,
+        city: formData.companyCity,
+        state: formData.companyState,
+        companyZip: formData.companyZip,
+        logo: formData.logo,
+        employmentType: storedEmploymentType.split(',').filter(t => t.trim()).join(','),
+      });
+      
+      setEmploymentTypes(storedEmploymentType.split(',').filter(t => t.trim()));
+      
+      // Update device and employee counts
+      setDeviceCount(localStorage.getItem("NoOfDevices") || "0");
+      setEmployeeCount(localStorage.getItem("NoOfEmployees") || "0");
+    };
+
+    window.addEventListener('companyChanged', handleCompanyChange);
+    return () => window.removeEventListener('companyChanged', handleCompanyChange);
   }, []);
 
   // Email validation helper
@@ -528,7 +561,7 @@ const Profile = () => {
         localStorage.setItem("companyStreet2", companyData.street2 || "");
         localStorage.setItem("companyCity", companyData.city);
         localStorage.setItem("companyState", companyData.state);
-        localStorage.setItem("companyZip", companyData.zipCode);
+        localStorage.setItem("companyZip", companyData.companyZip);
         if (companyData.logo) {
           localStorage.setItem("companyLogo", companyData.logo);
         }
@@ -544,7 +577,7 @@ const Profile = () => {
       localStorage.setItem("customerStreet2", personalData.street2 || "");
       localStorage.setItem("customerCity", personalData.customerCity);
       localStorage.setItem("customerState", personalData.customerState);
-      localStorage.setItem("customerZip", personalData.customerZip);
+      localStorage.setItem("customerZip", personalData.zipCode);
 
       setSaveSuccess("Personal information updated successfully!");
       setTimeout(() => {
@@ -693,7 +726,7 @@ const Profile = () => {
       localStorage.setItem("companyStreet2", companyData.street2 || "");
       localStorage.setItem("companyCity", companyData.city);
       localStorage.setItem("companyState", companyData.state);
-      localStorage.setItem("companyZip", companyData.zipCode);
+      localStorage.setItem("companyZip", companyData.companyZip);
       localStorage.setItem("employmentType", companyData.employmentType);
       if (companyData.logo) {
         localStorage.setItem("companyLogo", companyData.logo);
@@ -748,8 +781,9 @@ const Profile = () => {
         street2: formData.companyStreet2,
         city: formData.companyCity,
         state: formData.companyState,
-        zipCode: formData.companyZip,
-        logo: formData.logo
+        companyZip: formData.companyZip,
+        logo: formData.logo,
+        employmentType: formData.employmentType || ""
       });
     } else if (type === "admin") {
       setAdminData({
@@ -821,8 +855,9 @@ const Profile = () => {
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <nav className="flex space-x-4 sm:space-x-8 overflow-x-auto">
               {[
-                ...(userType !== "Admin" && userType !== "SuperAdmin" ? [{ key: "personal", label: "Personal Information", icon: User }] : []),
                 { key: "company", label: "Company Information", icon: Building },
+                ...(userType !== "Admin" && userType !== "SuperAdmin" ? [{ key: "personal", label: "Personal Information", icon: User }] : []),
+                
                 ...(userType === "Admin" || userType === "SuperAdmin" ? [{ key: "admin", label: userType === "SuperAdmin" ? "Super Admin Information" : "Admin Information", icon: User }] : []),
                 ...(userType === "Owner" ? [{ key: "subscription", label: "Subscription", icon: CreditCard }] : [])
               ].map(({ key, label, icon: Icon }) => (
@@ -904,7 +939,7 @@ const Profile = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="email">email Address</Label>
+                    <Label htmlFor="email">Email Address</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                       <Input
@@ -1084,7 +1119,15 @@ const Profile = () => {
                   <div className="relative">
                     <div className="w-16 h-16 sm:w-20 sm:h-20 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
                       {companyData.logo ? (
-                        <img src={companyData.logo} alt="Company Logo" className="w-full h-full object-cover" />
+                        <img 
+                          src={companyData.logo} 
+                          alt="Company Logo" 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            console.log('Logo failed to load:', companyData.logo);
+                            e.target.style.display = 'none';
+                          }}
+                        />
                       ) : (
                         <Building className="w-6 h-6 sm:w-8 sm:h-8 text-muted-foreground" />
                       )}
@@ -1459,7 +1502,7 @@ const Profile = () => {
                       <h3 className="font-medium">Total Devices</h3>
                     </div>
                     <p className="text-2xl font-bold text-primary">
-                      {localStorage.getItem("NoOfDevices")}
+                      {deviceCount}
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
                       Active devices in your system
@@ -1472,7 +1515,7 @@ const Profile = () => {
                       <h3 className="font-medium">Total Employees</h3>
                     </div>
                     <p className="text-2xl font-bold text-primary">
-                      {localStorage.getItem("NoOfEmployees")}
+                      {employeeCount}
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
                       Registered employees

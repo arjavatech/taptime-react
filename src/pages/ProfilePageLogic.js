@@ -45,11 +45,11 @@ export const loadProfileData = (adminDetails) => {
   let formData = {
     // Company info
     companyName: localStorage.getItem("companyName") || "",
-    companyStreet: localStorage.getItem("companyAddress1") || "",
-    companyStreet2: localStorage.getItem("companyAddress2") || "",
+    companyStreet: localStorage.getItem("companyStreet") || localStorage.getItem("companyAddress1") || "",
+    companyStreet2: localStorage.getItem("companyStreet2") || localStorage.getItem("companyAddress2") || "",
     companyCity: localStorage.getItem("companyCity") || "",
     companyState: localStorage.getItem("companyState") || "",
-    companyZip: localStorage.getItem("companyZipCode") || "",
+    companyZip: localStorage.getItem("companyZip") || localStorage.getItem("companyZipCode") || "",
     logo: localStorage.getItem("companyLogo") || "",
 
     // Customer/Admin personal info
@@ -59,11 +59,11 @@ export const loadProfileData = (adminDetails) => {
     phone: localStorage.getItem("phone") || localStorage.getItem("phoneNumber") || localStorage.getItem("phone_number") || "",
 
     // Customer address info (separate fields)
-    customerStreet: localStorage.getItem("customerAddress1") || "",
-    customerStreet2: localStorage.getItem("customerAddress2") || "",
+    customerStreet: localStorage.getItem("customerStreet") || localStorage.getItem("customerAddress1") || "",
+    customerStreet2: localStorage.getItem("customerStreet2") || localStorage.getItem("customerAddress2") || "",
     customerCity: localStorage.getItem("customerCity") || "",
     customerState: localStorage.getItem("customerState") || "",
-    customerZip: localStorage.getItem("customerZipCode") || "",
+    customerZip: localStorage.getItem("customerZip") || localStorage.getItem("customerZipCode") || "",
 
     // Admin fields
     adminPin: "",
@@ -113,7 +113,7 @@ export const loadProfileData = (adminDetails) => {
       companyStreet2: formData.companyStreet2,
       companyCity: formData.companyCity,
       companyState: formData.companyState,
-      companyZipCode: formData.companyZip,
+      companyZip: formData.companyZip,
       customerStreet: formData.customerStreet,
       customerStreet2: formData.customerStreet2,
       customerCity: formData.customerCity,

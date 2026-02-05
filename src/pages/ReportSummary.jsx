@@ -25,16 +25,22 @@ import {
   ArrowUp,
   ArrowDown,
   ChevronDown,
-  Check
+  Check,
+  Upload,
+  Plus,
+  X
 } from "lucide-react";
 import { HamburgerIcon } from "../components/icons/HamburgerIcon";
 import { GridIcon } from "../components/icons/GridIcon";
+import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
+import { bulkUploadReportData } from "../api.js";
 
 const Reports = () => {
   // Utility function to capitalize first letter of each word
   const capitalizeFirst = (str) => {
     if (!str) return str;
-    return str.split(' ').map(word => 
+    return str.split(' ').map(word =>
       word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
     ).join(' ');
   };
@@ -49,7 +55,15 @@ const Reports = () => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [viewMode, setViewMode] = useState("table");
 
-  
+  // Bulk upload state
+  const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [bulkUploadResults, setBulkUploadResults] = useState(null);
+  const [isBulkUploading, setIsBulkUploading] = useState(false);
+  const [bulkUploadError, setBulkUploadError] = useState("");
+  const [bulkUploadSuccess, setBulkUploadSuccess] = useState("");
+
+
   // Common state
   const [devices, setDevices] = useState([]);
   const [selectedDevice, setSelectedDevice] = useState(null);
@@ -111,7 +125,7 @@ const Reports = () => {
     totalRecords: 0,
     totalHours: "0.0"
   });
-  
+
   // Modal close events disabled - modals only close via buttons
 
 
@@ -139,7 +153,7 @@ const Reports = () => {
     }
   }, [companyId]);
 
- 
+
   // Today's Report Functions
   const formatToAmPm = (date) => {
     let h = date.getHours();
@@ -266,7 +280,7 @@ const Reports = () => {
 
     const checkinDateObj = new Date(row.CheckInTime);
     const checkInDateString = getLocalDateString(checkinDateObj);
-    
+
     // Process pending checkout and store data
     const pendingData = await processPendingCheckout(companyId);
     setPendingCheckoutData(pendingData);
@@ -411,7 +425,7 @@ const Reports = () => {
     return employeeTimes;
   };
 
- 
+
 
   const loadSummaryReport = async (showLoading = true) => {
     if (!startDate || !endDate) {
@@ -631,7 +645,7 @@ const Reports = () => {
         record.EmpID?.toLowerCase().includes(query)
       );
     }
-    
+
     filtered.sort((a, b) => {
       let aValue, bValue;
       if (sortConfig.key === "name") {
@@ -680,7 +694,7 @@ const Reports = () => {
         record.Name || "",
         record.TimeWorked || record.hoursWorked || "0:00"
       ].join(",")).join("\n");
-      
+
       if (activeTab === "summary") {
         filename = `summary_report_${startDate}_to_${endDate}.csv`;
       } else {
@@ -932,9 +946,9 @@ const Reports = () => {
       // Calculate time worked: if no checkout time, set to "0:00"
       const timeWorked = newEntry.CheckOutTime
         ? calculateTimeWorked(
-            `${newEntry.Date}T${newEntry.CheckInTime}:00`,
-            `${newEntry.Date}T${newEntry.CheckOutTime}:00`
-          )
+          `${newEntry.Date}T${newEntry.CheckInTime}:00`,
+          `${newEntry.Date}T${newEntry.CheckOutTime}:00`
+        )
         : "0:00";
 
       // Prepare entry data for backend
@@ -974,6 +988,114 @@ const Reports = () => {
       }, 1000);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Bulk upload handlers
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (!file) {
+      setSelectedFile(null);
+      return;
+    }
+
+    setBulkUploadError('');
+    setBulkUploadResults(null);
+    setBulkUploadSuccess('');
+
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setBulkUploadError('File size too large. Please select a file smaller than 10MB.');
+      event.target.value = '';
+      setSelectedFile(null);
+      return;
+    }
+
+    const allowedTypes = [
+      'text/csv',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ];
+
+    const allowedExtensions = /\.(csv|xlsx|xls)$/i;
+
+    if (!allowedTypes.includes(file.type) && !allowedExtensions.test(file.name)) {
+      setBulkUploadError('Invalid file format. Please select a CSV (.csv) or Excel (.xlsx, .xls) file.');
+      event.target.value = '';
+      setSelectedFile(null);
+      return;
+    }
+
+    setSelectedFile(file);
+  };
+
+  const handleBulkUpload = async () => {
+    if (!selectedFile) {
+      setBulkUploadError('Please select a file to upload.');
+      return;
+    }
+
+    setIsBulkUploading(true);
+    setBulkUploadError('');
+    setBulkUploadResults(null);
+    setBulkUploadSuccess('');
+
+    try {
+      const result = await bulkUploadReportData(companyId, selectedFile);
+      console.log('Upload result:', result); // Debug log
+
+      setBulkUploadResults(result);
+
+      if (result.successful && result.successful.length > 0) {
+        const successMsg = result.failed?.length > 0
+          ? `Successfully uploaded ${result.successful.length} record${result.successful.length > 1 ? 's' : ''}. ${result.failed.length} record${result.failed.length > 1 ? 's' : ''} failed.`
+          : `Successfully uploaded ${result.successful.length} record${result.successful.length > 1 ? 's' : ''}.`;
+
+        setBulkUploadSuccess(successMsg);
+
+        setTimeout(() => {
+          setShowBulkUploadModal(false);
+          setSelectedFile(null);
+          setBulkUploadResults(null);
+          setBulkUploadError('');
+          setBulkUploadSuccess('');
+
+          // Refresh current view
+          if (activeTab === "today" && currentDate) {
+            viewCurrentDateReport(currentDate, true);
+          } else if (activeTab === "daywise" && selectedDate) {
+            viewDatewiseReport(selectedDate, true);
+          } else if (activeTab === "summary" && startDate && endDate) {
+            loadSummaryReport(true);
+          }
+        }, 2000);
+      } else if (result.message || result.success) {
+        // Handle case where API returns success but different format
+        setBulkUploadSuccess(result.message || 'Upload completed successfully!');
+        
+        setTimeout(() => {
+          setShowBulkUploadModal(false);
+          setSelectedFile(null);
+          setBulkUploadResults(null);
+          setBulkUploadError('');
+          setBulkUploadSuccess('');
+
+          // Refresh current view
+          if (activeTab === "today" && currentDate) {
+            viewCurrentDateReport(currentDate, true);
+          } else if (activeTab === "daywise" && selectedDate) {
+            viewDatewiseReport(selectedDate, true);
+          } else if (activeTab === "summary" && startDate && endDate) {
+            loadSummaryReport(true);
+          }
+        }, 2000);
+      } else {
+        setBulkUploadError('Upload failed. All records had errors. Please review the results below.');
+      }
+    } catch (error) {
+      setBulkUploadError(`Upload failed: ${error.message || 'An unexpected error occurred. Please try again.'}`);
+    } finally {
+      setIsBulkUploading(false);
     }
   };
 
@@ -1121,20 +1243,28 @@ const Reports = () => {
                 </p>
               </div>
               <div className="flex flex-row items-center gap-2">
-                <Button 
-                  variant="outline" 
-                  onClick={downloadCSV} 
-                  disabled={!filteredData || filteredData.length === 0} 
+                <Button
+                  onClick={() => setShowBulkUploadModal(true)}
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span className="hidden sm:inline">Bulk Upload</span>
+                  <span className="sm:hidden">Upload</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={downloadCSV}
+                  disabled={!filteredData || filteredData.length === 0}
                   className="flex items-center justify-center gap-2 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Download className="w-4 h-4" />
                   <span className="hidden sm:inline">Export CSV</span>
                   <span className="sm:hidden">CSV</span>
                 </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={downloadPDF} 
-                  disabled={!filteredData || filteredData.length === 0} 
+                <Button
+                  variant="outline"
+                  onClick={downloadPDF}
+                  disabled={!filteredData || filteredData.length === 0}
                   className="flex items-center justify-center gap-2 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <FileText className="w-4 h-4" />
@@ -1175,7 +1305,7 @@ const Reports = () => {
                 </Card>
               </>
             )}
-            
+
             {(activeTab === "daywise" || activeTab === "summary" || activeTab === "salaried") && (
               <>
                 <Card>
@@ -1202,7 +1332,7 @@ const Reports = () => {
                 </Card>
               </>
             )}
-            
+
             {activeTab === "pending" && (
               <>
                 <Card>
@@ -1247,8 +1377,8 @@ const Reports = () => {
                   key={key}
                   onClick={() => setActiveTab(key)}
                   className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center gap-1 sm:gap-2 whitespace-nowrap ${activeTab === key
-                      ? "border-primary text-primary"
-                      : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
                     }`}
                 >
                   <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -1335,7 +1465,7 @@ const Reports = () => {
                   className="pl-10 text-sm"
                 />
               </div>
-              
+
               <div className="flex items-center gap-2 justify-between sm:justify-start">
                 <div className="relative">
                   <Button
@@ -1353,9 +1483,9 @@ const Reports = () => {
                       <span>
                         {sortConfig.key ? (
                           sortConfig.key === 'name' ? 'Sort By Name' :
-                          sortConfig.key === 'pin' ? 'Sort By PIN' :
-                          sortConfig.key === 'checkin' ? 'Sort By Check-in' :
-                          sortConfig.key === 'time' ? 'Time' : 'Sort'
+                            sortConfig.key === 'pin' ? 'Sort By PIN' :
+                              sortConfig.key === 'checkin' ? 'Sort By Check-in' :
+                                sortConfig.key === 'time' ? 'Time' : 'Sort'
                         ) : 'Sort'}
                       </span>
                     </div>
@@ -1378,16 +1508,14 @@ const Reports = () => {
                           setSortConfig({ key, direction });
                           document.getElementById('sort-dropdown').classList.add('hidden');
                         }}
-                        className={`w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center justify-between transition-colors ${
-                          sortConfig.key === key && sortConfig.direction === direction
+                        className={`w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center justify-between transition-colors ${sortConfig.key === key && sortConfig.direction === direction
                             ? 'bg-primary/10 text-primary'
                             : 'text-foreground'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center gap-2">
-                          <Icon className={`w-4 h-4 ${
-                            direction === 'asc' ? 'text-green-600' : 'text-blue-600'
-                          }`} />
+                          <Icon className={`w-4 h-4 ${direction === 'asc' ? 'text-green-600' : 'text-blue-600'
+                            }`} />
                           {label}
                         </div>
                         {sortConfig.key === key && sortConfig.direction === direction && (
@@ -1397,7 +1525,7 @@ const Reports = () => {
                     ))}
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-1 border rounded-lg p-1">
                   <Button
                     variant={viewMode === "table" ? "default" : "ghost"}
@@ -1437,7 +1565,7 @@ const Reports = () => {
                       Current day employee check-in and check-out summary
                     </CardDescription>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setShowModal(true)}
                     className="bg-[#02066F] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#030974] transition-colors w-full sm:w-auto text-sm sm:text-base"
                   >
@@ -1569,11 +1697,10 @@ const Reports = () => {
                                         value={selectedTime || ''}
                                         onChange={(e) => handleCheckoutTimeChange(rowKey, e.target.value, record.CheckInTime)}
                                         min={minTime}
-                                        className={`border rounded px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 ${
-                                          checkoutError
+                                        className={`border rounded px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 ${checkoutError
                                             ? 'border-red-500 focus:ring-red-500'
                                             : 'border-gray-300 focus:ring-blue-500'
-                                        }`}
+                                          }`}
                                       />
                                       {checkoutError && (
                                         <span className="text-red-500 text-xs mt-1">{checkoutError}</span>
@@ -1923,11 +2050,10 @@ const Reports = () => {
                                       value={selectedTime || ''}
                                       onChange={(e) => handleCheckoutTimeChange(rowKey, e.target.value, record.CheckInTime)}
                                       min={minTime}
-                                      className={`border rounded px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 ${
-                                        checkoutError
+                                      className={`border rounded px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 ${checkoutError
                                           ? 'border-red-500 focus:ring-red-500'
                                           : 'border-gray-300 focus:ring-blue-500'
-                                      }`}
+                                        }`}
                                     />
                                     {checkoutError && (
                                       <span className="text-red-500 text-xs mt-1">{checkoutError}</span>
@@ -2295,6 +2421,204 @@ const Reports = () => {
                   ) : (
                     "Add Entry"
                   )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Bulk Upload Modal */}
+      {showBulkUploadModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto mx-4">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg sm:text-xl">
+                    Bulk Upload Report Data
+                  </CardTitle>
+                  <CardDescription className="text-sm">
+                    Upload multiple report entries using CSV or Excel files
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowBulkUploadModal(false);
+                    // Clear all bulk upload state when modal is closed
+                    setSelectedFile(null);
+                    setBulkUploadResults(null);
+                    setBulkUploadError('');
+                    setBulkUploadSuccess('');
+                    // Reset file input
+                    const fileInput = document.getElementById('bulk-upload-file');
+                    if (fileInput) fileInput.value = '';
+                  }}
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-6">
+              {/* File Upload Section */}
+              <div className="space-y-4">
+                <Label className="text-sm font-medium">Select File</Label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                  <input
+                    type="file"
+                    accept=".csv,.xlsx,.xls"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    id="bulk-upload-file"
+                  />
+                  <label htmlFor="bulk-upload-file" className="cursor-pointer">
+                    <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm text-gray-600 mb-1">
+                      Click to select or drag and drop your file
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Supports CSV and Excel files only
+                    </p>
+                  </label>
+                </div>
+
+                {selectedFile && (
+                  <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                    <FileText className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm text-blue-800">{selectedFile.name}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedFile(null);
+                        setBulkUploadError('');
+                        setBulkUploadResults(null);
+                        setBulkUploadSuccess('');
+                        // Reset file input
+                        const fileInput = document.getElementById('bulk-upload-file');
+                        if (fileInput) fileInput.value = '';
+                      }}
+                      className="h-6 w-6 p-0 ml-auto"
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Required Fields Info */}
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <h4 className="text-sm font-medium mb-2">Required Columns:</h4>
+                <div className="text-xs text-gray-600 space-y-1">
+                  <div>• <strong>employee_id</strong> - Employee PIN/ID</div>
+                  <div>• <strong>name</strong> - Employee name</div>
+                  <div>• <strong>date</strong> - Date (YYYY-MM-DD format)</div>
+                  <div>• <strong>check_in_time</strong> - Check-in time (HH:MM format)</div>
+                  <div>• <strong>check_out_time</strong> - Check-out time (HH:MM format, optional)</div>
+                  <div>• <strong>type</strong> - Employment type</div>
+                </div>
+              </div>
+
+              {/* Error Display */}
+              {bulkUploadError && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-red-800 mb-1">Upload Error</h4>
+                      <p className="text-sm text-red-600">{bulkUploadError}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Success Display */}
+              {bulkUploadSuccess && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-md flex items-start gap-2">
+                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-green-600">{bulkUploadSuccess}</p>
+                </div>
+              )}
+
+              {/* Results Display */}
+              {bulkUploadResults && (
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium">Upload Results:</h4>
+
+                  {bulkUploadResults.successful?.length > 0 && (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                      <h5 className="text-sm font-medium text-green-800 mb-2">
+                        Successfully Added ({bulkUploadResults.successful.length})
+                      </h5>
+                      <div className="max-h-32 overflow-y-auto space-y-1">
+                        {bulkUploadResults.successful.slice(0, 10).map((item, index) => (
+                          <div key={index} className="text-xs text-green-700">
+                            {item.name} - {item.date}
+                          </div>
+                        ))}
+                        {bulkUploadResults.successful.length > 10 && (
+                          <div className="text-xs text-green-700 font-medium">
+                            ... and {bulkUploadResults.successful.length - 10} more records added successfully
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {bulkUploadResults.failed?.length > 0 && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                      <h5 className="text-sm font-medium text-red-800 mb-2">
+                        Failed ({bulkUploadResults.failed.length})
+                      </h5>
+                      <div className="max-h-32 overflow-y-auto space-y-1">
+                        {bulkUploadResults.failed.slice(0, 10).map((item, index) => (
+                          <div key={index} className="text-xs text-red-700">
+                            {item.name}: {item.error}
+                          </div>
+                        ))}
+                        {bulkUploadResults.failed.length > 10 && (
+                          <div className="text-xs text-red-700 font-medium">
+                            ... and {bulkUploadResults.failed.length - 10} more failed records
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowBulkUploadModal(false);
+                    // Clear all bulk upload state when modal is closed
+                    setSelectedFile(null);
+                    setBulkUploadResults(null);
+                    setBulkUploadError('');
+                    setBulkUploadSuccess('');
+                    // Reset file input
+                    const fileInput = document.getElementById('bulk-upload-file');
+                    if (fileInput) fileInput.value = '';
+                  }}
+                  className="flex-1 order-2 sm:order-1"
+                  disabled={isBulkUploading}
+                >
+                  {bulkUploadResults ? 'Close' : 'Cancel'}
+                </Button>
+                <Button
+                  onClick={handleBulkUpload}
+                  className="flex-1 order-1 sm:order-2"
+                  disabled={!selectedFile || isBulkUploading}
+                  style={{ display: bulkUploadResults ? 'none' : 'block' }}
+                >
+                  {isBulkUploading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Upload Report Data
                 </Button>
               </div>
             </CardContent>
