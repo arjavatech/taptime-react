@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, Plus } from 'lucide-react';
+import { ChevronDown, Plus, CreditCard, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from './button';
 import { Card, CardContent } from './card';
-import { switchCompany, addNewCompany } from '../../api';
+import { switchCompany, addNewCompany, getSubscriptionPlans, createCheckoutSession } from '../../api';
 import { STORAGE_KEYS } from '../../constants';
 import AddCompanyModal from './AddCompanyModal';
 
-const CompanySwitcher = ({ onAddCompanyClick, onCompanySwitch }) => {
+const CompanySwitcher = ({ onAddCompanyClick, onCompanySwitch, subscriptionStatus }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [companies, setCompanies] = useState([]);
   const [currentCompany, setCurrentCompany] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const navigate = useNavigate();
 
@@ -111,6 +112,47 @@ const CompanySwitcher = ({ onAddCompanyClick, onCompanySwitch }) => {
     setShowAddModal(false);
   };
 
+  const handleSubscriptionClick = async () => {
+    setSubscriptionLoading(true);
+    try {
+      const companyId = localStorage.getItem(STORAGE_KEYS.COMPANY_ID);
+      const employeeCount = parseInt(localStorage.getItem(STORAGE_KEYS.NO_OF_EMPLOYEES) || '1', 10);
+      
+      const plansResponse = await getSubscriptionPlans();
+      if (!plansResponse.success || !plansResponse.plans || plansResponse.plans.length === 0) {
+        console.error('Unable to load subscription plans');
+        return;
+      }
+      
+      const priceId = plansResponse.plans[0].stripe_price_id;
+      const successUrl = `${window.location.origin}/employee-management`;
+      const cancelUrl = window.location.href;
+      
+      const checkoutResponse = await createCheckoutSession(
+        companyId,
+        priceId,
+        employeeCount,
+        successUrl,
+        cancelUrl
+      );
+      
+      if (checkoutResponse.success) {
+        window.location.href = checkoutResponse.data.checkout_url;
+      } else {
+        console.error('Failed to create checkout session:', checkoutResponse.error);
+      }
+    } catch (error) {
+      console.error('Error handling subscription:', error);
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  };
+
+  const isCompanySubscriptionExpired = (company) => {
+    return company.is_subscription_valid === false && 
+           company.subscription_message === "Your subscription has expired. Please renew to continue.";
+  };
+
   if (!companies.length) {
     return null;
   }
@@ -147,24 +189,52 @@ const CompanySwitcher = ({ onAddCompanyClick, onCompanySwitch }) => {
           
           {companies.filter(company => (company.cid || company.CID) !== currentCompanyId).map((company) => (
             
-            <button
+            <div
               key={company.cid || company.CID}
-              onClick={() => handleCompanySwitch(company.cid || company.CID)}
-              className="group w-full flex items-center gap-3 px-3 py-2.5 transition-all duration-150 border-b border-[gray-300] hover:bg-white hover:shadow-smtransparent "
-              disabled={loading}
+              className={`group w-full flex items-center gap-3 px-3 py-2.5 transition-all duration-150 border-b border-[gray-300] ${
+                isCompanySubscriptionExpired(company) ? 'opacity-100' : 'hover:bg-white hover:shadow-sm cursor-pointer'
+              }`}
             >
-              <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-semibold bg-[#02066F] ">
+              <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-semibold bg-[#02066F]">
                 {(company.company_name || company.CName)?.charAt(0)?.toUpperCase() || 'C'}
               </div>
-              <div className="flex-1 text-left">
-                <div className="font-medium text-sm text-[#02066F] ">
-                  {company.company_name || company.CName || 'Unknown Company'}
+              <div 
+                className="flex-1 text-left"
+                onClick={!isCompanySubscriptionExpired(company) ? () => handleCompanySwitch(company.cid || company.CID) : undefined}
+              >
+                <div className="flex items-center gap-2">
+                  <div className="font-medium text-sm text-[#02066F]">
+                    {company.company_name || company.CName || 'Unknown Company'}
+                  </div>
+                  {isCompanySubscriptionExpired(company) && (
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSubscriptionClick();
+                      }}
+                      disabled={subscriptionLoading}
+                      size="sm"
+                      className="!bg-[#02066F] hover:!bg-[#02066F]/90 !text-white px-2 py-1 text-xs !opacity-100"
+                    >
+                      {subscriptionLoading ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <CreditCard className="w-3 h-3 mr-1" />
+                      )}
+                      Subscribe
+                    </Button>
+                  )}
                 </div>
+                {isCompanySubscriptionExpired(company) && (
+                  <div className="text-xs text-red-500 mt-1">
+                    {company.subscription_message}
+                  </div>
+                )}
               </div>
               {(company.cid || company.CID) === currentCompanyId && (
                 <div className="w-2 h-2 rounded-full bg-[#02066F]" />
               )}
-            </button>
+            </div>
           ))}
           
           

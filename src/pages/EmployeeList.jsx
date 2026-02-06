@@ -6,14 +6,14 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import Footer from "../components/layout/Footer";
 import { useAuth } from "../contexts/AuthContext";
-import { STORAGE_KEYS } from "../constants/index.js";
 
 import {
   fetchEmployeeData,
   createEmployeeWithData,
   updateEmployeeWithData,
   deleteEmployeeById,
-  bulkUploadEmployees
+  bulkUploadEmployees,
+  clearApiCache
 } from "../api.js";
 import {
   Plus,
@@ -177,7 +177,7 @@ const EmployeeList = () => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${activeTab}_data.csv`;
+    a.download = `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} data.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -225,7 +225,7 @@ const EmployeeList = () => {
     doc.setFontSize(8);
     doc.text('© 2026 TapTime by Arjava Technologies. All rights reserved.', pageWidth / 2, pageHeight - 10, { align: 'center' });
     
-    doc.save(`${activeTab}_data.pdf`);
+    doc.save(`${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} data.pdf`);
   };
 
   // Initialize component
@@ -245,16 +245,9 @@ const EmployeeList = () => {
 
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 650 && viewMode === "table") {
-        setViewMode("grid");
-      }
       // Force re-pagination on resize
       filterEmployees();
     };
-
-    if (window.innerWidth < 650) {
-      setViewMode("grid");
-    }
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -624,6 +617,8 @@ const EmployeeList = () => {
         return;
       } else {
         await createEmployeeWithData(formData);
+        // Clear API cache to ensure fresh data is fetched
+        clearApiCache();
       }
 
       // Success - close modal and refresh
@@ -643,6 +638,8 @@ const EmployeeList = () => {
           try {
             const newFormData = { ...formData, pin: newPin };
             await createEmployeeWithData(newFormData);
+            // Clear API cache to ensure fresh data is fetched
+            clearApiCache();
 
             // Show success message with original and new PIN
             setModalSuccess(`PIN ${formData.pin} was already taken. Created with PIN: ${newPin}`);
@@ -963,7 +960,8 @@ const EmployeeList = () => {
         }, 2000);
       }
       
-      // Refresh employee data
+      // Clear API cache and refresh employee data
+      clearApiCache();
       loadEmployeeData();
     } catch (error) {
       console.error('Bulk upload error:', error);
@@ -1225,8 +1223,7 @@ const EmployeeList = () => {
                   variant={viewMode === "table" ? "default" : "ghost"}
                   size="sm"
                   onClick={() => setViewMode("table")}
-                  disabled={window.innerWidth < 650}
-                  className="h-8 w-8 p-0 disabled:opacity-50"
+                  className="h-8 w-8 p-0"
                 >
                   <HamburgerIcon className="w-4 h-4" />
                 </Button>

@@ -7,8 +7,11 @@ import {
 
 import HomePage from "./pages/HomePage";
 import Login from "./pages/Login";
+import Pricing from "./pages/Pricing";
 import SetPassword from "./pages/SetPassword";
 import Register from "./pages/Register";
+
+import RegisterSuccess from "./pages/RegisterSuccess";
 import EmployeeList from "./pages/EmployeeList";
 import Device from "./pages/Device";
 import Profile from "./pages/Profile";
@@ -17,6 +20,7 @@ import GetInTouch from "./pages/GetInTouch";
 import ReportSummary from "./pages/ReportSummary";
 import ReportSetting from "./pages/ReportSetting";
 import ForgotPassword from "./pages/ForgotPassword";
+import Invoices from "./pages/Invoices";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CompanyProvider } from "./contexts/CompanyContext";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -31,13 +35,16 @@ function App() {
           <div className="App">
             <Routes>
               <Route path="/" element={<HomePage />} />
+               <Route path="/register/success" element={<RegisterSuccess />} />
               <Route path="/login" element={<Login />} />
+              <Route path="/pricing" element={<Pricing />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/set-password" element={<SetPassword />} />
               <Route path="/register" element={<Register />} />
               <Route path="/contact-us" element={<GetInTouch />} />
               <Route path="/employee-management" element={<ProtectedRoute><EmployeeList /></ProtectedRoute>} />
               <Route path="/device" element={<RoleProtectedRoute allowedRoles={['Owner', 'SuperAdmin']}><Device /></RoleProtectedRoute>} />
+              <Route path="/invoices" element={<RoleProtectedRoute allowedRoles={['Owner', 'SuperAdmin']}><Invoices /></RoleProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/contact" element={<ProtectedRoute><ContactUs /></ProtectedRoute>} />
               <Route path="/reports" element={<ProtectedRoute><ReportSummary /></ProtectedRoute>} />

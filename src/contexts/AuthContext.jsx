@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../config/supabase';
-import { googleSignInCheck, getTimeZone } from '../api.js';
+import { googleSignInCheck, getTimeZone, clearApiCache } from '../api.js';
 import AccountDeletionModal from '../components/ui/AccountDeletionModal';
 import { useAutoLogout } from '../hooks/useAutoLogout';
 import { useCompany } from './CompanyContext';
@@ -26,7 +26,9 @@ export const AuthProvider = ({ children }) => {
   const [showAccountDeletionModal, setShowAccountDeletionModal] = useState(false);
   const [deletedAccountType, setDeletedAccountType] = useState('');
   const [accountDeleted, setAccountDeleted] = useState(false);
+  const [isLoginInProgress, setIsLoginInProgress] = useState(false);
 
+  
   // Auto-logout for inactive users
   useAutoLogout(() => {
     signOut();
@@ -39,20 +41,33 @@ export const AuthProvider = ({ children }) => {
     
     try {
       const result = await googleSignInCheck(email, 'email');
-      if (!result.success && result.deleted) {
-        const adminType = localStorage.getItem('adminType') || localStorage.getItem('ADMIN_TYPE') || 'Account';
-        setDeletedAccountType(adminType);
-        setShowAccountDeletionModal(true);
-        setAccountDeleted(true);
-        return true;
+      
+      if (!result.success) {
+        // Check if error message indicates account deletion
+        const errorMsg = (result.error || '').toLowerCase();
+        if (result.deleted || 
+            errorMsg.includes('not found') || 
+            errorMsg.includes('deleted') || 
+            errorMsg.includes('may have been deleted')) {
+          console.log('Account detected as deleted, showing modal');
+          const adminType = localStorage.getItem('adminType') || localStorage.getItem('ADMIN_TYPE') || 'Account';
+          setDeletedAccountType(adminType);
+          setShowAccountDeletionModal(true);
+          setAccountDeleted(true);
+          return true;
+        }
       }
       return false;
     } catch (error) {
+      console.log('Account deletion check error:', error);
       // If API call fails, check error message for deletion indicators
       const errorMsg = error.message.toLowerCase();
       if (errorMsg.includes('not found') || 
           errorMsg.includes('deleted') || 
-          errorMsg.includes('404')) {
+          errorMsg.includes('404') ||
+          errorMsg.includes('403') ||
+          errorMsg.includes('access denied')) {
+        console.log('Account deletion detected from error, showing modal');
         const adminType = localStorage.getItem('adminType') || 
                          localStorage.getItem('ADMIN_TYPE') || 
                          'Account';
@@ -68,10 +83,6 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('=== INITIAL SESSION DEBUG ===');
-      console.log('Raw session from getSession:', session);
-      console.log('Session access_token:', session?.access_token);
-      console.log('============================');
       
       // Check if user had "Remember Me" enabled
       const rememberMe = localStorage.getItem('rememberMe') === 'true';
@@ -105,7 +116,6 @@ export const AuthProvider = ({ children }) => {
         // Store access token for API calls if session exists
         if (session?.access_token) {
           localStorage.setItem("access_token", session.access_token);
-          console.log('Access token stored from initial session:', session.access_token);
         }
       }
       
@@ -125,11 +135,7 @@ export const AuthProvider = ({ children }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log('=== AUTH STATE CHANGE DEBUG ===');
-      console.log('Event:', _event);
-      console.log('Session from onAuthStateChange:', session);
-      console.log('Session access_token:', session?.access_token);
-      console.log('===============================');
+     
       
       setSession(session);
       setUser(session?.user ?? null);
@@ -137,7 +143,6 @@ export const AuthProvider = ({ children }) => {
       // Store access token for API calls when session changes
       if (session?.access_token) {
         localStorage.setItem("access_token", session.access_token);
-        console.log('Access token stored from auth state change:', session.access_token);
       }
       
       // Only clear localStorage when session is lost AND user was actually logged out
@@ -157,7 +162,8 @@ export const AuthProvider = ({ children }) => {
   // Check account deletion on page focus/visibility change
   useEffect(() => {
     const handleVisibilityChange = async () => {
-      if (!document.hidden && user && !accountDeleted) {
+      // Only check when page becomes visible and user is logged in
+      if (!document.hidden && user && !accountDeleted && !loading && !isLoginInProgress) {
         const userEmail = user?.email || localStorage.getItem('adminMail');
         if (userEmail) {
           await checkAccountDeletion(userEmail);
@@ -166,8 +172,11 @@ export const AuthProvider = ({ children }) => {
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [user, checkAccountDeletion, accountDeleted]);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user, checkAccountDeletion, accountDeleted, loading, isLoginInProgress]);
 
   // Sign in with email and password
   const signInWithEmail = async (email, password, rememberMe = false) => {
@@ -181,10 +190,7 @@ export const AuthProvider = ({ children }) => {
       
       // Handle session persistence based on rememberMe preference
       if (data.session) {
-        console.log('signInWithEmail session:', data.session);
         localStorage.setItem("access_token", data.session.access_token);
-        console.log(localStorage.getItem("access_token"));
-        console.log("-----------------------------------------------------");
 
         if (rememberMe) {
           // Store session info in localStorage for persistence
@@ -247,6 +253,9 @@ export const AuthProvider = ({ children }) => {
   // Sign out
   const signOut = async () => {
     try {
+      // Clear API cache to prevent stale data
+      clearApiCache();
+      
       // Clear sessionStorage first to remove cached OAuth state and browser session
       sessionStorage.clear();
 
@@ -266,6 +275,7 @@ export const AuthProvider = ({ children }) => {
       // Even if logout fails, clear local storage to ensure user is logged out locally
       localStorage.clear();
       sessionStorage.clear();
+      clearApiCache();
       
       // For 403 errors, treat as successful logout since session is already invalid
       if (error.status === 403) {
@@ -300,7 +310,7 @@ export const AuthProvider = ({ children }) => {
   // Wrapped in useCallback to prevent unnecessary re-renders
   const fetchBackendUserData = useCallback(async (email, userName = null, userPicture = null, authMethod = 'google') => {
     try {
-      console.log(`fetchBackendUserData called with email: ${email}, authMethod: ${authMethod}`);
+      setIsLoginInProgress(true);
       
       // For Google OAuth, generate a temporary token if no access_token is available
       let accessToken = localStorage.getItem("access_token");
@@ -318,27 +328,22 @@ export const AuthProvider = ({ children }) => {
           console.log('Temporary access token generated:', accessToken);
         }
       }
-      
-      console.log("access_token:", accessToken);
 
-      // Step 1: Check if account has been deleted
-      const isDeleted = await checkAccountDeletion(email);
-      if (isDeleted) {
-        return {
-          success: false,
-          error: 'Account has been deleted'
-        };
-      }
-
-      // Step 2: Validate email with backend and get companyID
+      // Step 1: Validate email with backend and get companyID
       // This validates the email exists in the backend employee database
       // and fetches company, timezone, and customer data
       // CRITICAL: Pass the authMethod to ensure proper validation
+      // Note: This single call will also detect if account is deleted
       const result = await googleSignInCheck(email, authMethod);
 
-      console.log('googleSignInCheck API result:', result);
-
       if (!result.success) {
+        // Check if the error indicates account deletion
+        if (result.deleted) {
+          const adminType = localStorage.getItem('adminType') || localStorage.getItem('ADMIN_TYPE') || 'Account';
+          setDeletedAccountType(adminType);
+          setShowAccountDeletionModal(true);
+          setAccountDeleted(true);
+        }
         console.error('Backend validation failed:', result.error);
         return {
           success: false,
@@ -348,7 +353,7 @@ export const AuthProvider = ({ children }) => {
 
       const companyID = result.companyID;
 
-      // Step 3: Store user information in localStorage
+      // Step 2: Store user information in localStorage
       if (userName) {
         localStorage.setItem('userName', userName);
       }
@@ -360,10 +365,10 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('userPicture');
       }
 
-      // Step 4: Fetch timezone data
+      // Step 3: Fetch timezone data
       await getTimeZone(companyID);
 
-      // Step 5: Load user's companies for company switching
+      // Step 4: Load user's companies for company switching
       const companiesResult = await loadUserCompanies(email);
       
       // Check if companies loading failed due to account deletion
@@ -381,8 +386,10 @@ export const AuthProvider = ({ children }) => {
         success: false,
         error: error.message || 'Failed to fetch user data from backend'
       };
+    } finally {
+      setIsLoginInProgress(false);
     }
-  }, [checkAccountDeletion, session]); // Depend on checkAccountDeletion and session
+  }, [session]); // Depend on session
 
   // Handle account deletion modal close
   const handleAccountDeletionModalClose = useCallback(async () => {
@@ -392,14 +399,23 @@ export const AuthProvider = ({ children }) => {
     navigate('/login', { replace: true });
   }, [signOut, navigate]);
 
-  // Check account deletion on navigation
+  // Check account deletion on navigation - only when explicitly called
   const checkOnNavigation = useCallback(async () => {
     if (!user) return;
     const userEmail = user?.email || localStorage.getItem('adminMail');
-    if (userEmail) {
+    if (userEmail && !accountDeleted) {
       await checkAccountDeletion(userEmail);
     }
-  }, [user, checkAccountDeletion]);
+  }, [user, checkAccountDeletion, accountDeleted]);
+
+  // Test function to manually trigger account deletion modal
+  const testAccountDeletionModal = useCallback(() => {
+    console.log('Manually triggering account deletion modal');
+    const adminType = localStorage.getItem('adminType') || localStorage.getItem('ADMIN_TYPE') || 'Account';
+    setDeletedAccountType(adminType);
+    setShowAccountDeletionModal(true);
+    setAccountDeleted(true);
+  }, []);
 
   const value = useMemo(() => ({
     user,
@@ -413,6 +429,7 @@ export const AuthProvider = ({ children }) => {
     fetchBackendUserData,
     checkAccountDeletion,
     checkOnNavigation,
+    testAccountDeletionModal, // Add test function
   }), [
     user,
     session,
@@ -425,6 +442,7 @@ export const AuthProvider = ({ children }) => {
     fetchBackendUserData,
     checkAccountDeletion,
     checkOnNavigation,
+    testAccountDeletionModal,
   ]);
 
   return (

@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import Footer from "@/components/layout/Footer";
-import { getAllDevices, createDevice, deleteDevice } from "../api.js";
+import { getAllDevices, createDevice, deleteDevice, clearApiCache } from "../api.js";
 import {
   Plus,
   Copy,
@@ -140,6 +140,8 @@ const Device = ({ accessDenied = false }) => {
 
     try {
       await createDevice(newDevice);
+      // Clear API cache to ensure fresh data is fetched
+      clearApiCache();
       await loadDevices();
       showCenterLoading("Device added successfully!");
       setTimeout(() => hideCenterLoading(), 800);
@@ -199,6 +201,8 @@ const Device = ({ accessDenied = false }) => {
 
     try {
       await deleteDevice(deviceToDelete.access_key, companyId);
+      // Clear API cache to ensure fresh data is fetched
+      clearApiCache();
       const updatedDevices = devices.filter(device => 
         (device.AccessKey || device.access_key) !== (deviceToDelete.AccessKey || deviceToDelete.access_key)
       );

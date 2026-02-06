@@ -1,11 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from './button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './card';
 import { Input } from './input';
 import { Label } from './label';
-import { Building, MapPin, X, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { Building, MapPin, X, Loader2, AlertCircle, CheckCircle, CheckCircle2 } from 'lucide-react';
 import { useZipLookup } from '../../hooks';
-import { addNewCompany } from '../../api';
+import { addNewCompany, getSubscriptionPlans, createCheckoutSessionForRegistration, createPendingRegistration, getUserContactInfo } from '../../api';
 
 const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -13,6 +13,9 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
   const [logoFile, setLogoFile] = useState(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [wantsTrial, setWantsTrial] = useState(true);
+  const [customerInfo, setCustomerInfo] = useState(null);
+  const [loadingCustomerInfo, setLoadingCustomerInfo] = useState(false);
 
   // Form data state
   const [formData, setFormData] = useState({
@@ -57,6 +60,63 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
 
   // ZIP code lookup hook
   const { isLoading: zipLoading } = useZipLookup(formData.companyZip, handleZipResult);
+
+  // Fetch customer info when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchCustomerInfo();
+    }
+  }, [isOpen]);
+
+  const fetchCustomerInfo = async () => {
+    setLoadingCustomerInfo(true);
+    setError('');
+
+    try {
+      const userEmail = localStorage.getItem('adminMail') || localStorage.getItem('email');
+
+      if (!userEmail) {
+        setError('Unable to determine user email. Please log in again.');
+        setLoadingCustomerInfo(false);
+        return;
+      }
+
+      // Try to get from backend first
+      const response = await getUserContactInfo(userEmail);
+
+      if (response.success) {
+        setCustomerInfo(response.data);
+      } else {
+        // Fallback to localStorage with validation
+        const firstName = localStorage.getItem('firstName') || '';
+        const lastName = localStorage.getItem('lastName') || '';
+        const phoneNumber = localStorage.getItem('phoneNumber') || localStorage.getItem('phone') || '';
+
+        // Validate required fields
+        if (!firstName || !lastName || !phoneNumber) {
+          setError('Unable to load your contact information. Please refresh the page and try again.');
+          setLoadingCustomerInfo(false);
+          return;
+        }
+
+        setCustomerInfo({
+          first_name: firstName,
+          last_name: lastName,
+          email: userEmail,
+          phone_number: phoneNumber,
+          customer_address_line1: localStorage.getItem('customerAddress1') || localStorage.getItem('address') || '',
+          customer_city: localStorage.getItem('customerCity') || '',
+          customer_state: localStorage.getItem('customerState') || '',
+          customer_zip_code: localStorage.getItem('customerZipCode') || ''
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching customer info:', error);
+      setError('Failed to load customer information. Please try again.');
+    } finally {
+      setLoadingCustomerInfo(false);
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -204,49 +264,91 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
     setError('');
 
     try {
-      const userEmail = localStorage.getItem('adminMail') || localStorage.getItem('email') || '';
+      // Validate customer info is loaded
+      if (!customerInfo) {
+        setError('Customer information not loaded. Please close and reopen the modal.');
+        setIsLoading(false);
+        return;
+      }
 
-      // Get customer contact and address data from localStorage
-      const firstName = localStorage.getItem('firstName') || '';
-      const lastName = localStorage.getItem('lastName') || '';
-      const email = localStorage.getItem('email') || localStorage.getItem('adminMail') || '';
-      const phoneNumber = localStorage.getItem('phoneNumber') || localStorage.getItem('phone') || '';
-      const customerAddress = localStorage.getItem('customerAddress1') || localStorage.getItem('address') || '';
-      const customerCity = localStorage.getItem('customerCity') || '';
-      const customerState = localStorage.getItem('customerState') || '';
-      const customerZip = localStorage.getItem('customerZipCode') || '';
+      if (!customerInfo.first_name || !customerInfo.last_name || !customerInfo.email || !customerInfo.phone_number) {
+        setError('Incomplete customer contact information. Please contact support.');
+        setIsLoading(false);
+        return;
+      }
 
       // Create company data object matching API specification
       const companyData = {
         company_name: formData.companyName,
-        first_name: firstName,
-        last_name: lastName,
-        email: email,
-        phone_number: phoneNumber,
+        first_name: customerInfo.first_name,
+        last_name: customerInfo.last_name,
+        email: customerInfo.email,
+        phone_number: customerInfo.phone_number,
         company_address_line1: formData.companyStreet,
         company_city: formData.companyCity,
         company_state: formData.companyState,
         company_zip_code: formData.companyZip,
-        customer_address_line1: customerAddress,
-        customer_city: customerCity,
-        customer_state: customerState,
-        customer_zip_code: customerZip,
+        customer_address_line1: customerInfo.customer_address_line1 || '',
+        customer_city: customerInfo.customer_city || '',
+        customer_state: customerInfo.customer_state || '',
+        customer_zip_code: customerInfo.customer_zip_code || '',
         report_type: formData.reportType,
         device_count: parseInt(formData.noOfDevices, 10),
         employee_count: parseInt(formData.noOfEmployees, 10),
         employment_type: employmentTypes.join(','),
-        last_modified_by: userEmail
+        last_modified_by: customerInfo.email
       };
 
-      // Call the API to add the company
-      await addNewCompany(companyData, logoFile);
+      if (wantsTrial || !wantsTrial) {
+        // Payment flow - create pending registration first
+        const pendingRegResponse = await createPendingRegistration(companyData, logoFile);
+        
+        if (!pendingRegResponse.success) {
+          setError(pendingRegResponse.error || 'Failed to save company data. Please try again.');
+          return;
+        }
 
-      setSuccess('Company added successfully!');
+        const registrationId = pendingRegResponse.data.registration_id;
 
-      setTimeout(() => {
-        onSuccess?.();
-        handleClose();
-      }, 1500);
+        // Get subscription plans
+        const plansResponse = await getSubscriptionPlans();
+        
+        if (!plansResponse.success || !plansResponse.plans || plansResponse.plans.length === 0) {
+          setError('Unable to load subscription plans. Please try again.');
+          return;
+        }
+
+        const priceId = plansResponse.plans[0].stripe_price_id;
+        const quantity = parseInt(formData.noOfEmployees, 10);
+        const successUrl = `${window.location.origin}/employee-management`;
+        const cancelUrl = `${window.location.origin}/employee-management`;
+
+        // Create checkout session
+        const checkoutResponse = await createCheckoutSessionForRegistration({
+          registration_id: registrationId,
+          price_id: priceId,
+          quantity: quantity,
+          trial_period_days: wantsTrial ? 14 : 0,
+          success_url: successUrl,
+          cancel_url: cancelUrl
+        });
+
+        if (checkoutResponse.success) {
+          // Redirect to Stripe checkout
+          window.location.href = checkoutResponse.data.checkout_url;
+        } else {
+          setError('Failed to create checkout session. Please try again.');
+        }
+      } else {
+        // Direct company creation without payment
+        await addNewCompany(companyData, logoFile);
+        setSuccess('Company added successfully!');
+        
+        setTimeout(() => {
+          onSuccess?.();
+          handleClose();
+        }, 1500);
+      }
 
     } catch (error) {
       setError(error.message || 'Failed to add company');
@@ -274,6 +376,7 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
     setErrors({});
     setError('');
     setSuccess('');
+    setWantsTrial(true);
     onClose();
   };
 
@@ -287,6 +390,12 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
           <CardDescription className="text-xs sm:text-sm">
             Enter company information to create a new company
           </CardDescription>
+          {loadingCustomerInfo && (
+            <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-md mt-2">
+              <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+              <p className="text-xs sm:text-sm text-blue-600">Loading your contact information...</p>
+            </div>
+          )}
         </CardHeader>
 
         <CardContent className="space-y-4 px-4 sm:px-6">
@@ -472,6 +581,60 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
               </div>
             </div>
 
+            {/* Payment Mode Selection */}
+            <div className="space-y-2">
+              <Label className="text-xs sm:text-sm font-medium">Payment Mode</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Free Trial Card */}
+                <div
+                  onClick={() => setWantsTrial(true)}
+                  className={`
+                    cursor-pointer p-3 rounded-lg border-2 transition-all
+                    ${wantsTrial
+                      ? 'border-primary bg-primary/10'
+                      : 'border-muted bg-transparent hover:border-primary/50'
+                    }
+                  `}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm mb-1">14-Day Free Trial</p>
+                      <p className="text-xs text-muted-foreground">
+                        Try free for 14 days, then $1/employee/month
+                      </p>
+                    </div>
+                    {wantsTrial && (
+                      <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 ml-2" />
+                    )}
+                  </div>
+                </div>
+
+                {/* Direct Subscription Card */}
+                <div
+                  onClick={() => setWantsTrial(false)}
+                  className={`
+                    cursor-pointer p-3 rounded-lg border-2 transition-all
+                    ${!wantsTrial
+                      ? 'border-primary bg-primary/10'
+                      : 'border-muted bg-transparent hover:border-primary/50'
+                    }
+                  `}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="font-semibold text-sm mb-1">Subscribe Now</p>
+                      <p className="text-xs text-muted-foreground">
+                        Pay $1/employee/month starting today
+                      </p>
+                    </div>
+                    {!wantsTrial && (
+                      <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 ml-2" />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="employmentType" className="text-xs sm:text-sm font-medium">Employment Types</Label>
               <div className="border border-textMuted rounded-md p-3 min-h-[44px] flex flex-wrap gap-2 items-center focus-within:ring-1 focus-within:ring-textMuted focus-within:border-textMuted">
@@ -534,10 +697,16 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
               <Button
                 type="submit"
                 className="flex-1 order-1 sm:order-2"
-                disabled={isLoading}
+                disabled={isLoading || loadingCustomerInfo || !customerInfo}
               >
-                {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                {isLoading ? "Adding Company..." : "Add Company"}
+                {(isLoading || loadingCustomerInfo) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {loadingCustomerInfo
+                  ? "Loading user info..."
+                  : isLoading
+                    ? "Processing..."
+                    : wantsTrial
+                      ? "Start Free Trial"
+                      : "Subscribe Now"}
               </Button>
             </div>
           </form>

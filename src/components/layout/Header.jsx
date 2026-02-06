@@ -5,6 +5,7 @@ import LogoutModal from "../ui/LogoutModal";
 import Avatar from "../ui/Avatar";
 import CompanySwitcher from "../ui/CompanySwitcher";
 import tapTimeLogo from "../../assets/images/tap-time-logo.png";
+import { googleSignInCheck } from "../../api";
 
 const Header = () => {
   const { user, session, signOut } = useAuth();
@@ -15,7 +16,7 @@ const Header = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showHomeModal, setShowHomeModal] = useState(false);
-  const [userType, setUserType] = useState("");
+  const [userType, setUserType] = useState(localStorage.getItem("adminType") || "");
   const [showProfileSidebar, setShowProfileSidebar] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showReportsDropdown, setShowReportsDropdown] = useState(false);
@@ -31,9 +32,13 @@ const Header = () => {
     picture: "",
     companyName: ""
   });
+  const [subscriptionStatus, setSubscriptionStatus] = useState({
+    is_subscription_valid: true,
+    subscription_message: ""
+  });
 
   useEffect(() => {
-    const checkAuthStatus = () => {
+    const checkAuthStatus = async () => {
       // Check if user is on login or public pages - force unauthenticated state
       const isOnLoginPage = location.pathname === "/login" || location.pathname === "/forgot-password" || location.pathname === "/register";
 
@@ -66,6 +71,22 @@ const Header = () => {
         const userName = localStorage.getItem("userName") || "";
         const userPictureUrl = localStorage.getItem("userPicture");
         const companyName = localStorage.getItem("companyName") || "";
+
+        // Check subscription status after login
+        if (email && isUserSetupComplete) {
+          try {
+            const response = await googleSignInCheck(email, 'email');
+            if (response.success && response.data) {
+              const { is_subscription_valid, subscription_message } = response.data;
+              setSubscriptionStatus({
+                is_subscription_valid: is_subscription_valid !== false,
+                subscription_message: subscription_message || ""
+              });
+            }
+          } catch (error) {
+            console.error('Error checking subscription status:', error);
+          }
+        }
 
         // Determine if this is a Google login by checking if user has a profile picture
         // For email-based login, always use default avatar (no picture)
@@ -164,14 +185,17 @@ const Header = () => {
   };
 
   const publicNavItems = [
-    { to: "/", label: "Home" },
+    { to: "/", label: "Home" },    
+    { to: "/pricing", label: "Pricing" },
     { to: "/login", label: "Login" },
     { to: "/register", label: "Register" },
     { to: "/contact-us", label: "Contact Us" },
   ];
 
   const authenticatedNavItems = [
-    ...(userType === "Owner" || userType === "SuperAdmin" ? [{ to: "/device", label: "Device" }] : []),
+    ...(userType === "Owner" || userType === "SuperAdmin" ? [
+      { to: "/device", label: "Device" }
+    ] : []),
     { to: "/employee-management", label: "Employee Management" },
     ...(userType === "Admin" ? [
       { to: "/reportsummary", label: "Report Summary" }
@@ -186,6 +210,9 @@ const Header = () => {
       }
     ]),
     { to: "/profile", label: "Profile" },
+    ...(userType === "Owner" || userType === "SuperAdmin" ? [
+      { to: "/invoices", label: "Invoices" }
+    ] : []),
     { to: "/contact", label: "Contact" }
   ];
 
@@ -307,7 +334,7 @@ const Header = () => {
                     <div className="hidden lg:block absolute right-0 top-full mt-2 z-50">
                       <div className="bg-white rounded-lg shadow-2xl border border-gray-200 min-w-[300px] overflow-hidden">
                         {/* Profile Header */}
-                        <div className="px-6 py-5   ">
+                        <div className="px-6 py-5">
                           <div className="flex items-center justify-center space-x-4">
                             <Avatar
                               src={userProfile.picture}
@@ -328,16 +355,20 @@ const Header = () => {
                         {(() => {
                           const adminType = localStorage.getItem("adminType");
                           const storedCompanies = localStorage.getItem("userCompanies");
-                          const hasCompanies = adminType === "Owner" && storedCompanies && JSON.parse(storedCompanies).length > 0;
+                          const hasCompanies = adminType === "Owner" && storedCompanies && JSON.parse(storedCompanies).length > 1;
                           return hasCompanies ? (
-                            <div className="px-6">
-                              <CompanySwitcher onAddCompanyClick={() => setShowProfileDropdown(false)} onCompanySwitch={() => setShowProfileDropdown(false)} />
+                            <div className="px-6 pb-3">
+                              <CompanySwitcher 
+                                onAddCompanyClick={() => setShowProfileDropdown(false)} 
+                                onCompanySwitch={() => setShowProfileDropdown(false)}
+                                subscriptionStatus={subscriptionStatus}
+                              />
                             </div>
                           ) : null;
                         })()}
 
                         {/* Sign Out Section */}
-                        <div className="px-6 py-4">
+                        <div className="px-6 pb-4">
                           <button
                             onClick={() => { setShowModal(true); setShowProfileDropdown(false); }}
                             className="w-full text-center justify-center py-2 cursor-pointer bg-[#02066F] text-white rounded-md font-medium text-base transition-all duration-200 flex items-center space-x-3 rounded-md group"
@@ -452,7 +483,10 @@ const Header = () => {
                     console.log("Mobile - hasCompanies:", hasCompanies);
                     return hasCompanies ? (
                       <div className="mb-6">
-                        <CompanySwitcher onAddCompanyClick={() => setShowProfileSidebar(false)} />
+                        <CompanySwitcher 
+                          onAddCompanyClick={() => setShowProfileSidebar(false)}
+                          subscriptionStatus={subscriptionStatus}
+                        />
                       </div>
                     ) : null;
                   })()}

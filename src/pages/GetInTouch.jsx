@@ -154,6 +154,7 @@ const GetInTouch = () => {
                       disableDialCodePrefill={false}
                       forceDialCode={true}
                       inputClassName="w-full"
+                      placeholder="Enter your phone number"
                       style={{
                         '--react-international-phone-border-radius': '0.375rem',
                         '--react-international-phone-border-color': '#e5e7eb',

@@ -10,9 +10,9 @@ const AccountDeletionModal = ({ isOpen, onClose, accountType = "Account" }) => {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ zIndex: 9999 }}>
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm modal-backdrop" />
-      <Card id="account-deletion-modal" className="relative w-full max-w-md mx-4 border-0 shadow-2xl">
+      <Card id="account-deletion-modal" className="relative w-full max-w-md mx-4 border-0 shadow-2xl bg-white">
         <CardHeader className="text-center pb-4">
           <div className="mx-auto w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
             <AlertTriangle className="w-6 h-6 text-red-600" />
