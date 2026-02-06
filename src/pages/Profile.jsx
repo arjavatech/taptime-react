@@ -11,7 +11,6 @@ import {
   User,
   Building,
   Mail,
-  Phone,
   MapPin,
   Camera,
   Save,
@@ -837,12 +836,12 @@ const Profile = () => {
         <div className="border-b">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-primary/10 rounded-full flex items-center justify-center">
-                <User className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                <User className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-primary" />
               </div>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-foreground">Profile Settings</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">Profile Settings</h1>
+                <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
                   Manage your account and company information
                 </p>
               </div>
@@ -853,7 +852,7 @@ const Profile = () => {
         {/* Tabs */}
         <div className="border-b">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <nav className="flex space-x-4 sm:space-x-8 overflow-x-auto">
+            <nav className="flex space-x-2 sm:space-x-4 md:space-x-8 overflow-x-auto">
               {[
                 { key: "company", label: "Company Information", icon: Building },
                 ...(userType !== "Admin" && userType !== "SuperAdmin" ? [{ key: "personal", label: "Personal Information", icon: User }] : []),
@@ -864,12 +863,12 @@ const Profile = () => {
                 <button
                   key={key}
                   onClick={() => setActiveTab(key)}
-                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 whitespace-nowrap ${activeTab === key
+                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center gap-1 sm:gap-2 whitespace-nowrap ${activeTab === key
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
                     }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
                   <span className="hidden sm:inline">{label}</span>
                   <span className="sm:hidden">{key === "personal" ? "Personal" : key === "company" ? "Company" : key === "admin" && userType === "SuperAdmin" ? "Super Admin" : key === "subscription" ? "Plan" : "Admin"}</span>
                 </button>
@@ -879,7 +878,7 @@ const Profile = () => {
         </div>
 
         {/* Content */}
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
           {activeTab === "personal" && userType !== "Admin" && userType !== "SuperAdmin" && (
             <Card>
               <CardHeader>
@@ -1118,14 +1117,17 @@ const Profile = () => {
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
                   <div className="relative">
                     <div className="w-16 h-16 sm:w-20 sm:h-20 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
-                      {companyData.logo ? (
+                      {companyData.logo && companyData.logo.trim() !== '' ? (
                         <img 
                           src={companyData.logo} 
                           alt="Company Logo" 
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             console.log('Logo failed to load:', companyData.logo);
-                            e.target.style.display = 'none';
+                            e.target.parentElement.innerHTML = '<svg class="w-6 h-6 sm:w-8 sm:h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>';
+                          }}
+                          onLoad={() => {
+                            console.log('Logo loaded successfully:', companyData.logo);
                           }}
                         />
                       ) : (
@@ -1523,7 +1525,7 @@ const Profile = () => {
                   </div>
                 </div>
 
-                <div className="p-6 bg-muted rounded-lg border">
+                {/* <div className="p-6 bg-muted rounded-lg border">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
                       <h3 className="font-semibold text-lg mb-2">Upgrade Your Plan</h3>
@@ -1536,7 +1538,7 @@ const Profile = () => {
                       Upgrade Plan
                     </Button>
                   </div>
-                </div>
+                </div> */}
               </CardContent>
             </Card>
           )}

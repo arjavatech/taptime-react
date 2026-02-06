@@ -194,8 +194,7 @@ const Header = () => {
 
   const authenticatedNavItems = [
     ...(userType === "Owner" || userType === "SuperAdmin" ? [
-      { to: "/device", label: "Device" },
-      { to: "/invoices", label: "Invoices" }
+      { to: "/device", label: "Device" }
     ] : []),
     { to: "/employee-management", label: "Employee Management" },
     ...(userType === "Admin" ? [
@@ -211,6 +210,9 @@ const Header = () => {
       }
     ]),
     { to: "/profile", label: "Profile" },
+    ...(userType === "Owner" || userType === "SuperAdmin" ? [
+      { to: "/invoices", label: "Invoices" }
+    ] : []),
     { to: "/contact", label: "Contact" }
   ];
 

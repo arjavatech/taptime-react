@@ -124,189 +124,260 @@ const Invoices = () => {
 
       {/* Loading Overlay */}
       {loading && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg flex items-center gap-3">
-            <Loader2 className="h-6 w-6 animate-spin text-[#01005a]" />
-            <span className="text-lg font-medium">Loading invoices...</span>
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <div className="bg-white rounded-lg p-6 shadow-xl">
+            <div className="flex items-center space-x-3">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
           </div>
         </div>
       )}
 
-      <main className="flex-grow container mx-auto px-4 py-8 pt-24">
+      <div className="pt-20 pb-8 flex-1 bg-gradient-to-br from-slate-50 to-blue-50">
         {/* Page Header */}
-        <div className="mb-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-                <Receipt className="h-8 w-8 text-[#01005a]" />
-                Invoices
-              </h1>
-              <p className="text-gray-600 mt-1">View and download your billing history</p>
-            </div>
+        <div className="border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-foreground">Invoices & Billing</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  View and download your billing history
+                </p>
+              </div>
+              {/* Month Filter Dropdown */}
+              <div className="relative w-full sm:w-auto">
+                <button
+                  onClick={() => setShowMonthDropdown(!showMonthDropdown)}
+                  className="w-full sm:w-auto flex items-center justify-between sm:justify-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-gray-600" />
+                    <span className="font-medium text-sm sm:text-base">{getSelectedMonthLabel()}</span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-gray-600 transition-transform ${showMonthDropdown ? 'rotate-180' : ''}`} />
+                </button>
 
-            {/* Month Filter Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setShowMonthDropdown(!showMonthDropdown)}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                <Calendar className="h-4 w-4 text-gray-600" />
-                <span className="font-medium">{getSelectedMonthLabel()}</span>
-                <ChevronDown className={`h-4 w-4 text-gray-600 transition-transform ${showMonthDropdown ? 'rotate-180' : ''}`} />
-              </button>
-
-              {showMonthDropdown && (
-                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-                  {monthOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => handleMonthSelect(option.value)}
-                      className={`w-full text-left px-4 py-2 hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg transition-colors ${
-                        selectedMonths === option.value ? 'bg-blue-50 text-[#01005a] font-medium' : 'text-gray-700'
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              )}
+                {showMonthDropdown && (
+                  <div className="absolute left-0 sm:right-0 mt-2 w-full sm:w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                    {monthOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => handleMonthSelect(option.value)}
+                        className={`w-full text-left px-4 py-2 hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg transition-colors ${
+                          selectedMonths === option.value ? 'bg-blue-50 text-[#01005a] font-medium' : 'text-gray-700'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Error State */}
-        {error && !loading && (
-          <Card className="border-red-200 bg-red-50">
-            <CardHeader>
-              <div className="flex items-center gap-2 text-red-800">
-                <AlertCircle className="h-5 w-5" />
-                <CardTitle>Error Loading Invoices</CardTitle>
+        {/* Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+
+          {/* Error State */}
+          {error && !loading && (
+            <Card className="border-red-200 bg-red-50">
+              <CardHeader>
+                <div className="flex items-center gap-2 text-red-800">
+                  <AlertCircle className="h-5 w-5" />
+                  <CardTitle>Error Loading Invoices</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p className="text-red-700">{error}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Empty State */}
+          {!loading && !error && invoices.length === 0 && (
+            <Card className="text-center py-8 sm:py-12">
+              <CardContent>
+                <FileText className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-muted-foreground mb-4" />
+                <h3 className="text-base sm:text-lg font-medium text-foreground mb-2">
+                  No Invoices Found
+                </h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  There are no invoices for the selected time period.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Desktop Table View */}
+          {!loading && !error && invoices.length > 0 && (
+            <>
+              <div className="hidden lg:block bg-white rounded-lg shadow-md overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[800px]">
+                    <thead className="bg-[#01005a] text-white">
+                      <tr>
+                        <th className="px-4 xl:px-6 py-4 text-left font-semibold text-sm">Date</th>
+                        <th className="px-4 xl:px-6 py-4 text-left font-semibold text-sm">Invoice ID</th>
+                        <th className="px-4 xl:px-6 py-4 text-left font-semibold text-sm">Amount</th>
+                        <th className="px-4 xl:px-6 py-4 text-left font-semibold text-sm">Employees</th>
+                        <th className="px-4 xl:px-6 py-4 text-left font-semibold text-sm">Status</th>
+                        <th className="px-4 xl:px-6 py-4 text-center font-semibold text-sm">Download</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {invoices.map((invoice) => (
+                        <tr key={invoice.invoice_id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 xl:px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                              <span className="text-gray-900 text-sm">{formatDate(invoice.created_at)}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 xl:px-6 py-4">
+                            <span className="font-mono text-xs text-gray-700">
+                              {invoice.stripe_invoice_id?.substring(0, 20) || 'N/A'}
+                            </span>
+                          </td>
+                          <td className="px-4 xl:px-6 py-4">
+                            <span className="font-semibold text-gray-900 text-sm">
+                              {formatCurrency(invoice.amount_paid || invoice.amount_due, invoice.currency)}
+                            </span>
+                          </td>
+                          <td className="px-4 xl:px-6 py-4">
+                            <span className="text-gray-700 text-sm">{invoice.employee_count || 'N/A'}</span>
+                          </td>
+                          <td className="px-4 xl:px-6 py-4">
+                            {getStatusBadge(invoice.invoice_status)}
+                          </td>
+                          <td className="px-4 xl:px-6 py-4 text-center">
+                            <Button
+                              onClick={() => handleDownloadPDF(invoice.invoice_pdf_url)}
+                              disabled={!invoice.invoice_pdf_url}
+                              variant="ghost"
+                              size="sm"
+                              className="hover:bg-blue-50"
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-red-700">{error}</p>
-            </CardContent>
-          </Card>
-        )}
 
-        {/* Empty State */}
-        {!loading && !error && invoices.length === 0 && (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-16">
-              <FileText className="h-16 w-16 text-gray-300 mb-4" />
-              <h3 className="text-xl font-semibold text-gray-700 mb-2">No Invoices Found</h3>
-              <p className="text-gray-500 text-center">
-                There are no invoices for the selected time period.
-              </p>
-            </CardContent>
-          </Card>
-        )}
+              {/* Tablet Table View */}
+              <div className="hidden md:block lg:hidden bg-white rounded-lg shadow-md overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[600px]">
+                    <thead className="bg-[#01005a] text-white">
+                      <tr>
+                        <th className="px-3 py-3 text-left font-semibold text-sm">Date</th>
+                        <th className="px-3 py-3 text-left font-semibold text-sm">Amount</th>
+                        <th className="px-3 py-3 text-left font-semibold text-sm">Status</th>
+                        <th className="px-3 py-3 text-center font-semibold text-sm">Download</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {invoices.map((invoice) => (
+                        <tr key={invoice.invoice_id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-3 py-4">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <Calendar className="h-4 w-4 text-gray-400" />
+                                <span className="text-gray-900 text-sm font-medium">{formatDate(invoice.created_at)}</span>
+                              </div>
+                              <div className="text-xs text-gray-500 font-mono">
+                                {invoice.stripe_invoice_id?.substring(0, 15) || 'N/A'}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-3 py-4">
+                            <div>
+                              <div className="font-semibold text-gray-900 text-sm">
+                                {formatCurrency(invoice.amount_paid || invoice.amount_due, invoice.currency)}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {invoice.employee_count || 'N/A'} employees
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-3 py-4">
+                            {getStatusBadge(invoice.invoice_status)}
+                          </td>
+                          <td className="px-3 py-4 text-center">
+                            <Button
+                              onClick={() => handleDownloadPDF(invoice.invoice_pdf_url)}
+                              disabled={!invoice.invoice_pdf_url}
+                              variant="ghost"
+                              size="sm"
+                              className="hover:bg-blue-50"
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
 
-        {/* Desktop Table View */}
-        {!loading && !error && invoices.length > 0 && (
-          <>
-            <div className="hidden md:block bg-white rounded-lg shadow-md overflow-hidden">
-              <table className="w-full">
-                <thead className="bg-[#01005a] text-white">
-                  <tr>
-                    <th className="px-6 py-4 text-left font-semibold">Date</th>
-                    <th className="px-6 py-4 text-left font-semibold">Invoice ID</th>
-                    <th className="px-6 py-4 text-left font-semibold">Amount</th>
-                    <th className="px-6 py-4 text-left font-semibold">Employees</th>
-                    <th className="px-6 py-4 text-left font-semibold">Status</th>
-                    <th className="px-6 py-4 text-center font-semibold">Download</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {invoices.map((invoice) => (
-                    <tr key={invoice.invoice_id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-gray-400" />
-                          <span className="text-gray-900">{formatDate(invoice.created_at)}</span>
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-3">
+                {invoices.map((invoice) => (
+                  <Card key={invoice.invoice_id} className="overflow-hidden shadow-sm">
+                    <CardHeader className="bg-gray-50 pb-3 px-4 py-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-2 min-w-0 flex-1">
+                          <FileText className="h-4 w-4 text-[#01005a] mt-0.5 flex-shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <CardTitle className="text-sm font-semibold text-gray-900">
+                              {formatDate(invoice.created_at)}
+                            </CardTitle>
+                            <CardDescription className="text-xs font-mono mt-1 text-gray-500 truncate">
+                              {invoice.stripe_invoice_id?.substring(0, 15) || 'N/A'}
+                            </CardDescription>
+                          </div>
                         </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="font-mono text-sm text-gray-700">
-                          {invoice.stripe_invoice_id?.substring(0, 20) || 'N/A'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="font-semibold text-gray-900">
-                          {formatCurrency(invoice.amount_paid || invoice.amount_due, invoice.currency)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-gray-700">{invoice.employee_count || 'N/A'}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        {getStatusBadge(invoice.invoice_status)}
-                      </td>
-                      <td className="px-6 py-4 text-center">
+                        <div className="flex-shrink-0">
+                          {getStatusBadge(invoice.invoice_status)}
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="px-4 py-3">
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Amount:</span>
+                          <span className="font-semibold text-gray-900 text-sm">
+                            {formatCurrency(invoice.amount_paid || invoice.amount_due, invoice.currency)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">Employees:</span>
+                          <span className="text-gray-900 text-sm">{invoice.employee_count || 'N/A'}</span>
+                        </div>
                         <Button
                           onClick={() => handleDownloadPDF(invoice.invoice_pdf_url)}
                           disabled={!invoice.invoice_pdf_url}
-                          variant="ghost"
+                          className="w-full bg-[#01005a] hover:bg-[#01005a]/90 text-white mt-3 text-sm py-2"
                           size="sm"
-                          className="hover:bg-blue-50"
                         >
-                          <Download className="h-4 w-4" />
+                          <Download className="h-4 w-4 mr-2" />
+                          Download PDF
                         </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile Card View */}
-            <div className="md:hidden space-y-4">
-              {invoices.map((invoice) => (
-                <Card key={invoice.invoice_id} className="overflow-hidden">
-                  <CardHeader className="bg-gray-50 pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-[#01005a]" />
-                        <div>
-                          <CardTitle className="text-base">
-                            {formatDate(invoice.created_at)}
-                          </CardTitle>
-                          <CardDescription className="text-xs font-mono mt-1">
-                            {invoice.stripe_invoice_id?.substring(0, 20) || 'N/A'}
-                          </CardDescription>
-                        </div>
                       </div>
-                      {getStatusBadge(invoice.invoice_status)}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-4">
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Amount:</span>
-                        <span className="font-semibold text-gray-900">
-                          {formatCurrency(invoice.amount_paid || invoice.amount_due, invoice.currency)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">Employees:</span>
-                        <span className="text-gray-900">{invoice.employee_count || 'N/A'}</span>
-                      </div>
-                      <Button
-                        onClick={() => handleDownloadPDF(invoice.invoice_pdf_url)}
-                        disabled={!invoice.invoice_pdf_url}
-                        className="w-full bg-[#01005a] hover:bg-[#01005a]/90 text-white"
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        Download PDF
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </>
-        )}
-      </main>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
 
       <Footer />
     </div>

@@ -352,7 +352,10 @@ export const createEmployeeWithData = async (employeeData) => {
       throw error;
     }
 
-    return await response.json();
+    const result = await response.json();
+    // Clear cache after successful creation to ensure fresh data on next fetch
+    clearApiCache();
+    return result;
   } catch (error) {
     console.error('Create employee error:', error);
     throw error;
@@ -383,7 +386,10 @@ export const bulkUploadEmployees = async (companyId, adminType, file) => {
       throw new Error(errorData.detail || `HTTP ${response.status}`);
     }
 
-    return await response.json();
+    const result = await response.json();
+    // Clear cache after successful bulk upload to ensure fresh data on next fetch
+    clearApiCache();
+    return result;
   } catch (error) {
     console.error('Bulk upload error:', error);
     throw error;
@@ -393,7 +399,10 @@ export const bulkUploadEmployees = async (companyId, adminType, file) => {
 
 export const deleteEmployeeById = async (empId) => {
   try {
-    return await api.delete(`${API_BASE}/employee/delete/${empId}/Admin`);
+    const result = await api.delete(`${API_BASE}/employee/delete/${empId}/Admin`);
+    // Clear cache after successful deletion to ensure fresh data on next fetch
+    clearApiCache();
+    return result;
   } catch (error) {
     console.error('Delete employee error:', error);
     throw error;
@@ -591,7 +600,10 @@ export const getAllReportEmails = async (companyId) => {
 
 export const createReportEmail = async (reportData) => {
   try {
-    return await api.post(`${API_BASE}/company-report-type/create`, reportData);
+    const result = await api.post(`${API_BASE}/company-report-type/create`, reportData);
+    // Clear cache after successful creation to ensure fresh data on next fetch
+    clearApiCache();
+    return result;
   } catch (error) {
     console.error('Error creating report email:', error);
     throw error;
@@ -600,7 +612,10 @@ export const createReportEmail = async (reportData) => {
 
 export const updateReportEmail = async (email, companyId, reportData) => {
   try {
-    return await api.put(`${API_BASE}/company-report-type/update/${email}/${companyId}`, reportData);
+    const result = await api.put(`${API_BASE}/company-report-type/update/${email}/${companyId}`, reportData);
+    // Clear cache after successful update to ensure fresh data on next fetch
+    clearApiCache();
+    return result;
   } catch (error) {
     console.error('Error updating report email:', error);
     throw error;
@@ -609,7 +624,10 @@ export const updateReportEmail = async (email, companyId, reportData) => {
 
 export const deleteReportEmail = async (email, companyId) => {
   try {
-    return await api.put(`${API_BASE}/company-report-type/delete/${email}/${companyId}/Admin`);
+    const result = await api.put(`${API_BASE}/company-report-type/delete/${email}/${companyId}/Admin`);
+    // Clear cache after successful deletion to ensure fresh data on next fetch
+    clearApiCache();
+    return result;
   } catch (error) {
     console.error('Error deleting report email:', error);
     throw error;
@@ -762,7 +780,10 @@ export const updateEmployeeWithData = async (cid, data) => {
     });
     
     if (!response.ok) throw new Error(`Error: ${response.status}`);
-    return await response.json();
+    const result = await response.json();
+    // Clear cache after successful update to ensure fresh data on next fetch
+    clearApiCache();
+    return result;
   } catch (error) {
     console.error("Update company error:", error);
     throw error;
@@ -1081,7 +1102,10 @@ export const getAllDevices = async (companyId) => {
 
 export const createDevice = async (deviceData) => {
   try {
-    return await api.post(`${API_BASE}/device/create`, deviceData);
+    const result = await api.post(`${API_BASE}/device/create`, deviceData);
+    // Clear cache after successful creation to ensure fresh data on next fetch
+    clearApiCache();
+    return result;
   } catch (error) {
     console.error('Error creating device:', error);
     throw error;
@@ -1090,7 +1114,10 @@ export const createDevice = async (deviceData) => {
 
 export const deleteDevice = async (accessKey, companyId) => {
   try {
-    return await api.put(`${API_BASE}/device/delete/${accessKey}/${companyId}/Admin`);
+    const result = await api.put(`${API_BASE}/device/delete/${accessKey}/${companyId}/Admin`);
+    // Clear cache after successful deletion to ensure fresh data on next fetch
+    clearApiCache();
+    return result;
   } catch (error) {
     console.error('Error deleting device:', error);
     throw error;

@@ -10,7 +10,8 @@ import {
   createReportEmail,
   updateReportEmail,
   deleteReportEmail,
-  createReportObject
+  createReportObject,
+  clearApiCache
 } from "../api.js";
 import {
   Settings,
@@ -267,6 +268,8 @@ const ReportSetting = ({ accessDenied = false }) => {
     setIsSubmitting(true);
     try {
       await createReportEmail(reportData);
+      // Clear API cache to ensure fresh data is fetched
+      clearApiCache();
       setModalSuccess("Email setting added successfully!");
       
       // Refresh table data immediately
@@ -294,6 +297,8 @@ const ReportSetting = ({ accessDenied = false }) => {
     setIsSubmitting(true);
     try {
       await updateReportEmail(currentEmail, company_id, reportData);
+      // Clear API cache to ensure fresh data is fetched
+      clearApiCache();
       setModalSuccess("Email setting updated successfully!");
       
       // Refresh table data immediately
@@ -317,6 +322,8 @@ const ReportSetting = ({ accessDenied = false }) => {
     setIsSubmitting(true);
     try {
       await deleteReportEmail(currentEmail, company_id);
+      // Clear API cache to ensure fresh data is fetched
+      clearApiCache();
       setModalSuccess("Email setting deleted successfully!");
       
       // Refresh table data immediately
