@@ -352,20 +352,15 @@ const Header = () => {
                         </div>
 
                         {/* Company Switcher Section */}
-                        {(() => {
-                          const adminType = localStorage.getItem("adminType");
-                          const storedCompanies = localStorage.getItem("userCompanies");
-                          const hasCompanies = adminType === "Owner" && storedCompanies && JSON.parse(storedCompanies).length > 1;
-                          return hasCompanies ? (
-                            <div className="px-6 pb-3">
-                              <CompanySwitcher 
-                                onAddCompanyClick={() => setShowProfileDropdown(false)} 
-                                onCompanySwitch={() => setShowProfileDropdown(false)}
-                                subscriptionStatus={subscriptionStatus}
-                              />
-                            </div>
-                          ) : null;
-                        })()}
+                        {localStorage.getItem("adminType") === "Owner" && (
+                          <div className="px-6 pb-3">
+                            <CompanySwitcher 
+                              onAddCompanyClick={() => setShowProfileDropdown(false)} 
+                              onCompanySwitch={() => setShowProfileDropdown(false)}
+                              subscriptionStatus={subscriptionStatus}
+                            />
+                          </div>
+                        )}
 
                         {/* Sign Out Section */}
                         <div className="px-6 pb-4">
@@ -463,33 +458,14 @@ const Header = () => {
               </nav>
               {isAuthenticated && (
                 <div className="px-4 pb-4">
-                  {(() => {
-                    const adminType = localStorage.getItem("adminType");
-                    const storedCompanies = localStorage.getItem("userCompanies");
-                    console.log("Mobile - adminType:", adminType);
-                    console.log("Mobile - storedCompanies:", storedCompanies);
-
-                    let hasCompanies = false;
-                    if (adminType === "Owner" && storedCompanies) {
-                      try {
-                        const companies = JSON.parse(storedCompanies);
-                        hasCompanies = companies.length > 0;
-                        console.log("Mobile - parsed companies:", companies);
-                      } catch (e) {
-                        console.log("Mobile - error parsing companies:", e);
-                      }
-                    }
-
-                    console.log("Mobile - hasCompanies:", hasCompanies);
-                    return hasCompanies ? (
-                      <div className="mb-6">
-                        <CompanySwitcher 
-                          onAddCompanyClick={() => setShowProfileSidebar(false)}
-                          subscriptionStatus={subscriptionStatus}
-                        />
-                      </div>
-                    ) : null;
-                  })()}
+                  {localStorage.getItem("adminType") === "Owner" && (
+                    <div className="mb-6">
+                      <CompanySwitcher 
+                        onAddCompanyClick={() => setShowProfileSidebar(false)}
+                        subscriptionStatus={subscriptionStatus}
+                      />
+                    </div>
+                  )}
                   <button
                     onClick={() => { setShowModal(true); setShowProfileDropdown(false); }}
                     className="w-full text-center justify-center px-2 py-2 bg-[#02066F] text-white rounded-md text-sm transition-all duration-200 flex items-center space-x-3 rounded-md group"
