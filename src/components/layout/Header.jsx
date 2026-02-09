@@ -3,71 +3,131 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import LogoutModal from "../ui/LogoutModal";
 import Avatar from "../ui/Avatar";
+import CompanySwitcher from "../ui/CompanySwitcher";
 import tapTimeLogo from "../../assets/images/tap-time-logo.png";
+import { googleSignInCheck } from "../../api";
 
 const Header = () => {
   const { user, session, signOut } = useAuth();
+
+  // Initialize as false to prevent showing authenticated UI before session validation
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showHomeModal, setShowHomeModal] = useState(false);
-  const [userType, setUserType] = useState("");
+  const [userType, setUserType] = useState(localStorage.getItem("adminType") || "");
   const [showProfileSidebar, setShowProfileSidebar] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [showReportsDropdown, setShowReportsDropdown] = useState(false);
   const [showMobileReportsDropdown, setShowMobileReportsDropdown] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(window.innerWidth <= 996);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [userProfile, setUserProfile] = useState({ 
+  const [userProfile, setUserProfile] = useState({
     name: "",
     email: "",
     picture: "",
+    companyName: ""
+  });
+  const [subscriptionStatus, setSubscriptionStatus] = useState({
+    is_subscription_valid: true,
+    subscription_message: ""
   });
 
   useEffect(() => {
-    const checkAuthStatus = () => {
-      // Check both AuthContext (Supabase session) AND localStorage (backend validation)
-      // User must be authenticated with Supabase AND have backend user data stored
+    const checkAuthStatus = async () => {
+      // Check if user is on login or public pages - force unauthenticated state
+      const isOnLoginPage = location.pathname === "/login" || location.pathname === "/forgot-password" || location.pathname === "/register";
+
+      if (isOnLoginPage) {
+        setIsAuthenticated(false);
+        setUserType("");
+        setUserProfile({ name: "", email: "", picture: "" });
+        return;
+      }
+
+      // Check Supabase session (auth tokens in sessionStorage)
       const hasSupabaseAuth = !!(user && session);
-      const adminMail = localStorage.getItem("adminMail");
-      const hasBackendData = !!adminMail;
 
-      // User is only truly authenticated if both conditions are met
-      const authenticated = hasSupabaseAuth && hasBackendData;
-      setIsAuthenticated(authenticated);
+      // If no Supabase auth, immediately clear localStorage and set as unauthenticated
+      if (!hasSupabaseAuth) {
+        localStorage.clear();
+        setIsAuthenticated(false);
+        setUserType("");
+        setUserProfile({ name: "", email: "", picture: "" });
+        return;
+      }
 
-      if (authenticated) {
+      // Only set authenticated if both Supabase auth exists AND user setup is complete
+      const isUserSetupComplete = localStorage.getItem("adminMail") && localStorage.getItem("adminType");
+      setIsAuthenticated(hasSupabaseAuth && !!isUserSetupComplete);
+
+      if (hasSupabaseAuth) {
         const adminType = localStorage.getItem("adminType") || "";
         const email = localStorage.getItem("adminMail") || "";
         const userName = localStorage.getItem("userName") || "";
         const userPictureUrl = localStorage.getItem("userPicture");
+        const companyName = localStorage.getItem("companyName") || "";
 
-        const fixedPictureUrl = userPictureUrl && !userPictureUrl.startsWith("http")
-          ? `https:${userPictureUrl}` : userPictureUrl;
+        // Check subscription status after login
+        if (email && isUserSetupComplete) {
+          try {
+            const response = await googleSignInCheck(email, 'email');
+            if (response.success && response.data) {
+              const { is_subscription_valid, subscription_message } = response.data;
+              setSubscriptionStatus({
+                is_subscription_valid: is_subscription_valid !== false,
+                subscription_message: subscription_message || ""
+              });
+            }
+          } catch (error) {
+            console.error('Error checking subscription status:', error);
+          }
+        }
+
+        // Determine if this is a Google login by checking if user has a profile picture
+        // For email-based login, always use default avatar (no picture)
+        const isGoogleLogin = userPictureUrl && userPictureUrl.trim() !== "";
+        let profilePicture = "";
+        if (isGoogleLogin) {
+          let imageUrl = userPictureUrl.startsWith("http") ? userPictureUrl : `https:${userPictureUrl}`;
+          // Fix Google profile picture URL - try different formats
+          if (imageUrl.includes('googleusercontent.com')) {
+            // Remove existing size parameters and use a simple format
+            imageUrl = imageUrl.replace(/=s\d+-c$/, '').replace(/=s\d+$/, '');
+            // Add size parameter that works better
+            imageUrl += '?sz=200';
+          }
+          profilePicture = imageUrl;
+        }
+
 
         setUserType(adminType);
         setUserProfile({
           name: userName,
           email: email,
-          picture: fixedPictureUrl || "",
-        });
-      } else {
-        // Reset user profile when not authenticated
-        setUserType("");
-        setUserProfile({
-          name: "",
-          email: "",
-          picture: "",
+          picture: profilePicture,
+          companyName: companyName
         });
       }
     };
 
     checkAuthStatus();
-  }, [user, session, location]);
+  }, [user, session, location.pathname]);
+
+  // Listen for company changes
+  useEffect(() => {
+    const handleCompanyChange = () => {
+      const companyName = localStorage.getItem("companyName") || "";
+      setUserProfile(prev => ({ ...prev, companyName }));
+    };
+
+    window.addEventListener('companyChanged', handleCompanyChange);
+    return () => window.removeEventListener('companyChanged', handleCompanyChange);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -94,6 +154,9 @@ const Header = () => {
   }, [showProfileSidebar, showProfileDropdown]);
 
   useEffect(() => {
+    // Set initial collapsed state after component mounts
+    setIsCollapsed(window.innerWidth <= 996);
+
     const handleResize = () => {
       setIsCollapsed(window.innerWidth <= 996);
     };
@@ -104,7 +167,8 @@ const Header = () => {
 
   const isActive = (path) => {
     if (path === "/" && location.pathname === "/") return true;
-    if (path !== "/" && location.pathname.startsWith(path)) return true;
+    if (path === "/login" && (location.pathname === "/login" || location.pathname === "/forgot-password")) return true;
+    if (path !== "/" && path !== "/login" && location.pathname.startsWith(path)) return true;
     return false;
   };
   const toggleSidebar = () => {
@@ -121,28 +185,34 @@ const Header = () => {
   };
 
   const publicNavItems = [
-    { to: "/", label: "Home" },
+    { to: "/", label: "Home" },    
+    { to: "/pricing", label: "Pricing" },
     { to: "/login", label: "Login" },
     { to: "/register", label: "Register" },
     { to: "/contact-us", label: "Contact Us" },
   ];
 
   const authenticatedNavItems = [
-    ...(userType !== "Admin" ? [{ to: "/device", label: "Device" }] : []),
+    ...(userType === "Owner" || userType === "SuperAdmin" ? [
+      { to: "/device", label: "Device" }
+    ] : []),
     { to: "/employee-management", label: "Employee Management" },
     ...(userType === "Admin" ? [
       { to: "/reportsummary", label: "Report Summary" }
     ] : [
-      { 
-        label: "Reports", 
+      {
+        label: "Reports",
         dropdown: true,
         items: [
           { to: "/reportsummary", label: "Report Summary" },
-          { to: "/reportsetting", label: "Report Settings" }
+          ...(userType === "Owner" || userType === "SuperAdmin" ? [{ to: "/reportsetting", label: "Report Settings" }] : [])
         ]
       }
     ]),
     { to: "/profile", label: "Profile" },
+    ...(userType === "Owner" || userType === "SuperAdmin" ? [
+      { to: "/invoices", label: "Invoices" }
+    ] : []),
     { to: "/contact", label: "Contact" }
   ];
 
@@ -159,10 +229,18 @@ const Header = () => {
                 alt="Tap Time Logo"
                 className="h-16 w-auto cursor-pointer"
                 onClick={() => setShowHomeModal(true)}
+                loading="eager"
+                decoding="async"
               />
             ) : (
               <Link to="/">
-                <img src={tapTimeLogo} alt="Tap Time Logo" className="h-16 w-auto" />
+                <img
+                  src={tapTimeLogo}
+                  alt="Tap Time Logo"
+                  className="h-16 w-auto"
+                  loading="eager"
+                  decoding="async"
+                />
               </Link>
             )}
           </div>
@@ -174,11 +252,10 @@ const Header = () => {
                   key={index}
                   href={item.href}
                   onClick={item.onClick}
-                  className={`${
-                    item.href === "#contact" && location.hash === "#contact"
-                      ? "text-[#02066F] bg-blue-50"
-                      : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
-                  } px-3 py-2 text-base font-medium rounded-md transition-all duration-150`}
+                  className={`${item.href === "#contact" && location.hash === "#contact"
+                    ? "text-[#02066F] bg-blue-50"
+                    : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
+                    } px-3 py-2 text-base font-medium rounded-md transition-all duration-150`}
                 >
                   {item.label}
                 </a>
@@ -186,11 +263,10 @@ const Header = () => {
                 <div key={index} className="relative reports-dropdown">
                   <button
                     onClick={() => setShowReportsDropdown(!showReportsDropdown)}
-                    className={`${
-                      location.pathname.includes("/report")
-                        ? "text-[#02066F] bg-blue-50"
-                        : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
-                    } px-3 py-2 text-base font-medium rounded-md transition-all duration-150 flex items-center gap-1`}
+                    className={`${location.pathname.includes("/report")
+                      ? "text-[#02066F] bg-blue-50"
+                      : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
+                      } px-3 py-2 text-base font-medium rounded-md transition-all duration-150 flex items-center gap-1`}
                   >
                     {item.label}
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -204,11 +280,10 @@ const Header = () => {
                           key={subIndex}
                           to={subItem.to}
                           onClick={() => setShowReportsDropdown(false)}
-                          className={`${
-                            isActive(subItem.to)
-                              ? "text-[#02066F] bg-blue-50"
-                              : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
-                          } block px-4 py-2 text-sm font-medium first:rounded-t-md last:rounded-b-md`}
+                          className={`${isActive(subItem.to)
+                            ? "text-[#02066F] bg-blue-50"
+                            : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
+                            } block px-4 py-2 text-sm font-medium first:rounded-t-md last:rounded-b-md`}
                         >
                           {subItem.label}
                         </Link>
@@ -220,11 +295,10 @@ const Header = () => {
                 <Link
                   key={index}
                   to={item.to}
-                  className={`${
-                    isActive(item.to)
-                      ? "text-[#02066F] bg-blue-50"
-                      : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
-                  } px-3 py-2 text-base font-medium rounded-md transition-all duration-150`}
+                  className={`${isActive(item.to)
+                    ? "text-[#02066F] bg-blue-50"
+                    : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
+                    } px-3 py-2 text-base font-medium rounded-md transition-all duration-150`}
                 >
                   {item.label}
                 </Link>
@@ -252,31 +326,52 @@ const Header = () => {
                     alt="Profile"
                   />
                 </button>
-                
-                {/* Desktop Profile Card */}
+
+                {/* Desktop Profile Menu */}
                 {showProfileDropdown && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowProfileDropdown(false)}></div>
-                    <div className="hidden lg:block absolute left-[-189px] top-full mt-2 z-50">
-                      <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-6 w-64">
-                        <div className="flex flex-col items-center text-center">
-                          <Avatar
-                            src={userProfile.picture}
-                            email={userProfile.email}
-                            size="lg"
-                            alt="Profile"
-                            className="mb-3"
-                          />
-                          {/* <h3 className="text-gray-900 font-medium text-lg mb-1">{userProfile.name || 'User'}</h3> */}
-                          <p className="text-black text-sm mb-4">{userProfile.email}</p>
+                    <div className="hidden lg:block absolute right-0 top-full mt-2 z-50">
+                      <div className="bg-white rounded-lg shadow-2xl border border-gray-200 min-w-[300px] overflow-hidden">
+                        {/* Profile Header */}
+                        <div className="px-6 py-5">
+                          <div className="flex items-center justify-center space-x-4">
+                            <Avatar
+                              src={userProfile.picture}
+                              email={userProfile.email}
+                              size="lg"
+                              alt="Profile"
+                              className="ring-2 ring-white/20"
+                            />
+
+                          </div>
+                          <div className="flex-1 min-w-0 py-3 text-center">
+                            <p className="text-[#02066F] font-medium truncate">{userProfile.name || userProfile.companyName}</p>
+                            <p className="text-gray-600 text-sm mt-1">{userProfile.email}</p>
+                          </div>
+                        </div>
+
+                        {/* Company Switcher Section */}
+                        {localStorage.getItem("adminType") === "Owner" && (
+                          <div className="px-6 pb-3">
+                            <CompanySwitcher 
+                              onAddCompanyClick={() => setShowProfileDropdown(false)} 
+                              onCompanySwitch={() => setShowProfileDropdown(false)}
+                              subscriptionStatus={subscriptionStatus}
+                            />
+                          </div>
+                        )}
+
+                        {/* Sign Out Section */}
+                        <div className="px-6 pb-4">
                           <button
                             onClick={() => { setShowModal(true); setShowProfileDropdown(false); }}
-                            className="w-full bg-[#02066F]  text-white py-2 px-4 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center gap-2"
+                            className="w-full text-center justify-center py-2 cursor-pointer bg-[#02066F] text-white rounded-md font-medium text-base transition-all duration-200 flex items-center space-x-3 rounded-md group"
                           >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-5 h-5 text-white " fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                             </svg>
-                            Sign Out
+                            <span className="font-medium">Sign Out</span>
                           </button>
                         </div>
                       </div>
@@ -296,124 +391,96 @@ const Header = () => {
 
         {/* Mobile Sidebar */}
         {sidebarOpen && (
-        <>
-          <div className="lg:hidden fixed inset-0 z-40" onClick={toggleSidebar}></div>
-          <aside className="fixed top-0 left-0 h-full w-64 bg-white shadow-xl z-50 border-r flex flex-col">
-            <div className="flex items-center justify-between px-4 py-4 border-b">
-              <img className="h-10 w-auto" src={tapTimeLogo} alt="Tap Time Logo" />
-              <button onClick={toggleSidebar} className="text-gray-400 hover:text-black">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <nav className="flex-1 px-4 py-4 space-y-1">
-              {navItems.map((item, index) => (
-                item.href ? (
-                  <a
-                    key={index}
-                    href={item.href}
-                    onClick={item.onClick}
-                    className="block px-3 py-2 text-gray-700 hover:text-[#02066F] hover:bg-gray-50 rounded-md font-medium text-base"
-                  >
-                    {item.label}
-                  </a>
-                ) : item.dropdown ? (
-                  <div key={index}>
-                    <button
-                      onClick={() => setShowMobileReportsDropdown(!showMobileReportsDropdown)}
-                      className="w-full text-left px-3 py-2 text-gray-700 hover:text-[#02066F] hover:bg-gray-50 rounded-md font-medium text-base flex items-center justify-between"
-                    >
-                      {item.label}
-                      <svg className={`w-4 h-4 transition-transform ${showMobileReportsDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                    {showMobileReportsDropdown && item.items.map((subItem, subIndex) => (
-                      <Link
-                        key={subIndex}
-                        to={subItem.to}
-                        className={`block px-6 py-2 rounded-md font-medium text-sm ml-3 ${
-                          isActive(subItem.to) 
-                            ? "text-[#02066F] bg-blue-50" 
-                            : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
-                        }`}
-                        onClick={toggleSidebar}
-                      >
-                        {subItem.label}
-                      </Link>
-                    ))}
-                  </div>
-                ) : (
-                  <Link
-                    key={index}
-                    to={item.to}
-                    className={`block px-3 py-2 rounded-md font-medium text-base ${
-                      isActive(item.to) 
-                        ? "text-[#02066F] bg-blue-50" 
-                        : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
-                    }`}
-                    onClick={toggleSidebar}
-                  >
-                    {item.label}
-                  </Link>
-                )
-              ))}
-            </nav>
-            {isAuthenticated && (
-              <div className="px-4 pb-4">
-                <button 
-                  className="w-full px-3 py-2 text-[#02066F] hover:text-[#030974] hover:bg-blue-50 rounded-md font-medium text-left text-base" 
-                  onClick={() => { setShowModal(true); setSidebarOpen(false); }}
-                >
-                  Sign Out
+          <>
+            <div className="lg:hidden fixed inset-0 z-40" onClick={toggleSidebar}></div>
+            <aside className="fixed top-0 left-0 h-full w-64 bg-white shadow-xl z-50 border-r flex flex-col">
+              <div className="flex items-center justify-between px-4 py-4 border-b">
+                <img className="h-10 w-auto" src={tapTimeLogo} alt="Tap Time Logo" />
+                <button onClick={toggleSidebar} className="text-gray-400 hover:text-black">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
                 </button>
               </div>
-            )}
-          </aside>
-        </>
-      )}
-      </header>
-
-      {/* Mobile Profile Sidebar */}
-      {isAuthenticated && showProfileSidebar && (
-        <>
-          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 animate-in fade-in-0 duration-200" onClick={() => setShowProfileSidebar(false)}></div>
-          <div className="fixed top-0 right-0 h-full w-80 bg-white shadow-xl z-50 border-l animate-in slide-in-from-right-0 duration-300">
-            <div className="flex items-center justify-between px-6 py-4 border-b">
-              <h3 className="text-lg font-semibold text-gray-900">Profile</h3>
-              <button onClick={() => setShowProfileSidebar(false)} className="text-gray-400 hover:text-black">
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="px-6 py-6">
-              <div className="flex items-center space-x-4 mb-6">
-                <Avatar
-                  src={userProfile.picture}
-                  email={userProfile.email}
-                  size="lg"
-                  alt="Profile"
-                />
-                <div>
-                  <h4 className="text-lg font-medium text-gray-900">{userProfile.name}</h4>
-                  <p className="text-sm text-gray-500">{userProfile.email}</p>
+              <nav className="flex-1 px-4 py-4 space-y-1">
+                {navItems.map((item, index) => (
+                  item.href ? (
+                    <a
+                      key={index}
+                      href={item.href}
+                      onClick={item.onClick}
+                      className="block px-3 py-2 text-gray-700 hover:text-[#02066F] hover:bg-gray-50 rounded-md font-medium text-base"
+                    >
+                      {item.label}
+                    </a>
+                  ) : item.dropdown ? (
+                    <div key={index}>
+                      <button
+                        onClick={() => setShowMobileReportsDropdown(!showMobileReportsDropdown)}
+                        className={`w-full text-left px-3 py-2 rounded-md font-medium text-base flex items-center justify-between ${location.pathname.includes("/report")
+                          ? "text-[#02066F] bg-blue-50"
+                          : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
+                          }`}
+                      >
+                        {item.label}
+                        <svg className={`w-4 h-4 transition-transform ${showMobileReportsDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      {showMobileReportsDropdown && item.items.map((subItem, subIndex) => (
+                        <Link
+                          key={subIndex}
+                          to={subItem.to}
+                          className={`block px-6 py-2 rounded-md font-medium text-sm ml-3 ${isActive(subItem.to)
+                            ? "text-[#02066F] bg-blue-50"
+                            : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
+                            }`}
+                          onClick={toggleSidebar}
+                        >
+                          {subItem.label}
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <Link
+                      key={index}
+                      to={item.to}
+                      className={`block px-3 py-2 rounded-md font-medium text-base ${isActive(item.to)
+                        ? "text-[#02066F] bg-blue-50"
+                        : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
+                        }`}
+                      onClick={toggleSidebar}
+                    >
+                      {item.label}
+                    </Link>
+                  )
+                ))}
+              </nav>
+              {isAuthenticated && (
+                <div className="px-4 pb-4">
+                  {localStorage.getItem("adminType") === "Owner" && (
+                    <div className="mb-6">
+                      <CompanySwitcher 
+                        onAddCompanyClick={() => setShowProfileSidebar(false)}
+                        subscriptionStatus={subscriptionStatus}
+                      />
+                    </div>
+                  )}
+                  <button
+                    onClick={() => { setShowModal(true); setShowProfileDropdown(false); }}
+                    className="w-full text-center justify-center px-2 py-2 bg-[#02066F] text-white rounded-md text-sm transition-all duration-200 flex items-center space-x-3 rounded-md group"
+                  >
+                    <svg className="w-5 h-5 text-white " fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    <span className="font-medium">Sign Out</span>
+                  </button>
                 </div>
-              </div>
-              <button
-                onClick={() => { setShowModal(true); setShowProfileSidebar(false); }}
-                className="w-full flex items-center justify-center px-4 py-2 bg-gradient-to-r from-[#01005a] to-[#01005a]/90 text-white font-medium rounded-lg hover:brightness-105 transition-all duration-200"
-              >
-                <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                Sign Out
-              </button>
-            </div>
-          </div>
-        </>
-      )}
+              )}
+            </aside>
+          </>
+        )}
+      </header>
 
       <LogoutModal
         isOpen={showModal}
@@ -422,7 +489,7 @@ const Header = () => {
         userName={userProfile.name}
       />
 
-      
+
     </>
   );
 };

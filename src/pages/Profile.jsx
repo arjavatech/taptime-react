@@ -1,17 +1,16 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Header from "../components/layout/Header";
-import Footer from "../components/layout/Footer";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { updateProfile } from "../api.js";
+import { updateProfile, updateEmployeeWithData } from "../api.js";
 import { initializeUserSession, loadProfileData, logoutUser } from "./ProfilePageLogic.js";
+import Footer from "@/components/layout/Footer";
 import {
   User,
   Building,
   Mail,
-  Phone,
   MapPin,
   Camera,
   Save,
@@ -19,9 +18,13 @@ import {
   CheckCircle,
   AlertCircle,
   Loader2,
-  X
+  X,
+  CreditCard,
+  Users,
+  Monitor,
+  ArrowUpCircle
 } from "lucide-react";
-import { useModalClose, useZipLookup } from "../hooks";
+import { useZipLookup } from "../hooks";
 import { PhoneInput } from 'react-international-phone';
 import 'react-international-phone/style.css';
 
@@ -29,7 +32,7 @@ const Profile = () => {
   // Utility function to capitalize first letter of each word
   const capitalizeFirst = (str) => {
     if (!str) return str;
-    return str.split(' ').map(word => 
+    return str.split(' ').map(word =>
       word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
     ).join(' ');
   };
@@ -98,12 +101,11 @@ const Profile = () => {
   });
 
   const [companyId, setCompanyId] = useState("");
-    
-  // Check if user can edit company details
-  const canEditCompany = userType === "SuperAdmin" || userType === "Owner";
-  
-  // Handle modal close events for loading overlay
-  useModalClose(isLoading, () => {}, 'profile-loading-modal');
+  const [deviceCount, setDeviceCount] = useState(localStorage.getItem("NoOfDevices") || "0");
+  const [employeeCount, setEmployeeCount] = useState(localStorage.getItem("NoOfEmployees") || "0");
+
+  // Check if user can edit company details - only Owner is allowed
+  const canEditCompany = userType === "Owner";
 
   // ZIP code auto-fill callbacks
   const handleCompanyZipResult = useCallback((result) => {
@@ -146,23 +148,9 @@ const Profile = () => {
     handlePersonalZipResult
   );
 
-  const formatphone_number = (value) => {
-    const digits = value.replace(/\D/g, '').slice(0, 10);
-    let formatted = '';
-    if (digits.length > 6) {
-      formatted = `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-    } else if (digits.length > 3) {
-      formatted = `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-    } else if (digits.length > 0) {
-      formatted = `(${digits}`;
-    }
-    return formatted;
-  };
+
 
   const handlePersonalInputChange = (field, value) => {
-    console.log(`Personal input change - Field: ${field}, Value: ${value}`);
-    console.log('Current activeTab:', activeTab);
-    console.log('Current isEditing.personal:', isEditing.personal);
 
     // Restrict zipCode to 5 digits only
     if (field === "zipCode" && value && !/^\d{0,5}$/.test(value)) {
@@ -176,13 +164,8 @@ const Profile = () => {
     };
 
     const actualField = fieldMap[field] || field;
-    console.log(`Mapping ${field} to ${actualField} with value: ${value}`);
-    
-    setPersonalData(prev => {
-      const newData = { ...prev, [actualField]: value };
-      console.log('Updated personalData:', newData);
-      return newData;
-    });
+
+    setPersonalData(prev => ({ ...prev, [actualField]: value }));
 
     const errorField = field === "address" ? "customerStreet" :
       field === "city" ? "customerCity" :
@@ -195,12 +178,7 @@ const Profile = () => {
   };
 
   const handleAdminInputChange = (field, value) => {
-    console.log(`Admin input change - Field: ${field}, Value: ${value}`);
-    setAdminData(prev => {
-      const newData = { ...prev, [field]: value };
-      console.log('Updated adminData:', newData);
-      return newData;
-    });
+    setAdminData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: "" }));
     }
@@ -292,19 +270,20 @@ const Profile = () => {
       setCompanyId(companyId);
       setUserType(userType);
 
-      // Auto-redirect Admin users to Admin Information tab
+      // Set default tab based on user type
       if (userType === "Admin" || userType === "SuperAdmin") {
         setActiveTab("admin");
+      } else if (userType === "Owner") {
+        setActiveTab("company");
       }
 
       const formData = loadProfileData(adminDetails);
-      console.log("Loaded form data:", formData);
 
       setPersonalData({
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
-        phone: formatphone_number(formData.phone || ""),
+        phone: formData.phone || "",
         address: formData.customerStreet,
         street2: formData.customerStreet2,
         customerCity: formData.customerCity,
@@ -313,7 +292,7 @@ const Profile = () => {
         pin: formData.adminPin,
         decryptedPassword: formData.decryptedPassword,
       });
-     
+
 
       setAdminData({
         firstName: formData.firstName,
@@ -340,14 +319,55 @@ const Profile = () => {
       // Initialize employmentTypes array from stored CSV
       setEmploymentTypes(storedEmploymentType.split(',').filter(t => t.trim()));
 
+
       setIsLoading(false);
     };
 
     initializeProfile();
   }, []);
 
+  // Listen for company changes and update profile data
+  useEffect(() => {
+    const handleCompanyChange = async () => {
+      const { companyId, userType, adminDetails } = await initializeUserSession();
+      const formData = loadProfileData(adminDetails);
+      
+      // Update company data with new logo
+      const storedEmploymentType = localStorage.getItem("employmentType") || "";
+      setCompanyData({
+        name: formData.companyName,
+        address: formData.companyStreet,
+        street2: formData.companyStreet2,
+        city: formData.companyCity,
+        state: formData.companyState,
+        companyZip: formData.companyZip,
+        logo: formData.logo,
+        employmentType: storedEmploymentType.split(',').filter(t => t.trim()).join(','),
+      });
+      
+      setEmploymentTypes(storedEmploymentType.split(',').filter(t => t.trim()));
+      
+      // Update device and employee counts
+      setDeviceCount(localStorage.getItem("NoOfDevices") || "0");
+      setEmployeeCount(localStorage.getItem("NoOfEmployees") || "0");
+    };
+
+    window.addEventListener('companyChanged', handleCompanyChange);
+    return () => window.removeEventListener('companyChanged', handleCompanyChange);
+  }, []);
+
+  // Email validation helper
+  const isValidEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) return false;
+    
+    const domain = email.split('@')[1];
+    // Check for valid domain patterns - must have proper structure
+    const validDomainRegex = /^[a-zA-Z0-9][a-zA-Z0-9.-]*[a-zA-Z0-9]\.[a-zA-Z]{2,}$/;
+    return validDomainRegex.test(domain);
+  };
+
   const validatePersonalForm = () => {
-    console.log("Validating personal form with data:", personalData);
     let isValid = true;
     const newErrors = { ...errors };
 
@@ -361,13 +381,11 @@ const Profile = () => {
     newErrors.phone = "";
 
     if (!personalData.firstName || !personalData.firstName.trim()) {
-      console.log("firstName validation failed:", personalData.firstName);
       newErrors.firstName = "Please fill out this field";
       isValid = false;
     }
 
     if (!personalData.lastName || !personalData.lastName.trim()) {
-      console.log("lastName validation failed:", personalData.lastName);
       newErrors.lastName = "Please fill out this field";
       isValid = false;
     }
@@ -375,19 +393,16 @@ const Profile = () => {
 
 
     if (!personalData.email || !personalData.email.trim()) {
-      console.log("email validation failed:", personalData.email);
       newErrors.email = "Please fill out this field";
       isValid = false;
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(personalData.email)) {
-      console.log("email format validation failed:", personalData.email);
-      newErrors.email = "Valid email is required";
+    } else if (!isValidEmail(personalData.email)) {
+      newErrors.email = "Please enter a valid email address";
       isValid = false;
     }
 
     if (personalData.phone) {
       const digits = personalData.phone.replace(/\D/g, '');
       if (digits.length < 10) {
-        console.log("phone format validation failed:", personalData.phone);
         newErrors.phone = "Invalid phone number format";
         isValid = false;
       }
@@ -400,17 +415,14 @@ const Profile = () => {
 
     if (userType === "Admin" || userType === "SuperAdmin") {
       if (!personalData.pin || !personalData.pin.trim()) {
-        console.log("pin validation failed:", personalData.pin);
         newErrors.pin = "Admin PIN is required";
         isValid = false;
       } else if (!/^\d{4,6}$/.test(personalData.pin)) {
-        console.log("pin format validation failed:", personalData.pin);
         newErrors.pin = "PIN must be 4-6 digits";
         isValid = false;
       }
     }
 
-    console.log("Validation result:", isValid, "Errors:", newErrors);
     setErrors(newErrors);
     return isValid;
   };
@@ -457,10 +469,38 @@ const Profile = () => {
     return isValid;
   };
 
+  const validateAdminForm = () => {
+    let isValid = true;
+    const newErrors = { ...errors };
+
+    newErrors.firstName = "";
+    newErrors.lastName = "";
+    newErrors.email = "";
+
+    if (!adminData.firstName || !adminData.firstName.trim()) {
+      newErrors.firstName = "Please fill out this field";
+      isValid = false;
+    }
+
+    if (!adminData.lastName || !adminData.lastName.trim()) {
+      newErrors.lastName = "Please fill out this field";
+      isValid = false;
+    }
+
+    if (!adminData.email || !adminData.email.trim()) {
+      newErrors.email = "Please fill out this field";
+      isValid = false;
+    } else if (!isValidEmail(adminData.email)) {
+      newErrors.email = "Please enter a valid email address";
+      isValid = false;
+    }
+
+    setErrors(newErrors);
+    return isValid;
+  };
+
   const handleSavePersonal = async () => {
-    console.log("handleSavePersonal called");
     if (!validatePersonalForm()) {
-      console.log("Validation failed");
       return;
     }
 
@@ -491,9 +531,10 @@ const Profile = () => {
         customer_state: personalData.customerState || "",
         customer_zip_code: personalData.zipCode || "",
         is_verified: localStorage.getItem("isVerified") === "true",
-        device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
-        employee_count: parseInt(localStorage.getItem("noOfEmployees") || "30"),
-        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system"
+        device_count: parseInt(localStorage.getItem("NoOfDevices")),
+        employee_count: parseInt(localStorage.getItem("NoOfEmployees")),
+        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system",
+        employment_type: employmentTypes.join(',')
       };
 
       const formData = new FormData();
@@ -503,14 +544,14 @@ const Profile = () => {
       if (logoFile) {
         formData.append('company_logo', logoFile);
       }
-      console.log("Submitting personal update with data:", companyDataPayload);
+
 
       const result = await updateProfile(companyId, formData);
 
-      
+
 
       // Reset logoFile after successful save
-      setLogoFile(null);
+      // setLogoFile(null);
 
       // Update localStorage after successful API call
       if (userType === "Owner") {
@@ -519,7 +560,7 @@ const Profile = () => {
         localStorage.setItem("companyStreet2", companyData.street2 || "");
         localStorage.setItem("companyCity", companyData.city);
         localStorage.setItem("companyState", companyData.state);
-        localStorage.setItem("companyZip", companyData.zipCode);
+        localStorage.setItem("companyZip", companyData.companyZip);
         if (companyData.logo) {
           localStorage.setItem("companyLogo", companyData.logo);
         }
@@ -535,7 +576,7 @@ const Profile = () => {
       localStorage.setItem("customerStreet2", personalData.street2 || "");
       localStorage.setItem("customerCity", personalData.customerCity);
       localStorage.setItem("customerState", personalData.customerState);
-      localStorage.setItem("customerZip", personalData.customerZip);
+      localStorage.setItem("customerZip", personalData.zipCode);
 
       setSaveSuccess("Personal information updated successfully!");
       setTimeout(() => {
@@ -543,7 +584,7 @@ const Profile = () => {
         setIsEditing(prev => ({ ...prev, personal: false }));
       }, 1000);
     } catch (error) {
-      console.error("Save Personal Error:", error);
+
       setSaveError(error.message || "Failed to update personal information");
       setTimeout(() => {
         setSaveError("");
@@ -554,8 +595,9 @@ const Profile = () => {
   };
 
   const handleSaveAdmin = async () => {
-    console.log("handleSaveAdmin called");
-    console.log("Current adminData state:", adminData);
+    if (!validateAdminForm()) {
+      return;
+    }
 
     if (!companyId) {
       return;
@@ -566,32 +608,28 @@ const Profile = () => {
     setIsSaving(true);
 
     try {
-      const updateData = {
-        company_name: companyData.name || "",
-        company_logo: companyData.logo || "",
-        report_type: localStorage.getItem("reportType"),
-        company_address_line1: companyData.address || "",
-        company_address_line2: companyData.street2 || "",
-        company_city: companyData.city || "",
-        company_state: companyData.state || "",
-        company_zip_code: companyData.companyZip || "",
+      // Get the logged admin data to find the employee ID
+      const loggedAdmin = JSON.parse(localStorage.getItem("loggedAdmin") || "{}");
+      const empId = loggedAdmin.emp_id;
+
+      if (!empId) {
+        throw new Error("Employee ID not found");
+      }
+
+      // Use updateEmployeeWithData for super admin and admin updates
+      const employeeUpdateData = {
         first_name: adminData.firstName || "",
         last_name: adminData.lastName || "",
         email: adminData.email || "",
         phone_number: adminData.phone ? adminData.phone.replace(/\D/g, '') : "",
-        customer_address_line1: personalData.address || "",
-        customer_address_line2:personalData.street2 || "",
-        customer_city: personalData.customerCity,
-        customer_state: personalData.customerState || "",
-        customer_zip_code: personalData.zipCode || "",
-        is_verified: localStorage.getItem("isVerified") === "true",
-        device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
-        employee_count: parseInt(localStorage.getItem("noOfEmployees") || "30"),
-        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system"
+        pin: adminData.pin || "",
+        is_admin: loggedAdmin.is_admin || 1,
+        is_active: true,
+        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system",
+        c_id: companyId
       };
 
-      const result = await updateProfile(companyId, updateData);
-
+      const result = await updateEmployeeWithData(empId, employeeUpdateData);
 
       localStorage.setItem("firstName", adminData.firstName);
       localStorage.setItem("lastName", adminData.lastName);
@@ -606,7 +644,7 @@ const Profile = () => {
         setIsEditing(prev => ({ ...prev, admin: false }));
       }, 1000);
     } catch (error) {
-      console.error("Save Admin Error:", error);
+
       setSaveError(error.message || "Failed to update admin information");
       setTimeout(() => {
         setSaveError("");
@@ -617,17 +655,14 @@ const Profile = () => {
   };
 
   const handleSaveCompany = async () => {
-    console.log("handleSaveCompany called");
-    
-    // Check authorization
+    // Check authorization - only Owner can edit company data
     if (!canEditCompany) {
-      setSaveError("Only Super Admins and Owners are authorized to edit company details.");
+      setSaveError("Only Owners are authorized to edit company details.");
       setTimeout(() => setSaveError(""), 3000);
       return;
     }
-    
+
     if (!validateCompanyForm()) {
-      console.log("Validation failed");
       return;
     }
 
@@ -648,7 +683,6 @@ const Profile = () => {
         company_city: companyData.city || "",
         company_state: companyData.state || "",
         company_zip_code: companyData.companyZip || "",
-        employment_type: employmentTypes.join(','),
         first_name: personalData.firstName || "",
         last_name: personalData.lastName || "",
         email: personalData.email || "",
@@ -659,26 +693,31 @@ const Profile = () => {
         customer_state: personalData.customerState || "",
         customer_zip_code: personalData.zipCode || "",
         is_verified: true,
-        device_count: parseInt(localStorage.getItem("noOfDevices") || "1"),
-        employee_count: parseInt(localStorage.getItem("noOfEmployees") || "30"),
-        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system"
+        device_count: parseInt(localStorage.getItem("NoOfDevices")),
+        employee_count: parseInt(localStorage.getItem("NoOfEmployees")),
+        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system",
+        employment_type: employmentTypes.join(',')
       };
+
+      console.log(companyDataPayload);
+
 
       const formData = new FormData();
       formData.append('company_data', JSON.stringify(companyDataPayload));
+
 
       // Only add logo file if it has been changed
       if (logoFile) {
         formData.append('company_logo', logoFile);
 
-        
+
       }
-      console.log("Submitting company update with data:", companyDataPayload);
+
 
       const result = await updateProfile(companyId, formData);
 
       // Reset logoFile after successful save
-      setLogoFile(null);
+      // setLogoFile(null);
 
       // Update localStorage after successful API call
       localStorage.setItem("companyName", companyData.name);
@@ -686,7 +725,7 @@ const Profile = () => {
       localStorage.setItem("companyStreet2", companyData.street2 || "");
       localStorage.setItem("companyCity", companyData.city);
       localStorage.setItem("companyState", companyData.state);
-      localStorage.setItem("companyZip", companyData.zipCode);
+      localStorage.setItem("companyZip", companyData.companyZip);
       localStorage.setItem("employmentType", companyData.employmentType);
       if (companyData.logo) {
         localStorage.setItem("companyLogo", companyData.logo);
@@ -698,7 +737,7 @@ const Profile = () => {
         setIsEditing(prev => ({ ...prev, company: false }));
       }, 1000);
     } catch (error) {
-      console.error("Company Save Error:", error);
+
       setSaveError(error.message || "Failed to update company information");
       setTimeout(() => {
         setSaveError("");
@@ -741,8 +780,9 @@ const Profile = () => {
         street2: formData.companyStreet2,
         city: formData.companyCity,
         state: formData.companyState,
-        zipCode: formData.companyZip,
-        logo: formData.logo
+        companyZip: formData.companyZip,
+        logo: formData.logo,
+        employmentType: formData.employmentType || ""
       });
     } else if (type === "admin") {
       setAdminData({
@@ -771,7 +811,7 @@ const Profile = () => {
       phone: "",
       pin: "",
     });
-    
+
     // Exit edit mode
     setIsEditing(prev => ({ ...prev, [type]: false }));
   };
@@ -796,12 +836,12 @@ const Profile = () => {
         <div className="border-b">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-primary/10 rounded-full flex items-center justify-center">
-                <User className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                <User className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-primary" />
               </div>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-foreground">Profile Settings</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-foreground">Profile Settings</h1>
+                <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
                   Manage your account and company information
                 </p>
               </div>
@@ -812,23 +852,25 @@ const Profile = () => {
         {/* Tabs */}
         <div className="border-b">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <nav className="flex space-x-4 sm:space-x-8 overflow-x-auto">
+            <nav className="flex space-x-2 sm:space-x-4 md:space-x-8 overflow-x-auto">
               {[
-                ...(userType !== "Admin" && userType !== "SuperAdmin" ? [{ key: "personal", label: "Personal Information", icon: User }] : []),
                 { key: "company", label: "Company Information", icon: Building },
-                ...(userType === "Admin" || userType === "SuperAdmin" ? [{ key: "admin", label: userType === "SuperAdmin" ? "Super Admin Information" : "Admin Information", icon: User }] : [])
+                ...(userType !== "Admin" && userType !== "SuperAdmin" ? [{ key: "personal", label: "Personal Information", icon: User }] : []),
+                
+                ...(userType === "Admin" || userType === "SuperAdmin" ? [{ key: "admin", label: userType === "SuperAdmin" ? "Super Admin Information" : "Admin Information", icon: User }] : []),
+                ...(userType === "Owner" ? [{ key: "subscription", label: "Subscription", icon: CreditCard }] : [])
               ].map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}
                   onClick={() => setActiveTab(key)}
-                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 whitespace-nowrap ${activeTab === key
+                  className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center gap-1 sm:gap-2 whitespace-nowrap ${activeTab === key
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
                     }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
                   <span className="hidden sm:inline">{label}</span>
-                  <span className="sm:hidden">{key === "personal" ? "Personal" : "Company"}</span>
+                  <span className="sm:hidden">{key === "personal" ? "Personal" : key === "company" ? "Company" : key === "admin" && userType === "SuperAdmin" ? "Super Admin" : key === "subscription" ? "Plan" : "Admin"}</span>
                 </button>
               ))}
             </nav>
@@ -836,7 +878,7 @@ const Profile = () => {
         </div>
 
         {/* Content */}
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
           {activeTab === "personal" && userType !== "Admin" && userType !== "SuperAdmin" && (
             <Card>
               <CardHeader>
@@ -895,8 +937,8 @@ const Profile = () => {
                     {errors.lastName && <p className="text-sm text-red-600">{errors.lastName}</p>}
                   </div>
 
-                  <div className="space-y-2 sm:col-span-2">
-                    <Label htmlFor="email">email Address</Label>
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email Address</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                       <Input
@@ -924,7 +966,6 @@ const Profile = () => {
                       style={{
                         '--react-international-phone-border-radius': '0.375rem',
                         '--react-international-phone-border-color': errors.phone ? '#ef4444' : '#e5e7eb',
-                        '--react-international-phone-background-color': '#ffffff',
                         '--react-international-phone-text-color': '#000000',
                         '--react-international-phone-selected-dropdown-item-background-color': '#f3f4f6',
                         '--react-international-phone-height': '2.5rem'
@@ -1065,7 +1106,7 @@ const Profile = () => {
                   )}
                   {!canEditCompany && (
                     <div className="text-sm text-muted-foreground bg-muted px-3 py-2 rounded-md">
-                      Only Super Admins and Owners can edit company details
+                      Only Owners can edit company details
                     </div>
                   )}
                 </div>
@@ -1076,8 +1117,19 @@ const Profile = () => {
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6">
                   <div className="relative">
                     <div className="w-16 h-16 sm:w-20 sm:h-20 bg-muted rounded-lg flex items-center justify-center overflow-hidden">
-                      {companyData.logo ? (
-                        <img src={companyData.logo} alt="Company Logo" className="w-full h-full object-cover" />
+                      {companyData.logo && companyData.logo.trim() !== '' ? (
+                        <img 
+                          src={companyData.logo} 
+                          alt="Company Logo" 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            console.log('Logo failed to load:', companyData.logo);
+                            e.target.parentElement.innerHTML = '<svg class="w-6 h-6 sm:w-8 sm:h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>';
+                          }}
+                          onLoad={() => {
+                            console.log('Logo loaded successfully:', companyData.logo);
+                          }}
+                        />
                       ) : (
                         <Building className="w-6 h-6 sm:w-8 sm:h-8 text-muted-foreground" />
                       )}
@@ -1190,9 +1242,11 @@ const Profile = () => {
                     {errors.companyZip && <p className="text-sm text-red-600">{errors.companyZip}</p>}
                   </div>
 
+
+
                   <div className="space-y-2 sm:col-span-2">
                     <Label htmlFor="employmentType">Employment Types</Label>
-                    <div className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-0 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[42px] flex-wrap gap-2 items-center ${!isEditing.company ? 'opacity-50' : ''}`}>
+                    <div className={`flex min-h-[40px] w-full rounded-md border border-input bg-background px-3 py-0 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-[42px] flex-wrap gap-2 items-center ${!isEditing.company ? 'opacity-50' : ''}`}>
                       {employmentTypes.map((type, index) => (
                         <span
                           key={index}
@@ -1343,7 +1397,6 @@ const Profile = () => {
                       style={{
                         '--react-international-phone-border-radius': '0.375rem',
                         '--react-international-phone-border-color': '#e5e7eb',
-                        '--react-international-phone-background-color': '#ffffff',
                         '--react-international-phone-text-color': '#000000',
                         '--react-international-phone-selected-dropdown-item-background-color': '#f3f4f6',
                         '--react-international-phone-height': '2.5rem'
@@ -1361,9 +1414,10 @@ const Profile = () => {
                         value={adminData.email}
                         onChange={(e) => handleAdminInputChange("email", e.target.value)}
                         disabled={!isEditing.admin}
-                        className="pl-10"
+                        className={`pl-10 ${errors.email ? "border-red-500" : ""}`}
                       />
                     </div>
+                    {errors.email && <p className="text-sm text-red-600">{errors.email}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -1427,9 +1481,69 @@ const Profile = () => {
               </CardContent>
             </Card>
           )}
+
+          {activeTab === "subscription" && userType === "Owner" && (
+            <Card>
+              <CardHeader>
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="w-5 h-5" />
+                    Subscription Overview
+                  </CardTitle>
+                  <CardDescription>
+                    View your current plan details and upgrade options
+                  </CardDescription>
+                </div>
+              </CardHeader>
+
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="p-4 border rounded-lg">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Monitor className="w-5 h-5 text-primary" />
+                      <h3 className="font-medium">Total Devices</h3>
+                    </div>
+                    <p className="text-2xl font-bold text-primary">
+                      {deviceCount}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Active devices in your system
+                    </p>
+                  </div>
+
+                  <div className="p-4 border rounded-lg">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Users className="w-5 h-5 text-primary" />
+                      <h3 className="font-medium">Total Employees</h3>
+                    </div>
+                    <p className="text-2xl font-bold text-primary">
+                      {employeeCount}
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Registered employees
+                    </p>
+                  </div>
+                </div>
+
+                {/* <div className="p-6 bg-muted rounded-lg border">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                      <h3 className="font-semibold text-lg mb-2">Upgrade Your Plan</h3>
+                      <p className="text-muted-foreground">
+                        Need more devices or employees? Upgrade your subscription to unlock additional capacity and features.
+                      </p>
+                    </div>
+                    <Button className="flex items-center gap-2">
+                      <ArrowUpCircle className="w-4 h-4" />
+                      Upgrade Plan
+                    </Button>
+                  </div>
+                </div> */}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
-
       <Footer />
     </div>
   );

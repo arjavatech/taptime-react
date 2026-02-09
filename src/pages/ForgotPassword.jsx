@@ -38,7 +38,11 @@ const ForgotPassword = () => {
       const { error } = await resetPassword(email);
       
       if (error) {
-        setError("Failed to send reset email. Please try again.");
+        if (error === "You are not a user") {
+          setError("You are not a user");
+        } else {
+          setError("Failed to send reset email. Please try again.");
+        }
       } else {
         setMessage("Check your email for password reset instructions.");
       }
@@ -120,8 +124,15 @@ const ForgotPassword = () => {
                         placeholder="Enter your email"
                         value={email}
                         onChange={(e) => {
-                          setEmail(e.target.value);
+                          const value = e.target.value.replace(/[^a-zA-Z0-9@._-]/g, '');
+                          setEmail(value);
                           setError("");
+                        }}
+                        onKeyPress={(e) => {
+                          const allowedChars = /[a-zA-Z0-9@._-]/;
+                          if (!allowedChars.test(e.key)) {
+                            e.preventDefault();
+                          }
                         }}
                         className="pl-10 h-10 sm:h-11 text-sm sm:text-base"
                         disabled={loading}

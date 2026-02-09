@@ -8,7 +8,7 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { fetchEmployeeData, fetchDevices, fetchDailyReport, fetchDateRangeReport, createDailyReportEntry, updateDailyReportEntry } from "../api.js";
+import { fetchEmployeeData, fetchDevices, fetchDailyReport, fetchDateRangeReport, createDailyReportEntry, updateDailyReportEntry, processPendingCheckout } from "../api.js";
 import { getLocalDateString } from "../utils";
 import {
   Calendar,
@@ -25,17 +25,22 @@ import {
   ArrowUp,
   ArrowDown,
   ChevronDown,
-  Check
+  Check,
+  Upload,
+  Plus,
+  X
 } from "lucide-react";
 import { HamburgerIcon } from "../components/icons/HamburgerIcon";
 import { GridIcon } from "../components/icons/GridIcon";
-import { useModalClose } from "../hooks/useModalClose";
+import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
+import { bulkUploadReportData } from "../api.js";
 
 const Reports = () => {
   // Utility function to capitalize first letter of each word
   const capitalizeFirst = (str) => {
     if (!str) return str;
-    return str.split(' ').map(word => 
+    return str.split(' ').map(word =>
       word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
     ).join(' ');
   };
@@ -50,7 +55,15 @@ const Reports = () => {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [viewMode, setViewMode] = useState("table");
 
-  
+  // Bulk upload state
+  const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [bulkUploadResults, setBulkUploadResults] = useState(null);
+  const [isBulkUploading, setIsBulkUploading] = useState(false);
+  const [bulkUploadError, setBulkUploadError] = useState("");
+  const [bulkUploadSuccess, setBulkUploadSuccess] = useState("");
+
+
   // Common state
   const [devices, setDevices] = useState([]);
   const [selectedDevice, setSelectedDevice] = useState(null);
@@ -83,6 +96,7 @@ const Reports = () => {
   const [currentDate, setCurrentDate] = useState("");
   const [checkoutTimes, setCheckoutTimes] = useState({});
   const [checkoutErrors, setCheckoutErrors] = useState({});
+  const [pendingCheckoutData, setPendingCheckoutData] = useState([]);
 
   // Day wise report specific
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -111,7 +125,7 @@ const Reports = () => {
     totalRecords: 0,
     totalHours: "0.0"
   });
-  
+
   // Modal close events disabled - modals only close via buttons
 
 
@@ -139,7 +153,7 @@ const Reports = () => {
     }
   }, [companyId]);
 
- 
+
   // Today's Report Functions
   const formatToAmPm = (date) => {
     let h = date.getHours();
@@ -266,6 +280,10 @@ const Reports = () => {
 
     const checkinDateObj = new Date(row.CheckInTime);
     const checkInDateString = getLocalDateString(checkinDateObj);
+
+    // Process pending checkout and store data
+    const pendingData = await processPendingCheckout(companyId);
+    setPendingCheckoutData(pendingData);
     const checkoutDateTime = `${checkInDateString}T${checkoutTime}:00`;
     const checkinDateTime = row.CheckInTime;
 
@@ -301,6 +319,7 @@ const Reports = () => {
       });
 
       await viewCurrentDateReport(currentDate, false);
+      window.location.reload();
 
     } catch (error) {
       console.error("Error updating checkout:", error);
@@ -407,7 +426,7 @@ const Reports = () => {
     return employeeTimes;
   };
 
- 
+
 
   const loadSummaryReport = async (showLoading = true) => {
     if (!startDate || !endDate) {
@@ -616,7 +635,7 @@ const Reports = () => {
   };
 
   const filterData = () => {
-    let filtered = activeTab === "today" ? tableData : reportData;
+    let filtered = activeTab === "today" ? tableData : activeTab === "pending" ? pendingCheckoutData : reportData;
     console.log('filterData called - activeTab:', activeTab, 'source data length:', filtered.length);
 
     if (searchQuery) {
@@ -627,7 +646,7 @@ const Reports = () => {
         record.EmpID?.toLowerCase().includes(query)
       );
     }
-    
+
     filtered.sort((a, b) => {
       let aValue, bValue;
       if (sortConfig.key === "name") {
@@ -666,19 +685,42 @@ const Reports = () => {
       return;
     }
 
-    let csvContent = "Employee ID,Name,Check-in Time,Check-out Time,Time Worked,Type\n";
-    csvContent += filteredData.map(record => [
-      record.Pin || "",
-      record.Name || "",
-      record.CheckInTime ? formatTime(record.CheckInTime) : "",
-      record.CheckOutTime ? formatTime(record.CheckOutTime) : "",
-      record.TimeWorked || "",
-      record.Type || ""
-    ].join(",")).join("\n");
+    let csvContent, filename;
 
-    const filename = activeTab === "today" 
-      ? `today_report_${new Date().toISOString().split('T')[0]}.csv`
-      : `daily_report_${selectedDate}.csv`;
+    if (activeTab === "summary" || activeTab === "salaried") {
+      // Summary and Salaried reports: Employee ID, Name, Total Hours
+      csvContent = "Employee ID,Name,Total Hours Worked\n";
+      csvContent += filteredData.map(record => [
+        record.Pin || "",
+        record.Name || "",
+        record.TimeWorked || record.hoursWorked || "0:00"
+      ].join(",")).join("\n");
+
+      if (activeTab === "summary") {
+        filename = `summary_report_${startDate}_to_${endDate}.csv`;
+      } else {
+        filename = `salaried_report_${selectedReportType}_${new Date().toISOString().split('T')[0]}.csv`;
+      }
+    } else {
+      // Today, Daywise, Pending: Full details with check-in/out times
+      csvContent = "Employee ID,Name,Check-in Time,Check-out Time,Time Worked,Type\n";
+      csvContent += filteredData.map(record => [
+        record.Pin || "",
+        record.Name || "",
+        record.CheckInTime ? formatTime(record.CheckInTime) : "",
+        record.CheckOutTime ? formatTime(record.CheckOutTime) : "",
+        record.TimeWorked || "",
+        record.Type || ""
+      ].join(",")).join("\n");
+
+      if (activeTab === "today") {
+        filename = `today_report_${new Date().toISOString().split('T')[0]}.csv`;
+      } else if (activeTab === "daywise") {
+        filename = `daywise_report_${selectedDate}.csv`;
+      } else if (activeTab === "pending") {
+        filename = `pending_checkout_${new Date().toISOString().split('T')[0]}.csv`;
+      }
+    }
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
@@ -698,7 +740,19 @@ const Reports = () => {
 
       // Title
       doc.setFontSize(18);
-      doc.text(`${companyName} - Attendance Report`, 14, 20);
+      let reportTitle = "";
+      if (activeTab === "today") {
+        reportTitle = "Today's Report";
+      } else if (activeTab === "daywise") {
+        reportTitle = "Day-wise Report";
+      } else if (activeTab === "summary") {
+        reportTitle = "Date Range Report";
+      } else if (activeTab === "salaried") {
+        reportTitle = `${selectedReportType} Report`;
+      } else if (activeTab === "pending") {
+        reportTitle = "Pending Checkout Report";
+      }
+      doc.text(`${companyName} - ${reportTitle}`, 14, 20);
 
       // Date information
       doc.setFontSize(11);
@@ -709,14 +763,19 @@ const Reports = () => {
         dateText = `Date: ${selectedDate || new Date().toISOString().split('T')[0]}`;
       } else if (activeTab === "summary") {
         dateText = `Period: ${startDate || "N/A"} to ${endDate || "N/A"}`;
+      } else if (activeTab === "salaried") {
+        const dateRange = getDateRangeForReportType(selectedReportType, selectedYear, selectedMonth, selectedWeek, selectedHalf);
+        dateText = dateRange ? `Period: ${dateRange.start} to ${dateRange.end}` : "Period: N/A";
+      } else if (activeTab === "pending") {
+        dateText = `Date: ${new Date().toLocaleDateString()}`;
       }
       doc.text(dateText, 14, 30);
 
       // Prepare table data based on active tab
       let tableData, headers;
 
-      if (activeTab === "summary") {
-        // Summary report shows employee, pin, and total hours
+      if (activeTab === "summary" || activeTab === "salaried") {
+        // Summary and Salaried reports show employee, pin, and total hours
         headers = [['Employee ID', 'Name', 'Total Hours Worked']];
         tableData = filteredData.map(record => [
           record.Pin || "",
@@ -724,13 +783,13 @@ const Reports = () => {
           record.TimeWorked || record.hoursWorked || "0:00"
         ]);
       } else {
-        // Today and daywise reports show detailed check-in/out info
+        // Today, daywise, and pending reports show detailed check-in/out info
         headers = [['Employee ID', 'Name', 'Check-in', 'Check-out', 'Time Worked', 'Type']];
         tableData = filteredData.map(record => [
           record.Pin || "",
           record.Name || "",
-          record.formattedCheckIn || convertToAmPm(record.CheckInTime) || "--",
-          record.formattedCheckOut || convertToAmPm(record.CheckOutTime) || "--",
+          record.formattedCheckIn || (record.CheckInTime ? convertToAmPm(record.CheckInTime) : "--"),
+          record.formattedCheckOut || (record.CheckOutTime ? convertToAmPm(record.CheckOutTime) : "--"),
           record.TimeWorked || record.timeWorked || "--",
           record.Type || ""
         ]);
@@ -748,11 +807,15 @@ const Reports = () => {
       // Generate filename
       let filename;
       if (activeTab === "today") {
-        filename = `report_${new Date().toISOString().split('T')[0]}.pdf`;
+        filename = `today_report_${new Date().toISOString().split('T')[0]}.pdf`;
       } else if (activeTab === "daywise") {
-        filename = `report_${selectedDate}.pdf`;
-      } else {
-        filename = `report_${startDate}_to_${endDate}.pdf`;
+        filename = `daywise_report_${selectedDate}.pdf`;
+      } else if (activeTab === "summary") {
+        filename = `summary_report_${startDate}_to_${endDate}.pdf`;
+      } else if (activeTab === "salaried") {
+        filename = `salaried_report_${selectedReportType}_${new Date().toISOString().split('T')[0]}.pdf`;
+      } else if (activeTab === "pending") {
+        filename = `pending_checkout_${new Date().toISOString().split('T')[0]}.pdf`;
       }
 
       doc.save(filename);
@@ -809,7 +872,7 @@ const Reports = () => {
 
   const handleCheckinTimeChange = (value) => {
     setNewEntry({ ...newEntry, CheckInTime: value });
-    if (value && newEntry.Date) {
+    if (value && newEntry.Date && newEntry.EmployeeID && newEntry.Type) {
       setCheckoutDisabled(false);
       setAddButtonDisabled(false);
     } else {
@@ -884,9 +947,9 @@ const Reports = () => {
       // Calculate time worked: if no checkout time, set to "0:00"
       const timeWorked = newEntry.CheckOutTime
         ? calculateTimeWorked(
-            `${newEntry.Date}T${newEntry.CheckInTime}:00`,
-            `${newEntry.Date}T${newEntry.CheckOutTime}:00`
-          )
+          `${newEntry.Date}T${newEntry.CheckInTime}:00`,
+          `${newEntry.Date}T${newEntry.CheckOutTime}:00`
+        )
         : "0:00";
 
       // Prepare entry data for backend
@@ -915,8 +978,7 @@ const Reports = () => {
 
       setModalSuccess("Entry added successfully!");
       setTimeout(() => {
-        setModalSuccess("");
-        closeModal();
+        window.location.reload();
       }, 1000);
     } catch (error) {
       console.error("Error saving entry:", error);
@@ -926,6 +988,87 @@ const Reports = () => {
       }, 1000);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Bulk upload handlers
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
+    if (!file) {
+      setSelectedFile(null);
+      return;
+    }
+
+    setBulkUploadError('');
+    setBulkUploadResults(null);
+    setBulkUploadSuccess('');
+
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setBulkUploadError('File size too large. Please select a file smaller than 10MB.');
+      event.target.value = '';
+      setSelectedFile(null);
+      return;
+    }
+
+    const allowedTypes = [
+      'text/csv',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ];
+
+    const allowedExtensions = /\.(csv|xlsx|xls)$/i;
+
+    if (!allowedTypes.includes(file.type) && !allowedExtensions.test(file.name)) {
+      setBulkUploadError('Invalid file format. Please select a CSV (.csv) or Excel (.xlsx, .xls) file.');
+      event.target.value = '';
+      setSelectedFile(null);
+      return;
+    }
+
+    setSelectedFile(file);
+  };
+
+  const handleBulkUpload = async () => {
+    if (!selectedFile) {
+      setBulkUploadError('Please select a file to upload.');
+      return;
+    }
+
+    setIsBulkUploading(true);
+    setBulkUploadError('');
+    setBulkUploadResults(null);
+    setBulkUploadSuccess('');
+
+    try {
+      const result = await bulkUploadReportData(companyId, selectedFile);
+      console.log('Upload result:', result); // Debug log
+
+      setBulkUploadResults(result);
+
+      if (result.successful && result.successful.length > 0) {
+        const successMsg = result.failed?.length > 0
+          ? `Successfully uploaded ${result.successful.length} record${result.successful.length > 1 ? 's' : ''}. ${result.failed.length} record${result.failed.length > 1 ? 's' : ''} failed.`
+          : `Successfully uploaded ${result.successful.length} record${result.successful.length > 1 ? 's' : ''}.`;
+
+        setBulkUploadSuccess(successMsg);
+
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else if (result.message || result.success) {
+        setBulkUploadSuccess(result.message || 'Upload completed successfully!');
+        
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        setBulkUploadError('Upload failed. All records had errors. Please review the results below.');
+      }
+    } catch (error) {
+      setBulkUploadError(`Upload failed: ${error.message || 'An unexpected error occurred. Please try again.'}`);
+    } finally {
+      setIsBulkUploading(false);
     }
   };
 
@@ -946,6 +1089,8 @@ const Reports = () => {
   useEffect(() => {
     // Clear selected dates when switching tabs
     if (activeTab === "summary") {
+      setReportData([]);
+      setFilteredData([]);
       // Don't clear dates or loaded flag - preserve data when switching back to summary tab
       // User can manually clear by changing dates if needed
     } else if (activeTab === "salaried") {
@@ -953,6 +1098,23 @@ const Reports = () => {
       setReportData([]);
       setFilteredData([]);
       setSalariedReportData([]);
+    } else if (activeTab === "pending") {
+      // Load pending checkout data
+      const loadPendingData = async () => {
+        setLoading(true);
+        try {
+          const pendingData = await processPendingCheckout(companyId);
+          setPendingCheckoutData(pendingData);
+        } catch (error) {
+          console.error("Error loading pending checkout data:", error);
+        } finally {
+          setLoading(false);
+          if (isInitialLoad) {
+            setIsInitialLoad(false);
+          }
+        }
+      };
+      loadPendingData();
     } else if (activeTab === "today") {
       // For Today's Report, clear and load data
       setReportData([]);
@@ -1003,7 +1165,7 @@ const Reports = () => {
 
   useEffect(() => {
     filterData();
-  }, [reportData, tableData, searchQuery, sortConfig, activeTab]);
+  }, [reportData, tableData, pendingCheckoutData, searchQuery, sortConfig, activeTab]);
 
   useEffect(() => {
     if (window.innerWidth < 650) {
@@ -1053,13 +1215,31 @@ const Reports = () => {
                   View and analyze employee time tracking data
                 </p>
               </div>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                <Button variant="outline" onClick={downloadCSV} disabled={filteredData.length === 0} className="flex items-center justify-center gap-2 w-full sm:w-auto">
+              <div className="flex flex-row items-center gap-2">
+                <Button
+                  onClick={() => setShowBulkUploadModal(true)}
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto"
+                >
+                  <Upload className="w-4 h-4" />
+                  <span className="hidden sm:inline">Bulk Upload</span>
+                  <span className="sm:hidden">Upload</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={downloadCSV}
+                  disabled={!filteredData || filteredData.length === 0}
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   <Download className="w-4 h-4" />
                   <span className="hidden sm:inline">Export CSV</span>
                   <span className="sm:hidden">CSV</span>
                 </Button>
-                <Button variant="outline" onClick={downloadPDF} disabled={filteredData.length === 0} className="flex items-center justify-center gap-2 w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  onClick={downloadPDF}
+                  disabled={!filteredData || filteredData.length === 0}
+                  className="flex items-center justify-center gap-2 w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   <FileText className="w-4 h-4" />
                   <span className="hidden sm:inline">Export PDF</span>
                   <span className="sm:hidden">PDF</span>
@@ -1071,42 +1251,87 @@ const Reports = () => {
 
         {/* Summary Statistics */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
-            <Card>
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center">
-                  <Users className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
-                  <div className="ml-3 sm:ml-4">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">Check-in employee</p>
-                    <p className="text-xl sm:text-2xl font-bold text-foreground">{summaryStats.presentEmployees}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
+            {activeTab === "today" && (
+              <>
+                <Card>
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex items-center">
+                      <Users className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+                      <div className="ml-3 sm:ml-4">
+                        <p className="text-xs sm:text-sm font-medium text-muted-foreground">Checked-in Employees</p>
+                        <p className="text-xl sm:text-2xl font-bold text-foreground">{summaryStats.presentEmployees}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex items-center">
+                      <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
+                      <div className="ml-3 sm:ml-4">
+                        <p className="text-xs sm:text-sm font-medium text-muted-foreground">Currently Working</p>
+                        <p className="text-xl sm:text-2xl font-bold text-foreground">{filteredData.filter(r => r.CheckInTime && !r.CheckOutTime).length}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
 
-            <Card>
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center">
-                  <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
-                  <div className="ml-3 sm:ml-4">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">Currently working employee</p>
-                    <p className="text-xl sm:text-2xl font-bold text-foreground">{filteredData.filter(r => r.CheckInTime && !r.CheckOutTime).length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {(activeTab === "daywise" || activeTab === "summary" || activeTab === "salaried") && (
+              <>
+                <Card>
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex items-center">
+                      <Users className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+                      <div className="ml-3 sm:ml-4">
+                        <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Employees</p>
+                        <p className="text-xl sm:text-2xl font-bold text-foreground">{new Set(filteredData.map(r => r.EmployeeId)).size}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex items-center">
+                      <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
+                      <div className="ml-3 sm:ml-4">
+                        <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Records</p>
+                        <p className="text-xl sm:text-2xl font-bold text-foreground">{filteredData.length}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
 
-            <Card className="sm:col-span-2 md:col-span-1">
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center">
-                  <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 text-purple-600" />
-                  <div className="ml-3 sm:ml-4">
-                    <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Records</p>
-                    <p className="text-xl sm:text-2xl font-bold text-foreground">{filteredData.length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {activeTab === "pending" && (
+              <>
+                <Card>
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex items-center">
+                      <Clock className="h-6 w-6 sm:h-8 sm:w-8 text-orange-600" />
+                      <div className="ml-3 sm:ml-4">
+                        <p className="text-xs sm:text-sm font-medium text-muted-foreground">Pending Checkouts</p>
+                        <p className="text-xl sm:text-2xl font-bold text-foreground">{filteredData.length}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4 sm:p-6">
+                    <div className="flex items-center">
+                      <Users className="h-6 w-6 sm:h-8 sm:w-8 text-red-600" />
+                      <div className="ml-3 sm:ml-4">
+                        <p className="text-xs sm:text-sm font-medium text-muted-foreground">Affected Employees</p>
+                        <p className="text-xl sm:text-2xl font-bold text-foreground">{new Set(filteredData.map(r => r.EmployeeId)).size}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            )}
           </div>
         </div>
 
@@ -1125,8 +1350,8 @@ const Reports = () => {
                   key={key}
                   onClick={() => setActiveTab(key)}
                   className={`py-3 sm:py-4 px-1 border-b-2 font-medium text-xs sm:text-sm flex items-center gap-1 sm:gap-2 whitespace-nowrap ${activeTab === key
-                      ? "border-primary text-primary"
-                      : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
                     }`}
                 >
                   <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -1213,7 +1438,7 @@ const Reports = () => {
                   className="pl-10 text-sm"
                 />
               </div>
-              
+
               <div className="flex items-center gap-2 justify-between sm:justify-start">
                 <div className="relative">
                   <Button
@@ -1231,9 +1456,9 @@ const Reports = () => {
                       <span>
                         {sortConfig.key ? (
                           sortConfig.key === 'name' ? 'Sort By Name' :
-                          sortConfig.key === 'pin' ? 'Sort By PIN' :
-                          sortConfig.key === 'checkin' ? 'Sort By Check-in' :
-                          sortConfig.key === 'time' ? 'Time' : 'Sort'
+                            sortConfig.key === 'pin' ? 'Sort By PIN' :
+                              sortConfig.key === 'checkin' ? 'Sort By Check-in' :
+                                sortConfig.key === 'time' ? 'Time' : 'Sort'
                         ) : 'Sort'}
                       </span>
                     </div>
@@ -1256,16 +1481,14 @@ const Reports = () => {
                           setSortConfig({ key, direction });
                           document.getElementById('sort-dropdown').classList.add('hidden');
                         }}
-                        className={`w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center justify-between transition-colors ${
-                          sortConfig.key === key && sortConfig.direction === direction
+                        className={`w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center justify-between transition-colors ${sortConfig.key === key && sortConfig.direction === direction
                             ? 'bg-primary/10 text-primary'
                             : 'text-foreground'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center gap-2">
-                          <Icon className={`w-4 h-4 ${
-                            direction === 'asc' ? 'text-green-600' : 'text-blue-600'
-                          }`} />
+                          <Icon className={`w-4 h-4 ${direction === 'asc' ? 'text-green-600' : 'text-blue-600'
+                            }`} />
                           {label}
                         </div>
                         {sortConfig.key === key && sortConfig.direction === direction && (
@@ -1275,7 +1498,7 @@ const Reports = () => {
                     ))}
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-1 border rounded-lg p-1">
                   <Button
                     variant={viewMode === "table" ? "default" : "ghost"}
@@ -1315,7 +1538,7 @@ const Reports = () => {
                       Current day employee check-in and check-out summary
                     </CardDescription>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setShowModal(true)}
                     className="bg-[#02066F] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#030974] transition-colors w-full sm:w-auto text-sm sm:text-base"
                   >
@@ -1447,11 +1670,10 @@ const Reports = () => {
                                         value={selectedTime || ''}
                                         onChange={(e) => handleCheckoutTimeChange(rowKey, e.target.value, record.CheckInTime)}
                                         min={minTime}
-                                        className={`border rounded px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 ${
-                                          checkoutError
+                                        className={`border rounded px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 ${checkoutError
                                             ? 'border-red-500 focus:ring-red-500'
                                             : 'border-gray-300 focus:ring-blue-500'
-                                        }`}
+                                          }`}
                                       />
                                       {checkoutError && (
                                         <span className="text-red-500 text-xs mt-1">{checkoutError}</span>
@@ -1620,28 +1842,56 @@ const Reports = () => {
                     <p className="text-gray-500 text-sm">No records found for the selected date range.</p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full border border-gray-300 rounded-lg">
-                      <thead className="bg-[#02066F] text-white">
-                        <tr>
-                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Employee</th>
-                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">PIN</th>
-                          <th className="px-4 py-3 text-center font-semibold text-sm">Total Time Worked</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {filteredData.map((employee, index) => (
-                          <tr key={index} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-4 py-3 text-center font-medium text-gray-900">{employee.Name}</td>
-                            <td className="px-4 py-3 text-center text-gray-600">{employee.Pin}</td>
-                            <td className="px-4 py-3 text-center font-semibold text-blue-600">
-                              {employee.TimeWorked || employee.hoursWorked || "0:00"}
-                            </td>
+                  viewMode === "grid" ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                      {filteredData.map((employee, index) => (
+                        <Card key={index} className="hover:shadow-lg transition-shadow">
+                          <CardHeader className="pb-3">
+                            <div className="flex items-center gap-2 sm:gap-3">
+                              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                                <Users className="w-4 h-4 text-primary" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <CardTitle className="text-base sm:text-lg truncate">{employee.Name}</CardTitle>
+                                <CardDescription className="text-xs sm:text-sm">PIN: {employee.Pin}</CardDescription>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="pt-0">
+                            <div className="flex items-center justify-between pt-2 border-t">
+                              <span className="text-xs sm:text-sm text-muted-foreground">Total Hours</span>
+                              <span className="font-semibold text-blue-600 text-sm sm:text-base">
+                                {employee.TimeWorked || employee.hoursWorked || "0:00"}
+                              </span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full border border-gray-300 rounded-lg">
+                        <thead className="bg-[#02066F] text-white">
+                          <tr>
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Employee</th>
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">PIN</th>
+                            <th className="px-4 py-3 text-center font-semibold text-sm">Total Time Worked</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {filteredData.map((employee, index) => (
+                            <tr key={index} className="hover:bg-gray-50 transition-colors">
+                              <td className="px-4 py-3 text-center font-medium text-gray-900">{employee.Name}</td>
+                              <td className="px-4 py-3 text-center text-gray-600">{employee.Pin}</td>
+                              <td className="px-4 py-3 text-center font-semibold text-blue-600">
+                                {employee.TimeWorked || employee.hoursWorked || "0:00"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
                 )}
               </CardContent>
             </Card>
@@ -1663,121 +1913,148 @@ const Reports = () => {
               </CardHeader>
 
               <CardContent>
-                {viewMode === "grid" ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                    {/* Sample hardcoded data */}
-                    {[
-                      { id: "EMP001", name: "John Smith", checkin: "9:00 AM", type: "Full-time" },
-                      { id: "EMP002", name: "Sarah Johnson", checkin: "8:30 AM", type: "Part-time" },
-                      { id: "EMP003", name: "Mike Davis", checkin: "9:15 AM", type: "Contract" }
-                    ].map((record, index) => (
-                      <Card key={index} className="hover:shadow-lg transition-shadow">
-                        <CardHeader className="pb-3">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                                <Users className="w-4 h-4 text-primary" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <CardTitle className="text-base sm:text-lg truncate">{record.name}</CardTitle>
-                                <CardDescription className="text-xs sm:text-sm">ID: {record.id}</CardDescription>
-                              </div>
-                            </div>
-                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Pending</span>
-                          </div>
-                        </CardHeader>
-                        <CardContent className="space-y-3 sm:space-y-4 pt-0">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs sm:text-sm text-muted-foreground">Date</span>
-                            <span className="text-xs sm:text-sm">{new Date().toLocaleDateString()}</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs sm:text-sm text-muted-foreground">Type</span>
-                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{record.type}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs sm:text-sm">
-                            <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
-                            <span className="truncate">In: {record.checkin}</span>
-                          </div>
-                          <div className="pt-2 border-t">
-                            <Button size="sm" className="w-full bg-green-600 hover:bg-green-700 text-xs">
-                              Check Out
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                {pendingCheckoutData.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Clock className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium text-foreground mb-2">No Pending Checkouts</h3>
+                    <p className="text-sm text-muted-foreground">
+                      All employees have completed their checkout for today.
+                    </p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full border border-gray-300 rounded-lg">
-                      <thead className="bg-[#02066F] text-white">
-                        <tr>
-                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Employee ID</th>
-                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Name</th>
-                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Date</th>
-                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Check-in Time</th>
-                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Check-out Time</th>
-                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Type</th>
-                          <th className="px-4 py-3 text-center font-semibold text-sm">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {/* Sample hardcoded data */}
-                        <tr className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-center font-medium">EMP001</td>
-                          <td className="px-4 py-3 text-center">John Smith</td>
-                          <td className="px-4 py-3 text-center">{new Date().toLocaleDateString()}</td>
-                          <td className="px-4 py-3 text-center">9:00 AM</td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Pending</span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Full-time</span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <Button size="sm" className="bg-green-600 hover:bg-green-700 text-xs">
-                              Check Out
-                            </Button>
-                          </td>
-                        </tr>
-                        <tr className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-center font-medium">EMP002</td>
-                          <td className="px-4 py-3 text-center">Sarah Johnson</td>
-                          <td className="px-4 py-3 text-center">{new Date().toLocaleDateString()}</td>
-                          <td className="px-4 py-3 text-center">8:30 AM</td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Pending</span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Part-time</span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <Button size="sm" className="bg-green-600 hover:bg-green-700 text-xs">
-                              Check Out
-                            </Button>
-                          </td>
-                        </tr>
-                        <tr className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-center font-medium">EMP003</td>
-                          <td className="px-4 py-3 text-center">Mike Davis</td>
-                          <td className="px-4 py-3 text-center">{new Date().toLocaleDateString()}</td>
-                          <td className="px-4 py-3 text-center">9:15 AM</td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Pending</span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">Contract</span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <Button size="sm" className="bg-green-600 hover:bg-green-700 text-xs">
-                              Check Out
-                            </Button>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
+                  viewMode === "grid" ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                      {pendingCheckoutData.map((record, index) => {
+                        const rowKey = `${record.Pin}-${record.CheckInTime}`;
+                        const selectedTime = checkoutTimes[rowKey];
+                        const checkoutError = checkoutErrors[rowKey];
+                        const checkInTime = new Date(record.CheckInTime);
+                        const minTime = `${String(checkInTime.getHours()).padStart(2, '0')}:${String(checkInTime.getMinutes() + 1).padStart(2, '0')}`;
+
+                        return (
+                          <Card key={index} className="hover:shadow-lg transition-shadow">
+                            <CardHeader className="pb-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <Users className="w-4 h-4 text-primary" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <CardTitle className="text-base sm:text-lg truncate">{record.Name}</CardTitle>
+                                    <CardDescription className="text-xs sm:text-sm">PIN: {record.Pin}</CardDescription>
+                                  </div>
+                                </div>
+                                <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">Pending</span>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="space-y-3 sm:space-y-4 pt-0">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs sm:text-sm text-muted-foreground">Type</span>
+                                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{record.Type}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs sm:text-sm text-muted-foreground">Date Filed</span>
+                                <span className="text-xs sm:text-sm font-medium">{record.CheckInTime ? new Date(record.CheckInTime).toLocaleDateString() : '--'}</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs sm:text-sm">
+                                <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
+                                <span className="truncate">In: {formatTime(record.CheckInTime)}</span>
+                              </div>
+                              <div className="space-y-2">
+                                <input
+                                  type="time"
+                                  value={selectedTime || ''}
+                                  onChange={(e) => handleCheckoutTimeChange(rowKey, e.target.value, record.CheckInTime)}
+                                  min={minTime}
+                                  className="w-full border rounded px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder="Select checkout time"
+                                />
+                                {checkoutError && (
+                                  <span className="text-red-500 text-xs">{checkoutError}</span>
+                                )}
+                              </div>
+                              <div className="pt-2 border-t">
+                                <Button
+                                  onClick={() => handleCheckout(record)}
+                                  disabled={!selectedTime || checkoutError}
+                                  size="sm"
+                                  className="w-full bg-green-600 hover:bg-green-700 text-xs disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                >
+                                  Check Out
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full border border-gray-300 rounded-lg">
+                        <thead className="bg-[#02066F] text-white">
+                          <tr>
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Employee ID</th>
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Name</th>
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Date Filed</th>
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Check-in Time</th>
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Check-out Time</th>
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Type</th>
+                            <th className="px-4 py-3 text-center font-semibold text-sm">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {pendingCheckoutData.map((record, index) => {
+                            const rowKey = `${record.Pin}-${record.CheckInTime}`;
+                            const selectedTime = checkoutTimes[rowKey];
+                            const checkoutError = checkoutErrors[rowKey];
+                            const checkInTime = new Date(record.CheckInTime);
+                            const minTime = `${String(checkInTime.getHours()).padStart(2, '0')}:${String(checkInTime.getMinutes() + 1).padStart(2, '0')}`;
+
+                            return (
+                              <tr key={index} className="hover:bg-gray-50">
+                                <td className="px-4 py-3 text-center font-medium">{record.Pin}</td>
+                                <td className="px-4 py-3 text-center">{record.Name}</td>
+                                <td className="px-4 py-3 text-center">{record.CheckInTime ? new Date(record.CheckInTime).toLocaleDateString() : '--'}</td>
+                                <td className="px-4 py-3 text-center">{formatTime(record.CheckInTime)}</td>
+                                <td className="px-4 py-3 text-center">
+                                  <div className="flex flex-col items-center">
+                                    <input
+                                      type="time"
+                                      value={selectedTime || ''}
+                                      onChange={(e) => handleCheckoutTimeChange(rowKey, e.target.value, record.CheckInTime)}
+                                      min={minTime}
+                                      className={`border rounded px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 ${checkoutError
+                                          ? 'border-red-500 focus:ring-red-500'
+                                          : 'border-gray-300 focus:ring-blue-500'
+                                        }`}
+                                    />
+                                    {checkoutError && (
+                                      <span className="text-red-500 text-xs mt-1">{checkoutError}</span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                    {record.Type}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-center">
+                                  <Button
+                                    onClick={() => handleCheckout(record)}
+                                    disabled={!selectedTime || checkoutError}
+                                    size="sm"
+                                    className={`text-xs ${!selectedTime || checkoutError ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+                                  >
+                                    Check Out
+                                  </Button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
                 )}
               </CardContent>
             </Card>
@@ -1908,28 +2185,56 @@ const Reports = () => {
                     <p className="text-gray-400 text-xs mt-2">Select options above and click "Load Report" to view data.</p>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full border border-gray-300 rounded-lg">
-                      <thead className="bg-[#02066F] text-white">
-                        <tr>
-                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Employee</th>
-                          <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">PIN</th>
-                          <th className="px-4 py-3 text-center font-semibold text-sm">Total Time Worked</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200">
-                        {filteredData.map((employee, index) => (
-                          <tr key={index} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-4 py-3 text-center font-medium text-gray-900">{employee.Name}</td>
-                            <td className="px-4 py-3 text-center text-gray-600">{employee.Pin}</td>
-                            <td className="px-4 py-3 text-center font-semibold text-blue-600">
-                              {employee.TimeWorked || employee.hoursWorked || "0:00"}
-                            </td>
+                  viewMode === "grid" ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                      {filteredData.map((employee, index) => (
+                        <Card key={index} className="hover:shadow-lg transition-shadow">
+                          <CardHeader className="pb-3">
+                            <div className="flex items-center gap-2 sm:gap-3">
+                              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                                <Users className="w-4 h-4 text-primary" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <CardTitle className="text-base sm:text-lg truncate">{employee.Name}</CardTitle>
+                                <CardDescription className="text-xs sm:text-sm">PIN: {employee.Pin}</CardDescription>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="pt-0">
+                            <div className="flex items-center justify-between pt-2 border-t">
+                              <span className="text-xs sm:text-sm text-muted-foreground">Total Hours</span>
+                              <span className="font-semibold text-blue-600 text-sm sm:text-base">
+                                {employee.TimeWorked || employee.hoursWorked || "0:00"}
+                              </span>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full border border-gray-300 rounded-lg">
+                        <thead className="bg-[#02066F] text-white">
+                          <tr>
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Employee</th>
+                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">PIN</th>
+                            <th className="px-4 py-3 text-center font-semibold text-sm">Total Time Worked</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody className="divide-y divide-gray-200">
+                          {filteredData.map((employee, index) => (
+                            <tr key={index} className="hover:bg-gray-50 transition-colors">
+                              <td className="px-4 py-3 text-center font-medium text-gray-900">{employee.Name}</td>
+                              <td className="px-4 py-3 text-center text-gray-600">{employee.Pin}</td>
+                              <td className="px-4 py-3 text-center font-semibold text-blue-600">
+                                {employee.TimeWorked || employee.hoursWorked || "0:00"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )
                 )}
               </CardContent>
             </Card>
@@ -1940,7 +2245,7 @@ const Reports = () => {
       {/* Add Entry Modal */}
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
-          <Card id="add-entry-modal" className="w-full max-w-md max-h-[90vh] mx-4">
+          <Card id="add-entry-modal" className="w-full max-w-md max-h-[90vh] mx-4 overflow-hidden relative">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg sm:text-xl">
                 Add Entry
@@ -1956,8 +2261,17 @@ const Reports = () => {
                 <select
                   id="employee"
                   value={newEntry.EmployeeID}
-                  onChange={(e) => setNewEntry({ ...newEntry, EmployeeID: e.target.value })}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setNewEntry({ ...newEntry, EmployeeID: value });
+                    if (value && newEntry.Type && newEntry.Date && newEntry.CheckInTime) {
+                      setAddButtonDisabled(false);
+                    } else {
+                      setAddButtonDisabled(true);
+                    }
+                  }}
                   className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md text-sm"
+                  style={{ maxWidth: '100%' }}
                 >
                   <option value="">Select Employee</option>
                   {(employeeList || []).map((employee) => (
@@ -1976,8 +2290,17 @@ const Reports = () => {
                 <select
                   id="type"
                   value={newEntry.Type}
-                  onChange={(e) => setNewEntry({ ...newEntry, Type: e.target.value })}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setNewEntry({ ...newEntry, Type: value });
+                    if (value && newEntry.EmployeeID && newEntry.Date && newEntry.CheckInTime) {
+                      setAddButtonDisabled(false);
+                    } else {
+                      setAddButtonDisabled(true);
+                    }
+                  }}
                   className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
+                  style={{ maxWidth: '100%' }}
                 >
                   <option value="">Select Employment Type</option>
                   {employmentTypes.map((type, index) => (
@@ -2071,6 +2394,204 @@ const Reports = () => {
                   ) : (
                     "Add Entry"
                   )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Bulk Upload Modal */}
+      {showBulkUploadModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto mx-4">
+            <CardHeader className="pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg sm:text-xl">
+                    Bulk Upload Report Data
+                  </CardTitle>
+                  <CardDescription className="text-sm">
+                    Upload multiple report entries using CSV or Excel files
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowBulkUploadModal(false);
+                    // Clear all bulk upload state when modal is closed
+                    setSelectedFile(null);
+                    setBulkUploadResults(null);
+                    setBulkUploadError('');
+                    setBulkUploadSuccess('');
+                    // Reset file input
+                    const fileInput = document.getElementById('bulk-upload-file');
+                    if (fileInput) fileInput.value = '';
+                  }}
+                  className="h-8 w-8 p-0"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-6">
+              {/* File Upload Section */}
+              <div className="space-y-4">
+                <Label className="text-sm font-medium">Select File</Label>
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                  <input
+                    type="file"
+                    accept=".csv,.xlsx,.xls"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    id="bulk-upload-file"
+                  />
+                  <label htmlFor="bulk-upload-file" className="cursor-pointer">
+                    <Upload className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm text-gray-600 mb-1">
+                      Click to select or drag and drop your file
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      Supports CSV and Excel files only
+                    </p>
+                  </label>
+                </div>
+
+                {selectedFile && (
+                  <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                    <FileText className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm text-blue-800">{selectedFile.name}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedFile(null);
+                        setBulkUploadError('');
+                        setBulkUploadResults(null);
+                        setBulkUploadSuccess('');
+                        // Reset file input
+                        const fileInput = document.getElementById('bulk-upload-file');
+                        if (fileInput) fileInput.value = '';
+                      }}
+                      className="h-6 w-6 p-0 ml-auto"
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Required Fields Info */}
+              <div className="p-4 bg-gray-50 rounded-lg">
+                <h4 className="text-sm font-medium mb-2">Required Columns:</h4>
+                <div className="text-xs text-gray-600 space-y-1">
+                  <div>• <strong>employee_id</strong> - Employee PIN/ID</div>
+                  <div>• <strong>name</strong> - Employee name</div>
+                  <div>• <strong>date</strong> - Date (YYYY-MM-DD format)</div>
+                  <div>• <strong>check_in_time</strong> - Check-in time (HH:MM format)</div>
+                  <div>• <strong>check_out_time</strong> - Check-out time (HH:MM format, optional)</div>
+                  <div>• <strong>type</strong> - Employment type</div>
+                </div>
+              </div>
+
+              {/* Error Display */}
+              {bulkUploadError && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-red-800 mb-1">Upload Error</h4>
+                      <p className="text-sm text-red-600">{bulkUploadError}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Success Display */}
+              {bulkUploadSuccess && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-md flex items-start gap-2">
+                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-green-600">{bulkUploadSuccess}</p>
+                </div>
+              )}
+
+              {/* Results Display */}
+              {bulkUploadResults && (
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium">Upload Results:</h4>
+
+                  {bulkUploadResults.successful?.length > 0 && (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                      <h5 className="text-sm font-medium text-green-800 mb-2">
+                        Successfully Added ({bulkUploadResults.successful.length})
+                      </h5>
+                      <div className="max-h-32 overflow-y-auto space-y-1">
+                        {bulkUploadResults.successful.slice(0, 10).map((item, index) => (
+                          <div key={index} className="text-xs text-green-700">
+                            {item.name} - {item.date}
+                          </div>
+                        ))}
+                        {bulkUploadResults.successful.length > 10 && (
+                          <div className="text-xs text-green-700 font-medium">
+                            ... and {bulkUploadResults.successful.length - 10} more records added successfully
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {bulkUploadResults.failed?.length > 0 && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                      <h5 className="text-sm font-medium text-red-800 mb-2">
+                        Failed ({bulkUploadResults.failed.length})
+                      </h5>
+                      <div className="max-h-32 overflow-y-auto space-y-1">
+                        {bulkUploadResults.failed.slice(0, 10).map((item, index) => (
+                          <div key={index} className="text-xs text-red-700">
+                            {item.name}: {item.error}
+                          </div>
+                        ))}
+                        {bulkUploadResults.failed.length > 10 && (
+                          <div className="text-xs text-red-700 font-medium">
+                            ... and {bulkUploadResults.failed.length - 10} more failed records
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowBulkUploadModal(false);
+                    // Clear all bulk upload state when modal is closed
+                    setSelectedFile(null);
+                    setBulkUploadResults(null);
+                    setBulkUploadError('');
+                    setBulkUploadSuccess('');
+                    // Reset file input
+                    const fileInput = document.getElementById('bulk-upload-file');
+                    if (fileInput) fileInput.value = '';
+                  }}
+                  className="flex-1 order-2 sm:order-1"
+                  disabled={isBulkUploading}
+                >
+                  {bulkUploadResults ? 'Close' : 'Cancel'}
+                </Button>
+                <Button
+                  onClick={handleBulkUpload}
+                  className="flex-1 order-1 sm:order-2"
+                  disabled={!selectedFile || isBulkUploading}
+                  style={{ display: bulkUploadResults ? 'none' : 'block' }}
+                >
+                  {isBulkUploading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Upload Report Data
                 </Button>
               </div>
             </CardContent>

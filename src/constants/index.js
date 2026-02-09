@@ -24,12 +24,14 @@ export const STORAGE_KEYS = {
   USER_EMAIL: 'userEmail',
   USER_ID: 'userId',
   AUTH_METHOD: 'authMethod',
+  AUTH_TOKEN: 'authToken',
   CUSTOMER_ZIP_CODE: 'customerZipCode',
   CUSTOMER_ADDRESS1: 'customerAddress1',
   CUSTOMER_ADDRESS2: 'customerAddress2',
   CUSTOMER_CITY: 'customerCity',
   CUSTOMER_STATE: 'customerState',
   COMPANY_ZIP_CODE: 'companyZipCode',
+  USER_COMPANIES: 'userCompanies',
 };
 
 export const VALIDATION_PATTERNS = {

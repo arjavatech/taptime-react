@@ -16,3 +16,6 @@ export const getLocalDateTimeString = (date = new Date()) => {
 
 // Export ZIP code lookup utility
 export { lookupZipCode } from './zipLookup';
+
+// Export subscription utilities
+export { validateAndSwitchCompany, isCompanySubscriptionValid } from './subscriptionUtils';

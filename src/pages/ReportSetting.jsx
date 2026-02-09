@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from "react";
 import Header from "../components/layout/Header";
-import Footer from "../components/layout/Footer";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import Footer from "@/components/layout/Footer";
 import {
   getAllReportEmails,
   createReportEmail,
   updateReportEmail,
   deleteReportEmail,
-  createReportObject
+  createReportObject,
+  clearApiCache
 } from "../api.js";
 import {
   Settings,
@@ -30,13 +31,11 @@ import {
 } from "lucide-react";
 import { HamburgerIcon } from "../components/icons/HamburgerIcon";
 import { GridIcon } from "../components/icons/GridIcon";
-import { useModalClose } from "../hooks/useModalClose";
 
-const ReportSetting = () => {
+
+const ReportSetting = ({ accessDenied = false }) => {
   const [isLoading, setIsLoading] = useState(true);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [emailSettings, setEmailSettings] = useState([]);
-  const [allEmailSettings, setAllEmailSettings] = useState([]);
   const [viewSettings, setViewSettings] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -62,8 +61,6 @@ const ReportSetting = () => {
 
   const frequencies = ["Daily", "Weekly", "Biweekly", "Monthly", "Bimonthly"];
   
-  // Modal close events disabled - modals only close via buttons
-
   const showToast = (message, type = "success") => {
     // Toast notifications removed
   };
@@ -75,9 +72,7 @@ const ReportSetting = () => {
 
     try {
       const data = await getAllReportEmails(company_id);
-      console.log('Raw API data:', data);
-      console.log('Data type:', typeof data);
-      console.log('Is array:', Array.isArray(data));
+
       
       // Handle different response formats
       let processedData = [];
@@ -92,30 +87,18 @@ const ReportSetting = () => {
         }
       }
       
-      console.log('Processed data:', processedData);
-      console.log('Processed data length:', processedData.length);
-      
-      setAllEmailSettings(processedData);
       setEmailSettings(processedData);
     } catch (error) {
-      console.error("Failed to load report settings:", error);
-      setAllEmailSettings([]);
       setEmailSettings([]);
     } finally {
       if (showLoading) setIsLoading(false);
-      if (isInitialLoad) {
-        setIsLoading(false);
-        setIsInitialLoad(false);
-      }
+
     }
   };
 
 
 
   const getFilteredAndSortedSettings = () => {
-    console.log('getFilteredAndSortedSettings called');
-    console.log('emailSettings:', emailSettings);
-    console.log('emailSettings length:', emailSettings.length);
     
     let filtered = emailSettings;
     
@@ -142,8 +125,6 @@ const ReportSetting = () => {
       return 0;
     });
     
-    console.log('filtered result:', filtered);
-    console.log('filtered length:', filtered.length);
     return filtered;
   };
 
@@ -229,7 +210,6 @@ const ReportSetting = () => {
   };
 
   const openDeleteModal = (setting) => {
-    console.log("Opening delete modal for setting:", setting);
     setCurrentSetting(setting);
     setCurrentEmail((setting.email || setting.company_reporter_email || "").trim());
     setModalError("");
@@ -288,6 +268,8 @@ const ReportSetting = () => {
     setIsSubmitting(true);
     try {
       await createReportEmail(reportData);
+      // Clear API cache to ensure fresh data is fetched
+      clearApiCache();
       setModalSuccess("Email setting added successfully!");
       
       // Refresh table data immediately
@@ -298,7 +280,6 @@ const ReportSetting = () => {
         setModalSuccess("");
       }, 1000);
     } catch (error) {
-      console.error("Error saving report settings:", error);
       setModalError(error.message || "Failed to save email setting");
     } finally {
       setIsSubmitting(false);
@@ -316,6 +297,8 @@ const ReportSetting = () => {
     setIsSubmitting(true);
     try {
       await updateReportEmail(currentEmail, company_id, reportData);
+      // Clear API cache to ensure fresh data is fetched
+      clearApiCache();
       setModalSuccess("Email setting updated successfully!");
       
       // Refresh table data immediately
@@ -326,7 +309,6 @@ const ReportSetting = () => {
         setModalSuccess("");
       }, 1000);
     } catch (error) {
-      console.error("Error updating report settings:", error);
       setModalError(error.message || "Failed to update email setting");
     } finally {
       setIsSubmitting(false);
@@ -340,6 +322,8 @@ const ReportSetting = () => {
     setIsSubmitting(true);
     try {
       await deleteReportEmail(currentEmail, company_id);
+      // Clear API cache to ensure fresh data is fetched
+      clearApiCache();
       setModalSuccess("Email setting deleted successfully!");
       
       // Refresh table data immediately
@@ -350,7 +334,6 @@ const ReportSetting = () => {
         setModalSuccess("");
       }, 1000);
     } catch (error) {
-      console.error("Error deleting report settings:", error);
       setModalError(error.message || "Failed to delete email setting");
     } finally {
       setIsSubmitting(false);
@@ -389,7 +372,6 @@ const ReportSetting = () => {
       showToast("View settings updated successfully!");
       closeModals();
     } catch (error) {
-      console.error("Failed to update view setting:", error);
       showToast("Failed to update view settings", "error");
     } finally {
       setIsLoading(false);
@@ -444,6 +426,38 @@ const ReportSetting = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
+      {accessDenied ? (
+        <div className="pt-20 pb-8 flex-grow bg-gradient-to-br from-slate-50 to-blue-50">
+          <div className="border-b">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
+                  <Settings className="w-5 h-5 sm:w-6 sm:h-6" />
+                  Report Settings
+                </h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Configure email notifications and report frequencies
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+            <Card className="text-center py-12">
+              <CardContent>
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">Access Restricted</h3>
+                <p className="text-gray-600 mb-4">You don't have permission to access this page.</p>
+                <p className="text-sm text-gray-500">Contact your administrator for access to report settings.</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      ) : (
+        <>
 
 
       {/* Loading Overlay */}
@@ -1054,8 +1068,10 @@ const ReportSetting = () => {
           </Card>
         </div>
       )}
+        </>
+      )}
+      <Footer/>
 
-      <Footer />
     </div>
   );
 };
