@@ -319,6 +319,7 @@ const Reports = () => {
       });
 
       await viewCurrentDateReport(currentDate, false);
+      window.location.reload();
 
     } catch (error) {
       console.error("Error updating checkout:", error);
@@ -977,8 +978,7 @@ const Reports = () => {
 
       setModalSuccess("Entry added successfully!");
       setTimeout(() => {
-        setModalSuccess("");
-        closeModal();
+        window.location.reload();
       }, 1000);
     } catch (error) {
       console.error("Error saving entry:", error);
@@ -1054,40 +1054,13 @@ const Reports = () => {
         setBulkUploadSuccess(successMsg);
 
         setTimeout(() => {
-          setShowBulkUploadModal(false);
-          setSelectedFile(null);
-          setBulkUploadResults(null);
-          setBulkUploadError('');
-          setBulkUploadSuccess('');
-
-          // Refresh current view
-          if (activeTab === "today" && currentDate) {
-            viewCurrentDateReport(currentDate, true);
-          } else if (activeTab === "daywise" && selectedDate) {
-            viewDatewiseReport(selectedDate, true);
-          } else if (activeTab === "summary" && startDate && endDate) {
-            loadSummaryReport(true);
-          }
+          window.location.reload();
         }, 2000);
       } else if (result.message || result.success) {
-        // Handle case where API returns success but different format
         setBulkUploadSuccess(result.message || 'Upload completed successfully!');
         
         setTimeout(() => {
-          setShowBulkUploadModal(false);
-          setSelectedFile(null);
-          setBulkUploadResults(null);
-          setBulkUploadError('');
-          setBulkUploadSuccess('');
-
-          // Refresh current view
-          if (activeTab === "today" && currentDate) {
-            viewCurrentDateReport(currentDate, true);
-          } else if (activeTab === "daywise" && selectedDate) {
-            viewDatewiseReport(selectedDate, true);
-          } else if (activeTab === "summary" && startDate && endDate) {
-            loadSummaryReport(true);
-          }
+          window.location.reload();
         }, 2000);
       } else {
         setBulkUploadError('Upload failed. All records had errors. Please review the results below.');
