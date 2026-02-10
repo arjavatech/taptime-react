@@ -54,6 +54,7 @@ const ReportSetting = ({ accessDenied = false }) => {
   const [modalError, setModalError] = useState("");
   const [modalSuccess, setModalSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isViewSubmitting, setIsViewSubmitting] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState("table");
@@ -289,7 +290,13 @@ const ReportSetting = ({ accessDenied = false }) => {
   const updateReportSettings = async () => {
     if (!validateEmail(newEmail) || !validateFrequencies(editFrequencies)) return;
 
+    if (typeof window === "undefined") return;
     const company_id = localStorage.getItem("companyID") || "";
+    if (!company_id) {
+      setModalError("Missing company ID");
+      return;
+    }
+
     const deviceId = "";
     const reportData = createReportObject(newEmail.trim(), company_id, deviceId, editFrequencies);
 
@@ -297,13 +304,9 @@ const ReportSetting = ({ accessDenied = false }) => {
     setIsSubmitting(true);
     try {
       await updateReportEmail(currentEmail, company_id, reportData);
-      // Clear API cache to ensure fresh data is fetched
       clearApiCache();
       setModalSuccess("Email setting updated successfully!");
-      
-      // Refresh table data immediately
       await loadReportSettings(false);
-
       setTimeout(() => {
         setShowEditModal(false);
         setModalSuccess("");
@@ -355,12 +358,16 @@ const ReportSetting = ({ accessDenied = false }) => {
       last_modified_by: localStorage.getItem("UserEmail") || localStorage.getItem("userName") || "unknown",
     };
 
-    setIsLoading(true);
+    setIsViewSubmitting(true);
     try {
       const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'https://postgresql-restless-waterfall-2105.fly.dev').replace(/\/$/, '');
+      const authToken = localStorage.getItem("access_token");
+      const headers = { "Content-Type": "application/json" };
+      if (authToken) headers["Authorization"] = `Bearer ${authToken}`;
+      
       const response = await fetch(`${API_BASE}/admin-report-type/update/${company_id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(setting),
       });
 
@@ -374,7 +381,7 @@ const ReportSetting = ({ accessDenied = false }) => {
     } catch (error) {
       showToast("Failed to update view settings", "error");
     } finally {
-      setIsLoading(false);
+      setIsViewSubmitting(false);
     }
   };
 
@@ -990,15 +997,16 @@ const ReportSetting = ({ accessDenied = false }) => {
                   variant="outline"
                   onClick={closeModals}
                   className="flex-1 order-2 sm:order-1"
+                  disabled={isViewSubmitting}
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={updateViewSettings}
-                  disabled={isLoading}
+                  disabled={isViewSubmitting}
                   className="flex-1 order-1 sm:order-2"
                 >
-                  {isLoading ? (
+                  {isViewSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Updating...
