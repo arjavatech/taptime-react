@@ -17,6 +17,7 @@ import {
 const Invoices = () => {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [downloadingPDF, setDownloadingPDF] = useState(false);
   const [selectedMonths, setSelectedMonths] = useState(6);
   const [showMonthDropdown, setShowMonthDropdown] = useState(false);
   const [error, setError] = useState("");
@@ -102,9 +103,36 @@ const Invoices = () => {
     );
   };
 
-  const handleDownloadPDF = (pdfUrl) => {
-    if (pdfUrl) {
-      window.open(pdfUrl, '_blank');
+  const handleDownloadPDF = async (pdfUrl, invoiceId) => {
+    if (!pdfUrl) return;
+    
+    setDownloadingPDF(true);
+    try {
+      const response = await fetch(pdfUrl, { mode: 'cors' });
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `invoice-${invoiceId}.pdf`;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        setDownloadingPDF(false);
+      }, 500);
+    } catch (error) {
+      console.error('Download failed:', error);
+      const a = document.createElement('a');
+      a.href = pdfUrl;
+      a.download = `invoice-${invoiceId}.pdf`;
+      a.target = '_self';
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setDownloadingPDF(false);
     }
   };
 
@@ -122,9 +150,20 @@ const Invoices = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
 
-      {/* Loading Overlay */}
+      {/* Loading Overlay for Page Load */}
       {loading && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <div className="bg-white rounded-lg p-6 shadow-xl">
+            <div className="flex items-center space-x-3">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading Overlay for PDF Download */}
+      {downloadingPDF && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-lg p-6 shadow-xl">
             <div className="flex items-center space-x-3">
               <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -253,7 +292,7 @@ const Invoices = () => {
                           </td>
                           <td className="px-4 xl:px-6 py-4 text-center">
                             <Button
-                              onClick={() => handleDownloadPDF(invoice.invoice_pdf_url)}
+                              onClick={() => handleDownloadPDF(invoice.invoice_pdf_url, invoice.invoice_id)}
                               disabled={!invoice.invoice_pdf_url}
                               variant="ghost"
                               size="sm"
@@ -310,7 +349,7 @@ const Invoices = () => {
                           </td>
                           <td className="px-3 py-4 text-center">
                             <Button
-                              onClick={() => handleDownloadPDF(invoice.invoice_pdf_url)}
+                              onClick={() => handleDownloadPDF(invoice.invoice_pdf_url, invoice.invoice_id)}
                               disabled={!invoice.invoice_pdf_url}
                               variant="ghost"
                               size="sm"
@@ -361,7 +400,7 @@ const Invoices = () => {
                           <span className="text-gray-900 text-sm">{invoice.employee_count || 'N/A'}</span>
                         </div>
                         <Button
-                          onClick={() => handleDownloadPDF(invoice.invoice_pdf_url)}
+                          onClick={() => handleDownloadPDF(invoice.invoice_pdf_url, invoice.invoice_id)}
                           disabled={!invoice.invoice_pdf_url}
                           className="w-full bg-[#01005a] hover:bg-[#01005a]/90 text-white mt-3 text-sm py-2"
                           size="sm"
