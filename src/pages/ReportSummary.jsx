@@ -177,7 +177,6 @@ const Reports = () => {
     if (showLoading) setLoading(true);
     try {
       const arr = await fetchDailyReport(companyId, dateToUse);
-      console.log("Today's Report raw data:", arr.length, 'records');
 
       if (!arr.length) {
         setTableData([]);
@@ -200,8 +199,6 @@ const Reports = () => {
           processedData = filteredByDevice;
         }
       }
-
-      console.log("Today's Report processed data:", processedData.length, 'records');
       setTableData(processedData);
       setFilteredData([...processedData]);
       updateSummaryStats(processedData);
