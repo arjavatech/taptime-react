@@ -932,14 +932,25 @@ const Register = () => {
             )}
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <Button type="button" variant="outline" onClick={handleBack} className="flex-1 h-10 sm:h-11 text-sm sm:text-base" size="lg">
+          <div className="flex flex-col sm:flex-row gap-4 pt-4">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={handleBack} 
+              className="w-full sm:w-auto sm:flex-1 h-12 text-base font-semibold border-2 border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-all" 
+              size="lg"
+            >
               Back
             </Button>
-            <Button type="submit" className="flex-1 h-10 sm:h-11 text-sm sm:text-base" size="lg" disabled={isLoading}>
+            <Button 
+              type="submit" 
+              className="w-full sm:w-auto sm:flex-1 h-12 text-base font-semibold bg-primary hover:bg-primary/90 shadow-md hover:shadow-lg transition-all" 
+              size="lg" 
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  <Loader2 className="w-5 h-5 animate-spin mr-2" />
                   Processing...
                 </>
               ) : wantsTrial ? (
