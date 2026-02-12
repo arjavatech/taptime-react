@@ -245,13 +245,22 @@ const EmployeeList = () => {
 
   useEffect(() => {
     const handleResize = () => {
-      // Force re-pagination on resize
-      filterEmployees();
+      // Auto-switch to grid view on mobile, table view on desktop
+      const width = window.innerWidth;
+      if (width < 768) {
+        setViewMode("grid");
+      } else if (width >= 768 && viewMode === "grid") {
+        setViewMode("table");
+      }
+      setCurrentPage(1);
     };
+
+    // Set initial view mode based on screen size
+    handleResize();
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [viewMode]);
+  }, []);
 
   useEffect(() => {
     setCurrentPage(1);

@@ -109,12 +109,12 @@ const Pricing = () => {
               Simple, Transparent Pricing
             </div>
             
-            <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 sm:mb-6 leading-tight px-2">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 sm:mb-6 leading-tight px-2">
               Pricing That Grows
               <span className="text-primary block">With Your Team</span>
             </h1>
             
-            <p className="text-base sm:text-lg lg:text-xl text-muted-foreground mb-6 sm:mb-8 max-w-2xl mx-auto leading-relaxed px-4">
+            <p className="text-sm sm:text-base md:text-lg lg:text-xl text-muted-foreground mb-6 sm:mb-8 max-w-2xl mx-auto leading-relaxed px-4">
               Just $1 per employee per month. No hidden fees, no complicated tiers.
               Choose your preferred option: Start with a 14-day free trial or subscribe directly.
             </p>
@@ -141,28 +141,28 @@ const Pricing = () => {
               {/* Price Display */}
               <div className="text-center mb-6 sm:mb-8">
                 <div className="flex items-baseline justify-center mb-2">
-                  <span className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground">
+                  <span className="text-4xl sm:text-5xl md:text-6xl font-bold text-foreground">
                     $1
                   </span>
-                  <span className="text-lg sm:text-xl lg:text-2xl text-muted-foreground ml-2">
+                  <span className="text-sm sm:text-base md:text-lg text-muted-foreground ml-2">
                     /employee/month
                   </span>
                 </div>
-                <p className="text-sm sm:text-base lg:text-lg text-primary font-semibold">
+                <p className="text-xs sm:text-sm md:text-base text-primary font-semibold">
                   14-day free trial included
                 </p>
               </div>
 
               {/* Features List */}
               <div className="mb-6 sm:mb-8">
-                <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-3 sm:mb-4 text-center">
+                <h3 className="text-base sm:text-lg md:text-xl lg:text-2xl font-semibold text-foreground mb-3 sm:mb-4 text-center">
                   Everything Included:
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                   {planFeatures.map((feature, index) => (
                     <div key={index} className="flex items-start">
                       <Check className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 mr-2 sm:mr-3 flex-shrink-0 mt-0.5" />
-                      <span className="text-muted-foreground text-sm sm:text-base">{feature}</span>
+                      <span className="text-muted-foreground text-xs sm:text-sm md:text-base">{feature}</span>
                     </div>
                   ))}
                 </div>
@@ -170,8 +170,8 @@ const Pricing = () => {
 
               {/* Pricing Examples */}
               <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 sm:p-6 mb-6 sm:mb-8">
-                <h4 className="font-semibold text-foreground mb-3">Pricing Examples:</h4>
-                <div className="space-y-2 text-sm sm:text-base">
+                <h4 className="text-sm sm:text-base md:text-lg font-semibold text-foreground mb-3">Pricing Examples:</h4>
+                <div className="space-y-2 text-xs sm:text-sm md:text-base">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">10 employees</span>
                     <span className="font-semibold text-foreground">$10/month</span>
