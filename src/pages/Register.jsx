@@ -625,7 +625,7 @@ const Register = () => {
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+          <div className="grid grid-cols-1 max-[950px]:grid-cols-1 min-[951px]:grid-cols-2 gap-3 md:gap-4">
             <div className="space-y-2">
               <Label htmlFor="noOfDevices" className="text-sm md:text-base font-medium">Number of Devices *</Label>
               <Input
@@ -687,7 +687,7 @@ const Register = () => {
                 onChange={(e) => setEmploymentTypeInput(e.target.value)}
                 onKeyDown={handleEmploymentTypeKeyDown}
                 placeholder={employmentTypes.length === 0 ? "Type and press comma to add" : "Add more..."}
-                className="flex-1 min-w-[100px] md:min-w-[120px] outline-none text-xs md:text-sm bg-transparent"
+                className="flex-1 min-w-[100px] outline-none text-xs md:text-sm bg-transparent"
               />
             </div>
             <p className="text-xs md:text-sm text-muted-foreground">Type employment type and press comma to add. Default: General Employee</p>

@@ -185,7 +185,7 @@ const Header = () => {
   };
 
   const publicNavItems = [
-    { to: "/", label: "Home" },    
+    { to: "/", label: "Home" },
     { to: "/pricing", label: "Pricing" },
     { to: "/login", label: "Login" },
     { to: "/register", label: "Register" },
@@ -334,7 +334,7 @@ const Header = () => {
                     <div className="hidden lg:block absolute right-0 top-full mt-2 z-50">
                       <div className="bg-white rounded-lg shadow-2xl border border-gray-200 min-w-[300px] overflow-hidden">
                         {/* Profile Header */}
-                        <div className="px-6 py-5">
+                        <div className="px-6 py-2">
                           <div className="flex items-center justify-center space-x-4">
                             <Avatar
                               src={userProfile.picture}
@@ -346,7 +346,9 @@ const Header = () => {
 
                           </div>
                           <div className="flex-1 min-w-0 py-3 text-center">
-                            <p className="text-[#02066F] font-medium truncate">{userProfile.name || userProfile.companyName}</p>
+                            <p className="text-[#02066F] font-medium truncate">{userProfile.companyName}</p>
+
+                            <p className="text-gray-600 text-sm mt-1">{userProfile.name}</p>
                             <p className="text-gray-600 text-sm mt-1">{userProfile.email}</p>
                           </div>
                         </div>
@@ -354,8 +356,8 @@ const Header = () => {
                         {/* Company Switcher Section */}
                         {localStorage.getItem("adminType") === "Owner" && (
                           <div className="px-6 pb-3">
-                            <CompanySwitcher 
-                              onAddCompanyClick={() => setShowProfileDropdown(false)} 
+                            <CompanySwitcher
+                              onAddCompanyClick={() => setShowProfileDropdown(false)}
                               onCompanySwitch={() => setShowProfileDropdown(false)}
                               subscriptionStatus={subscriptionStatus}
                             />
@@ -460,7 +462,7 @@ const Header = () => {
                 <div className="px-4 pb-4">
                   {localStorage.getItem("adminType") === "Owner" && (
                     <div className="mb-6">
-                      <CompanySwitcher 
+                      <CompanySwitcher
                         onAddCompanyClick={() => setShowProfileSidebar(false)}
                         subscriptionStatus={subscriptionStatus}
                       />
