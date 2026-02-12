@@ -165,6 +165,13 @@ const Header = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  useEffect(() => {
+    // Auto-expand Reports dropdown when on report pages
+    if (location.pathname.includes("/report")) {
+      setShowMobileReportsDropdown(true);
+    }
+  }, [location.pathname]);
+
   const isActive = (path) => {
     if (path === "/" && location.pathname === "/") return true;
     if (path === "/login" && (location.pathname === "/login" || location.pathname === "/forgot-password")) return true;
@@ -173,7 +180,12 @@ const Header = () => {
   };
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
-    setShowMobileReportsDropdown(false);
+    // Keep dropdown open if on report page
+    if (!sidebarOpen && location.pathname.includes("/report")) {
+      setShowMobileReportsDropdown(true);
+    } else if (sidebarOpen) {
+      setShowMobileReportsDropdown(false);
+    }
   };
   const toggleDropdown = () => setDropdownOpen(!dropdownOpen);
 
@@ -263,10 +275,7 @@ const Header = () => {
                 <div key={index} className="relative reports-dropdown">
                   <button
                     onClick={() => setShowReportsDropdown(!showReportsDropdown)}
-                    className={`${location.pathname.includes("/report")
-                      ? "text-[#02066F] bg-blue-50"
-                      : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
-                      } px-3 py-2 text-base font-medium rounded-md transition-all duration-150 flex items-center gap-1`}
+                    className="text-gray-700 hover:text-[#02066F] hover:bg-gray-50 px-3 py-2 text-base font-medium rounded-md transition-all duration-150 flex items-center gap-1"
                   >
                     {item.label}
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -396,7 +405,7 @@ const Header = () => {
           <>
             <div className="lg:hidden fixed inset-0 z-40" onClick={toggleSidebar}></div>
             <aside className="fixed top-0 left-0 h-full w-64 bg-white shadow-xl z-50 border-r flex flex-col">
-              <div className="flex items-center justify-between px-4 py-4 border-b">
+              <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b">
                 <img className="h-10 w-auto" src={tapTimeLogo} alt="Tap Time Logo" />
                 <button onClick={toggleSidebar} className="text-gray-400 hover:text-black">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -404,7 +413,7 @@ const Header = () => {
                   </svg>
                 </button>
               </div>
-              <nav className="flex-1 px-4 py-4 space-y-1">
+              <nav className="flex-1 px-4 sm:px-6 py-4 space-y-1">
                 {navItems.map((item, index) => (
                   item.href ? (
                     <a
@@ -419,10 +428,7 @@ const Header = () => {
                     <div key={index}>
                       <button
                         onClick={() => setShowMobileReportsDropdown(!showMobileReportsDropdown)}
-                        className={`w-full text-left px-3 py-2 rounded-md font-medium text-base flex items-center justify-between ${location.pathname.includes("/report")
-                          ? "text-[#02066F] bg-blue-50"
-                          : "text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
-                          }`}
+                        className="w-full text-left px-3 py-2 rounded-md font-medium text-base flex items-center justify-between text-gray-700 hover:text-[#02066F] hover:bg-gray-50"
                       >
                         {item.label}
                         <svg className={`w-4 h-4 transition-transform ${showMobileReportsDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -459,7 +465,7 @@ const Header = () => {
                 ))}
               </nav>
               {isAuthenticated && (
-                <div className="px-4 pb-4">
+                <div className="px-4 sm:px-6 pb-4 pt-2">
                   {localStorage.getItem("adminType") === "Owner" && (
                     <div className="mb-6">
                       <CompanySwitcher

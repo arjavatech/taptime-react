@@ -1629,76 +1629,80 @@ const Reports = () => {
                       })}
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full border border-gray-300 rounded-lg">
-                        <thead className="bg-[#02066F] text-white">
-                          <tr>
-                            <th className="px-2 sm:px-4 py-2 sm:py-3 text-center font-semibold text-xs sm:text-sm border-r border-white/20">Employee ID</th>
-                            <th className="px-2 sm:px-4 py-2 sm:py-3 text-center font-semibold text-xs sm:text-sm border-r border-white/20">Name</th>
-                            <th className="px-2 sm:px-4 py-2 sm:py-3 text-center font-semibold text-xs sm:text-sm border-r border-white/20">Check-in Time</th>
-                            <th className="px-2 sm:px-4 py-2 sm:py-3 text-center font-semibold text-xs sm:text-sm border-r border-white/20">Check-out Time</th>
-                            <th className="px-2 sm:px-4 py-2 sm:py-3 text-center font-semibold text-xs sm:text-sm border-r border-white/20">Type</th>
-                            <th className="px-2 sm:px-4 py-2 sm:py-3 text-center font-semibold text-xs sm:text-sm">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {filteredData.map((record, index) => {
-                            const rowKey = `${record.Pin}-${record.CheckInTime}`;
-                            const hasCheckout = record.CheckOutTime;
-                            const selectedTime = checkoutTimes[rowKey];
-                            const checkoutError = checkoutErrors[rowKey];
+                    <Card>
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[600px]">
+                          <thead style={{ backgroundColor: '#01005a' }}>
+                            <tr className="border-b">
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[100px]">Employee ID</th>
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Name</th>
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Check-in Time</th>
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Check-out Time</th>
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">Type</th>
+                              <th className="text-right p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[100px]">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredData.map((record, index) => {
+                              const rowKey = `${record.Pin}-${record.CheckInTime}`;
+                              const hasCheckout = record.CheckOutTime;
+                              const selectedTime = checkoutTimes[rowKey];
+                              const checkoutError = checkoutErrors[rowKey];
 
-                            // Get minimum time (check-in time) for time picker
-                            const checkInTime = new Date(record.CheckInTime);
-                            const minTime = `${String(checkInTime.getHours()).padStart(2, '0')}:${String(checkInTime.getMinutes() + 1).padStart(2, '0')}`;
+                              // Get minimum time (check-in time) for time picker
+                              const checkInTime = new Date(record.CheckInTime);
+                              const minTime = `${String(checkInTime.getHours()).padStart(2, '0')}:${String(checkInTime.getMinutes() + 1).padStart(2, '0')}`;
 
-                            return (
-                              <tr key={index} className="hover:bg-gray-50">
-                                <td className="px-2 sm:px-4 py-2 sm:py-3 text-center font-medium text-xs sm:text-sm">{record.Pin}</td>
-                                <td className="px-2 sm:px-4 py-2 sm:py-3 text-center text-xs sm:text-sm">{record.Name}</td>
-                                <td className="px-2 sm:px-4 py-2 sm:py-3 text-center text-xs sm:text-sm">{formatTime(record.CheckInTime)}</td>
-                                <td className="px-2 sm:px-4 py-2 sm:py-3 text-center text-xs sm:text-sm">
-                                  {hasCheckout ? (
-                                    formatTime(record.CheckOutTime)
-                                  ) : (
-                                    <div className="flex flex-col items-center">
-                                      <input
-                                        type="time"
-                                        value={selectedTime || ''}
-                                        onChange={(e) => handleCheckoutTimeChange(rowKey, e.target.value, record.CheckInTime)}
-                                        min={minTime}
-                                        className={`border rounded px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 ${checkoutError
-                                            ? 'border-red-500 focus:ring-red-500'
-                                            : 'border-gray-300 focus:ring-blue-500'
-                                          }`}
-                                      />
-                                      {checkoutError && (
-                                        <span className="text-red-500 text-xs mt-1">{checkoutError}</span>
-                                      )}
+                              return (
+                                <tr key={index} className="border-b hover:bg-muted/50">
+                                  <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium">{record.Pin}</td>
+                                  <td className="p-2 sm:p-4 text-xs sm:text-sm">{record.Name}</td>
+                                  <td className="p-2 sm:p-4 text-xs sm:text-sm">{formatTime(record.CheckInTime)}</td>
+                                  <td className="p-2 sm:p-4 text-xs sm:text-sm">
+                                    {hasCheckout ? (
+                                      formatTime(record.CheckOutTime)
+                                    ) : (
+                                      <div className="flex flex-col">
+                                        <input
+                                          type="time"
+                                          value={selectedTime || ''}
+                                          onChange={(e) => handleCheckoutTimeChange(rowKey, e.target.value, record.CheckInTime)}
+                                          min={minTime}
+                                          className={`border rounded px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 ${checkoutError
+                                              ? 'border-red-500 focus:ring-red-500'
+                                              : 'border-gray-300 focus:ring-blue-500'
+                                            }`}
+                                        />
+                                        {checkoutError && (
+                                          <span className="text-red-500 text-xs mt-1">{checkoutError}</span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="p-2 sm:p-4">
+                                    <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                      {record.Type}
+                                    </span>
+                                  </td>
+                                  <td className="p-2 sm:p-4">
+                                    <div className="flex justify-end">
+                                      <Button
+                                        onClick={() => handleCheckout(record)}
+                                        disabled={hasCheckout || !selectedTime || checkoutError}
+                                        size="sm"
+                                        className={`text-xs ${hasCheckout || !selectedTime || checkoutError ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+                                      >
+                                        {hasCheckout ? 'Checked Out' : 'Check Out'}
+                                      </Button>
                                     </div>
-                                  )}
-                                </td>
-                                <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
-                                  <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                                    {record.Type}
-                                  </span>
-                                </td>
-                                <td className="px-2 sm:px-4 py-2 sm:py-3 text-center">
-                                  <Button
-                                    onClick={() => handleCheckout(record)}
-                                    disabled={hasCheckout || !selectedTime || checkoutError}
-                                    size="sm"
-                                    className={`text-xs ${hasCheckout || !selectedTime || checkoutError ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
-                                  >
-                                    {hasCheckout ? 'Checked Out' : 'Check Out'}
-                                  </Button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </Card>
                   )
                 )}
               </CardContent>
@@ -1772,38 +1776,40 @@ const Reports = () => {
                       ))}
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full border border-gray-300 rounded-lg">
-                        <thead className="bg-[#02066F] text-white">
-                          <tr>
-                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Employee</th>
-                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">PIN</th>
-                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Check In</th>
-                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Check Out</th>
-                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Type</th>
-                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Status</th>
-                            <th className="px-4 py-3 text-center font-semibold text-sm">Time Worked</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {filteredData.map((record, index) => (
-                            <tr key={index} className="hover:bg-gray-50">
-                              <td className="px-4 py-3 text-center font-medium">{record.Name}</td>
-                              <td className="px-4 py-3 text-center text-gray-600">{record.Pin}</td>
-                              <td className="px-4 py-3 text-center">{formatTime(record.CheckInTime)}</td>
-                              <td className="px-4 py-3 text-center">{formatTime(record.CheckOutTime)}</td>
-                              <td className="px-4 py-3 text-center">
-                                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                                  {record.Type}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-center">{getStatusBadge(record)}</td>
-                              <td className="px-4 py-3 text-center font-medium">{record.TimeWorked}</td>
+                    <Card>
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[600px]">
+                          <thead style={{ backgroundColor: '#01005a' }}>
+                            <tr className="border-b">
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Employee</th>
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">PIN</th>
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[100px]">Check In</th>
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[100px]">Check Out</th>
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">Type</th>
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">Status</th>
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[100px]">Time Worked</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                          </thead>
+                          <tbody>
+                            {filteredData.map((record, index) => (
+                              <tr key={index} className="border-b hover:bg-muted/50">
+                                <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium">{record.Name}</td>
+                                <td className="p-2 sm:p-4 text-xs sm:text-sm text-gray-600">{record.Pin}</td>
+                                <td className="p-2 sm:p-4 text-xs sm:text-sm">{formatTime(record.CheckInTime)}</td>
+                                <td className="p-2 sm:p-4 text-xs sm:text-sm">{formatTime(record.CheckOutTime)}</td>
+                                <td className="p-2 sm:p-4">
+                                  <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                    {record.Type}
+                                  </span>
+                                </td>
+                                <td className="p-2 sm:p-4">{getStatusBadge(record)}</td>
+                                <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium">{record.TimeWorked}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </Card>
                   )
                 )}
               </CardContent>
@@ -1866,28 +1872,30 @@ const Reports = () => {
                       ))}
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full border border-gray-300 rounded-lg">
-                        <thead className="bg-[#02066F] text-white">
-                          <tr>
-                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Employee</th>
-                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">PIN</th>
-                            <th className="px-4 py-3 text-center font-semibold text-sm">Total Time Worked</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {filteredData.map((employee, index) => (
-                            <tr key={index} className="hover:bg-gray-50 transition-colors">
-                              <td className="px-4 py-3 text-center font-medium text-gray-900">{employee.Name}</td>
-                              <td className="px-4 py-3 text-center text-gray-600">{employee.Pin}</td>
-                              <td className="px-4 py-3 text-center font-semibold text-blue-600">
-                                {employee.TimeWorked || employee.hoursWorked || "0:00"}
-                              </td>
+                    <Card>
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[600px]">
+                          <thead style={{ backgroundColor: '#01005a' }}>
+                            <tr className="border-b">
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Employee</th>
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">PIN</th>
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Total Time Worked</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                          </thead>
+                          <tbody>
+                            {filteredData.map((employee, index) => (
+                              <tr key={index} className="border-b hover:bg-muted/50">
+                                <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium text-gray-900">{employee.Name}</td>
+                                <td className="p-2 sm:p-4 text-xs sm:text-sm text-gray-600">{employee.Pin}</td>
+                                <td className="p-2 sm:p-4 text-xs sm:text-sm font-semibold text-blue-600">
+                                  {employee.TimeWorked || employee.hoursWorked || "0:00"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </Card>
                   )
                 )}
               </CardContent>
@@ -1986,71 +1994,75 @@ const Reports = () => {
                       })}
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full border border-gray-300 rounded-lg">
-                        <thead className="bg-[#02066F] text-white">
-                          <tr>
-                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Employee ID</th>
-                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Name</th>
-                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Date Filed</th>
-                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Check-in Time</th>
-                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Check-out Time</th>
-                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Type</th>
-                            <th className="px-4 py-3 text-center font-semibold text-sm">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {pendingCheckoutData.map((record, index) => {
-                            const rowKey = `${record.Pin}-${record.CheckInTime}`;
-                            const selectedTime = checkoutTimes[rowKey];
-                            const checkoutError = checkoutErrors[rowKey];
-                            const checkInTime = new Date(record.CheckInTime);
-                            const minTime = `${String(checkInTime.getHours()).padStart(2, '0')}:${String(checkInTime.getMinutes() + 1).padStart(2, '0')}`;
+                    <Card>
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[600px]">
+                          <thead style={{ backgroundColor: '#01005a' }}>
+                            <tr className="border-b">
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[100px]">Employee ID</th>
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Name</th>
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[100px]">Date Filed</th>
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Check-in Time</th>
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Check-out Time</th>
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">Type</th>
+                              <th className="text-right p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[100px]">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {pendingCheckoutData.map((record, index) => {
+                              const rowKey = `${record.Pin}-${record.CheckInTime}`;
+                              const selectedTime = checkoutTimes[rowKey];
+                              const checkoutError = checkoutErrors[rowKey];
+                              const checkInTime = new Date(record.CheckInTime);
+                              const minTime = `${String(checkInTime.getHours()).padStart(2, '0')}:${String(checkInTime.getMinutes() + 1).padStart(2, '0')}`;
 
-                            return (
-                              <tr key={index} className="hover:bg-gray-50">
-                                <td className="px-4 py-3 text-center font-medium">{record.Pin}</td>
-                                <td className="px-4 py-3 text-center">{record.Name}</td>
-                                <td className="px-4 py-3 text-center">{record.CheckInTime ? new Date(record.CheckInTime).toLocaleDateString() : '--'}</td>
-                                <td className="px-4 py-3 text-center">{formatTime(record.CheckInTime)}</td>
-                                <td className="px-4 py-3 text-center">
-                                  <div className="flex flex-col items-center">
-                                    <input
-                                      type="time"
-                                      value={selectedTime || ''}
-                                      onChange={(e) => handleCheckoutTimeChange(rowKey, e.target.value, record.CheckInTime)}
-                                      min={minTime}
-                                      className={`border rounded px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 ${checkoutError
-                                          ? 'border-red-500 focus:ring-red-500'
-                                          : 'border-gray-300 focus:ring-blue-500'
-                                        }`}
-                                    />
-                                    {checkoutError && (
-                                      <span className="text-red-500 text-xs mt-1">{checkoutError}</span>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="px-4 py-3 text-center">
-                                  <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                                    {record.Type}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3 text-center">
-                                  <Button
-                                    onClick={() => handleCheckout(record)}
-                                    disabled={!selectedTime || checkoutError}
-                                    size="sm"
-                                    className={`text-xs ${!selectedTime || checkoutError ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
-                                  >
-                                    Check Out
-                                  </Button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
+                              return (
+                                <tr key={index} className="border-b hover:bg-muted/50">
+                                  <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium">{record.Pin}</td>
+                                  <td className="p-2 sm:p-4 text-xs sm:text-sm">{record.Name}</td>
+                                  <td className="p-2 sm:p-4 text-xs sm:text-sm">{record.CheckInTime ? new Date(record.CheckInTime).toLocaleDateString() : '--'}</td>
+                                  <td className="p-2 sm:p-4 text-xs sm:text-sm">{formatTime(record.CheckInTime)}</td>
+                                  <td className="p-2 sm:p-4 text-xs sm:text-sm">
+                                    <div className="flex flex-col">
+                                      <input
+                                        type="time"
+                                        value={selectedTime || ''}
+                                        onChange={(e) => handleCheckoutTimeChange(rowKey, e.target.value, record.CheckInTime)}
+                                        min={minTime}
+                                        className={`border rounded px-2 py-1 text-xs sm:text-sm focus:outline-none focus:ring-2 ${checkoutError
+                                            ? 'border-red-500 focus:ring-red-500'
+                                            : 'border-gray-300 focus:ring-blue-500'
+                                          }`}
+                                      />
+                                      {checkoutError && (
+                                        <span className="text-red-500 text-xs mt-1">{checkoutError}</span>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="p-2 sm:p-4">
+                                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                      {record.Type}
+                                    </span>
+                                  </td>
+                                  <td className="p-2 sm:p-4">
+                                    <div className="flex justify-end">
+                                      <Button
+                                        onClick={() => handleCheckout(record)}
+                                        disabled={!selectedTime || checkoutError}
+                                        size="sm"
+                                        className={`text-xs ${!selectedTime || checkoutError ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+                                      >
+                                        Check Out
+                                      </Button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </Card>
                   )
                 )}
               </CardContent>
@@ -2209,28 +2221,30 @@ const Reports = () => {
                       ))}
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full border border-gray-300 rounded-lg">
-                        <thead className="bg-[#02066F] text-white">
-                          <tr>
-                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">Employee</th>
-                            <th className="px-4 py-3 text-center font-semibold text-sm border-r border-white/20">PIN</th>
-                            <th className="px-4 py-3 text-center font-semibold text-sm">Total Time Worked</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {filteredData.map((employee, index) => (
-                            <tr key={index} className="hover:bg-gray-50 transition-colors">
-                              <td className="px-4 py-3 text-center font-medium text-gray-900">{employee.Name}</td>
-                              <td className="px-4 py-3 text-center text-gray-600">{employee.Pin}</td>
-                              <td className="px-4 py-3 text-center font-semibold text-blue-600">
-                                {employee.TimeWorked || employee.hoursWorked || "0:00"}
-                              </td>
+                    <Card>
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[600px]">
+                          <thead style={{ backgroundColor: '#01005a' }}>
+                            <tr className="border-b">
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Employee</th>
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">PIN</th>
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Total Time Worked</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                          </thead>
+                          <tbody>
+                            {filteredData.map((employee, index) => (
+                              <tr key={index} className="border-b hover:bg-muted/50">
+                                <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium text-gray-900">{employee.Name}</td>
+                                <td className="p-2 sm:p-4 text-xs sm:text-sm text-gray-600">{employee.Pin}</td>
+                                <td className="p-2 sm:p-4 text-xs sm:text-sm font-semibold text-blue-600">
+                                  {employee.TimeWorked || employee.hoursWorked || "0:00"}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </Card>
                   )
                 )}
               </CardContent>

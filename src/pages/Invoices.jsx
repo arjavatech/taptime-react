@@ -105,7 +105,7 @@ const Invoices = () => {
 
   const handleDownloadPDF = async (pdfUrl, invoiceId) => {
     if (!pdfUrl) return;
-    
+
     setDownloadingPDF(true);
     try {
       const response = await fetch(pdfUrl, { mode: 'cors' });
@@ -132,7 +132,9 @@ const Invoices = () => {
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      setDownloadingPDF(false);
+      setTimeout(() => {
+        setDownloadingPDF(false);
+      }, 1500)
     }
   };
 
@@ -202,9 +204,8 @@ const Invoices = () => {
                       <button
                         key={option.value}
                         onClick={() => handleMonthSelect(option.value)}
-                        className={`w-full text-left px-4 py-2 hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg transition-colors ${
-                          selectedMonths === option.value ? 'bg-blue-50 text-[#01005a] font-medium' : 'text-gray-700'
-                        }`}
+                        className={`w-full text-left px-4 py-2 hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg transition-colors ${selectedMonths === option.value ? 'bg-blue-50 text-[#01005a] font-medium' : 'text-gray-700'
+                          }`}
                       >
                         {option.label}
                       </button>
