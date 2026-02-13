@@ -627,7 +627,7 @@ const Register = () => {
 
           <div className="grid grid-cols-1 max-[950px]:grid-cols-1 min-[951px]:grid-cols-2 gap-3 md:gap-4">
             <div className="space-y-2">
-              <Label htmlFor="noOfDevices" className="text-sm md:text-base font-medium">Number of Devices *</Label>
+              <Label htmlFor="noOfDevices" className="text-sm md:text-base font-medium device-employee-label">Number of Devices *</Label>
               <Input
                 id="noOfDevices"
                 name="noOfDevices"
@@ -643,7 +643,7 @@ const Register = () => {
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="noOfEmployees" className="text-sm md:text-base font-medium">Number of Employees *</Label>
+              <Label htmlFor="noOfEmployees" className="text-sm md:text-base font-medium device-employee-label">Number of Employees *</Label>
               <Input
                 id="noOfEmployees"
                 name="noOfEmployees"
