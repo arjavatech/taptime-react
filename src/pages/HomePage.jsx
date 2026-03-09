@@ -96,7 +96,7 @@ const HomePage = () => {
                 Get Started Free
                 <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
               </Button>
-              <Button variant="outline" size="lg" className="text-base sm:text-lg px-6 py-4 sm:px-8 sm:py-6">
+              <Button variant="outline" size="lg" className="text-base sm:text-lg px-6 py-4 sm:px-8 sm:py-6" disabled>
                 Watch Demo
               </Button>
             </div>
