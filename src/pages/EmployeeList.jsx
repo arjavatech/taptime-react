@@ -245,13 +245,22 @@ const EmployeeList = () => {
 
   useEffect(() => {
     const handleResize = () => {
-      // Force re-pagination on resize
-      filterEmployees();
+      // Auto-switch to grid view on mobile, table view on desktop
+      const width = window.innerWidth;
+      if (width < 768) {
+        setViewMode("grid");
+      } else if (width >= 768 && viewMode === "grid") {
+        setViewMode("table");
+      }
+      setCurrentPage(1);
     };
+
+    // Set initial view mode based on screen size
+    handleResize();
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [viewMode]);
+  }, []);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -619,12 +628,13 @@ const EmployeeList = () => {
         await createEmployeeWithData(formData);
         // Clear API cache to ensure fresh data is fetched
         clearApiCache();
+        // Reload data before closing modal
+        await loadEmployeeData();
       }
 
-      // Success - close modal and refresh
+      // Success - close modal
       setShowAddModal(false);
       setEditingEmployee(null);
-      loadEmployeeData();
     } catch (error) {
       const duplicateError = parseDuplicateError(error.detail || error.message);
 
@@ -640,6 +650,8 @@ const EmployeeList = () => {
             await createEmployeeWithData(newFormData);
             // Clear API cache to ensure fresh data is fetched
             clearApiCache();
+            // Reload data before showing success
+            await loadEmployeeData();
 
             // Show success message with original and new PIN
             setModalSuccess(`PIN ${formData.pin} was already taken. Created with PIN: ${newPin}`);
@@ -650,7 +662,6 @@ const EmployeeList = () => {
               setShowAddModal(false);
               setEditingEmployee(null);
               setModalSuccess("");
-              loadEmployeeData();
             }, 5000);
             return;
           } catch (retryError) {
@@ -962,7 +973,7 @@ const EmployeeList = () => {
       
       // Clear API cache and refresh employee data
       clearApiCache();
-      loadEmployeeData();
+      await loadEmployeeData();
     } catch (error) {
       console.error('Bulk upload error:', error);
       

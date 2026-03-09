@@ -486,17 +486,17 @@ const Register = () => {
 
   const renderStep1 = () => (
     <Card className="border-0 shadow-2xl">
-      <CardHeader className="space-y-1 text-center bg-primary text-primary-foreground rounded-t-xl px-4 py-6 sm:px-6 sm:py-8">
-        <CardTitle className="text-xl sm:text-2xl lg:text-3xl font-bold">Company Information</CardTitle>
-        <CardDescription className="text-primary-foreground/80 text-sm sm:text-base">
+      <CardHeader className="space-y-1 text-center bg-primary text-primary-foreground rounded-t-xl px-4 py-6 md:px-6 md:py-7 lg:px-6 lg:py-8">
+        <CardTitle className="text-xl md:text-2xl lg:text-3xl font-bold">Company Information</CardTitle>
+        <CardDescription className="text-primary-foreground/80 text-sm md:text-base">
           Tell us about your company
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8">
-        <form onSubmit={handleNext} className="space-y-3 sm:space-y-4">
+      <CardContent className="space-y-4 md:space-y-5 lg:space-y-6 p-4 md:p-6 lg:p-8">
+        <form onSubmit={handleNext} className="space-y-3 md:space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="companyName" className="text-sm sm:text-base font-medium">Company Name *</Label>
+            <Label htmlFor="companyName" className="text-sm md:text-base font-medium">Company Name *</Label>
             <div className="relative">
               <Building className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
@@ -505,32 +505,32 @@ const Register = () => {
                 placeholder="Enter company name"
                 value={formData.companyName}
                 onChange={handleInputChange}
-                className={`pl-10 h-10 sm:h-11 text-sm sm:text-base ${companyNameError ? 'border-red-500 focus:border-red-500' : ''}`}
+                className={`pl-10 h-10 md:h-11 text-sm md:text-base ${companyNameError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
             </div>
             {companyNameError && (
-              <p className="text-red-600 text-xs sm:text-sm mt-1">{companyNameError}</p>
+              <p className="text-red-600 text-xs md:text-sm mt-1">{companyNameError}</p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="companyLogo" className="text-sm sm:text-base font-medium">Company Logo</Label>
+            <Label htmlFor="companyLogo" className="text-sm md:text-base font-medium">Company Logo</Label>
             {formData.companyLogo ? (
-              <div className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 border rounded-md bg-gray-50">
+              <div className="flex items-center gap-2 md:gap-3 p-2 md:p-3 border rounded-md bg-gray-50">
                 <img
                   src={formData.companyLogo}
                   alt="Company Logo Preview"
-                  className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded"
+                  className="w-10 h-10 md:w-12 md:h-12 object-cover rounded"
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs sm:text-sm font-medium text-gray-700 truncate">{logoFileName}</p>
+                  <p className="text-xs md:text-sm font-medium text-gray-700 truncate">{logoFileName}</p>
                   <p className="text-xs text-gray-500">Image selected</p>
                 </div>
                 <button
                   type="button"
                   onClick={handleRemoveLogo}
-                  className="text-red-500 hover:text-red-700 text-xs sm:text-sm font-medium px-2"
+                  className="text-red-500 hover:text-red-700 text-xs md:text-sm font-medium px-2"
                 >
                   Remove
                 </button>
@@ -542,16 +542,16 @@ const Register = () => {
                 type="file"
                 accept="image/*"
                 onChange={handleFileChange}
-                className={`h-10 sm:h-11 text-sm sm:text-base ${companyLogoError ? 'border-red-500 focus:border-red-500' : ''}`}
+                className={`h-10 md:h-11 text-sm md:text-base ${companyLogoError ? 'border-red-500 focus:border-red-500' : ''}`}
               />
             )}
             {companyLogoError && (
-              <p className="text-red-600 text-xs sm:text-sm mt-1">{companyLogoError}</p>
+              <p className="text-red-600 text-xs md:text-sm mt-1">{companyLogoError}</p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="companyStreet" className="text-sm sm:text-base font-medium">Street Address *</Label>
+            <Label htmlFor="companyStreet" className="text-sm md:text-base font-medium">Street Address *</Label>
             <div className="relative">
               <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
@@ -560,50 +560,50 @@ const Register = () => {
                 placeholder="Enter street address"
                 value={formData.companyStreet}
                 onChange={handleInputChange}
-                className={`pl-10 h-10 sm:h-11 text-sm sm:text-base ${companyStreetError ? 'border-red-500 focus:border-red-500' : ''}`}
+                className={`pl-10 h-10 md:h-11 text-sm md:text-base ${companyStreetError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
             </div>
             {companyStreetError && (
-              <p className="text-red-600 text-xs sm:text-sm mt-1">{companyStreetError}</p>
+              <p className="text-red-600 text-xs md:text-sm mt-1">{companyStreetError}</p>
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
             <div className="space-y-2">
-              <Label htmlFor="companyCity" className="text-sm sm:text-base font-medium">City *</Label>
+              <Label htmlFor="companyCity" className="text-sm md:text-base font-medium">City *</Label>
               <Input
                 id="companyCity"
                 name="companyCity"
                 placeholder="City"
                 value={formData.companyCity}
                 onChange={handleInputChange}
-                className={`h-10 sm:h-11 text-sm sm:text-base ${companyCityError ? 'border-red-500 focus:border-red-500' : ''}`}
+                className={`h-10 md:h-11 text-sm md:text-base ${companyCityError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
               {companyCityError && (
-                <p className="text-red-600 text-xs sm:text-sm mt-1">{companyCityError}</p>
+                <p className="text-red-600 text-xs md:text-sm mt-1">{companyCityError}</p>
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="companyState" className="text-sm sm:text-base font-medium">State *</Label>
+              <Label htmlFor="companyState" className="text-sm md:text-base font-medium">State *</Label>
               <Input
                 id="companyState"
                 name="companyState"
                 placeholder="State"
                 value={formData.companyState}
                 onChange={handleInputChange}
-                className={`h-10 sm:h-11 text-sm sm:text-base ${companyStateError ? 'border-red-500 focus:border-red-500' : ''}`}
+                className={`h-10 md:h-11 text-sm md:text-base ${companyStateError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
               {companyStateError && (
-                <p className="text-red-600 text-xs sm:text-sm mt-1">{companyStateError}</p>
+                <p className="text-red-600 text-xs md:text-sm mt-1">{companyStateError}</p>
               )}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="companyZip" className="text-sm sm:text-base font-medium">Zip Code *</Label>
+            <Label htmlFor="companyZip" className="text-sm md:text-base font-medium">Zip Code *</Label>
             <div className="relative">
               <Input
                 type="text"
@@ -612,7 +612,7 @@ const Register = () => {
                 placeholder="Enter zip code"
                 value={formData.companyZip}
                 onChange={handleInputChange}
-                className={`h-10 sm:h-11 text-sm sm:text-base ${companyZipError ? 'border-red-500 focus:border-red-500' : ''}`}
+                className={`h-10 md:h-11 text-sm md:text-base ${companyZipError ? 'border-red-500 focus:border-red-500' : ''}`}
                 maxLength={5}
                 required
               />
@@ -621,13 +621,13 @@ const Register = () => {
               )}
             </div>
             {companyZipError && (
-              <p className="text-red-600 text-xs sm:text-sm mt-1">{companyZipError}</p>
+              <p className="text-red-600 text-xs md:text-sm mt-1">{companyZipError}</p>
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 max-[950px]:grid-cols-1 min-[951px]:grid-cols-2 gap-3 md:gap-4">
             <div className="space-y-2">
-              <Label htmlFor="noOfDevices" className="text-sm sm:text-base font-medium">Number of Devices *</Label>
+              <Label htmlFor="noOfDevices" className="text-sm md:text-base font-medium device-employee-label">Number of Devices *</Label>
               <Input
                 id="noOfDevices"
                 name="noOfDevices"
@@ -635,15 +635,15 @@ const Register = () => {
                 placeholder="Devices"
                 value={formData.noOfDevices}
                 onChange={handleInputChange}
-                className={`h-10 sm:h-11 text-sm sm:text-base ${noOfDevicesError ? 'border-red-500 focus:border-red-500' : ''}`}
+                className={`h-10 md:h-11 text-sm md:text-base ${noOfDevicesError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
               {noOfDevicesError && (
-                <p className="text-red-600 text-xs sm:text-sm mt-1">{noOfDevicesError}</p>
+                <p className="text-red-600 text-xs md:text-sm mt-1">{noOfDevicesError}</p>
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="noOfEmployees" className="text-sm sm:text-base font-medium">Number of Employees *</Label>
+              <Label htmlFor="noOfEmployees" className="text-sm md:text-base font-medium device-employee-label">Number of Employees *</Label>
               <Input
                 id="noOfEmployees"
                 name="noOfEmployees"
@@ -651,22 +651,22 @@ const Register = () => {
                 placeholder="Employees"
                 value={formData.noOfEmployees}
                 onChange={handleInputChange}
-                className={`h-10 sm:h-11 text-sm sm:text-base ${noOfEmployeesError ? 'border-red-500 focus:border-red-500' : ''}`}
+                className={`h-10 md:h-11 text-sm md:text-base ${noOfEmployeesError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
               {noOfEmployeesError && (
-                <p className="text-red-600 text-xs sm:text-sm mt-1">{noOfEmployeesError}</p>
+                <p className="text-red-600 text-xs md:text-sm mt-1">{noOfEmployeesError}</p>
               )}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="employmentType" className="text-sm sm:text-base font-medium">Employment Types</Label>
-            <div className="border border-textMuted rounded-md p-2 sm:p-3 min-h-[40px] sm:min-h-[44px] flex flex-wrap gap-1 sm:gap-2 items-center focus-within:ring-1 focus-within:ring-textMuted focus-within:border-textMuted">
+            <Label htmlFor="employmentType" className="text-sm md:text-base font-medium">Employment Types</Label>
+            <div className="border border-textMuted rounded-md p-2 md:p-3 min-h-[40px] md:min-h-[44px] flex flex-wrap gap-1 md:gap-2 items-center focus-within:ring-1 focus-within:ring-textMuted focus-within:border-textMuted">
               {employmentTypes.map((type, index) => (
                 <span
                   key={index}
-                  className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary text-xs sm:text-sm rounded-md"
+                  className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary text-xs md:text-sm rounded-md"
                 >
                   {type}
                   {employmentTypes.length > 1 && (
@@ -687,18 +687,18 @@ const Register = () => {
                 onChange={(e) => setEmploymentTypeInput(e.target.value)}
                 onKeyDown={handleEmploymentTypeKeyDown}
                 placeholder={employmentTypes.length === 0 ? "Type and press comma to add" : "Add more..."}
-                className="flex-1 min-w-[100px] sm:min-w-[120px] outline-none text-xs sm:text-sm bg-transparent"
+                className="flex-1 min-w-[100px] outline-none text-xs md:text-sm bg-transparent"
               />
             </div>
-            <p className="text-xs sm:text-sm text-muted-foreground">Type employment type and press comma to add. Default: General Employee</p>
+            <p className="text-xs md:text-sm text-muted-foreground">Type employment type and press comma to add. Default: General Employee</p>
           </div>
 
-          <Button type="submit" className="w-full h-10 sm:h-11 text-sm sm:text-base" size="lg">
+          <Button type="submit" className="w-full h-10 md:h-11 text-sm md:text-base" size="lg">
             Next
           </Button>
         </form>
 
-        <div className="text-center text-sm">
+        <div className="text-center text-xs md:text-sm">
           <span className="text-muted-foreground">Already have an account? </span>
           <Link to="/login" className="text-primary hover:underline font-medium">
             Sign in
@@ -710,9 +710,9 @@ const Register = () => {
 
   const renderStep2 = () => (
     <Card className="border-0 shadow-2xl">
-      <CardHeader className="space-y-1 text-center bg-primary text-primary-foreground rounded-t-xl px-4 py-6 sm:px-6 sm:py-8">
-        <CardTitle className="text-xl sm:text-2xl lg:text-3xl font-bold">Personal Information</CardTitle>
-        <CardDescription className="text-primary-foreground/80 text-sm sm:text-base">
+      <CardHeader className="space-y-1 text-center bg-primary text-primary-foreground rounded-t-xl px-4 py-6 md:px-6 md:py-7 lg:px-6 lg:py-8">
+        <CardTitle className="text-xl md:text-2xl lg:text-3xl font-bold">Personal Information</CardTitle>
+        <CardDescription className="text-primary-foreground/80 text-sm md:text-base">
           {wantsTrial ? (
             <>You've selected the 14-day free trial. Complete your details to get started.</>
           ) : (
@@ -721,29 +721,29 @@ const Register = () => {
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6 lg:p-8">
+      <CardContent className="space-y-4 md:space-y-5 lg:space-y-6 p-4 md:p-6 lg:p-8">
         {/* Trial preference selection */}
-        <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-3">
           {/* Free Trial Card */}
           <div
             onClick={() => setWantsTrial(true)}
             className={`
-              cursor-pointer p-4 rounded-lg border-2 transition-all
+              cursor-pointer p-3 rounded-lg border-2 transition-all
               ${wantsTrial
                 ? 'border-primary bg-primary/10'
                 : 'border-muted bg-transparent hover:border-primary/50'
               }
             `}
           >
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <p className="font-semibold text-base mb-1">14-Day Free Trial</p>
-                <p className="text-sm text-muted-foreground">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm lg:text-base mb-1">14-Day Free Trial</p>
+                <p className="text-xs lg:text-sm text-muted-foreground break-words">
                   Try free for 14 days, then $1/employee/month
                 </p>
               </div>
               {wantsTrial && (
-                <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 ml-2" />
+                <CheckCircle2 className="w-4 h-4 lg:w-5 lg:h-5 text-primary flex-shrink-0" />
               )}
             </div>
           </div>
@@ -752,31 +752,31 @@ const Register = () => {
           <div
             onClick={() => setWantsTrial(false)}
             className={`
-              cursor-pointer p-4 rounded-lg border-2 transition-all
+              cursor-pointer p-3 rounded-lg border-2 transition-all
               ${!wantsTrial
                 ? 'border-primary bg-primary/10'
                 : 'border-muted bg-transparent hover:border-primary/50'
               }
             `}
           >
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <p className="font-semibold text-base mb-1">Subscribe Now</p>
-                <p className="text-sm text-muted-foreground">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm lg:text-base mb-1">Subscribe Now</p>
+                <p className="text-xs lg:text-sm text-muted-foreground break-words">
                   Pay $1/employee/month starting today
                 </p>
               </div>
               {!wantsTrial && (
-                <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 ml-2" />
+                <CheckCircle2 className="w-4 h-4 lg:w-5 lg:h-5 text-primary flex-shrink-0" />
               )}
             </div>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
             <div className="space-y-2">
-              <Label htmlFor="firstName" className="text-sm sm:text-base font-medium">First Name *</Label>
+              <Label htmlFor="firstName" className="text-sm md:text-base font-medium">First Name *</Label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
@@ -785,16 +785,16 @@ const Register = () => {
                   placeholder="First name"
                   value={formData.firstName}
                   onChange={handleInputChange}
-                  className={`pl-10 h-10 sm:h-11 text-sm sm:text-base ${firstNameError ? 'border-red-500 focus:border-red-500' : ''}`}
+                  className={`pl-10 h-10 md:h-11 text-sm md:text-base ${firstNameError ? 'border-red-500 focus:border-red-500' : ''}`}
                   required
                 />
               </div>
               {firstNameError && (
-                <p className="text-red-600 text-xs sm:text-sm mt-1">{firstNameError}</p>
+                <p className="text-red-600 text-xs md:text-sm mt-1">{firstNameError}</p>
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="lastName" className="text-sm sm:text-base font-medium">Last Name *</Label>
+              <Label htmlFor="lastName" className="text-sm md:text-base font-medium">Last Name *</Label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
@@ -803,18 +803,18 @@ const Register = () => {
                   placeholder="Last name"
                   value={formData.lastName}
                   onChange={handleInputChange}
-                  className={`pl-10 h-10 sm:h-11 text-sm sm:text-base ${lastNameError ? 'border-red-500 focus:border-red-500' : ''}`}
+                  className={`pl-10 h-10 md:h-11 text-sm md:text-base ${lastNameError ? 'border-red-500 focus:border-red-500' : ''}`}
                   required
                 />
               </div>
               {lastNameError && (
-                <p className="text-red-600 text-xs sm:text-sm mt-1">{lastNameError}</p>
+                <p className="text-red-600 text-xs md:text-sm mt-1">{lastNameError}</p>
               )}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-sm sm:text-base font-medium">Email Address *</Label>
+            <Label htmlFor="email" className="text-sm md:text-base font-medium">Email Address *</Label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
@@ -824,17 +824,17 @@ const Register = () => {
                 placeholder="name@company.com"
                 value={formData.email}
                 onChange={handleInputChange}
-                className={`pl-10 h-10 sm:h-11 text-sm sm:text-base ${emailError ? 'border-red-500 focus:border-red-500' : ''}`}
+                className={`pl-10 h-10 md:h-11 text-sm md:text-base ${emailError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
             </div>
             {emailError && (
-              <p className="text-red-600 text-xs sm:text-sm mt-1">{emailError}</p>
+              <p className="text-red-600 text-xs md:text-sm mt-1">{emailError}</p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="phone" className="text-sm sm:text-base font-medium">Phone Number *</Label>
+            <Label htmlFor="phone" className="text-sm md:text-base font-medium">Phone Number *</Label>
             <PhoneInput
               defaultCountry="us"
               value={formData.phone}
@@ -854,12 +854,12 @@ const Register = () => {
               }}
             />
             {phoneError && (
-              <p className="text-red-600 text-xs sm:text-sm mt-1">{phoneError}</p>
+              <p className="text-red-600 text-xs md:text-sm mt-1">{phoneError}</p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="customerStreet" className="text-sm sm:text-base font-medium">Street Address *</Label>
+            <Label htmlFor="customerStreet" className="text-sm md:text-base font-medium">Street Address *</Label>
             <div className="relative">
               <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <Input
@@ -868,50 +868,50 @@ const Register = () => {
                 placeholder="Enter street address"
                 value={formData.customerStreet}
                 onChange={handleInputChange}
-                className={`pl-10 h-10 sm:h-11 text-sm sm:text-base ${customerStreetError ? 'border-red-500 focus:border-red-500' : ''}`}
+                className={`pl-10 h-10 md:h-11 text-sm md:text-base ${customerStreetError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
             </div>
             {customerStreetError && (
-              <p className="text-red-600 text-xs sm:text-sm mt-1">{customerStreetError}</p>
+              <p className="text-red-600 text-xs md:text-sm mt-1">{customerStreetError}</p>
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
             <div className="space-y-2">
-              <Label htmlFor="customerCity" className="text-sm sm:text-base font-medium">City *</Label>
+              <Label htmlFor="customerCity" className="text-sm md:text-base font-medium">City *</Label>
               <Input
                 id="customerCity"
                 name="customerCity"
                 placeholder="City"
                 value={formData.customerCity}
                 onChange={handleInputChange}
-                className={`h-10 sm:h-11 text-sm sm:text-base ${customerCityError ? 'border-red-500 focus:border-red-500' : ''}`}
+                className={`h-10 md:h-11 text-sm md:text-base ${customerCityError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
               {customerCityError && (
-                <p className="text-red-600 text-xs sm:text-sm mt-1">{customerCityError}</p>
+                <p className="text-red-600 text-xs md:text-sm mt-1">{customerCityError}</p>
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="customerState" className="text-sm sm:text-base font-medium">State *</Label>
+              <Label htmlFor="customerState" className="text-sm md:text-base font-medium">State *</Label>
               <Input
                 id="customerState"
                 name="customerState"
                 placeholder="State"
                 value={formData.customerState}
                 onChange={handleInputChange}
-                className={`h-10 sm:h-11 text-sm sm:text-base ${customerStateError ? 'border-red-500 focus:border-red-500' : ''}`}
+                className={`h-10 md:h-11 text-sm md:text-base ${customerStateError ? 'border-red-500 focus:border-red-500' : ''}`}
                 required
               />
               {customerStateError && (
-                <p className="text-red-600 text-xs sm:text-sm mt-1">{customerStateError}</p>
+                <p className="text-red-600 text-xs md:text-sm mt-1">{customerStateError}</p>
               )}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="customerZip" className="text-sm sm:text-base font-medium">Zip Code *</Label>
+            <Label htmlFor="customerZip" className="text-sm md:text-base font-medium">Zip Code *</Label>
             <div className="relative">
               <Input
                 id="customerZip"
@@ -919,7 +919,7 @@ const Register = () => {
                 placeholder="Enter zip code"
                 value={formData.customerZip}
                 onChange={handleInputChange}
-                className={`h-10 sm:h-11 text-sm sm:text-base ${customerZipError ? 'border-red-500 focus:border-red-500' : ''}`}
+                className={`h-10 md:h-11 text-sm md:text-base ${customerZipError ? 'border-red-500 focus:border-red-500' : ''}`}
                 maxLength={5}
                 required
               />
@@ -928,18 +928,29 @@ const Register = () => {
               )}
             </div>
             {customerZipError && (
-              <p className="text-red-600 text-xs sm:text-sm mt-1">{customerZipError}</p>
+              <p className="text-red-600 text-xs md:text-sm mt-1">{customerZipError}</p>
             )}
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <Button type="button" variant="outline" onClick={handleBack} className="flex-1 h-10 sm:h-11 text-sm sm:text-base" size="lg">
+          <div className="flex flex-col gap-3 pt-4">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={handleBack} 
+              className="w-full h-10 md:h-11 text-sm md:text-base font-semibold" 
+              size="lg"
+            >
               Back
             </Button>
-            <Button type="submit" className="flex-1 h-10 sm:h-11 text-sm sm:text-base" size="lg" disabled={isLoading}>
+            <Button 
+              type="submit" 
+              className="w-full h-10 md:h-11 text-sm md:text-base font-semibold" 
+              size="lg" 
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin mr-2" />
                   Processing...
                 </>
               ) : wantsTrial ? (
@@ -950,14 +961,14 @@ const Register = () => {
             </Button>
           </div>
           {generalError && (
-            <div className="p-2 sm:p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2 mt-3 sm:mt-4">
-              <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <p className="text-xs sm:text-sm text-red-600">{generalError}</p>
+            <div className="p-2 md:p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2 mt-3 md:mt-4">
+              <AlertCircle className="w-4 h-4 md:w-5 md:h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <p className="text-xs md:text-sm text-red-600">{generalError}</p>
             </div>
           )}
         </form>
 
-        <div className="text-center text-sm">
+        <div className="text-center text-xs md:text-sm">
           <span className="text-muted-foreground">Already have an account? </span>
           <Link to="/login" className="text-primary hover:underline font-medium">
             Sign in
@@ -1011,12 +1022,12 @@ const Register = () => {
         </div>
 
         {/* Right side - Registration form */}
-        <div className="w-full md:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center mt-0 md:mt-8 lg:mt-12 py-6 sm:py-8 lg:py-12 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-20">
+        <div className="w-full md:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center mt-0 md:mt-16 lg:mt-12 py-6 sm:py-8 lg:py-12 px-4 sm:px-6 md:px-8 lg:px-12 xl:px-20">
           <div className="w-full max-w-md">
             {/* Logo (visible on mobile only) */}
-            <div className="text-center mb-6 sm:mb-8 md:hidden">
+            {/* <div className="text-center mb-6 sm:mb-8 md:hidden">
               <img src={tabtimelogo} alt="TabTime Logo" className="mx-auto h-16 sm:h-20 w-auto" />
-            </div>
+            </div> */}
 
 
 

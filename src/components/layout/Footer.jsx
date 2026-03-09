@@ -41,18 +41,23 @@ const Footer = () => {
 
   const publicLinks = [
     { to: "/", text: "Home" },
-    { to: "/pricing", label: "Pricing" },
+    { to: "/pricing", text: "Pricing" },
     { to: "/login", text: "Login" },
     { to: "/register", text: "Register" },
     { to: "/contact-us", text: "Contact Us" }
   ]
 
   const authenticatedLinks = [
-    ...(userType !== "Admin" ? [{ to: "/device", text: "Device" }] : []),
+    ...(userType === "Owner" || userType === "SuperAdmin" ? [{ to: "/device", text: "Device" }] : []),
     { to: "/employee-management", text: "Employee Management" },
-    { to: "/reportsummary", text: "Report Summary" },
-    ...(userType !== "Admin" ? [{ to: "/reportsetting", text: "Report Settings" }] : []),
+    ...(userType === "Admin" ? [
+      { to: "/reportsummary", text: "Report Summary" }
+    ] : [
+      { to: "/reportsummary", text: "Report Summary" },
+      ...(userType === "Owner" || userType === "SuperAdmin" ? [{ to: "/reportsetting", text: "Report Settings" }] : [])
+    ]),
     { to: "/profile", text: "Profile" },
+    ...(userType === "Owner" || userType === "SuperAdmin" ? [{ to: "/invoices", text: "Invoices" }] : []),
     { to: "/contact", text: "Contact" }
   ]
 
@@ -99,21 +104,12 @@ const Footer = () => {
             <ul className="space-y-3">
               {quickLinks.map((link) => (
                 <li key={link.to || link.text}>
-                  {link.action ? (
-                    <button
-                      onClick={link.action}
-                      className="text-primary-foreground/80 hover:text-primary-foreground transition-colors text-sm"
-                    >
-                      {link.text}
-                    </button>
-                  ) : (
-                    <Link
-                      to={link.to}
-                      className="text-primary-foreground/80 hover:text-primary-foreground transition-colors text-sm"
-                    >
-                      {link.text}
-                    </Link>
-                  )}
+                  <Link
+                    to={link.to}
+                    className="text-primary-foreground/80 hover:text-primary-foreground transition-colors text-sm"
+                  >
+                    {link.text}
+                  </Link>
                 </li>
               ))}
             </ul>

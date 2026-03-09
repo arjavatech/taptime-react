@@ -130,4 +130,14 @@
   body {
     @apply bg-background text-foreground;
   }
+  button {
+    cursor: pointer;
+  }
+}
+
+/* Custom font size for Number of Devices and Number of Employees labels between 1024px and 1042px */
+@media (min-width: 900px) and (max-width: 1100px) {
+  .device-employee-label {
+    font-size: 14px !important;
+  }
 }

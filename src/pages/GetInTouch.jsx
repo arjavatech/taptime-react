@@ -56,7 +56,6 @@ const GetInTouch = () => {
     try {
       // Simulate form submission - you can add actual API call here
       await new Promise(resolve => setTimeout(resolve, 1000))
-      console.log("Form submitted:", formData)
 
       setFormData({
         firstName: "",
