@@ -50,11 +50,7 @@ const Login = () => {
         setLoading(true);
 
         try {
-          console.log('=== OAUTH CALLBACK DEBUG ===');
-          console.log('User object:', user);
-          console.log('Session object:', session);
-          console.log('Access token:', session?.access_token);
-          console.log('============================');
+          
           
           const userEmail = user.email;
           const userName = user.user_metadata?.full_name || user.user_metadata?.name || user.email.split('@')[0];
@@ -270,16 +266,16 @@ const Login = () => {
         <div className="w-full lg:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center py-4 sm:py-6 md:py-8 lg:py-25 px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-20 min-h-[calc(100vh-3.5rem)] sm:min-h-[calc(100vh-4rem)] md:min-h-[calc(100vh-4.5rem)] lg:min-h-screen">
           <div className="w-full max-w-xs sm:max-w-sm md:max-w-md">
             {/* Logo (visible on mobile and tablet only) */}
-            <div className="text-center mb-4 sm:mb-6 md:mb-8 lg:hidden">
+            {/* <div className="text-center mb-4 sm:mb-6 md:mb-8 lg:hidden">
               <img src={tabTimeLogo} alt="TabTime Logo" className="mx-auto h-12 sm:h-16 md:h-20 w-auto" />
-            </div>
+            </div> */}
 
             {/* Unified Login Section */}
             <Card className="border-0 shadow-md sm:shadow-lg md:shadow-2xl bg-gradient-to-br from-white via-gray-50/50 to-white backdrop-blur-sm">
               {/* Role Selection Cards - Always Visible */}
               <CardContent className="p-3 sm:p-4 md:p-6 lg:p-8">
                 <div className="text-center mb-3 sm:mb-4 md:mb-6">
-                  <h2 className="text-sm sm:text-base md:text-lg font-bold text-gray-900">Select Your Access</h2>
+                  <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-900">Select Your Access</h2>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4 md:mb-6">
@@ -301,7 +297,7 @@ const Login = () => {
                     }`}>
                       <Crown className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-white" />
                     </div>
-                    <h3 className={`text-xs sm:text-xs md:text-sm font-medium transition-colors ${
+                    <h3 className={`text-sm sm:text-sm md:text-base font-medium transition-colors ${
                       selectedRole === 'owner' ? 'text-[#01005a]' : 'text-gray-900 group-hover:text-[#01005a]'
                     }`}>Owner</h3>
                   </div>
@@ -324,7 +320,7 @@ const Login = () => {
                     }`}>
                       <Shield className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-white" />
                     </div>
-                    <h3 className={`text-xs sm:text-xs md:text-sm font-medium transition-colors leading-tight ${
+                    <h3 className={`text-sm sm:text-sm md:text-base font-medium transition-colors leading-tight ${
                       selectedRole === 'admin' ? 'text-[#01005a]' : 'text-gray-900 group-hover:text-[#01005a]'
                     }`}>Admin / Super Admin</h3>
                   </div>
@@ -333,8 +329,8 @@ const Login = () => {
                 {/* Login Form - Shows Below Role Cards */}
                 <div className="border-t border-gray-200 pt-3 sm:pt-4 md:pt-6">
                     <div className="text-center mb-3 sm:mb-4 md:mb-6">
-                      <h3 className="text-sm sm:text-base md:text-lg font-bold text-gray-900 mb-1 sm:mb-1 md:mb-2">Welcome back</h3>
-                      <p className="text-xs sm:text-xs md:text-sm text-gray-600 px-2">
+                      <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 mb-1 sm:mb-1 md:mb-2">Welcome back</h3>
+                      <p className="text-sm sm:text-sm md:text-base text-gray-600 px-2">
                         {selectedRole === 'owner' 
                           ? 'Enter your credentials to access your account'
                           : 'Sign in with your Google account to continue'
@@ -348,7 +344,7 @@ const Login = () => {
                       {selectedRole === 'owner' && (
                         <form onSubmit={handleEmailLogin} className="space-y-2 sm:space-y-3 md:space-y-4">
                           <div className="space-y-1 sm:space-y-1 md:space-y-2">
-                            <Label htmlFor="email" className="text-xs sm:text-sm md:text-base">Email</Label>
+                            <Label htmlFor="email" className="text-sm sm:text-base md:text-lg">Email</Label>
                             <div className="relative">
                               <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-3.5 h-3.5 sm:w-4 sm:h-4" />
                               <Input
@@ -362,18 +358,18 @@ const Login = () => {
                                   setEmailError("");
                                   setLoginError("");
                                 }}
-                                className="pl-9 sm:pl-10 h-9 sm:h-10 md:h-11 text-xs sm:text-sm md:text-base touch-manipulation"
+                                className="pl-9 sm:pl-10 h-10 sm:h-11 md:h-12 text-sm sm:text-base md:text-lg touch-manipulation"
                                 disabled={loading}
                                 required
                               />
                             </div>
                             {emailError && (
-                              <p className="text-red-600 text-xs sm:text-xs md:text-sm mt-1">{emailError}</p>
+                              <p className="text-red-600 text-sm sm:text-sm md:text-base mt-1">{emailError}</p>
                             )}
                           </div>
 
                           <div className="space-y-1 sm:space-y-1 md:space-y-2">
-                            <Label htmlFor="password" className="text-xs sm:text-sm md:text-base">Password</Label>
+                            <Label htmlFor="password" className="text-sm sm:text-base md:text-lg">Password</Label>
                             <div className="relative">
                               <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-3.5 h-3.5 sm:w-4 sm:h-4" />
                               <Input
@@ -391,7 +387,7 @@ const Login = () => {
                                 onPaste={(e) => e.preventDefault()}
                                 onCut={(e) => e.preventDefault()}
                                 onContextMenu={(e) => e.preventDefault()}
-                                className="pl-9 sm:pl-10 pr-9 sm:pr-10 h-9 sm:h-10 md:h-11 text-xs sm:text-sm md:text-base touch-manipulation"
+                                className="pl-9 sm:pl-10 pr-9 sm:pr-10 h-10 sm:h-11 md:h-12 text-sm sm:text-base md:text-lg touch-manipulation"
                                 disabled={loading}
                                 required
                               />
@@ -408,8 +404,8 @@ const Login = () => {
                           {/* Login Error Display */}
                           {loginError && (
                             <div className="p-2 sm:p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
-                              <AlertCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-600 flex-shrink-0 mt-0.5" />
-                              <p className="text-xs sm:text-xs md:text-sm text-red-600">{loginError}</p>
+                              <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                              <p className="text-sm sm:text-sm md:text-base text-red-600">{loginError}</p>
                             </div>
                           )}
 
@@ -424,14 +420,14 @@ const Login = () => {
                               />
                               <Label 
                                 htmlFor="remember" 
-                                className="text-xs sm:text-xs md:text-sm cursor-pointer touch-manipulation"
+                                className="text-sm sm:text-sm md:text-base cursor-pointer touch-manipulation"
                                 onMouseEnter={() => setShowTooltip(true)}
                                 onMouseLeave={() => setShowTooltip(false)}
                               >
                                 Remember me
                               </Label>
                               {showTooltip && (
-                                <div className="absolute bottom-full left-0 mb-2 px-2 sm:px-3 py-1 sm:py-2 bg-gray-800 text-white text-xs rounded-md shadow-lg z-10 whitespace-nowrap max-w-48 sm:max-w-none">
+                                <div className="absolute bottom-full left-0 mb-2 px-2 sm:px-3 py-1 sm:py-2 bg-gray-800 text-white text-sm rounded-md shadow-lg z-10 whitespace-nowrap max-w-48 sm:max-w-none">
                                   Check to stay logged in across browser sessions
                                   <div className="absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
                                 </div>
@@ -439,16 +435,16 @@ const Login = () => {
                             </div>
                             <Link
                               to="/forgot-password"
-                              className="text-xs sm:text-xs md:text-sm text-primary hover:underline touch-manipulation"
+                              className="text-sm sm:text-sm md:text-base text-primary hover:underline touch-manipulation"
                             >
                               Forgot password?
                             </Link>
                           </div>
 
-                          <Button type="submit" className="w-full bg-[#01005a] hover:bg-[#01005a]/90 active:bg-[#01005a]/95 mt-3 sm:mt-4 h-9 sm:h-10 md:h-11 text-xs sm:text-sm md:text-base touch-manipulation" disabled={loading}>
+                          <Button type="submit" className="w-full bg-[#01005a] hover:bg-[#01005a]/90 active:bg-[#01005a]/95 mt-3 sm:mt-4 h-10 sm:h-11 md:h-12 text-sm sm:text-base md:text-lg touch-manipulation" disabled={loading}>
                             {loading ? (
                               <>
-                                <Loader2 className="mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                                <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
                                 Signing in...
                               </>
                             ) : (
@@ -463,18 +459,18 @@ const Login = () => {
                           <Button
                             type="button"
                             variant="outline"
-                            className="w-full h-9 sm:h-10 md:h-11 text-xs sm:text-sm md:text-base touch-manipulation active:scale-95"
+                            className="w-full h-10 sm:h-11 md:h-12 text-sm sm:text-base md:text-lg touch-manipulation active:scale-95"
                             onClick={handleGoogleLogin}
                             disabled={loading}
                           >
                             {loading ? (
                               <>
-                                <Loader2 className="mr-2 h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                                <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
                                 Signing in...
                               </>
                             ) : (
                               <>
-                                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" viewBox="0 0 24 24">
+                                <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" viewBox="0 0 24 24">
                                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -487,14 +483,14 @@ const Login = () => {
                           {/* Login Error Display */}
                           {loginError && (
                             <div className="p-2 sm:p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
-                              <AlertCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-600 flex-shrink-0 mt-0.5" />
-                              <p className="text-xs sm:text-xs md:text-sm text-red-600">{loginError}</p>
+                              <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                              <p className="text-sm sm:text-sm md:text-base text-red-600">{loginError}</p>
                             </div>
                           )}
                         </div>
                       )}
 
-                      <div className="text-center text-xs sm:text-xs md:text-sm">
+                      <div className="text-center text-sm sm:text-sm md:text-base">
                         <span className="text-muted-foreground">Don't have an account? </span>
                         <Link to="/register" className="text-primary hover:underline font-medium touch-manipulation">
                           Sign up

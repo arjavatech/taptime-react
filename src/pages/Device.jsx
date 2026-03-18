@@ -499,6 +499,7 @@ const Device = ({ accessDenied = false }) => {
                                 className="flex items-center gap-1 text-xs px-2 flex-shrink-0"
                               >
                                 <Copy className="w-3 h-3" />
+                                {copiedKey === device.access_key ? "Copied!" : "Copy"}
                               </Button>
                             </div>
                           </div>

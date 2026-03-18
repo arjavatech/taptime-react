@@ -233,7 +233,7 @@ export const googleSignInCheck = async (email, authMethod = 'google') => {
     const adminTypeMap = { admin: 'Admin', superadmin: 'SuperAdmin', owner: 'Owner' };
     const properCaseAdminType = adminTypeMap[adminTypeValue] || adminTypeValue;
     localStorage.setItem("companyLogo", data.company_logo);
-    console.log('Storing company logo in localStorage:', data.company_logo);
+   
 
     const storeData = {
       [STORAGE_KEYS.COMPANY_ID]: companyID,
@@ -270,7 +270,6 @@ export const googleSignInCheck = async (email, authMethod = 'google') => {
 
     Object.entries(storeData).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
-        console.log(`Storing in localStorage: ${key} = ${value}`);
         localStorage.setItem(key, value);
       }
     });
@@ -559,7 +558,6 @@ export const bulkUploadReportData = async (companyId, file) => {
     }
 
     const result = await response.json();
-    console.log('Bulk upload API response:', result);
     
     // Handle different response formats
     if (result.message || result.successful || result.failed) {
@@ -1055,7 +1053,6 @@ export const getStoredOwnerData = () => {
 // Supabase functions
 export const supabaseSignIn = async (email, password) => {
   try {
-    console.log('supabaseSignIn called with:', email);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     console.log('Supabase response:', { data, error });
     if (error) return { success: false, error: error.message };
