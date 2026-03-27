@@ -296,9 +296,7 @@ export const AuthProvider = ({ children }) => {
         return { data: null, error: "You are not a user" };
       }
 
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-        emailRedirectTo: "https://dev.taptime-react.pages.dev/set-password"
-});
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email);
 
       if (error) throw error;
       return { data, error: null };
