@@ -15,6 +15,7 @@ const SetPassword = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
+
   const navigate = useNavigate();
 
   const [requirements, setRequirements] = useState([
@@ -26,46 +27,65 @@ const SetPassword = () => {
   ]);
 
   useEffect(() => {
-    const initializeSession = async () => {
-      if (!supabase) {
-        setError('Supabase client is not configured');
-        return;
-      }
+    let settled = false;
 
-      // Check for access token in URL hash
-      const hash = window.location.hash.substring(1);
-      const params = new URLSearchParams(hash);
-      const accessToken = params.get('access_token');
-      const refreshToken = params.get('refresh_token');
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const accessToken = hashParams.get('access_token');
+    const refreshToken = hashParams.get('refresh_token');
+    const queryParams = new URLSearchParams(window.location.search);
+    const code = queryParams.get('code');
 
-      if (!accessToken) {
-        setError('Invalid or missing authentication token. Please check your email and click the invitation link again.');
-        return;
-      }
-
-      try {
-        // Set the session using the tokens from URL
-        const { error: sessionError } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken || ''
+    if (accessToken) {
+      // Hash-based (implicit) flow — Supabase Dashboard "Send Recovery" uses this format
+      supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken || '' })
+        .then(({ error: sessionError }) => {
+          if (sessionError) {
+            setError('Failed to authenticate. Please try clicking the link in your email again.');
+          } else {
+            settled = true;
+            setSessionReady(true);
+          }
         });
+      return;
+    }
 
-        if (sessionError) {
-          throw sessionError;
-        }
+    if (!code) {
+      setError('Invalid or missing authentication token. Please check your email and click the invitation link again.');
+      return;
+    }
 
+    // PKCE code flow — resetPasswordForEmail() with flowType: 'pkce' produces ?code=...
+    // detectSessionInUrl: true auto-exchanges the code; it fires SIGNED_IN (not PASSWORD_RECOVERY)
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (settled) return;
+      if (event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY' || (event === 'INITIAL_SESSION' && session)) {
+        settled = true;
         setSessionReady(true);
-      } catch (err) {
-        console.error('Error setting session:', err);
-        setError('Failed to authenticate. Please try clicking the link in your email again.');
       }
-    };
+    });
 
-    initializeSession();
+    // Fallback: exchange may have completed before listener registered
+    supabase.auth.getSession().then(({ data }) => {
+      if (!settled && data?.session) {
+        settled = true;
+        setSessionReady(true);
+      }
+    });
+
+    // Timeout: genuinely invalid or already-used link
+    const timer = setTimeout(() => {
+      if (!settled) {
+        setError('This link is invalid or has expired. Please request a new password reset.');
+      }
+    }, 8000);
+
+    return () => {
+      listener.subscription.unsubscribe();
+      clearTimeout(timer);
+    };
   }, []);
 
   useEffect(() => {
-    // Validate password requirements
     const updatedRequirements = requirements.map(req => ({
       ...req,
       valid: req.test(password, confirmPassword)
@@ -87,24 +107,14 @@ const SetPassword = () => {
     setLoading(true);
 
     try {
-      if (!supabase) {
-        throw new Error('Supabase client is not configured');
-      }
-
-      // Update user password
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: password
-      });
-
+      const { error: updateError } = await supabase.auth.updateUser({ password });
       if (updateError) throw updateError;
 
       setSuccess(true);
 
-      // Redirect to login after 2 seconds
       setTimeout(() => {
         navigate('/login', { replace: true });
       }, 2000);
-
     } catch (err) {
       console.error('Error setting password:', err);
       setError(err?.message || 'Failed to set password. Please try again.');
@@ -113,63 +123,53 @@ const SetPassword = () => {
     }
   };
 
+  const BrandPanel = ({ title }) => (
+    <div className="hidden md:flex xl:w-1/2 md:w-1/2 bg-[#D9E9FB] flex-col justify-center items-center p-12">
+      <div className="w-full max-w-lg flex flex-col items-center text-center space-y-8">
+        <img src={tabTimeLogo} alt="Tap Time Logo" className="w-48 xl:w-56 md:w-40 mx-auto" />
+        <div className="space-y-4">
+          <h1 className="text-3xl xl:text-4xl md:text-3xl font-bold text-gray-800">{title}</h1>
+          <p className="text-lg text-gray-700 leading-relaxed">
+            One tap solution for simplifying and streamlining employee time logging and reporting.
+          </p>
+        </div>
+        <div className="flex gap-8 text-gray-600 text-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span>Secure</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+            <span>Fast</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+            <span>Reliable</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   if (success) {
     return (
       <div className="min-h-screen flex flex-col md:flex-row">
-        {/* Left side - Brand section */}
-        <div className="hidden md:flex xl:w-1/2 md:w-1/2 bg-[#D9E9FB] flex-col justify-center items-center p-12">
-          <div className="w-full max-w-lg flex flex-col items-center text-center space-y-8">
-            <img
-              src={tabTimeLogo}
-              alt="Tap Time Logo"
-              className="w-48 xl:w-56 md:w-40 mx-auto"
-            />
-            <div className="space-y-4">
-              <h1 className="text-3xl xl:text-4xl md:text-3xl font-bold text-gray-800">
-                Employee Time Tracking
-              </h1>
-              <p className="text-lg text-gray-700 leading-relaxed">
-                One tap solution for simplifying and streamlining employee time
-                logging and reporting.
-              </p>
-            </div>
-            <div className="flex gap-8 text-gray-600 text-sm">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span>Secure</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                <span>Fast</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
-                <span>Reliable</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right side - Success message */}
+        <BrandPanel title="Employee Time Tracking" />
         <div className="w-full md:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center py-12 px-6 sm:px-8 md:px-12 lg:px-20">
           <div className="w-full max-w-md">
             <div className="text-center mb-8 md:hidden">
-              <img src={tabTimeLogo} alt="Tap Time Logo" className="mx-auto h-20 w-auto sm:h-25" />
+              <img src={tabTimeLogo} alt="Tap Time Logo" className="mx-auto h-20 w-auto" />
             </div>
             <Card className="border-0 shadow-2xl">
               <CardContent className="pt-6 text-center">
                 <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <CheckCircle className="h-12 w-12 text-green-600" />
                 </div>
-                <h1 className="text-2xl font-bold text-gray-800 mb-2">
-                  Welcome to Tap Time
-                </h1>
+                <h1 className="text-2xl font-bold text-gray-800 mb-2">Welcome to Tap Time</h1>
                 <p className="text-gray-600 mb-6">
                   Your password has been set successfully. You can now access your account to manage employee time tracking.
                 </p>
-                <p className="text-sm text-gray-500">
-                  Redirecting to login...
-                </p>
+                <p className="text-sm text-gray-500">Redirecting to login...</p>
               </CardContent>
             </Card>
           </div>
@@ -180,53 +180,18 @@ const SetPassword = () => {
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
-      {/* Left side - Brand section */}
-      <div className="hidden md:flex xl:w-1/2 md:w-1/2 bg-[#D9E9FB] flex-col justify-center items-center p-12">
-        <div className="w-full max-w-lg flex flex-col items-center text-center space-y-8">
-          <img
-            src={tabTimeLogo}
-            alt="Tap Time Logo"
-            className="w-48 xl:w-56 md:w-40 mx-auto"
-          />
-          <div className="space-y-4">
-            <h1 className="text-3xl xl:text-4xl md:text-3xl font-bold text-gray-800">
-              Set Your Password
-            </h1>
-            <p className="text-lg text-gray-700 leading-relaxed">
-              One tap solution for simplifying and streamlining employee time
-              logging and reporting.
-            </p>
-          </div>
-          <div className="flex gap-8 text-gray-600 text-sm">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span>Secure</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-              <span>Fast</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
-              <span>Reliable</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <BrandPanel title="Set Your Password" />
 
-      {/* Right side - Set Password form */}
       <div className="w-full md:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center py-12 px-6 sm:px-8 md:px-12 lg:px-20">
         <div className="w-full max-w-md">
           <div className="text-center mb-8 md:hidden">
-            <img src={tabTimeLogo} alt="Tap Time Logo" className="mx-auto h-20 w-auto sm:h-25" />
+            <img src={tabTimeLogo} alt="Tap Time Logo" className="mx-auto h-20 w-auto" />
           </div>
 
           <Card className="border-0 shadow-2xl">
             <CardHeader className="space-y-1 text-center">
               <CardTitle className="text-2xl font-bold">Set Your Password</CardTitle>
-              <CardDescription>
-                Create a secure password to complete your account setup
-              </CardDescription>
+              <CardDescription>Create a secure password to complete your account setup</CardDescription>
             </CardHeader>
 
             <CardContent className="space-y-6">
@@ -236,13 +201,9 @@ const SetPassword = () => {
                 </div>
               )}
 
-
-
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    New Password
-                  </label>
+                  <label className="text-sm font-medium text-gray-700">New Password</label>
                   <div className="relative">
                     <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                     <input
@@ -269,9 +230,7 @@ const SetPassword = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Confirm Password
-                  </label>
+                  <label className="text-sm font-medium text-gray-700">Confirm Password</label>
                   <div className="relative">
                     <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                     <input
@@ -297,23 +256,14 @@ const SetPassword = () => {
                   </div>
                 </div>
 
-                {/* Password Requirements */}
                 <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                  <h4 className="text-sm font-semibold text-foreground mb-2">
-                    Password Requirements:
-                  </h4>
+                  <h4 className="text-sm font-semibold text-foreground mb-2">Password Requirements:</h4>
                   {requirements.map((req, index) => (
                     <div
                       key={index}
-                      className={`flex items-center gap-2 text-sm ${
-                        req.valid ? 'text-green-600' : 'text-muted-foreground'
-                      }`}
+                      className={`flex items-center gap-2 text-sm ${req.valid ? 'text-green-600' : 'text-muted-foreground'}`}
                     >
-                      {req.valid ? (
-                        <CheckCircle className="h-4 w-4" />
-                      ) : (
-                        <XCircle className="h-4 w-4" />
-                      )}
+                      {req.valid ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
                       {req.label}
                     </div>
                   ))}
@@ -353,4 +303,3 @@ const SetPassword = () => {
 };
 
 export default SetPassword;
-
