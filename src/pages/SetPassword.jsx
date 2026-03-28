@@ -30,32 +30,41 @@ const SetPassword = () => {
 
   const allRequirementsMet = requirements.every(req => req.valid);
 
-  // Exchange the PKCE code from URL for a session
+  // Wait for Supabase to auto-exchange the ?code= (detectSessionInUrl: true handles it)
+  // Do NOT call exchangeCodeForSession manually — codes are one-time use and the client
+  // already consumes them automatically, so a second call always returns "invalid/expired".
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
+    let settled = false;
 
-    if (code) {
-      supabase.auth.exchangeCodeForSession(code)
-        .then(({ data, error }) => {
-          if (error) {
-            setAuthError('This link is invalid or has expired. Please request a new password reset.');
-          } else if (data?.session) {
-            setSessionReady(true);
-          } else {
-            setAuthError('Could not authenticate. Please request a new password reset.');
-          }
-        });
-    } else {
-      // Fallback: check if a session already exists (e.g. navigated back)
-      supabase.auth.getSession().then(({ data }) => {
-        if (data?.session) {
-          setSessionReady(true);
-        } else {
-          setAuthError('No reset code found. Please use the link from your email.');
-        }
-      });
-    }
+    // onAuthStateChange fires PASSWORD_RECOVERY after detectSessionInUrl finishes the exchange.
+    // INITIAL_SESSION fires immediately and carries the session if exchange already completed.
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (settled) return;
+      if (event === 'PASSWORD_RECOVERY' || (event === 'INITIAL_SESSION' && session)) {
+        settled = true;
+        setSessionReady(true);
+      }
+    });
+
+    // Fallback: if exchange completed before the listener was registered
+    supabase.auth.getSession().then(({ data }) => {
+      if (!settled && data?.session) {
+        settled = true;
+        setSessionReady(true);
+      }
+    });
+
+    // Timeout: genuinely invalid or already-used link
+    const timer = setTimeout(() => {
+      if (!settled) {
+        setAuthError('This link is invalid or has expired. Please request a new password reset.');
+      }
+    }, 8000);
+
+    return () => {
+      listener.subscription.unsubscribe();
+      clearTimeout(timer);
+    };
   }, []);
 
   const handleSubmit = async (e) => {
