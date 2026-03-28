@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle, XCircle, Eye, EyeOff, Lock, Loader2, AlertCircle } from 'lucide-react';
+import { Shield, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/card';
 import { supabase } from '../config/supabase';
+import tabTimeLogo from '../assets/images/tap-time-logo.png';
 
 const SetPassword = () => {
   const [password, setPassword] = useState('');
@@ -16,37 +15,56 @@ const SetPassword = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
-  const [authError, setAuthError] = useState('');
 
   const navigate = useNavigate();
 
-  const requirements = [
-    { label: 'At least 8 characters', test: (pwd) => pwd.length >= 8 },
-    { label: 'Uppercase letter', test: (pwd) => /[A-Z]/.test(pwd) },
-    { label: 'Lowercase letter', test: (pwd) => /[a-z]/.test(pwd) },
-    { label: 'Number', test: (pwd) => /\d/.test(pwd) },
-    { label: 'Passwords match', test: (pwd, confirm) => pwd === confirm && pwd.length > 0 },
-  ].map(req => ({ ...req, valid: req.test(password, confirmPassword) }));
+  const [requirements, setRequirements] = useState([
+    { label: 'At least 8 characters long', test: (pwd) => pwd.length >= 8, valid: false },
+    { label: 'At least one uppercase letter', test: (pwd) => /[A-Z]/.test(pwd), valid: false },
+    { label: 'At least one lowercase letter', test: (pwd) => /[a-z]/.test(pwd), valid: false },
+    { label: 'At least one number', test: (pwd) => /\d/.test(pwd), valid: false },
+    { label: 'Passwords match', test: (pwd, confirm) => pwd === confirm && pwd.length > 0, valid: false }
+  ]);
 
-  const allRequirementsMet = requirements.every(req => req.valid);
-
-  // Wait for Supabase to auto-exchange the ?code= (detectSessionInUrl: true handles it)
-  // Do NOT call exchangeCodeForSession manually — codes are one-time use and the client
-  // already consumes them automatically, so a second call always returns "invalid/expired".
   useEffect(() => {
     let settled = false;
 
-    // onAuthStateChange fires PASSWORD_RECOVERY after detectSessionInUrl finishes the exchange.
-    // INITIAL_SESSION fires immediately and carries the session if exchange already completed.
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const accessToken = hashParams.get('access_token');
+    const refreshToken = hashParams.get('refresh_token');
+    const queryParams = new URLSearchParams(window.location.search);
+    const code = queryParams.get('code');
+
+    if (accessToken) {
+      // Hash-based (implicit) flow — Supabase Dashboard "Send Recovery" uses this format
+      supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken || '' })
+        .then(({ error: sessionError }) => {
+          if (sessionError) {
+            setError('Failed to authenticate. Please try clicking the link in your email again.');
+          } else {
+            settled = true;
+            setSessionReady(true);
+          }
+        });
+      return;
+    }
+
+    if (!code) {
+      setError('Invalid or missing authentication token. Please check your email and click the invitation link again.');
+      return;
+    }
+
+    // PKCE code flow — resetPasswordForEmail() with flowType: 'pkce' produces ?code=...
+    // detectSessionInUrl: true auto-exchanges the code; it fires SIGNED_IN (not PASSWORD_RECOVERY)
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (settled) return;
-      if (event === 'PASSWORD_RECOVERY' || (event === 'INITIAL_SESSION' && session)) {
+      if (event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY' || (event === 'INITIAL_SESSION' && session)) {
         settled = true;
         setSessionReady(true);
       }
     });
 
-    // Fallback: if exchange completed before the listener was registered
+    // Fallback: exchange may have completed before listener registered
     supabase.auth.getSession().then(({ data }) => {
       if (!settled && data?.session) {
         settled = true;
@@ -57,7 +75,7 @@ const SetPassword = () => {
     // Timeout: genuinely invalid or already-used link
     const timer = setTimeout(() => {
       if (!settled) {
-        setAuthError('This link is invalid or has expired. Please request a new password reset.');
+        setError('This link is invalid or has expired. Please request a new password reset.');
       }
     }, 8000);
 
@@ -67,174 +85,218 @@ const SetPassword = () => {
     };
   }, []);
 
+  useEffect(() => {
+    const updatedRequirements = requirements.map(req => ({
+      ...req,
+      valid: req.test(password, confirmPassword)
+    }));
+    setRequirements(updatedRequirements);
+  }, [password, confirmPassword]);
+
+  const allRequirementsMet = requirements.every(req => req.valid);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
     if (!allRequirementsMet) {
-      setError('Please meet all password requirements.');
+      setError('Please ensure all password requirements are met.');
       return;
     }
 
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.updateUser({ password });
-      if (error) throw error;
+      const { error: updateError } = await supabase.auth.updateUser({ password });
+      if (updateError) throw updateError;
 
       setSuccess(true);
-      await supabase.auth.signOut();
 
       setTimeout(() => {
         navigate('/login', { replace: true });
-      }, 2500);
+      }, 2000);
     } catch (err) {
-      console.error(err);
-      setError(err.message || 'Failed to update password. Please try again.');
+      console.error('Error setting password:', err);
+      setError(err?.message || 'Failed to set password. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Success state
+  const BrandPanel = ({ title }) => (
+    <div className="hidden md:flex xl:w-1/2 md:w-1/2 bg-[#D9E9FB] flex-col justify-center items-center p-12">
+      <div className="w-full max-w-lg flex flex-col items-center text-center space-y-8">
+        <img src={tabTimeLogo} alt="Tap Time Logo" className="w-48 xl:w-56 md:w-40 mx-auto" />
+        <div className="space-y-4">
+          <h1 className="text-3xl xl:text-4xl md:text-3xl font-bold text-gray-800">{title}</h1>
+          <p className="text-lg text-gray-700 leading-relaxed">
+            One tap solution for simplifying and streamlining employee time logging and reporting.
+          </p>
+        </div>
+        <div className="flex gap-8 text-gray-600 text-sm">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span>Secure</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+            <span>Fast</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+            <span>Reliable</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 px-4">
-        <Card className="w-full max-w-sm border-0 shadow-lg text-center p-8">
-          <CheckCircle className="h-14 w-14 text-green-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Password Updated!</h2>
-          <p className="text-gray-600 text-sm">Redirecting you to login...</p>
-          <div className="mt-4 flex justify-center">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      <div className="min-h-screen flex flex-col md:flex-row">
+        <BrandPanel title="Employee Time Tracking" />
+        <div className="w-full md:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center py-12 px-6 sm:px-8 md:px-12 lg:px-20">
+          <div className="w-full max-w-md">
+            <div className="text-center mb-8 md:hidden">
+              <img src={tabTimeLogo} alt="Tap Time Logo" className="mx-auto h-20 w-auto" />
+            </div>
+            <Card className="border-0 shadow-2xl">
+              <CardContent className="pt-6 text-center">
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="h-12 w-12 text-green-600" />
+                </div>
+                <h1 className="text-2xl font-bold text-gray-800 mb-2">Welcome to Tap Time</h1>
+                <p className="text-gray-600 mb-6">
+                  Your password has been set successfully. You can now access your account to manage employee time tracking.
+                </p>
+                <p className="text-sm text-gray-500">Redirecting to login...</p>
+              </CardContent>
+            </Card>
           </div>
-        </Card>
-      </div>
-    );
-  }
-
-  // Auth error state (invalid/expired link)
-  if (authError) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 px-4">
-        <Card className="w-full max-w-sm border-0 shadow-lg text-center p-8">
-          <XCircle className="h-14 w-14 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Link Expired</h2>
-          <p className="text-gray-600 text-sm mb-6">{authError}</p>
-          <Button
-            className="w-full bg-[#01005a] hover:bg-[#01005a]/90"
-            onClick={() => navigate('/forgot-password', { replace: true })}
-          >
-            Request New Link
-          </Button>
-        </Card>
-      </div>
-    );
-  }
-
-  // Authenticating state
-  if (!sessionReady) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 px-4">
-        <Card className="w-full max-w-sm border-0 shadow-lg text-center p-8">
-          <Loader2 className="h-10 w-10 animate-spin text-[#01005a] mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">Verifying link...</h2>
-          <p className="text-gray-500 text-sm">Please wait a moment.</p>
-        </Card>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 px-4">
-      <div className="w-full max-w-sm">
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-white via-gray-50/50 to-white">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xl font-bold text-gray-900">Set New Password</CardTitle>
-            <CardDescription>Create a secure password for your account</CardDescription>
-          </CardHeader>
+    <div className="min-h-screen flex flex-col md:flex-row">
+      <BrandPanel title="Set Your Password" />
 
-          <CardContent>
-            {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-600">{error}</p>
-              </div>
-            )}
+      <div className="w-full md:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center py-12 px-6 sm:px-8 md:px-12 lg:px-20">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8 md:hidden">
+            <img src={tabTimeLogo} alt="Tap Time Logo" className="mx-auto h-20 w-auto" />
+          </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="password">New Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Enter new password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 pr-10 h-11"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+          <Card className="border-0 shadow-2xl">
+            <CardHeader className="space-y-1 text-center">
+              <CardTitle className="text-2xl font-bold">Set Your Password</CardTitle>
+              <CardDescription>Create a secure password to complete your account setup</CardDescription>
+            </CardHeader>
+
+            <CardContent className="space-y-6">
+              {error && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-800 text-sm">
+                  {error}
                 </div>
-              </div>
+              )}
 
-              <div className="space-y-1.5">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input
-                    id="confirmPassword"
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    placeholder="Confirm new password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="pl-10 pr-10 h-11"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
-                  >
-                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Password requirements */}
-              <div className="space-y-1.5 p-3 bg-gray-50 rounded-md">
-                {requirements.map((req, i) => (
-                  <div key={i} className={`flex items-center gap-2 text-sm ${req.valid ? 'text-green-600' : 'text-gray-400'}`}>
-                    <CheckCircle className={`w-3.5 h-3.5 flex-shrink-0 ${req.valid ? 'text-green-500' : 'text-gray-300'}`} />
-                    {req.label}
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">New Password</label>
+                  <div className="relative">
+                    <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      onCopy={(e) => e.preventDefault()}
+                      onPaste={(e) => e.preventDefault()}
+                      onCut={(e) => e.preventDefault()}
+                      onContextMenu={(e) => e.preventDefault()}
+                      placeholder="Enter your password"
+                      className="w-full pl-10 pr-12 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                      disabled={loading || !sessionReady}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
-                ))}
-              </div>
+                </div>
 
-              <Button
-                type="submit"
-                disabled={!allRequirementsMet || loading}
-                className="w-full bg-[#01005a] hover:bg-[#01005a]/90 h-11"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Updating...
-                  </>
-                ) : (
-                  'Set Password'
-                )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Confirm Password</label>
+                  <div className="relative">
+                    <Shield className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      onCopy={(e) => e.preventDefault()}
+                      onPaste={(e) => e.preventDefault()}
+                      onCut={(e) => e.preventDefault()}
+                      onContextMenu={(e) => e.preventDefault()}
+                      placeholder="Confirm your password"
+                      className="w-full pl-10 pr-12 py-2 border border-input rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-all"
+                      disabled={loading || !sessionReady}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                  <h4 className="text-sm font-semibold text-foreground mb-2">Password Requirements:</h4>
+                  {requirements.map((req, index) => (
+                    <div
+                      key={index}
+                      className={`flex items-center gap-2 text-sm ${req.valid ? 'text-green-600' : 'text-muted-foreground'}`}
+                    >
+                      {req.valid ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                      {req.label}
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full bg-[#01005a] hover:bg-[#01005a]/90"
+                  size="lg"
+                  disabled={!allRequirementsMet || loading || !sessionReady}
+                >
+                  {loading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                      Setting Password...
+                    </div>
+                  ) : !sessionReady ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
+                      Authenticating...
+                    </div>
+                  ) : (
+                    'Set Password'
+                  )}
+                </Button>
+              </form>
+
+              <div className="text-center text-sm">
+                <span className="text-muted-foreground">Need help? Contact your administrator</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
