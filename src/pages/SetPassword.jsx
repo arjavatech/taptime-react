@@ -1,66 +1,63 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, XCircle, Eye, EyeOff, Lock, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/card';
 import { supabase } from '../config/supabase';
 
 const SetPassword = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
+  const [authError, setAuthError] = useState('');
 
   const navigate = useNavigate();
 
-  const [requirements, setRequirements] = useState([
-    { label: 'At least 8 characters', test: (pwd) => pwd.length >= 8, valid: false },
-    { label: 'Uppercase letter', test: (pwd) => /[A-Z]/.test(pwd), valid: false },
-    { label: 'Lowercase letter', test: (pwd) => /[a-z]/.test(pwd), valid: false },
-    { label: 'Number', test: (pwd) => /\d/.test(pwd), valid: false },
-    { label: 'Passwords match', test: (pwd, confirm) => pwd === confirm && pwd.length > 0, valid: false }
-  ]);
-
-  // ✅ CORRECT SESSION HANDLING
-  useEffect(() => {
-    // 1. Listen for auth state change
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'PASSWORD_RECOVERY') {
-          setSessionReady(true);
-        }
-      }
-    );
-
-    // 2. Also check existing session (fallback)
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        setSessionReady(true);
-      }
-    };
-
-    checkSession();
-
-    return () => {
-      listener.subscription.unsubscribe();
-    };
-  }, []);
-
-  // Password validation
-  useEffect(() => {
-    const updated = requirements.map(req => ({
-      ...req,
-      valid: req.test(password, confirmPassword)
-    }));
-    setRequirements(updated);
-  }, [password, confirmPassword]);
+  const requirements = [
+    { label: 'At least 8 characters', test: (pwd) => pwd.length >= 8 },
+    { label: 'Uppercase letter', test: (pwd) => /[A-Z]/.test(pwd) },
+    { label: 'Lowercase letter', test: (pwd) => /[a-z]/.test(pwd) },
+    { label: 'Number', test: (pwd) => /\d/.test(pwd) },
+    { label: 'Passwords match', test: (pwd, confirm) => pwd === confirm && pwd.length > 0 },
+  ].map(req => ({ ...req, valid: req.test(password, confirmPassword) }));
 
   const allRequirementsMet = requirements.every(req => req.valid);
 
-  // ✅ SUBMIT PASSWORD
+  // Exchange the PKCE code from URL for a session
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+
+    if (code) {
+      supabase.auth.exchangeCodeForSession(code)
+        .then(({ data, error }) => {
+          if (error) {
+            setAuthError('This link is invalid or has expired. Please request a new password reset.');
+          } else if (data?.session) {
+            setSessionReady(true);
+          } else {
+            setAuthError('Could not authenticate. Please request a new password reset.');
+          }
+        });
+    } else {
+      // Fallback: check if a session already exists (e.g. navigated back)
+      supabase.auth.getSession().then(({ data }) => {
+        if (data?.session) {
+          setSessionReady(true);
+        } else {
+          setAuthError('No reset code found. Please use the link from your email.');
+        }
+      });
+    }
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -70,110 +67,166 @@ const SetPassword = () => {
       return;
     }
 
-    if (!sessionReady) {
-      setError('Authentication not ready. Please wait.');
-      return;
-    }
-
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: password
-      });
-
+      const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
 
       setSuccess(true);
-
-      // Optional: logout after reset
       await supabase.auth.signOut();
 
       setTimeout(() => {
         navigate('/login', { replace: true });
-      }, 2000);
-
+      }, 2500);
     } catch (err) {
       console.error(err);
-      setError(err.message || 'Failed to update password.');
+      setError(err.message || 'Failed to update password. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ SUCCESS UI
+  // Success state
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="p-6 text-center">
-          <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
-          <h2 className="text-xl font-bold mb-2">Password Updated</h2>
-          <p>Redirecting to login...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 px-4">
+        <Card className="w-full max-w-sm border-0 shadow-lg text-center p-8">
+          <CheckCircle className="h-14 w-14 text-green-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Password Updated!</h2>
+          <p className="text-gray-600 text-sm">Redirecting you to login...</p>
+          <div className="mt-4 flex justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
         </Card>
       </div>
     );
   }
 
-  // ✅ LOADING STATE
-  if (!sessionReady && !error) {
+  // Auth error state (invalid/expired link)
+  if (authError) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p>Authenticating...</p>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 px-4">
+        <Card className="w-full max-w-sm border-0 shadow-lg text-center p-8">
+          <XCircle className="h-14 w-14 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Link Expired</h2>
+          <p className="text-gray-600 text-sm mb-6">{authError}</p>
+          <Button
+            className="w-full bg-[#01005a] hover:bg-[#01005a]/90"
+            onClick={() => navigate('/forgot-password', { replace: true })}
+          >
+            Request New Link
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
+  // Authenticating state
+  if (!sessionReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 px-4">
+        <Card className="w-full max-w-sm border-0 shadow-lg text-center p-8">
+          <Loader2 className="h-10 w-10 animate-spin text-[#01005a] mx-auto mb-4" />
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Verifying link...</h2>
+          <p className="text-gray-500 text-sm">Please wait a moment.</p>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <Card className="w-full max-w-md p-4">
-        <CardHeader>
-          <CardTitle>Set Password</CardTitle>
-          <CardDescription>Create a new secure password</CardDescription>
-        </CardHeader>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 px-4">
+      <div className="w-full max-w-sm">
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-white via-gray-50/50 to-white">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xl font-bold text-gray-900">Set New Password</CardTitle>
+            <CardDescription>Create a secure password for your account</CardDescription>
+          </CardHeader>
 
-        <CardContent>
-          {error && (
-            <div className="text-red-600 mb-3 text-sm">{error}</div>
-          )}
+          <CardContent>
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-600">{error}</p>
+              </div>
+            )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <input
-              type="password"
-              placeholder="New Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full border p-2 rounded"
-              required
-            />
-
-            <input
-              type="password"
-              placeholder="Confirm Password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full border p-2 rounded"
-              required
-            />
-
-            {/* Requirements */}
-            <div className="text-sm">
-              {requirements.map((req, i) => (
-                <div key={i} className={req.valid ? 'text-green-600' : 'text-gray-500'}>
-                  {req.valid ? '✔' : '✖'} {req.label}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="password">New Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Enter new password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10 pr-10 h-11"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
-              ))}
-            </div>
+              </div>
 
-            <Button
-              type="submit"
-              disabled={!allRequirementsMet || loading}
-              className="w-full"
-            >
-              {loading ? 'Setting...' : 'Set Password'}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+              <div className="space-y-1.5">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    placeholder="Confirm new password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="pl-10 pr-10 h-11"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
+                  >
+                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Password requirements */}
+              <div className="space-y-1.5 p-3 bg-gray-50 rounded-md">
+                {requirements.map((req, i) => (
+                  <div key={i} className={`flex items-center gap-2 text-sm ${req.valid ? 'text-green-600' : 'text-gray-400'}`}>
+                    <CheckCircle className={`w-3.5 h-3.5 flex-shrink-0 ${req.valid ? 'text-green-500' : 'text-gray-300'}`} />
+                    {req.label}
+                  </div>
+                ))}
+              </div>
+
+              <Button
+                type="submit"
+                disabled={!allRequirementsMet || loading}
+                className="w-full bg-[#01005a] hover:bg-[#01005a]/90 h-11"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  'Set Password'
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
