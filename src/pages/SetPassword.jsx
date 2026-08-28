@@ -4,6 +4,7 @@ import { Shield, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/card';
 import { supabase } from '../config/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import tabTimeLogo from '../assets/images/tap-time-logo.png';
 
 const SetPassword = () => {
@@ -16,6 +17,7 @@ const SetPassword = () => {
   const [success, setSuccess] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
   const navigate = useNavigate();
+  const { fetchBackendUserData } = useAuth();
 
   const [requirements, setRequirements] = useState([
     { label: 'At least 8 characters long', test: (pwd) => pwd.length >= 8, valid: false },
@@ -32,31 +34,74 @@ const SetPassword = () => {
         return;
       }
 
-      // Check for access token in URL hash
+      const searchParams = new URLSearchParams(window.location.search);
+      const oauthCode = searchParams.get('code');
+
+      // OAuth callback — wait for Supabase to exchange code, then go to employee-management
+      if (oauthCode) {
+        setLoading(true);
+        // Supabase auto-exchanges the code via detectSessionInUrl, wait for session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const user = session.user;
+          const userEmail = user.email;
+          const userName = user.user_metadata?.full_name || user.user_metadata?.name || userEmail.split('@')[0];
+          const userPicture = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
+          localStorage.setItem('access_token', session.access_token);
+
+          const result = await fetchBackendUserData(userEmail, userName, userPicture, 'google');
+          if (result.success) {
+            navigate('/employee-management', { replace: true });
+          } else {
+            await supabase.auth.signOut();
+            navigate('/login', { replace: true });
+          }
+        } else {
+          // Session not ready yet, subscribe to auth state change
+          const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            subscription.unsubscribe();
+            if (session?.user) {
+              const user = session.user;
+              const userEmail = user.email;
+              const userName = user.user_metadata?.full_name || user.user_metadata?.name || userEmail.split('@')[0];
+              const userPicture = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
+              localStorage.setItem('access_token', session.access_token);
+
+              const result = await fetchBackendUserData(userEmail, userName, userPicture, 'google');
+              if (result.success) {
+                navigate('/employee-management', { replace: true });
+              } else {
+                await supabase.auth.signOut();
+                navigate('/login', { replace: true });
+              }
+            } else {
+              navigate('/login', { replace: true });
+            }
+          });
+        }
+        return;
+      }
+
+      // Password reset flow — check for access_token in URL hash
       const hash = window.location.hash.substring(1);
       const params = new URLSearchParams(hash);
       const accessToken = params.get('access_token');
       const refreshToken = params.get('refresh_token');
+      const type = params.get('type');
 
-      if (!accessToken) {
-        setError('Invalid or missing authentication token. Please check your email and click the invitation link again.');
+      if (!accessToken || type !== 'recovery') {
+        navigate('/login', { replace: true });
         return;
       }
 
       try {
-        // Set the session using the tokens from URL
         const { error: sessionError } = await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken || ''
         });
-
-        if (sessionError) {
-          throw sessionError;
-        }
-
+        if (sessionError) throw sessionError;
         setSessionReady(true);
       } catch (err) {
-        console.error('Error setting session:', err);
         setError('Failed to authenticate. Please try clicking the link in your email again.');
       }
     };

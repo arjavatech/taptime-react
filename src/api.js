@@ -179,30 +179,9 @@ export const googleSignInCheck = async (email, authMethod = 'google') => {
 
     const adminTypeValue = data.admin_type?.toString().toLowerCase();
     
-    // CRITICAL: For Google OAuth, ONLY allow admin and superadmin - NEVER allow owner
-    if (authMethod === 'google') {
-      // Explicitly block owners from Google login
-      if (adminTypeValue === 'owner') {
-        return { success: false, error: 'Owners do not have access to Google login. Please use email and password to sign in.' };
-      }
-      
-      const allowedTypes = ['admin', 'superadmin'];
-      if (!allowedTypes.includes(adminTypeValue)) {
-        return { success: false, error: `Access denied. Google login not available for admin type: "${data.admin_type}"` };
-      }
-    }
-    // For email/password login, allow all types including owner
-    else if (authMethod === 'email') {
-      const allowedTypes = ['owner', 'admin', 'superadmin'];
-      if (!allowedTypes.includes(adminTypeValue)) {
-        return { success: false, error: `Access denied. Invalid admin type: "${data.admin_type}"` };
-      }
-    }
-    // For any other auth method, validate admin type exists
-    else {
-      if (!adminTypeValue || !['owner', 'admin', 'superadmin'].includes(adminTypeValue)) {
-        return { success: false, error: `Access denied. Invalid admin type: "${data.admin_type}"` };
-      }
+    const allowedTypes = ['owner', 'admin', 'superadmin'];
+    if (!adminTypeValue || !allowedTypes.includes(adminTypeValue)) {
+      return { success: false, error: `Access denied. Invalid admin type: "${data.admin_type}"` };
     }
 
     // Handle Owner login data differently
