@@ -207,7 +207,6 @@ const Header = () => {
   const employeeNavItems = [
     { to: "/my-profile", label: "My Profile" },
     { to: "/my-reports", label: "My Reports" },
-    { to: "/pending-checkout", label: "Pending Check-Out" },
   ];
 
   const authenticatedNavItems = userType === 'Employee' ? employeeNavItems : [

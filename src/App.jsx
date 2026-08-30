@@ -3,6 +3,7 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
+  Navigate,
 } from "react-router-dom";
 
 import HomePage from "./pages/HomePage";
@@ -23,7 +24,6 @@ import ForgotPassword from "./pages/ForgotPassword";
 import Invoices from "./pages/Invoices";
 import MyProfile from "./pages/MyProfile";
 import MyReports from "./pages/MyReports";
-import PendingCheckout from "./pages/PendingCheckout";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CompanyProvider } from "./contexts/CompanyContext";
 import RoleProtectedRoute from "./components/RoleProtectedRoute";
@@ -47,7 +47,7 @@ function App() {
               <Route path="/contact-us" element={<GetInTouch />} />
               <Route path="/my-profile" element={<EmployeeRoute><MyProfile /></EmployeeRoute>} />
               <Route path="/my-reports" element={<EmployeeRoute><MyReports /></EmployeeRoute>} />
-              <Route path="/pending-checkout" element={<EmployeeRoute><PendingCheckout /></EmployeeRoute>} />
+              <Route path="/pending-checkout" element={<EmployeeRoute><Navigate to="/my-reports?tab=pending" replace /></EmployeeRoute>} />
               <Route path="/employee-management" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><EmployeeList /></RoleProtectedRoute>} />
               <Route path="/device" element={<RoleProtectedRoute allowedRoles={['Owner', 'SuperAdmin']}><Device /></RoleProtectedRoute>} />
               <Route path="/invoices" element={<RoleProtectedRoute allowedRoles={['Owner', 'SuperAdmin']}><Invoices /></RoleProtectedRoute>} />
