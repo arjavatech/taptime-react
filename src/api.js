@@ -180,7 +180,7 @@ export const googleSignInCheck = async (email, authMethod = 'google') => {
     const adminTypeValue = data.admin_type?.toString().toLowerCase();
     
     if (authMethod === 'google') {
-      const allowedTypes = ['admin', 'superadmin', 'owner'];
+      const allowedTypes = ['admin', 'superadmin', 'owner', 'regular employee'];
       if (!allowedTypes.includes(adminTypeValue)) {
         return { success: false, error: `Access denied. Google login not available for admin type: "${data.admin_type}"` };
       }
@@ -224,7 +224,7 @@ export const googleSignInCheck = async (email, authMethod = 'google') => {
         return { success: false, error: 'Your subscription has expired. Please renew to continue.' };
       }
     }
-    const adminTypeMap = { admin: 'Admin', superadmin: 'SuperAdmin', owner: 'Owner' };
+    const adminTypeMap = { admin: 'Admin', superadmin: 'SuperAdmin', owner: 'Owner', 'regular employee': 'Employee' };
     const properCaseAdminType = adminTypeMap[adminTypeValue] || adminTypeValue;
     localStorage.setItem("companyLogo", data.company_logo);
    
@@ -237,6 +237,7 @@ export const googleSignInCheck = async (email, authMethod = 'google') => {
       [STORAGE_KEYS.ADMIN_MAIL]: data.email,
       [STORAGE_KEYS.ADMIN_TYPE]: properCaseAdminType,
       authId: data.auth_id,
+      employeeId: data.emp_id,
       firstName: data.first_name,
       lastName: data.last_name,
       [STORAGE_KEYS.USER_NAME]: `${data.first_name || ''} ${data.last_name || ''}`.trim(),
@@ -268,7 +269,7 @@ export const googleSignInCheck = async (email, authMethod = 'google') => {
       }
     });
 
-    return { success: true, companyID };
+    return { success: true, companyID, userType: properCaseAdminType };
   } catch (error) {
     console.error('Google Sign-In error:', error);
     return { success: false, error: error.message };
@@ -402,6 +403,17 @@ export const deleteEmployeeById = async (empId) => {
   }
 };
 
+export const fetchMyEmployeeProfile = async () => api.get(`${API_BASE}/employee/me`);
+
+export const updateMyEmployeePin = async (pin) => {
+  const result = await api.request(`${API_BASE}/employee/me/pin`, {
+    method: 'PATCH',
+    body: JSON.stringify({ pin })
+  });
+  clearApiCache();
+  return result;
+};
+
 // Device functions
 export const getTimeZone = async (cid) => {
   try {
@@ -525,6 +537,21 @@ export const fetchDateRangeReport = async (companyId, startDate, endDate) => {
     console.error('Error fetching date range report:', error);
     return [];
   }
+};
+
+export const fetchMyDailyReport = async (date) => {
+  const data = await api.get(`${API_BASE}/dailyreport/me/date/${date}`);
+  return (Array.isArray(data) ? data : []).map(transformReportRecord);
+};
+
+export const fetchMyDateRangeReport = async (startDate, endDate) => {
+  const data = await api.get(`${API_BASE}/dailyreport/me/date-range/${startDate}/${endDate}`);
+  return (Array.isArray(data) ? data : []).map(transformReportRecord);
+};
+
+export const fetchMyPendingCheckouts = async () => {
+  const data = await api.get(`${API_BASE}/dailyreport/me/pending-checkout`);
+  return (Array.isArray(data) ? data : []).map(transformReportRecord);
 };
 
 export const bulkUploadReportData = async (companyId, file) => {

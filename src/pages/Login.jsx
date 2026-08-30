@@ -6,7 +6,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { Loader2, Eye, EyeOff, Mail, Lock, Crown, Shield, Check, AlertCircle } from "lucide-react";
+import { Loader2, Eye, EyeOff, Mail, Lock, Crown, Shield, User, Check, AlertCircle } from "lucide-react";
 import tabTimeLogo from "../assets/images/tap-time-logo.png";
 import GoogleLoginRestrictionModal from "../components/ui/GoogleLoginRestrictionModal";
 
@@ -60,7 +60,7 @@ const Login = () => {
 
           if (result.success) {
             sessionStorage.removeItem('pending_oauth_callback');
-            navigate('/employee-management');
+            navigate(result.userType === 'Employee' ? '/my-profile' : '/employee-management');
           } else {
             sessionStorage.removeItem('pending_oauth_callback');
             await signOut();
@@ -72,7 +72,7 @@ const Login = () => {
           setLoading(false);
         }
       } else if (user && localStorage.getItem('companyID')) {
-        navigate('/employee-management');
+        navigate(localStorage.getItem('adminType') === 'Employee' ? '/my-profile' : '/employee-management');
       }
     };
 
@@ -141,7 +141,7 @@ const Login = () => {
           return;
         }
 
-        navigate('/employee-management');
+        navigate(result.userType === 'Employee' ? '/my-profile' : '/employee-management');
       }
     } catch (err) {
       setLoginError("Invalid user name or password");
@@ -258,7 +258,7 @@ const Login = () => {
                   <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-900">Select Your Access</h2>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4 md:mb-6">
+                <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4 md:mb-6">
                   <div
                     className={`relative cursor-pointer transition-all duration-300 ease-out p-2 sm:p-3 md:p-4 rounded-lg border-2 text-center group h-16 sm:h-20 md:h-24 flex flex-col justify-center touch-manipulation ${selectedRole === 'owner'
                         ? 'border-[#01005a] bg-gradient-to-br from-[#01005a]/8 via-[#01005a]/4 to-transparent shadow-xl shadow-[#01005a]/20'
@@ -298,6 +298,24 @@ const Login = () => {
                     <h3 className={`text-sm sm:text-sm md:text-base font-medium transition-colors leading-tight ${selectedRole === 'admin' ? 'text-[#01005a]' : 'text-gray-900 group-hover:text-[#01005a]'
                       }`}>Admin / Super Admin</h3>
                   </div>
+
+                  <div
+                    className={`relative cursor-pointer transition-all duration-300 ease-out p-2 sm:p-3 md:p-4 rounded-lg border-2 text-center group h-16 sm:h-20 md:h-24 flex flex-col justify-center touch-manipulation ${selectedRole === 'employee'
+                        ? 'border-[#01005a] bg-gradient-to-br from-[#01005a]/8 via-[#01005a]/4 to-transparent shadow-xl shadow-[#01005a]/20'
+                        : 'border-gray-200 hover:border-[#01005a]/40 hover:shadow-lg hover:shadow-[#01005a]/10 hover:bg-gradient-to-br hover:from-[#01005a]/3 hover:to-transparent active:scale-95'
+                      }`}
+                    onClick={() => handleRoleSelect('employee')}
+                  >
+                    {selectedRole === 'employee' && (
+                      <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-3 h-3 sm:w-4 sm:h-4 bg-[#01005a] rounded-full flex items-center justify-center">
+                        <Check className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-white" />
+                      </div>
+                    )}
+                    <div className="mx-auto w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 bg-gradient-to-br from-[#01005a] to-[#01005a]/80 rounded-lg flex items-center justify-center mb-1 sm:mb-1 md:mb-2">
+                      <User className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-white" />
+                    </div>
+                    <h3 className="text-sm sm:text-sm md:text-base font-medium text-gray-900">Employee</h3>
+                  </div>
                 </div>
 
                 {/* Login Form - Shows Below Role Cards */}
@@ -307,7 +325,9 @@ const Login = () => {
                     <p className="text-sm sm:text-sm md:text-base text-gray-600 px-2">
                       {selectedRole === 'owner'
                         ? 'Sign in with Google or use your email and password'
-                        : 'Sign in with your Google account to continue'
+                        : selectedRole === 'employee'
+                          ? 'Sign in with the Google account matching your employee email'
+                          : 'Sign in with your Google account to continue'
                       }
                     </p>
                   </div>
@@ -463,7 +483,7 @@ const Login = () => {
                       </>
                     )}
 
-                    {selectedRole === 'admin' && (
+                    {selectedRole !== 'owner' && (
                       <div className="space-y-2 sm:space-y-3 md:space-y-4">
                         <Button
                           type="button"

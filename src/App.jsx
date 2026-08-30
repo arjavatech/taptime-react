@@ -21,10 +21,13 @@ import ReportSummary from "./pages/ReportSummary";
 import ReportSetting from "./pages/ReportSetting";
 import ForgotPassword from "./pages/ForgotPassword";
 import Invoices from "./pages/Invoices";
+import MyProfile from "./pages/MyProfile";
+import MyReports from "./pages/MyReports";
+import PendingCheckout from "./pages/PendingCheckout";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CompanyProvider } from "./contexts/CompanyContext";
-import ProtectedRoute from "./components/ProtectedRoute";
 import RoleProtectedRoute from "./components/RoleProtectedRoute";
+import EmployeeRoute from "./components/EmployeeRoute";
 
 
 function App() {
@@ -42,15 +45,18 @@ function App() {
               <Route path="/set-password" element={<SetPassword />} />
               <Route path="/register" element={<Register />} />
               <Route path="/contact-us" element={<GetInTouch />} />
-              <Route path="/employee-management" element={<ProtectedRoute><EmployeeList /></ProtectedRoute>} />
+              <Route path="/my-profile" element={<EmployeeRoute><MyProfile /></EmployeeRoute>} />
+              <Route path="/my-reports" element={<EmployeeRoute><MyReports /></EmployeeRoute>} />
+              <Route path="/pending-checkout" element={<EmployeeRoute><PendingCheckout /></EmployeeRoute>} />
+              <Route path="/employee-management" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><EmployeeList /></RoleProtectedRoute>} />
               <Route path="/device" element={<RoleProtectedRoute allowedRoles={['Owner', 'SuperAdmin']}><Device /></RoleProtectedRoute>} />
               <Route path="/invoices" element={<RoleProtectedRoute allowedRoles={['Owner', 'SuperAdmin']}><Invoices /></RoleProtectedRoute>} />
-              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-              <Route path="/contact" element={<ProtectedRoute><ContactUs /></ProtectedRoute>} />
-              <Route path="/reports" element={<ProtectedRoute><ReportSummary /></ProtectedRoute>} />
-              <Route path="/reportsummary" element={<ProtectedRoute><ReportSummary /></ProtectedRoute>} />
-              <Route path="/daywisereport" element={<ProtectedRoute><ReportSummary /></ProtectedRoute>} />
-              <Route path="/salariedreport" element={<ProtectedRoute><ReportSummary /></ProtectedRoute>} />
+              <Route path="/profile" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><Profile /></RoleProtectedRoute>} />
+              <Route path="/contact" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><ContactUs /></RoleProtectedRoute>} />
+              <Route path="/reports" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><ReportSummary /></RoleProtectedRoute>} />
+              <Route path="/reportsummary" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><ReportSummary /></RoleProtectedRoute>} />
+              <Route path="/daywisereport" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><ReportSummary /></RoleProtectedRoute>} />
+              <Route path="/salariedreport" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><ReportSummary /></RoleProtectedRoute>} />
               <Route path="/reportsetting" element={<RoleProtectedRoute allowedRoles={['Owner', 'SuperAdmin']}><ReportSetting /></RoleProtectedRoute>} />
             </Routes>
           </div>
