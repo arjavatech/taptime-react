@@ -208,7 +208,7 @@ export const googleSignInCheck = async (email, authMethod = 'google') => {
       }
       storeOwnerData(data);
       const companyID = validCompany.cid;
-      return { success: true, companyID };
+      return { success: true, companyID, userType: 'Owner' };
     }
 
     const companyID = data.cid;

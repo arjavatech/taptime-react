@@ -164,12 +164,16 @@ export const CompanyProvider = ({ children }) => {
       [STORAGE_KEYS.COMPANY_ID]: companyId,
       [STORAGE_KEYS.COMPANY_NAME]: companyName,
       [STORAGE_KEYS.COMPANY_LOGO]: companyLogo,
-      [STORAGE_KEYS.ADMIN_TYPE]: company.admin_type,
       [STORAGE_KEYS.REPORT_TYPE]: reportType,
       [STORAGE_KEYS.NO_OF_DEVICES]: company.device_count?.toString() || '0',
       [STORAGE_KEYS.NO_OF_EMPLOYEES]: company.employee_count?.toString() || '0',
-      'lastSelectedCompany': companyId // Remember user's preference
+      'lastSelectedCompany': companyId
     };
+
+    // Only update adminType if the company provides a valid value
+    if (company.admin_type) {
+      companyData[STORAGE_KEYS.ADMIN_TYPE] = company.admin_type;
+    }
 
     Object.entries(companyData).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {

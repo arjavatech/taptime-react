@@ -54,6 +54,13 @@ const SetPassword = () => {
       return;
     }
 
+    // Google OAuth also uses ?code= — only password reset/invite links include type=recovery or type=invite
+    const type = queryParams.get('type') || hashParams.get('type');
+    if (type !== 'recovery' && type !== 'invite') {
+      navigate('/login', { replace: true });
+      return;
+    }
+
     // PKCE code flow — resetPasswordForEmail() with flowType: 'pkce' produces ?code=...
     // detectSessionInUrl: true auto-exchanges the code; it fires SIGNED_IN (not PASSWORD_RECOVERY)
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
