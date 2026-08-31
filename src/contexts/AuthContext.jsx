@@ -296,7 +296,9 @@ export const AuthProvider = ({ children }) => {
         return { data: null, error: "You are not a user" };
       }
 
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email);
+      const { data, error } =  await supabase.auth.resetPasswordForEmail(email, {
+  redirectTo: 'https://dev.taptime-react.pages.dev/set-password'
+})
 
       if (error) throw error;
       return { data, error: null };
@@ -365,11 +367,15 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('userPicture');
       }
 
-      // Step 3: Fetch timezone data
-      await getTimeZone(companyID);
+      const isEmployee = result.userType === 'Employee';
 
-      // Step 4: Load user's companies for company switching
-      const companiesResult = await loadUserCompanies(email);
+      // Regular employees deliberately do not call device or company-switching
+      // endpoints, because those are administrator-only APIs.
+      if (!isEmployee) {
+        await getTimeZone(companyID);
+      }
+
+      const companiesResult = isEmployee ? null : await loadUserCompanies(email);
       
       // Check if companies loading failed due to account deletion
       if (companiesResult && companiesResult.success === false && companiesResult.deleted) {
@@ -379,7 +385,7 @@ export const AuthProvider = ({ children }) => {
         };
       }
 
-      return { success: true, companyID };
+      return { success: true, companyID, userType: result.userType };
     } catch (error) {
       console.error('Error fetching backend user data:', error);
       return {
