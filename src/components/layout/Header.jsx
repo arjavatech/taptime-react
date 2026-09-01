@@ -230,6 +230,9 @@ const Header = () => {
     ...(userType === "Owner" || userType === "SuperAdmin" ? [
       { to: "/invoices", label: "Invoices" }
     ] : []),
+    ...(userType === "Owner" || userType === "SuperAdmin" ? [
+      { to: "/integrations", label: "Integrations" }
+    ] : []),
     { to: "/contact", label: "Contact" }
   ];
 

@@ -21,6 +21,20 @@ const pendingRequests = new Map();
 const requestCache = new Map();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache for GET requests
 
+const getCurrentAccessToken = async () => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      localStorage.setItem("access_token", session.access_token);
+      return session.access_token;
+    }
+  } catch (error) {
+    console.warn("Unable to restore Supabase session", error);
+  }
+  localStorage.removeItem("access_token");
+  return null;
+};
+
 // Clear API cache - useful after login/logout or when data changes
 export const clearApiCache = () => {
   requestCache.clear();
@@ -47,18 +61,18 @@ const api = {
     
     const requestPromise = (async () => {
       try {
-        const authToken = localStorage.getItem("access_token");
+        const authToken = await getCurrentAccessToken();
         const headers = { 'Content-Type': 'application/json' };
         if (authToken) {
           headers['Authorization'] = `Bearer ${authToken}`;
         }
         
         const response = await fetch(url, {
+          ...options,
           headers: {
             ...headers,
             ...(options.headers || {})
-          },
-          ...options
+          }
         });
         
         if (!response.ok) {
@@ -402,6 +416,29 @@ export const deleteEmployeeById = async (empId) => {
     throw error;
   }
 };
+
+// Company-scoped school mappings. The API never returns credentials or tokens.
+export const getIntegrationConnections = async () => {
+  const token = localStorage.getItem("access_token");
+  const response = await fetch(`${API_BASE}/integration-connections`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || "Unable to load integrations");
+  return data.items || [];
+};
+
+export const getSessionContext = async () => api.get(`${API_BASE}/auth/session-context`);
+
+export const getIntegrationProviders = async () => {
+  const data = await api.get(`${API_BASE}/integration-connections/providers`);
+  return data.items || [];
+};
+const integrationWrite = async (request) => { const result = await request(); clearApiCache(); return result; };
+export const createIntegrationTenantMapping = async (integrationId, payload) => integrationWrite(() =>
+  api.post(`${API_BASE}/integration-connections/${integrationId}/tenants`, payload));
+export const setIntegrationTenantStatus = async (integrationId, externalTenantId, status) => integrationWrite(() =>
+  api.request(`${API_BASE}/integration-connections/${integrationId}/tenants/${encodeURIComponent(externalTenantId)}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }));
 
 export const fetchMyEmployeeProfile = async () => api.get(`${API_BASE}/employee/me`);
 

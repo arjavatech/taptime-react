@@ -24,6 +24,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import Invoices from "./pages/Invoices";
 import MyProfile from "./pages/MyProfile";
 import MyReports from "./pages/MyReports";
+import IntegrationConnections from "./pages/IntegrationConnections";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CompanyProvider } from "./contexts/CompanyContext";
 import RoleProtectedRoute from "./components/RoleProtectedRoute";
@@ -51,6 +52,7 @@ function App() {
               <Route path="/employee-management" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><EmployeeList /></RoleProtectedRoute>} />
               <Route path="/device" element={<RoleProtectedRoute allowedRoles={['Owner', 'SuperAdmin']}><Device /></RoleProtectedRoute>} />
               <Route path="/invoices" element={<RoleProtectedRoute allowedRoles={['Owner', 'SuperAdmin']}><Invoices /></RoleProtectedRoute>} />
+              <Route path="/integrations" element={<RoleProtectedRoute allowedRoles={['Owner', 'SuperAdmin']}><IntegrationConnections /></RoleProtectedRoute>} />
               <Route path="/profile" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><Profile /></RoleProtectedRoute>} />
               <Route path="/contact" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><ContactUs /></RoleProtectedRoute>} />
               <Route path="/reports" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><ReportSummary /></RoleProtectedRoute>} />
