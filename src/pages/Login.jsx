@@ -6,7 +6,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { Loader2, Eye, EyeOff, Mail, Lock, Crown, Shield, Check, AlertCircle } from "lucide-react";
+import { Loader2, Eye, EyeOff, Mail, Lock, Crown, Shield, User, Check, AlertCircle } from "lucide-react";
 import tabTimeLogo from "../assets/images/tap-time-logo.png";
 import GoogleLoginRestrictionModal from "../components/ui/GoogleLoginRestrictionModal";
 
@@ -29,7 +29,7 @@ const Login = () => {
   const { signInWithEmail, signInWithGoogle, signOut, user, session, loading: authLoading, fetchBackendUserData } = useAuth();
   const [isProcessingOAuth, setIsProcessingOAuth] = useState(false);
   const fetchBackendUserDataRef = useRef(fetchBackendUserData);
-  
+
   // Update ref when fetchBackendUserData changes
   useEffect(() => {
     fetchBackendUserDataRef.current = fetchBackendUserData;
@@ -50,8 +50,8 @@ const Login = () => {
         setLoading(true);
 
         try {
-          
-          
+
+
           const userEmail = user.email;
           const userName = user.user_metadata?.full_name || user.user_metadata?.name || user.email.split('@')[0];
           const userPicture = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
@@ -60,21 +60,8 @@ const Login = () => {
 
           if (result.success) {
             sessionStorage.removeItem('pending_oauth_callback');
-            navigate('/employee-management');
+            navigate(result.userType === 'Employee' ? '/my-profile' : '/employee-management');
           } else {
-            // Check if the error is specifically about Owner Google login restriction
-            if (result.error && result.error.includes('Owners do not have access to Google login')) {
-              console.log('Backend Owner restriction detected, showing modal');
-              sessionStorage.removeItem('pending_oauth_callback');
-              await signOut();
-              setLoading(false);
-              setIsProcessingOAuth(false);
-              setTimeout(() => {
-                setShowGoogleRestrictionModal(true);
-              }, 100);
-              return;
-            }
-            
             sessionStorage.removeItem('pending_oauth_callback');
             await signOut();
             setLoading(false);
@@ -85,7 +72,7 @@ const Login = () => {
           setLoading(false);
         }
       } else if (user && localStorage.getItem('companyID')) {
-        navigate('/employee-management');
+        navigate(localStorage.getItem('adminType') === 'Employee' ? '/my-profile' : '/employee-management');
       }
     };
 
@@ -154,7 +141,7 @@ const Login = () => {
           return;
         }
 
-        navigate('/employee-management');
+        navigate(result.userType === 'Employee' ? '/my-profile' : '/employee-management');
       }
     } catch (err) {
       setLoginError("Invalid user name or password");
@@ -164,13 +151,6 @@ const Login = () => {
   };
 
   const handleGoogleLogin = async () => {
-    // Check if Owner is trying to use Google login
-    if (selectedRole === 'owner') {
-      console.log('Frontend Owner check - showing modal');
-      setShowGoogleRestrictionModal(true);
-      return;
-    }
-
     setLoading(true);
     setLoginError("");
 
@@ -277,14 +257,13 @@ const Login = () => {
                 <div className="text-center mb-3 sm:mb-4 md:mb-6">
                   <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-900">Select Your Access</h2>
                 </div>
-                
-                <div className="grid grid-cols-2 gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4 md:mb-6">
-                  <div 
-                    className={`relative cursor-pointer transition-all duration-300 ease-out p-2 sm:p-3 md:p-4 rounded-lg border-2 text-center group h-16 sm:h-20 md:h-24 flex flex-col justify-center touch-manipulation ${
-                      selectedRole === 'owner' 
-                        ? 'border-[#01005a] bg-gradient-to-br from-[#01005a]/8 via-[#01005a]/4 to-transparent shadow-xl shadow-[#01005a]/20' 
+
+                <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4 md:mb-6">
+                  <div
+                    className={`relative cursor-pointer transition-all duration-300 ease-out p-2 sm:p-3 md:p-4 rounded-lg border-2 text-center group h-16 sm:h-20 md:h-24 flex flex-col justify-center touch-manipulation ${selectedRole === 'owner'
+                        ? 'border-[#01005a] bg-gradient-to-br from-[#01005a]/8 via-[#01005a]/4 to-transparent shadow-xl shadow-[#01005a]/20'
                         : 'border-gray-200 hover:border-[#01005a]/40 hover:shadow-lg hover:shadow-[#01005a]/10 hover:bg-gradient-to-br hover:from-[#01005a]/3 hover:to-transparent active:scale-95'
-                    }`}
+                      }`}
                     onClick={() => handleRoleSelect('owner')}
                   >
                     {selectedRole === 'owner' && (
@@ -292,22 +271,19 @@ const Login = () => {
                         <Check className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-white" />
                       </div>
                     )}
-                    <div className={`mx-auto w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 bg-gradient-to-br from-[#01005a] to-[#01005a]/80 rounded-lg flex items-center justify-center mb-1 sm:mb-1 md:mb-2 transition-all duration-300 ${
-                      selectedRole === 'owner' ? 'scale-105 shadow-lg' : 'group-hover:scale-105 group-hover:shadow-md'
-                    }`}>
+                    <div className={`mx-auto w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 bg-gradient-to-br from-[#01005a] to-[#01005a]/80 rounded-lg flex items-center justify-center mb-1 sm:mb-1 md:mb-2 transition-all duration-300 ${selectedRole === 'owner' ? 'scale-105 shadow-lg' : 'group-hover:scale-105 group-hover:shadow-md'
+                      }`}>
                       <Crown className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-white" />
                     </div>
-                    <h3 className={`text-sm sm:text-sm md:text-base font-medium transition-colors ${
-                      selectedRole === 'owner' ? 'text-[#01005a]' : 'text-gray-900 group-hover:text-[#01005a]'
-                    }`}>Owner</h3>
+                    <h3 className={`text-sm sm:text-sm md:text-base font-medium transition-colors ${selectedRole === 'owner' ? 'text-[#01005a]' : 'text-gray-900 group-hover:text-[#01005a]'
+                      }`}>Owner</h3>
                   </div>
-                  
-                  <div 
-                    className={`relative cursor-pointer transition-all duration-300 ease-out p-2 sm:p-3 md:p-4 rounded-lg border-2 text-center group h-16 sm:h-20 md:h-24 flex flex-col justify-center touch-manipulation ${
-                      selectedRole === 'admin' 
-                        ? 'border-[#01005a] bg-gradient-to-br from-[#01005a]/8 via-[#01005a]/4 to-transparent shadow-xl shadow-[#01005a]/20' 
+
+                  <div
+                    className={`relative cursor-pointer transition-all duration-300 ease-out p-2 sm:p-3 md:p-4 rounded-lg border-2 text-center group h-16 sm:h-20 md:h-24 flex flex-col justify-center touch-manipulation ${selectedRole === 'admin'
+                        ? 'border-[#01005a] bg-gradient-to-br from-[#01005a]/8 via-[#01005a]/4 to-transparent shadow-xl shadow-[#01005a]/20'
                         : 'border-gray-200 hover:border-[#01005a]/40 hover:shadow-lg hover:shadow-[#01005a]/10 hover:bg-gradient-to-br hover:from-[#01005a]/3 hover:to-transparent active:scale-95'
-                    }`}
+                      }`}
                     onClick={() => handleRoleSelect('admin')}
                   >
                     {selectedRole === 'admin' && (
@@ -315,33 +291,53 @@ const Login = () => {
                         <Check className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-white" />
                       </div>
                     )}
-                    <div className={`mx-auto w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 bg-gradient-to-br from-[#01005a] to-[#01005a]/80 rounded-lg flex items-center justify-center mb-1 sm:mb-1 md:mb-2 transition-all duration-300 ${
-                      selectedRole === 'admin' ? 'scale-105 shadow-lg' : 'group-hover:scale-105 group-hover:shadow-md'
-                    }`}>
+                    <div className={`mx-auto w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 bg-gradient-to-br from-[#01005a] to-[#01005a]/80 rounded-lg flex items-center justify-center mb-1 sm:mb-1 md:mb-2 transition-all duration-300 ${selectedRole === 'admin' ? 'scale-105 shadow-lg' : 'group-hover:scale-105 group-hover:shadow-md'
+                      }`}>
                       <Shield className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-white" />
                     </div>
-                    <h3 className={`text-sm sm:text-sm md:text-base font-medium transition-colors leading-tight ${
-                      selectedRole === 'admin' ? 'text-[#01005a]' : 'text-gray-900 group-hover:text-[#01005a]'
-                    }`}>Admin / Super Admin</h3>
+                    <h3 className={`text-sm sm:text-sm md:text-base font-medium transition-colors leading-tight ${selectedRole === 'admin' ? 'text-[#01005a]' : 'text-gray-900 group-hover:text-[#01005a]'
+                      }`}>Admin / Super Admin</h3>
+                  </div>
+
+                  <div
+                    className={`relative cursor-pointer transition-all duration-300 ease-out p-2 sm:p-3 md:p-4 rounded-lg border-2 text-center group h-16 sm:h-20 md:h-24 flex flex-col justify-center touch-manipulation ${selectedRole === 'employee'
+                        ? 'border-[#01005a] bg-gradient-to-br from-[#01005a]/8 via-[#01005a]/4 to-transparent shadow-xl shadow-[#01005a]/20'
+                        : 'border-gray-200 hover:border-[#01005a]/40 hover:shadow-lg hover:shadow-[#01005a]/10 hover:bg-gradient-to-br hover:from-[#01005a]/3 hover:to-transparent active:scale-95'
+                      }`}
+                    onClick={() => handleRoleSelect('employee')}
+                  >
+                    {selectedRole === 'employee' && (
+                      <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-3 h-3 sm:w-4 sm:h-4 bg-[#01005a] rounded-full flex items-center justify-center">
+                        <Check className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-white" />
+                      </div>
+                    )}
+                    <div className="mx-auto w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 bg-gradient-to-br from-[#01005a] to-[#01005a]/80 rounded-lg flex items-center justify-center mb-1 sm:mb-1 md:mb-2">
+                      <User className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-white" />
+                    </div>
+                    <h3 className="text-sm sm:text-sm md:text-base font-medium text-gray-900">Employee</h3>
                   </div>
                 </div>
 
                 {/* Login Form - Shows Below Role Cards */}
                 <div className="border-t border-gray-200 pt-3 sm:pt-4 md:pt-6">
-                    <div className="text-center mb-3 sm:mb-4 md:mb-6">
-                      <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 mb-1 sm:mb-1 md:mb-2">Welcome back</h3>
-                      <p className="text-sm sm:text-sm md:text-base text-gray-600 px-2">
-                        {selectedRole === 'owner' 
-                          ? 'Enter your credentials to access your account'
+                  <div className="text-center mb-3 sm:mb-4 md:mb-6">
+                    <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 mb-1 sm:mb-1 md:mb-2">Welcome back</h3>
+                    <p className="text-sm sm:text-sm md:text-base text-gray-600 px-2">
+                      {selectedRole === 'owner'
+                        ? 'Sign in with Google or use your email and password'
+                        : selectedRole === 'employee'
+                          ? 'Sign in with the Google account matching your employee email'
                           : 'Sign in with your Google account to continue'
-                        }
-                      </p>
-                    </div>
+                      }
+                    </p>
+                  </div>
 
-                    <div className="space-y-3 sm:space-y-4 md:space-y-5">
+                  <div className="space-y-3 sm:space-y-4 md:space-y-5">
 
-              
-                      {selectedRole === 'owner' && (
+
+                    {selectedRole === 'owner' && (
+                      <>
+
                         <form onSubmit={handleEmailLogin} className="space-y-2 sm:space-y-3 md:space-y-4">
                           <div className="space-y-1 sm:space-y-1 md:space-y-2">
                             <Label htmlFor="email" className="text-sm sm:text-base md:text-lg">Email</Label>
@@ -418,8 +414,8 @@ const Login = () => {
                                 onChange={(e) => setRememberMe(e.target.checked)}
                                 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary bg-background border-border rounded focus:ring-primary focus:ring-2 touch-manipulation"
                               />
-                              <Label 
-                                htmlFor="remember" 
+                              <Label
+                                htmlFor="remember"
                                 className="text-sm sm:text-sm md:text-base cursor-pointer touch-manipulation"
                                 onMouseEnter={() => setShowTooltip(true)}
                                 onMouseLeave={() => setShowTooltip(false)}
@@ -452,10 +448,12 @@ const Login = () => {
                             )}
                           </Button>
                         </form>
-                      )}
-
-                      {selectedRole === 'admin' && (
-                        <div className="space-y-2 sm:space-y-3 md:space-y-4">
+                        <div className="relative flex items-center my-2">
+                          <div className="flex-grow border-t border-gray-200"></div>
+                          <span className="mx-3 text-xs text-gray-400">or</span>
+                          <div className="flex-grow border-t border-gray-200"></div>
+                        </div>
+                        <div className="space-y-2 sm:space-y-3 md:space-y-4 my-2">
                           <Button
                             type="button"
                             variant="outline"
@@ -471,39 +469,70 @@ const Login = () => {
                             ) : (
                               <>
                                 <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" viewBox="0 0 24 24">
-                                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                                 </svg>
                                 Sign in with Google
                               </>
                             )}
                           </Button>
-                          {/* Login Error Display */}
-                          {loginError && (
-                            <div className="p-2 sm:p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
-                              <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                              <p className="text-sm sm:text-sm md:text-base text-red-600">{loginError}</p>
-                            </div>
-                          )}
                         </div>
-                      )}
 
-                      <div className="text-center text-sm sm:text-sm md:text-base">
-                        <span className="text-muted-foreground">Don't have an account? </span>
-                        <Link to="/register" className="text-primary hover:underline font-medium touch-manipulation">
-                          Sign up
-                        </Link>
+                      </>
+                    )}
+
+                    {selectedRole !== 'owner' && (
+                      <div className="space-y-2 sm:space-y-3 md:space-y-4">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full h-10 sm:h-11 md:h-12 text-sm sm:text-base md:text-lg touch-manipulation active:scale-95"
+                          onClick={handleGoogleLogin}
+                          disabled={loading}
+                        >
+                          {loading ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
+                              Signing in...
+                            </>
+                          ) : (
+                            <>
+                              <svg className="w-4 h-4 sm:w-5 sm:h-5 mr-2" viewBox="0 0 24 24">
+                                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                              </svg>
+                              Sign in with Google
+                            </>
+                          )}
+                        </Button>
+                        {/* Login Error Display */}
+                        {loginError && (
+                          <div className="p-2 sm:p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                            <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                            <p className="text-sm sm:text-sm md:text-base text-red-600">{loginError}</p>
+                          </div>
+                        )}
                       </div>
+                    )}
+
+                    <div className="text-center text-sm sm:text-sm md:text-base">
+                      <span className="text-muted-foreground">Don't have an account? </span>
+                      <Link to="/register" className="text-primary hover:underline font-medium touch-manipulation">
+                        Sign up
+                      </Link>
                     </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </div>
         </div>
       </div>
-      
+
       {/* Google Login Restriction Modal */}
       <GoogleLoginRestrictionModal
         isOpen={showGoogleRestrictionModal}

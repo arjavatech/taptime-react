@@ -21,6 +21,20 @@ const pendingRequests = new Map();
 const requestCache = new Map();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache for GET requests
 
+const getCurrentAccessToken = async () => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      localStorage.setItem("access_token", session.access_token);
+      return session.access_token;
+    }
+  } catch (error) {
+    console.warn("Unable to restore Supabase session", error);
+  }
+  localStorage.removeItem("access_token");
+  return null;
+};
+
 // Clear API cache - useful after login/logout or when data changes
 export const clearApiCache = () => {
   requestCache.clear();
@@ -47,18 +61,18 @@ const api = {
     
     const requestPromise = (async () => {
       try {
-        const authToken = localStorage.getItem("access_token");
+        const authToken = await getCurrentAccessToken();
         const headers = { 'Content-Type': 'application/json' };
         if (authToken) {
           headers['Authorization'] = `Bearer ${authToken}`;
         }
         
         const response = await fetch(url, {
+          ...options,
           headers: {
             ...headers,
             ...(options.headers || {})
-          },
-          ...options
+          }
         });
         
         if (!response.ok) {
@@ -179,14 +193,8 @@ export const googleSignInCheck = async (email, authMethod = 'google') => {
 
     const adminTypeValue = data.admin_type?.toString().toLowerCase();
     
-    // CRITICAL: For Google OAuth, ONLY allow admin and superadmin - NEVER allow owner
     if (authMethod === 'google') {
-      // Explicitly block owners from Google login
-      if (adminTypeValue === 'owner') {
-        return { success: false, error: 'Owners do not have access to Google login. Please use email and password to sign in.' };
-      }
-      
-      const allowedTypes = ['admin', 'superadmin'];
+      const allowedTypes = ['admin', 'superadmin', 'owner', 'regular employee'];
       if (!allowedTypes.includes(adminTypeValue)) {
         return { success: false, error: `Access denied. Google login not available for admin type: "${data.admin_type}"` };
       }
@@ -230,7 +238,7 @@ export const googleSignInCheck = async (email, authMethod = 'google') => {
         return { success: false, error: 'Your subscription has expired. Please renew to continue.' };
       }
     }
-    const adminTypeMap = { admin: 'Admin', superadmin: 'SuperAdmin', owner: 'Owner' };
+    const adminTypeMap = { admin: 'Admin', superadmin: 'SuperAdmin', owner: 'Owner', 'regular employee': 'Employee' };
     const properCaseAdminType = adminTypeMap[adminTypeValue] || adminTypeValue;
     localStorage.setItem("companyLogo", data.company_logo);
    
@@ -243,6 +251,7 @@ export const googleSignInCheck = async (email, authMethod = 'google') => {
       [STORAGE_KEYS.ADMIN_MAIL]: data.email,
       [STORAGE_KEYS.ADMIN_TYPE]: properCaseAdminType,
       authId: data.auth_id,
+      employeeId: data.emp_id,
       firstName: data.first_name,
       lastName: data.last_name,
       [STORAGE_KEYS.USER_NAME]: `${data.first_name || ''} ${data.last_name || ''}`.trim(),
@@ -274,7 +283,7 @@ export const googleSignInCheck = async (email, authMethod = 'google') => {
       }
     });
 
-    return { success: true, companyID };
+    return { success: true, companyID, userType: properCaseAdminType };
   } catch (error) {
     console.error('Google Sign-In error:', error);
     return { success: false, error: error.message };
@@ -408,6 +417,40 @@ export const deleteEmployeeById = async (empId) => {
   }
 };
 
+// Company-scoped school mappings. The API never returns credentials or tokens.
+export const getIntegrationConnections = async () => {
+  const token = localStorage.getItem("access_token");
+  const response = await fetch(`${API_BASE}/integration-connections`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || "Unable to load integrations");
+  return data.items || [];
+};
+
+export const getSessionContext = async () => api.get(`${API_BASE}/auth/session-context`);
+
+export const getIntegrationProviders = async () => {
+  const data = await api.get(`${API_BASE}/integration-connections/providers`);
+  return data.items || [];
+};
+const integrationWrite = async (request) => { const result = await request(); clearApiCache(); return result; };
+export const createIntegrationTenantMapping = async (integrationId, payload) => integrationWrite(() =>
+  api.post(`${API_BASE}/integration-connections/${integrationId}/tenants`, payload));
+export const setIntegrationTenantStatus = async (integrationId, externalTenantId, status) => integrationWrite(() =>
+  api.request(`${API_BASE}/integration-connections/${integrationId}/tenants/${encodeURIComponent(externalTenantId)}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }));
+
+export const fetchMyEmployeeProfile = async () => api.get(`${API_BASE}/employee/me`);
+
+export const updateMyEmployeePin = async (pin) => {
+  const result = await api.request(`${API_BASE}/employee/me/pin`, {
+    method: 'PATCH',
+    body: JSON.stringify({ pin })
+  });
+  clearApiCache();
+  return result;
+};
+
 // Device functions
 export const getTimeZone = async (cid) => {
   try {
@@ -531,6 +574,21 @@ export const fetchDateRangeReport = async (companyId, startDate, endDate) => {
     console.error('Error fetching date range report:', error);
     return [];
   }
+};
+
+export const fetchMyDailyReport = async (date) => {
+  const data = await api.get(`${API_BASE}/dailyreport/me/date/${date}`);
+  return (Array.isArray(data) ? data : []).map(transformReportRecord);
+};
+
+export const fetchMyDateRangeReport = async (startDate, endDate) => {
+  const data = await api.get(`${API_BASE}/dailyreport/me/date-range/${startDate}/${endDate}`);
+  return (Array.isArray(data) ? data : []).map(transformReportRecord);
+};
+
+export const fetchMyPendingCheckouts = async () => {
+  const data = await api.get(`${API_BASE}/dailyreport/me/pending-checkout`);
+  return (Array.isArray(data) ? data : []).map(transformReportRecord);
 };
 
 export const bulkUploadReportData = async (companyId, file) => {

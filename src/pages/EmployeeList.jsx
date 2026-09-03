@@ -520,9 +520,10 @@ const EmployeeList = () => {
   const handlePhoneInput = useCallback((phone) => {
     setFormData((prev) => ({ ...prev, phone_number: phone }));
 
-    // Auto-generate PIN from last 4 digits
+    // Set the enrollment default from the phone number.  Existing employee PINs
+    // and a manually edited PIN remain untouched.
     const digits = phone.replace(/\D/g, '').replace(/^1/, '');
-    if (digits.length >= 4) {
+    if (!editingEmployee && digits.length >= 4) {
       setFormData((prev) => ({ ...prev, pin: digits.slice(-4) }));
     }
   }, []);
@@ -562,16 +563,20 @@ const EmployeeList = () => {
       }
     }
 
-    // Email validation for admins/superadmins
-    if (formData.is_admin > 0) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!formData.email) {
-        newErrors.email = "Email is required for admin";
-        isValid = false;
-      } else if (!emailRegex.test(formData.email)) {
-        newErrors.email = "Invalid email format";
-        isValid = false;
-      }
+    // Email is required for every web-enrolled employee so Google login can
+    // match the authenticated address to this record.
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!formData.email) {
+      newErrors.email = "Email is required";
+      isValid = false;
+    } else if (!emailRegex.test(formData.email)) {
+      newErrors.email = "Invalid email format";
+      isValid = false;
+    }
+
+    if (!/^\d{4,10}$/.test(formData.pin || '')) {
+      newErrors.pin = "PIN must contain 4-10 digits";
+      isValid = false;
     }
 
     setErrors(newErrors);
@@ -590,8 +595,8 @@ const EmployeeList = () => {
       return;
     }
 
-    // Check for duplicate email when editing or creating admin/superadmin
-    if (formData.is_admin > 0 && formData.email) {
+    // Check for duplicate email for all employees.
+    if (formData.email) {
       // Prevent using Owner's email
 
 
@@ -855,23 +860,21 @@ const EmployeeList = () => {
         }
       }
 
-      // Email validation for admins/superadmins with detailed messages
-      if (formData.is_admin > 0) {
-        if (!row.email || !row.email.toString().trim()) {
-          rowErrors.push(`Email is required for ${formData.is_admin === 2 ? 'Super Admin' : 'Admin'} roles`);
+      // Email is required for all roles so employees can authenticate with Google.
+      if (!row.email || !row.email.toString().trim()) {
+        rowErrors.push('Email is required');
+      } else {
+        const email = row.email.toString().trim().toLowerCase();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        if (!emailRegex.test(email)) {
+          rowErrors.push('Invalid email format (example: user@company.com)');
+        } else if (email.length > 100) {
+          rowErrors.push('Email address cannot exceed 100 characters');
+        } else if (seenEmails.has(email)) {
+          rowErrors.push('Duplicate email found in the file');
         } else {
-          const email = row.email.toString().trim().toLowerCase();
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-          
-          if (!emailRegex.test(email)) {
-            rowErrors.push('Invalid email format (example: user@company.com)');
-          } else if (email.length > 100) {
-            rowErrors.push('Email address cannot exceed 100 characters');
-          } else if (seenEmails.has(email)) {
-            rowErrors.push('Duplicate email found in the file');
-          } else {
-            seenEmails.add(email);
-          }
+          seenEmails.add(email);
         }
       }
 
@@ -1393,12 +1396,13 @@ const EmployeeList = () => {
             ) : (
               <Card>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[600px]">
+                  <table className="w-full min-w-[720px]">
                     <thead style={{ backgroundColor: '#01005a' }}>
                       <tr className="border-b">
                         <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Employee</th>
                         <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">Role</th>
-                        <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[140px]">Contact</th>
+                        <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[140px]">Phone</th>
+                        <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[180px]">Email</th>
                         <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[70px]">Status</th>
                         <th className="text-right p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">Actions</th>
                       </tr>
@@ -1423,9 +1427,13 @@ const EmployeeList = () => {
                             {getEmployeeTypeBadge(employee.is_admin)}
                           </td>
                           <td className="p-2 sm:p-4">
-                            <div className="text-xs sm:text-sm space-y-1">
-                              {employee.email && <div className="truncate max-w-[150px] sm:max-w-[200px] lg:max-w-[250px]">{employee.email}</div>}
-                              {employee.phone_number && <div className="text-muted-foreground font-mono text-xs truncate">{formatPhoneNumber(employee.phone_number)}</div>}
+                            <div className="text-muted-foreground font-mono text-xs sm:text-sm truncate">
+                              {employee.phone_number ? formatPhoneNumber(employee.phone_number) : '—'}
+                            </div>
+                          </td>
+                          <td className="p-2 sm:p-4">
+                            <div className="text-xs sm:text-sm truncate max-w-[180px] sm:max-w-[240px] lg:max-w-[300px]">
+                              {employee.email || '—'}
                             </div>
                           </td>
                           <td className="p-2 sm:p-4">
@@ -1573,30 +1581,30 @@ const EmployeeList = () => {
                 <Label htmlFor="pin" className="text-sm font-medium">PIN</Label>
                 <Input
                   id="pin"
-                  placeholder="Auto-generated from phone"
+                  placeholder="Defaults to the last 4 phone digits"
                   value={formData.pin}
-                  disabled
-                  className="bg-muted text-sm"
+                  onChange={(e) => setFormData(prev => ({ ...prev, pin: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
+                  inputMode="numeric"
+                  className="text-sm"
                 />
                 <p className="text-xs text-muted-foreground">
-                  PIN is automatically generated from the last 4 digits of phone number
+                  PIN defaults to the last 4 digits of phone number and can be edited.
                 </p>
+                {errors.pin && <p className="text-xs text-red-600">{errors.pin}</p>}
               </div>
 
-              {formData.is_admin > 0 && (
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium">Email Address *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="admin@company.com"
-                    value={formData.email}
-                    onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    className="text-sm"
-                  />
-                  {errors.email && <p className="text-xs text-red-600">{errors.email}</p>}
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-sm font-medium">Email Address *</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="employee@company.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                  className="text-sm"
+                />
+                {errors.email && <p className="text-xs text-red-600">{errors.email}</p>}
+              </div>
 
 
 
@@ -1831,15 +1839,11 @@ const EmployeeList = () => {
                   <div>• <strong>first_name</strong> - Employee's first name</div>
                   <div>• <strong>last_name</strong> - Employee's last name</div>
                   <div>• <strong>phone_number</strong> - Phone number (PIN will be auto-generated)</div>
-                  {formData.is_admin > 0 && (
-                    <div>• <strong>email</strong> - Email address for {formData.is_admin === 2 ? "Super Admin" : "Admin"}</div>
-                  )}
+                  <div>• <strong>email</strong> - Email address used for employee Google login</div>
                 </div>
-                {formData.is_admin > 0 && (
-                  <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
-                    <strong>Note:</strong> Email is mandatory for  Super Admin and Admin roles and will be used for login access.
-                  </div>
-                )}
+                <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
+                  <strong>Note:</strong> Email is mandatory for every role and is used to match employee Google login.
+                </div>
               </div>
 
               {/* Error Display */}

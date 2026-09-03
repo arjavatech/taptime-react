@@ -204,7 +204,12 @@ const Header = () => {
     { to: "/contact-us", label: "Contact Us" },
   ];
 
-  const authenticatedNavItems = [
+  const employeeNavItems = [
+    { to: "/my-profile", label: "My Profile" },
+    { to: "/my-reports", label: "My Reports" },
+  ];
+
+  const authenticatedNavItems = userType === 'Employee' ? employeeNavItems : [
     ...(userType === "Owner" || userType === "SuperAdmin" ? [
       { to: "/device", label: "Device" }
     ] : []),
@@ -224,6 +229,9 @@ const Header = () => {
     { to: "/profile", label: "Profile" },
     ...(userType === "Owner" || userType === "SuperAdmin" ? [
       { to: "/invoices", label: "Invoices" }
+    ] : []),
+    ...(userType === "Owner" || userType === "SuperAdmin" ? [
+      { to: "/integrations", label: "Integrations" }
     ] : []),
     { to: "/contact", label: "Contact" }
   ];
