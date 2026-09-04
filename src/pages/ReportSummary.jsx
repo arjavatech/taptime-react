@@ -221,8 +221,8 @@ const Reports = () => {
         check_out_time: checkOutTime,
         type_id: editReport.type,
       });
-      setEditingReport(null);
       await refreshActiveReport();
+      setEditingReport(null);
     } catch (error) {
       setReportActionError(error.message || "Unable to update this report.");
     } finally {
@@ -236,8 +236,8 @@ const Reports = () => {
     setReportActionError("");
     try {
       await deleteDailyReportEntry(reportToDelete.EmpID, companyId, reportToDelete.CheckInTime);
-      setReportToDelete(null);
       await refreshActiveReport();
+      setReportToDelete(null);
     } catch (error) {
       setReportActionError(error.message || "Unable to delete this report.");
     } finally {
