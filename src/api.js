@@ -554,6 +554,31 @@ export const updateDailyReportEntry = async (empId, cid, checkinTime, updateData
   }
 };
 
+export const correctDailyReportEntry = async (empId, cid, originalCheckinTime, reportData) => {
+  try {
+    const result = await api.request(
+      `${API_BASE}/dailyreport/correct/${empId}/${cid}/${encodeURIComponent(originalCheckinTime)}`,
+      { method: 'PATCH', body: JSON.stringify(reportData) }
+    );
+    clearApiCache();
+    return result;
+  } catch (error) {
+    console.error('Error correcting daily report:', error);
+    throw error;
+  }
+};
+
+export const deleteDailyReportEntry = async (empId, cid, checkinTime) => {
+  try {
+    const result = await api.delete(`${API_BASE}/dailyreport/delete/${empId}/${cid}/${encodeURIComponent(checkinTime)}`);
+    clearApiCache();
+    return result;
+  } catch (error) {
+    console.error('Error deleting daily report:', error);
+    throw error;
+  }
+};
+
 export const processPendingCheckout = async (cid) => {
   try {
     const data = await api.get(`${API_BASE}/dailyreport/pending_checkout/${cid}`);

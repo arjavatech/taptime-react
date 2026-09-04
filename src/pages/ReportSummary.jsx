@@ -8,7 +8,7 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { fetchEmployeeData, fetchDevices, fetchDailyReport, fetchDateRangeReport, createDailyReportEntry, updateDailyReportEntry, processPendingCheckout } from "../api.js";
+import { fetchEmployeeData, fetchDevices, fetchDailyReport, fetchDateRangeReport, createDailyReportEntry, updateDailyReportEntry, correctDailyReportEntry, deleteDailyReportEntry, processPendingCheckout } from "../api.js";
 import { getLocalDateString } from "../utils";
 import {
   Calendar,
@@ -28,7 +28,9 @@ import {
   Check,
   Upload,
   Plus,
-  X
+  X,
+  Pencil,
+  Trash2
 } from "lucide-react";
 import { HamburgerIcon } from "../components/icons/HamburgerIcon";
 import { GridIcon } from "../components/icons/GridIcon";
@@ -89,7 +91,13 @@ const Reports = () => {
   const [modalSuccess, setModalSuccess] = useState("");
   const [modalError, setModalError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingReport, setEditingReport] = useState(null);
+  const [reportToDelete, setReportToDelete] = useState(null);
+  const [editReport, setEditReport] = useState({ date: "", checkInTime: "", checkOutTime: "", type: "" });
+  const [reportActionError, setReportActionError] = useState("");
+  const [isReportActionSubmitting, setIsReportActionSubmitting] = useState(false);
   const companyId = localStorage.getItem("companyID");
+  const canManageReports = ["Owner", "Admin", "SuperAdmin"].includes(localStorage.getItem("adminType"));
 
   // Today's report specific
   const [tableData, setTableData] = useState([]);
@@ -171,6 +179,70 @@ const Reports = () => {
       minute: '2-digit',
       hour12: true
     });
+  };
+
+  const toLocalDateAndTime = (value) => {
+    const timestamp = new Date(value);
+    const date = `${timestamp.getFullYear()}-${String(timestamp.getMonth() + 1).padStart(2, "0")}-${String(timestamp.getDate()).padStart(2, "0")}`;
+    const time = `${String(timestamp.getHours()).padStart(2, "0")}:${String(timestamp.getMinutes()).padStart(2, "0")}`;
+    return { date, time };
+  };
+
+  const openEditReport = (record) => {
+    const checkIn = toLocalDateAndTime(record.CheckInTime);
+    const checkOut = record.CheckOutTime ? toLocalDateAndTime(record.CheckOutTime) : null;
+    setEditingReport(record);
+    setEditReport({ date: checkIn.date, checkInTime: checkIn.time, checkOutTime: checkOut?.time || "", type: record.Type || "" });
+    setReportActionError("");
+  };
+
+  const refreshActiveReport = async () => {
+    if (activeTab === "today") return viewCurrentDateReport(currentDate, false);
+    if (activeTab === "daywise") return viewDatewiseReport(selectedDate, false);
+    if (activeTab === "pending") setPendingCheckoutData(await processPendingCheckout(companyId));
+  };
+
+  const handleReportCorrection = async () => {
+    if (!editingReport || !editReport.date || !editReport.checkInTime || !editReport.type) {
+      setReportActionError("Date, check-in time, and employment type are required.");
+      return;
+    }
+    const checkInTime = `${editReport.date}T${editReport.checkInTime}:00`;
+    const checkOutTime = editReport.checkOutTime ? `${editReport.date}T${editReport.checkOutTime}:00` : null;
+    if (checkOutTime && new Date(checkOutTime) <= new Date(checkInTime)) {
+      setReportActionError("Check-out time must be later than check-in time.");
+      return;
+    }
+    setIsReportActionSubmitting(true);
+    setReportActionError("");
+    try {
+      await correctDailyReportEntry(editingReport.EmpID, companyId, editingReport.CheckInTime, {
+        check_in_time: checkInTime,
+        check_out_time: checkOutTime,
+        type_id: editReport.type,
+      });
+      setEditingReport(null);
+      await refreshActiveReport();
+    } catch (error) {
+      setReportActionError(error.message || "Unable to update this report.");
+    } finally {
+      setIsReportActionSubmitting(false);
+    }
+  };
+
+  const handleReportDelete = async () => {
+    if (!reportToDelete) return;
+    setIsReportActionSubmitting(true);
+    setReportActionError("");
+    try {
+      await deleteDailyReportEntry(reportToDelete.EmpID, companyId, reportToDelete.CheckInTime);
+      setReportToDelete(null);
+      await refreshActiveReport();
+    } catch (error) {
+      setReportActionError(error.message || "Unable to delete this report.");
+    } finally {
+      setIsReportActionSubmitting(false);
+    }
   };
 
   const viewCurrentDateReport = async (dateToUse = currentDate, showLoading = false) => {
@@ -1622,6 +1694,7 @@ const Reports = () => {
                                     Check Out
                                   </Button>
                                 )}
+                                {canManageReports && <div className="mt-2 flex gap-2"><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="flex-1 text-xs"><Pencil className="mr-1 h-3 w-3" />Edit</Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="flex-1 text-xs text-red-600 hover:text-red-700"><Trash2 className="mr-1 h-3 w-3" />Delete</Button></div>}
                               </div>
                             </CardContent>
                           </Card>
@@ -1639,7 +1712,7 @@ const Reports = () => {
                               <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Check-in Time</th>
                               <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Check-out Time</th>
                               <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">Type</th>
-                              <th className="text-right p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[100px]">Action</th>
+                              <th className="text-center p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[220px]">Actions</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1685,12 +1758,13 @@ const Reports = () => {
                                     </span>
                                   </td>
                                   <td className="p-2 sm:p-4">
-                                    <div className="flex justify-end">
+                                    <div className="flex items-center justify-center gap-2">
+                                      {canManageReports && <><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="w-12"><Pencil className="h-3.5 w-3.5" /></Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="w-12 text-red-600 hover:text-red-700"><Trash2 className="h-3.5 w-3.5" /></Button></>}
                                       <Button
                                         onClick={() => handleCheckout(record)}
                                         disabled={hasCheckout || !selectedTime || checkoutError}
                                         size="sm"
-                                        className={`text-xs ${hasCheckout || !selectedTime || checkoutError ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+                                        className={`w-36 text-xs ${hasCheckout || !selectedTime || checkoutError ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
                                       >
                                         {hasCheckout ? 'Checked Out' : 'Check Out'}
                                       </Button>
@@ -1770,6 +1844,12 @@ const Reports = () => {
                                 <span>Time Worked</span>
                                 <span className="font-medium text-foreground">{record.TimeWorked}</span>
                               </div>
+                              {canManageReports && (
+                                <div className="mt-3 flex gap-2">
+                                  <Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="flex-1 text-xs"><Pencil className="mr-1 h-3 w-3" />Edit</Button>
+                                  <Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="flex-1 text-xs text-red-600 hover:text-red-700"><Trash2 className="mr-1 h-3 w-3" />Delete</Button>
+                                </div>
+                              )}
                             </div>
                           </CardContent>
                         </Card>
@@ -1788,6 +1868,7 @@ const Reports = () => {
                               <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">Type</th>
                               <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">Status</th>
                               <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[100px]">Time Worked</th>
+                              {canManageReports && <th className="text-center p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[160px]">Actions</th>}
                             </tr>
                           </thead>
                           <tbody>
@@ -1804,6 +1885,7 @@ const Reports = () => {
                                 </td>
                                 <td className="p-2 sm:p-4">{getStatusBadge(record)}</td>
                                 <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium">{record.TimeWorked}</td>
+                                {canManageReports && <td className="p-2 sm:p-4"><div className="flex items-center justify-center gap-2"><Button variant="outline" size="sm" onClick={() => openEditReport(record)}><Pencil className="h-3.5 w-3.5" /></Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="text-red-600 hover:text-red-700"><Trash2 className="h-3.5 w-3.5" /></Button></div></td>}
                               </tr>
                             ))}
                           </tbody>
@@ -1987,6 +2069,7 @@ const Reports = () => {
                                 >
                                   Check Out
                                 </Button>
+                                {canManageReports && <div className="mt-2 flex gap-2"><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="flex-1 text-xs"><Pencil className="mr-1 h-3 w-3" />Edit</Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="flex-1 text-xs text-red-600 hover:text-red-700"><Trash2 className="mr-1 h-3 w-3" />Delete</Button></div>}
                               </div>
                             </CardContent>
                           </Card>
@@ -2005,7 +2088,7 @@ const Reports = () => {
                               <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Check-in Time</th>
                               <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Check-out Time</th>
                               <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">Type</th>
-                              <th className="text-right p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[100px]">Action</th>
+                              <th className="text-center p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[220px]">Actions</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -2045,12 +2128,13 @@ const Reports = () => {
                                     </span>
                                   </td>
                                   <td className="p-2 sm:p-4">
-                                    <div className="flex justify-end">
+                                    <div className="flex items-center justify-center gap-2">
+                                      {canManageReports && <><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="w-12"><Pencil className="h-3.5 w-3.5" /></Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="w-12 text-red-600 hover:text-red-700"><Trash2 className="h-3.5 w-3.5" /></Button></>}
                                       <Button
                                         onClick={() => handleCheckout(record)}
                                         disabled={!selectedTime || checkoutError}
                                         size="sm"
-                                        className={`text-xs ${!selectedTime || checkoutError ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+                                        className={`w-36 text-xs ${!selectedTime || checkoutError ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
                                       >
                                         Check Out
                                       </Button>
@@ -2252,6 +2336,27 @@ const Reports = () => {
           </div>
         )}
       </div>
+
+      {editingReport && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card id="report-edit-modal" className="w-full max-w-md max-h-[90vh] overflow-y-auto mx-4">
+            <CardHeader className="pb-4"><CardTitle className="text-lg sm:text-xl flex items-center gap-2"><Pencil className="w-5 h-5" />Edit Report</CardTitle><CardDescription className="text-sm">Worked time is recalculated automatically.</CardDescription></CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2"><Label htmlFor="edit-report-type">Employment Type</Label><select id="edit-report-type" value={editReport.type} onChange={(event) => setEditReport({ ...editReport, type: event.target.value })} className="w-full h-10 border border-input bg-background rounded-md px-3 text-sm"><option value="">Select Employment Type</option>{Array.from(new Set([...employmentTypes, editReport.type].filter(Boolean))).map((type) => <option key={type} value={type}>{type}</option>)}</select></div>
+              <div className="space-y-2"><Label htmlFor="edit-report-date">Date</Label><Input id="edit-report-date" type="date" value={editReport.date} max={getTodayDate()} onChange={(event) => setEditReport({ ...editReport, date: event.target.value })} /></div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="edit-report-checkin">Check-in Time</Label><Input id="edit-report-checkin" type="time" value={editReport.checkInTime} onChange={(event) => setEditReport({ ...editReport, checkInTime: event.target.value })} /></div><div className="space-y-2"><Label htmlFor="edit-report-checkout">Check-out Time</Label><Input id="edit-report-checkout" type="time" value={editReport.checkOutTime} min={editReport.checkInTime || undefined} onChange={(event) => setEditReport({ ...editReport, checkOutTime: event.target.value })} /></div></div>
+              {reportActionError && <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2"><AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" /><p className="text-sm text-red-600">{reportActionError}</p></div>}
+              <div className="flex flex-col sm:flex-row gap-3"><Button variant="outline" className="flex-1 order-2 sm:order-1" disabled={isReportActionSubmitting} onClick={() => { setEditingReport(null); setReportActionError(""); }}>Cancel</Button><Button className="flex-1 order-1 sm:order-2 bg-[#01005a] hover:bg-[#01005a]/90 text-white" disabled={isReportActionSubmitting} onClick={handleReportCorrection}>{isReportActionSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : "Save Changes"}</Button></div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {reportToDelete && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card id="report-delete-modal" className="w-full max-w-md mx-4"><CardHeader className="pb-4"><CardTitle className="flex items-center gap-2 text-lg" style={{ color: '#01005a' }}><AlertCircle className="w-5 h-5" />Delete Report</CardTitle><CardDescription className="text-sm">Are you sure you want to delete this report? This soft-deletes it and removes it from active views.</CardDescription></CardHeader><CardContent className="space-y-4">{reportActionError && <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2"><AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" /><p className="text-sm text-red-600">{reportActionError}</p></div>}<div className="flex flex-col sm:flex-row gap-3"><Button variant="outline" className="flex-1 order-2 sm:order-1" disabled={isReportActionSubmitting} onClick={() => { setReportToDelete(null); setReportActionError(""); }}>Cancel</Button><Button className="flex-1 order-1 sm:order-2 bg-[#01005a] hover:bg-[#01005a]/90 text-white" disabled={isReportActionSubmitting} onClick={handleReportDelete}>{isReportActionSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Deleting...</> : "Delete Report"}</Button></div></CardContent></Card>
+        </div>
+      )}
 
       {/* Add Entry Modal */}
       {showModal && (
