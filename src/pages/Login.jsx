@@ -243,8 +243,8 @@ const Login = () => {
         </div>
 
         {/* Right side - Login form */}
-        <div className="w-full lg:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center py-4 sm:py-6 md:py-8 lg:py-25 px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-20 min-h-[calc(100vh-3.5rem)] sm:min-h-[calc(100vh-4rem)] md:min-h-[calc(100vh-4.5rem)] lg:min-h-screen">
-          <div className="w-full max-w-xs sm:max-w-sm md:max-w-md">
+        <div className="w-full lg:w-1/2 bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center  py-4 sm:py-6 md:py-8 lg:py-25 px-3 sm:px-4 md:px-6 lg:px-8 xl:px-12 2xl:px-20 min-h-[calc(100vh-3.5rem)] sm:min-h-[calc(100vh-4rem)] md:min-h-[calc(100vh-4.5rem)] lg:min-h-screen">
+          <div className="w-full max-w-xs sm:max-w-sm md:max-w-md mt-8 sm:mt-10 md:mt-12 lg:mt-0">
             {/* Logo (visible on mobile and tablet only) */}
             {/* <div className="text-center mb-4 sm:mb-6 md:mb-8 lg:hidden">
               <img src={tabTimeLogo} alt="TabTime Logo" className="mx-auto h-12 sm:h-16 md:h-20 w-auto" />
@@ -252,70 +252,30 @@ const Login = () => {
 
             {/* Unified Login Section */}
             <Card className="border-0 shadow-md sm:shadow-lg md:shadow-2xl bg-gradient-to-br from-white via-gray-50/50 to-white backdrop-blur-sm">
-              {/* Role Selection Cards - Always Visible */}
+              {/* Role selection */}
               <CardContent className="p-3 sm:p-4 md:p-6 lg:p-8">
-                <div className="text-center mb-3 sm:mb-4 md:mb-6">
-                  <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-900">Select Your Access</h2>
+                <div className="mb-5 text-center sm:mb-6">
+                  {/* <p className="mb-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#01005a]">Secure sign in</p> */}
+                  <h2 className="text-xl font-bold tracking-tight text-slate-900">Select your access</h2>
+                  {/* <p className="mx-auto mt-1.5 max-w-sm text-sm leading-5 text-slate-500">Choose the option that best describes how you use TapTime.</p> */}
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4 md:mb-6">
-                  <div
-                    className={`relative cursor-pointer transition-all duration-300 ease-out p-2 sm:p-3 md:p-4 rounded-lg border-2 text-center group h-16 sm:h-20 md:h-24 flex flex-col justify-center touch-manipulation ${selectedRole === 'owner'
-                        ? 'border-[#01005a] bg-gradient-to-br from-[#01005a]/8 via-[#01005a]/4 to-transparent shadow-xl shadow-[#01005a]/20'
-                        : 'border-gray-200 hover:border-[#01005a]/40 hover:shadow-lg hover:shadow-[#01005a]/10 hover:bg-gradient-to-br hover:from-[#01005a]/3 hover:to-transparent active:scale-95'
-                      }`}
-                    onClick={() => handleRoleSelect('owner')}
-                  >
-                    {selectedRole === 'owner' && (
-                      <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-3 h-3 sm:w-4 sm:h-4 bg-[#01005a] rounded-full flex items-center justify-center">
-                        <Check className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-white" />
-                      </div>
-                    )}
-                    <div className={`mx-auto w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 bg-gradient-to-br from-[#01005a] to-[#01005a]/80 rounded-lg flex items-center justify-center mb-1 sm:mb-1 md:mb-2 transition-all duration-300 ${selectedRole === 'owner' ? 'scale-105 shadow-lg' : 'group-hover:scale-105 group-hover:shadow-md'
-                      }`}>
-                      <Crown className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-white" />
-                    </div>
-                    <h3 className={`text-sm sm:text-sm md:text-base font-medium transition-colors ${selectedRole === 'owner' ? 'text-[#01005a]' : 'text-gray-900 group-hover:text-[#01005a]'
-                      }`}>Owner</h3>
-                  </div>
-
-                  <div
-                    className={`relative cursor-pointer transition-all duration-300 ease-out p-2 sm:p-3 md:p-4 rounded-lg border-2 text-center group h-16 sm:h-20 md:h-24 flex flex-col justify-center touch-manipulation ${selectedRole === 'admin'
-                        ? 'border-[#01005a] bg-gradient-to-br from-[#01005a]/8 via-[#01005a]/4 to-transparent shadow-xl shadow-[#01005a]/20'
-                        : 'border-gray-200 hover:border-[#01005a]/40 hover:shadow-lg hover:shadow-[#01005a]/10 hover:bg-gradient-to-br hover:from-[#01005a]/3 hover:to-transparent active:scale-95'
-                      }`}
-                    onClick={() => handleRoleSelect('admin')}
-                  >
-                    {selectedRole === 'admin' && (
-                      <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-3 h-3 sm:w-4 sm:h-4 bg-[#01005a] rounded-full flex items-center justify-center">
-                        <Check className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-white" />
-                      </div>
-                    )}
-                    <div className={`mx-auto w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 bg-gradient-to-br from-[#01005a] to-[#01005a]/80 rounded-lg flex items-center justify-center mb-1 sm:mb-1 md:mb-2 transition-all duration-300 ${selectedRole === 'admin' ? 'scale-105 shadow-lg' : 'group-hover:scale-105 group-hover:shadow-md'
-                      }`}>
-                      <Shield className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-white" />
-                    </div>
-                    <h3 className={`text-sm sm:text-sm md:text-base font-medium transition-colors leading-tight ${selectedRole === 'admin' ? 'text-[#01005a]' : 'text-gray-900 group-hover:text-[#01005a]'
-                      }`}>Admin / Super Admin</h3>
-                  </div>
-
-                  <div
-                    className={`relative cursor-pointer transition-all duration-300 ease-out p-2 sm:p-3 md:p-4 rounded-lg border-2 text-center group h-16 sm:h-20 md:h-24 flex flex-col justify-center touch-manipulation ${selectedRole === 'employee'
-                        ? 'border-[#01005a] bg-gradient-to-br from-[#01005a]/8 via-[#01005a]/4 to-transparent shadow-xl shadow-[#01005a]/20'
-                        : 'border-gray-200 hover:border-[#01005a]/40 hover:shadow-lg hover:shadow-[#01005a]/10 hover:bg-gradient-to-br hover:from-[#01005a]/3 hover:to-transparent active:scale-95'
-                      }`}
-                    onClick={() => handleRoleSelect('employee')}
-                  >
-                    {selectedRole === 'employee' && (
-                      <div className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 w-3 h-3 sm:w-4 sm:h-4 bg-[#01005a] rounded-full flex items-center justify-center">
-                        <Check className="w-2 h-2 sm:w-2.5 sm:h-2.5 text-white" />
-                      </div>
-                    )}
-                    <div className="mx-auto w-6 h-6 sm:w-8 sm:h-8 md:w-10 md:h-10 bg-gradient-to-br from-[#01005a] to-[#01005a]/80 rounded-lg flex items-center justify-center mb-1 sm:mb-1 md:mb-2">
-                      <User className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 text-white" />
-                    </div>
-                    <h3 className="text-sm sm:text-sm md:text-base font-medium text-gray-900">Employee</h3>
-                  </div>
+                <div className="mb-6 grid grid-cols-3 gap-2.5" role="radiogroup" aria-label="Select your TapTime access">
+                  <button type="button" role="radio" aria-checked={selectedRole === 'owner'} onClick={() => handleRoleSelect('owner')} className={`group relative flex min-h-[88px] flex-col items-center justify-center gap-1.5 rounded-lg border p-2 text-center transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#01005a] focus:ring-offset-2 sm:min-h-[116px] sm:gap-2 sm:rounded-xl sm:p-3 ${selectedRole === 'owner' ? 'border-[#01005a] bg-gradient-to-b from-[#01005a]/[0.09] to-transparent shadow-md shadow-[#01005a]/10' : 'border-slate-200 bg-white hover:border-[#01005a]/30 hover:bg-slate-50 hover:shadow-sm'}`}>
+                    <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition-colors sm:h-10 sm:w-10 sm:rounded-xl ${selectedRole === 'owner' ? 'bg-[#01005a] text-white shadow-sm' : 'bg-slate-100 text-slate-600 group-hover:bg-[#01005a]/10 group-hover:text-[#01005a]'}`}><Crown className="h-4 w-4 sm:h-5 sm:w-5" /></span>
+                    <span className="min-w-0"><span className="block text-xs font-semibold text-slate-900 sm:text-sm">Owner</span></span>
+                    <span className={`absolute right-2 top-2 grid h-4 w-4 place-items-center rounded-full border transition-colors ${selectedRole === 'owner' ? 'border-[#01005a] bg-[#01005a] text-white' : 'border-slate-300 bg-white text-transparent group-hover:border-[#01005a]/50'}`}><Check className="h-2.5 w-2.5" /></span>
+                  </button>
+                  <button type="button" role="radio" aria-checked={selectedRole === 'admin'} onClick={() => handleRoleSelect('admin')} className={`group relative flex min-h-[88px] flex-col items-center justify-center gap-1.5 rounded-lg border p-2 text-center transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#01005a] focus:ring-offset-2 sm:min-h-[116px] sm:gap-2 sm:rounded-xl sm:p-3 ${selectedRole === 'admin' ? 'border-[#01005a] bg-gradient-to-b from-[#01005a]/[0.09] to-transparent shadow-md shadow-[#01005a]/10' : 'border-slate-200 bg-white hover:border-[#01005a]/30 hover:bg-slate-50 hover:shadow-sm'}`}>
+                    <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition-colors sm:h-10 sm:w-10 sm:rounded-xl ${selectedRole === 'admin' ? 'bg-[#01005a] text-white shadow-sm' : 'bg-slate-100 text-slate-600 group-hover:bg-[#01005a]/10 group-hover:text-[#01005a]'}`}><Shield className="h-4 w-4 sm:h-5 sm:w-5" /></span>
+                    <span className="min-w-0"><span className="block text-xs font-semibold text-slate-900 sm:text-sm">Administrator</span></span>
+                    <span className={`absolute right-2 top-2 grid h-4 w-4 place-items-center rounded-full border transition-colors ${selectedRole === 'admin' ? 'border-[#01005a] bg-[#01005a] text-white' : 'border-slate-300 bg-white text-transparent group-hover:border-[#01005a]/50'}`}><Check className="h-2.5 w-2.5" /></span>
+                  </button>
+                  <button type="button" role="radio" aria-checked={selectedRole === 'employee'} onClick={() => handleRoleSelect('employee')} className={`group relative flex min-h-[88px] flex-col items-center justify-center gap-1.5 rounded-lg border p-2 text-center transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#01005a] focus:ring-offset-2 sm:min-h-[116px] sm:gap-2 sm:rounded-xl sm:p-3 ${selectedRole === 'employee' ? 'border-[#01005a] bg-gradient-to-b from-[#01005a]/[0.09] to-transparent shadow-md shadow-[#01005a]/10' : 'border-slate-200 bg-white hover:border-[#01005a]/30 hover:bg-slate-50 hover:shadow-sm'}`}>
+                    <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg transition-colors sm:h-10 sm:w-10 sm:rounded-xl ${selectedRole === 'employee' ? 'bg-[#01005a] text-white shadow-sm' : 'bg-slate-100 text-slate-600 group-hover:bg-[#01005a]/10 group-hover:text-[#01005a]'}`}><User className="h-4 w-4 sm:h-5 sm:w-5" /></span>
+                    <span className="min-w-0"><span className="block text-xs font-semibold text-slate-900 sm:text-sm">Employee</span></span>
+                    <span className={`absolute right-2 top-2 grid h-4 w-4 place-items-center rounded-full border transition-colors ${selectedRole === 'employee' ? 'border-[#01005a] bg-[#01005a] text-white' : 'border-slate-300 bg-white text-transparent group-hover:border-[#01005a]/50'}`}><Check className="h-2.5 w-2.5" /></span>
+                  </button>
                 </div>
 
                 {/* Login Form - Shows Below Role Cards */}
@@ -519,7 +479,7 @@ const Login = () => {
                       </div>
                     )}
 
-                    <div className="text-center text-sm sm:text-sm md:text-base">
+                    <div className="text-center text-sm sm:text-sm md:text-base pt-3">
                       <span className="text-muted-foreground">Don't have an account? </span>
                       <Link to="/register" className="text-primary hover:underline font-medium touch-manipulation">
                         Sign up
