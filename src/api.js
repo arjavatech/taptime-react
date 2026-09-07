@@ -1437,3 +1437,94 @@ export const getUserContactInfo = async (email) => {
     };
   }
 };
+
+// Salary reports are deliberately live: each request recalculates values from
+// the latest active attendance records, including subsequent report edits.
+export const getCurrentSalaryReport = (companyId) =>
+  api.request(`${API_BASE}/salary-report/company/${companyId}/current`);
+
+export const getSalaryReportHistory = (companyId) =>
+  api.request(`${API_BASE}/salary-report/company/${companyId}/history`);
+
+export const getSalaryReportPeriod = (companyId, startDate, endDate) =>
+  api.request(`${API_BASE}/salary-report/company/${companyId}/period?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`);
+
+// Check-In Reminder API functions
+export const getReminderRecipients = async (cId) => {
+  const accessToken = localStorage.getItem("access_token");
+  return fetch(`${API_BASE}/checkin-reminder/${cId}/recipients`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    }
+  }).then(r => r.json());
+};
+
+export const addReminderRecipient = async (cId, email, recipientType) => {
+  const accessToken = localStorage.getItem("access_token");
+  return fetch(`${API_BASE}/checkin-reminder/${cId}/recipients`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ email, recipient_type: recipientType })
+  }).then(r => r.json());
+};
+
+export const removeReminderRecipient = async (cId, recipientId) => {
+  const accessToken = localStorage.getItem("access_token");
+  return fetch(`${API_BASE}/checkin-reminder/${cId}/recipients/${recipientId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    }
+  }).then(r => r.json());
+};
+
+export const getCompanyNotificationCC = async (cId) => {
+  const accessToken = localStorage.getItem("access_token");
+  return fetch(`${API_BASE}/notification-settings/company/${cId}/cc`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    }
+  }).then(r => r.json());
+};
+
+export const addCompanyNotificationCC = async (cId, email) => {
+  const accessToken = localStorage.getItem("access_token");
+  return fetch(`${API_BASE}/notification-settings/company/${cId}/cc`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ cc_email: email })
+  }).then(r => r.json());
+};
+
+export const removeCompanyNotificationCC = async (cId, ccId) => {
+  const accessToken = localStorage.getItem("access_token");
+  return fetch(`${API_BASE}/notification-settings/company/${cId}/cc/${ccId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    }
+  }).then(r => r.json());
+};
+
+export const getCompanyPageSettings = async (cId) => {
+  const accessToken = localStorage.getItem("access_token");
+  return fetch(`${API_BASE}/company/${cId}/settings`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    }
+  }).then(r => r.json());
+};
