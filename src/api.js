@@ -554,6 +554,31 @@ export const updateDailyReportEntry = async (empId, cid, checkinTime, updateData
   }
 };
 
+export const correctDailyReportEntry = async (empId, cid, originalCheckinTime, reportData) => {
+  try {
+    const result = await api.request(
+      `${API_BASE}/dailyreport/correct/${empId}/${cid}/${encodeURIComponent(originalCheckinTime)}`,
+      { method: 'PATCH', body: JSON.stringify(reportData) }
+    );
+    clearApiCache();
+    return result;
+  } catch (error) {
+    console.error('Error correcting daily report:', error);
+    throw error;
+  }
+};
+
+export const deleteDailyReportEntry = async (empId, cid, checkinTime) => {
+  try {
+    const result = await api.delete(`${API_BASE}/dailyreport/delete/${empId}/${cid}/${encodeURIComponent(checkinTime)}`);
+    clearApiCache();
+    return result;
+  } catch (error) {
+    console.error('Error deleting daily report:', error);
+    throw error;
+  }
+};
+
 export const processPendingCheckout = async (cid) => {
   try {
     const data = await api.get(`${API_BASE}/dailyreport/pending_checkout/${cid}`);
@@ -1411,4 +1436,95 @@ export const getUserContactInfo = async (email) => {
       error: error.message || 'Network error fetching user contact info'
     };
   }
+};
+
+// Salary reports are deliberately live: each request recalculates values from
+// the latest active attendance records, including subsequent report edits.
+export const getCurrentSalaryReport = (companyId) =>
+  api.request(`${API_BASE}/salary-report/company/${companyId}/current`);
+
+export const getSalaryReportHistory = (companyId) =>
+  api.request(`${API_BASE}/salary-report/company/${companyId}/history`);
+
+export const getSalaryReportPeriod = (companyId, startDate, endDate) =>
+  api.request(`${API_BASE}/salary-report/company/${companyId}/period?start_date=${encodeURIComponent(startDate)}&end_date=${encodeURIComponent(endDate)}`);
+
+// Check-In Reminder API functions
+export const getReminderRecipients = async (cId) => {
+  const accessToken = localStorage.getItem("access_token");
+  return fetch(`${API_BASE}/checkin-reminder/${cId}/recipients`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    }
+  }).then(r => r.json());
+};
+
+export const addReminderRecipient = async (cId, email, recipientType) => {
+  const accessToken = localStorage.getItem("access_token");
+  return fetch(`${API_BASE}/checkin-reminder/${cId}/recipients`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ email, recipient_type: recipientType })
+  }).then(r => r.json());
+};
+
+export const removeReminderRecipient = async (cId, recipientId) => {
+  const accessToken = localStorage.getItem("access_token");
+  return fetch(`${API_BASE}/checkin-reminder/${cId}/recipients/${recipientId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    }
+  }).then(r => r.json());
+};
+
+export const getCompanyNotificationCC = async (cId) => {
+  const accessToken = localStorage.getItem("access_token");
+  return fetch(`${API_BASE}/notification-settings/company/${cId}/cc`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    }
+  }).then(r => r.json());
+};
+
+export const addCompanyNotificationCC = async (cId, email) => {
+  const accessToken = localStorage.getItem("access_token");
+  return fetch(`${API_BASE}/notification-settings/company/${cId}/cc`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ cc_email: email })
+  }).then(r => r.json());
+};
+
+export const removeCompanyNotificationCC = async (cId, ccId) => {
+  const accessToken = localStorage.getItem("access_token");
+  return fetch(`${API_BASE}/notification-settings/company/${cId}/cc/${ccId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    }
+  }).then(r => r.json());
+};
+
+export const getCompanyPageSettings = async (cId) => {
+  const accessToken = localStorage.getItem("access_token");
+  return fetch(`${API_BASE}/company/${cId}/settings`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    }
+  }).then(r => r.json());
 };

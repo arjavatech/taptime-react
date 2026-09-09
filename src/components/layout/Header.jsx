@@ -215,13 +215,15 @@ const Header = () => {
     ] : []),
     { to: "/employee-management", label: "Employee Management" },
     ...(userType === "Admin" ? [
-      { to: "/reportsummary", label: "Report Summary" }
+      { to: "/reportsummary", label: "Report Summary" },
+      { to: "/salary-report", label: "Salary Report" }
     ] : [
       {
         label: "Reports",
         dropdown: true,
         items: [
           { to: "/reportsummary", label: "Report Summary" },
+          { to: "/salary-report", label: "Salary Report" },
           ...(userType === "Owner" || userType === "SuperAdmin" ? [{ to: "/reportsetting", label: "Report Settings" }] : [])
         ]
       }

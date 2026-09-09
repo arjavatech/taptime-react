@@ -28,11 +28,12 @@ export const AuthProvider = ({ children }) => {
   const [accountDeleted, setAccountDeleted] = useState(false);
   const [isLoginInProgress, setIsLoginInProgress] = useState(false);
 
-  
   // Auto-logout for inactive users
-  useAutoLogout(() => {
+  const handleAutoLogout = useCallback(() => {
     signOut();
-  }, 8); // 8 minutes
+  }, []);
+
+  useAutoLogout(handleAutoLogout, 30); // 30 minutes
 
   // Check if account has been deleted
   const checkAccountDeletion = useCallback(async (email) => {
