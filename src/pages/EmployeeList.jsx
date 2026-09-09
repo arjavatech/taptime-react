@@ -1311,7 +1311,28 @@ const EmployeeList = () => {
             </Card>
           ) : (
             viewMode === "grid" ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              <>
+                {/* Records Per Page Selector - Grid View */}
+                <div className="flex items-center justify-end gap-2 mb-4 px-4 sm:px-6">
+                  <Label htmlFor="page-size-grid" className="text-xs sm:text-sm whitespace-nowrap">
+                    Records per page:
+                  </Label>
+                  <select
+                    id="page-size-grid"
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(parseInt(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="h-8 px-2 text-xs sm:text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {paginatedEmployees.map((employee) => (
                   <Card key={employee.emp_id} className="hover:shadow-lg transition-shadow">
                     <CardHeader className="pb-3">
@@ -1387,8 +1408,10 @@ const EmployeeList = () => {
                   </Card>
                 ))}
               </div>
+              </>
             ) : (
-              <Card>
+              <>
+                <Card>
                 <CardHeader>
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
@@ -1495,51 +1518,55 @@ const EmployeeList = () => {
                     </tbody>
                   </table>
                 </div>
-                {/* Pagination */}
+              </Card>
+            </>
+            )
+          )}
+          {/* Pagination - Shows for both Grid and Table Views */}
+          {filteredEmployees.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200">
+              <div className="text-xs sm:text-sm text-muted-foreground order-2 sm:order-1">
                 {(() => {
                   const itemsPerPage = getItemsPerPage();
                   const paginationStartIndex = (currentPage - 1) * itemsPerPage;
                   const paginationEndIndex = paginationStartIndex + itemsPerPage;
-                  const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
-                  return filteredEmployees.length > 0 && (
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200">
-                      <div className="text-xs sm:text-sm text-muted-foreground order-2 sm:order-1">
-                        Showing {paginationStartIndex + 1}-{Math.min(paginationEndIndex, filteredEmployees.length)} of {filteredEmployees.length}
-                      </div>
-                      {totalPages > 1 && (
-                        <div className="flex items-center gap-3 order-1 sm:order-2">
-                          <button
-                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                            disabled={currentPage === 1}
-                            className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                              currentPage === 1
-                                ? 'text-gray-400 border-gray-200 cursor-not-allowed'
-                                : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
-                            }`}
-                          >
-                            Prev
-                          </button>
-                          <span className="text-sm font-medium text-gray-900 px-2">
-                            {currentPage} / {totalPages}
-                          </span>
-                          <button
-                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                            disabled={currentPage === totalPages}
-                            className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                              currentPage === totalPages
-                                ? 'text-gray-400 border-gray-200 cursor-not-allowed'
-                                : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
-                            }`}
-                          >
-                            Next
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
+                  return `Showing ${paginationStartIndex + 1}-${Math.min(paginationEndIndex, filteredEmployees.length)} of ${filteredEmployees.length}`;
                 })()}
-              </Card>
-            )
+              </div>
+              {(() => {
+                const itemsPerPage = getItemsPerPage();
+                const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
+                return totalPages > 1 && (
+                  <div className="flex items-center gap-3 order-1 sm:order-2">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                        currentPage === 1
+                          ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                          : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                      }`}
+                    >
+                      Prev
+                    </button>
+                    <span className="text-sm font-medium text-gray-900 px-2">
+                      {currentPage} / {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                        currentPage === totalPages
+                          ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                          : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                      }`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                );
+              })()}
+            </div>
           )}
         </div>
       </div>

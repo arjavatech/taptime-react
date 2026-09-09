@@ -160,6 +160,14 @@ export default function SalaryReport() {
     load();
   }, [companyId, location.pathname]);
 
+  // Set grid view as default on mobile
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+      setViewMode("grid");
+      setHistoryViewMode("grid");
+    }
+  }, []);
+
   const selectPeriod = async (period) => {
     setSelecting(true);
     setError("");
@@ -334,61 +342,63 @@ export default function SalaryReport() {
                     </CardHeader>
                     <CardContent>
                       {/* Toolbar */}
-                      <div className="mb-6 flex flex-col sm:flex-row gap-3 sm:gap-2 items-stretch sm:items-center">
-                        {/* Search Input */}
-                        <div className="relative flex-1 max-w-full sm:max-w-md">
+                      <div className="mb-6 space-y-3 sm:space-y-0">
+                        {/* First row: Search */}
+                        <div className="relative w-full">
                           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                           <Input
                             placeholder="Search reports..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="pl-10 text-sm h-10 rounded-lg border border-input bg-white"
+                            className="pl-10 text-sm h-10 rounded-lg border border-input bg-white w-full"
                           />
                         </div>
 
-                        {/* Sort Control */}
-                        <div className="relative">
-                          <Button
-                            variant="outline"
-                            className="px-3 py-2 h-10 text-sm flex items-center gap-2 min-w-[100px] justify-between border border-input rounded-lg"
-                            onClick={() => setShowSortDropdown(!showSortDropdown)}
-                          >
-                            <div className="flex items-center gap-2">
-                              {sortConfig.direction === 'asc' ? (
-                                <ArrowUp className="w-4 h-4 text-green-600" />
-                              ) : sortConfig.direction === 'desc' ? (
-                                <ArrowDown className="w-4 h-4 text-blue-600" />
-                              ) : (
-                                <ArrowUp className="w-4 h-4 text-green-600" />
-                              )}
-                              <span>Sort</span>
-                            </div>
-                            <ChevronDown className="w-4 h-4" />
-                          </Button>
+                        {/* Second row: Controls */}
+                        <div className="flex flex-wrap gap-2 items-center">
+                          {/* Sort Control */}
+                          <div className="relative">
+                            <Button
+                              variant="outline"
+                              className="px-3 py-2 h-10 text-sm flex items-center gap-2 min-w-[100px] justify-between border border-input rounded-lg"
+                              onClick={() => setShowSortDropdown(!showSortDropdown)}
+                            >
+                              <div className="flex items-center gap-2">
+                                {sortConfig.direction === 'asc' ? (
+                                  <ArrowUp className="w-4 h-4 text-green-600" />
+                                ) : sortConfig.direction === 'desc' ? (
+                                  <ArrowDown className="w-4 h-4 text-blue-600" />
+                                ) : (
+                                  <ArrowUp className="w-4 h-4 text-green-600" />
+                                )}
+                                <span className="hidden sm:inline">Sort</span>
+                              </div>
+                              <ChevronDown className="w-4 h-4" />
+                            </Button>
 
-                          {showSortDropdown && (
-                            <div className="absolute top-full left-0 mt-2 w-56 bg-white border border-input rounded-lg shadow-md z-10">
-                              {[
-                                { key: 'name', direction: 'asc', label: 'Sort By Name', icon: ArrowUp, iconColor: 'text-green-600' },
-                                { key: 'name', direction: 'desc', label: 'Sort By Name', icon: ArrowDown, iconColor: 'text-blue-600' },
-                                { key: 'pin', direction: 'asc', label: 'Sort By PIN', icon: ArrowUp, iconColor: 'text-green-600' },
-                                { key: 'pin', direction: 'desc', label: 'Sort By PIN', icon: ArrowDown, iconColor: 'text-blue-600' },
-                              ].map(({ key, direction, label, icon: Icon, iconColor }) => (
-                                <button
-                                  key={`${key}-${direction}`}
-                                  onClick={() => {
-                                    setSortConfig({ key, direction });
-                                    setShowSortDropdown(false);
-                                  }}
-                                  className="w-full px-4 py-3 text-left text-sm hover:bg-blue-50 flex items-center gap-3 transition-colors"
-                                >
-                                  <Icon className={`w-4 h-4 ${iconColor}`} />
-                                  <span className="text-foreground font-medium">{label}</span>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                            {showSortDropdown && (
+                              <div className="absolute top-full left-0 mt-2 w-56 bg-white border border-input rounded-lg shadow-md z-10">
+                                {[
+                                  { key: 'name', direction: 'asc', label: 'Sort By Name', icon: ArrowUp, iconColor: 'text-green-600' },
+                                  { key: 'name', direction: 'desc', label: 'Sort By Name', icon: ArrowDown, iconColor: 'text-blue-600' },
+                                  { key: 'pin', direction: 'asc', label: 'Sort By PIN', icon: ArrowUp, iconColor: 'text-green-600' },
+                                  { key: 'pin', direction: 'desc', label: 'Sort By PIN', icon: ArrowDown, iconColor: 'text-blue-600' },
+                                ].map(({ key, direction, label, icon: Icon, iconColor }) => (
+                                  <button
+                                    key={`${key}-${direction}`}
+                                    onClick={() => {
+                                      setSortConfig({ key, direction });
+                                      setShowSortDropdown(false);
+                                    }}
+                                    className="w-full px-4 py-3 text-left text-sm hover:bg-blue-50 flex items-center gap-3 transition-colors"
+                                  >
+                                    <Icon className={`w-4 h-4 ${iconColor}`} />
+                                    <span className="text-foreground font-medium">{label}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
 
                           {/* List/Grid Toggle */}
                           <div className="flex gap-2 border border-input rounded-xl p-1 bg-white">
@@ -415,11 +425,11 @@ export default function SalaryReport() {
                               <GridIcon className="w-5 h-5" />
                             </button>
                           </div>
-                        <div className="flex items-center gap-2 ml-auto">
+
                           {/* Records per page */}
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 ml-auto">
                             <Label htmlFor="page-size-current" className="text-xs sm:text-sm whitespace-nowrap">
-                              Records per page:
+                              Per page:
                             </Label>
                             <select
                               id="page-size-current"
@@ -614,10 +624,10 @@ export default function SalaryReport() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {/* Toolbar - EXACT COPY FROM CURRENT PERIOD */}
-                  <div className="mb-6 flex flex-col sm:flex-row gap-3 sm:gap-2 items-stretch sm:items-center">
-                    {/* Search Input */}
-                    <div className="relative flex-1 max-w-full sm:max-w-md">
+                  {/* Toolbar */}
+                  <div className="mb-6 space-y-3 sm:space-y-0">
+                    {/* First row: Search */}
+                    <div className="relative w-full">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                       <Input
                         placeholder="Search reports..."
@@ -626,92 +636,93 @@ export default function SalaryReport() {
                           setHistorySearchQuery(e.target.value);
                           setHistoryCurrentPage(1);
                         }}
-                        className="pl-10 text-sm h-10 rounded-lg border border-input bg-white"
+                        className="pl-10 text-sm h-10 rounded-lg border border-input bg-white w-full"
                       />
                     </div>
 
-                    {/* Sort Control */}
-                    <div className="relative">
-                      <Button
-                        variant="outline"
-                        className="px-3 py-2 h-10 text-sm flex items-center gap-2 min-w-[100px] justify-between border border-input rounded-lg"
-                        onClick={() => setShowHistorySortDropdown(!showHistorySortDropdown)}
-                      >
-                        <div className="flex items-center gap-2">
-                          {historySortConfig.direction === 'asc' ? (
-                            <ArrowUp className="w-4 h-4 text-green-600" />
-                          ) : historySortConfig.direction === 'desc' ? (
-                            <ArrowDown className="w-4 h-4 text-blue-600" />
-                          ) : (
-                            <ArrowUp className="w-4 h-4 text-green-600" />
-                          )}
-                          <span>Sort</span>
-                        </div>
-                        <ChevronDown className="w-4 h-4" />
-                      </Button>
+                    {/* Second row: Controls */}
+                    <div className="flex flex-wrap gap-2 items-center">
+                      {/* Sort Control */}
+                      <div className="relative">
+                        <Button
+                          variant="outline"
+                          className="px-3 py-2 h-10 text-sm flex items-center gap-2 min-w-[100px] justify-between border border-input rounded-lg"
+                          onClick={() => setShowHistorySortDropdown(!showHistorySortDropdown)}
+                        >
+                          <div className="flex items-center gap-2">
+                            {historySortConfig.direction === 'asc' ? (
+                              <ArrowUp className="w-4 h-4 text-green-600" />
+                            ) : historySortConfig.direction === 'desc' ? (
+                              <ArrowDown className="w-4 h-4 text-blue-600" />
+                            ) : (
+                              <ArrowUp className="w-4 h-4 text-green-600" />
+                            )}
+                            <span className="hidden sm:inline">Sort</span>
+                          </div>
+                          <ChevronDown className="w-4 h-4" />
+                        </Button>
 
-                      {showHistorySortDropdown && (
-                        <div className="absolute top-full left-0 mt-2 w-56 bg-white border border-input rounded-lg shadow-md z-10">
-                          {[
-                            { key: 'startDate', direction: 'asc', label: 'Sort By Start Date', icon: ArrowUp, iconColor: 'text-green-600' },
-                            { key: 'startDate', direction: 'desc', label: 'Sort By Start Date', icon: ArrowDown, iconColor: 'text-blue-600' },
-                            { key: 'endDate', direction: 'asc', label: 'Sort By End Date', icon: ArrowUp, iconColor: 'text-green-600' },
-                            { key: 'endDate', direction: 'desc', label: 'Sort By End Date', icon: ArrowDown, iconColor: 'text-blue-600' },
-                          ].map(({ key, direction, label, icon: Icon, iconColor }) => (
-                            <button
-                              key={`${key}-${direction}`}
-                              onClick={() => {
-                                setHistorySortConfig({ key, direction });
-                                setShowHistorySortDropdown(false);
-                                setHistoryCurrentPage(1);
-                              }}
-                              className="w-full px-4 py-3 text-left text-sm hover:bg-blue-50 flex items-center gap-3 transition-colors"
-                            >
-                              <Icon className={`w-4 h-4 ${iconColor}`} />
-                              <span className="text-foreground font-medium">{label}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                        {showHistorySortDropdown && (
+                          <div className="absolute top-full left-0 mt-2 w-56 bg-white border border-input rounded-lg shadow-md z-10">
+                            {[
+                              { key: 'startDate', direction: 'asc', label: 'Sort By Start Date', icon: ArrowUp, iconColor: 'text-green-600' },
+                              { key: 'startDate', direction: 'desc', label: 'Sort By Start Date', icon: ArrowDown, iconColor: 'text-blue-600' },
+                              { key: 'endDate', direction: 'asc', label: 'Sort By End Date', icon: ArrowUp, iconColor: 'text-green-600' },
+                              { key: 'endDate', direction: 'desc', label: 'Sort By End Date', icon: ArrowDown, iconColor: 'text-blue-600' },
+                            ].map(({ key, direction, label, icon: Icon, iconColor }) => (
+                              <button
+                                key={`${key}-${direction}`}
+                                onClick={() => {
+                                  setHistorySortConfig({ key, direction });
+                                  setShowHistorySortDropdown(false);
+                                  setHistoryCurrentPage(1);
+                                }}
+                                className="w-full px-4 py-3 text-left text-sm hover:bg-blue-50 flex items-center gap-3 transition-colors"
+                              >
+                                <Icon className={`w-4 h-4 ${iconColor}`} />
+                                <span className="text-foreground font-medium">{label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
 
-                    {/* List/Grid Toggle */}
-                    <div className="flex gap-2 border border-input rounded-xl p-1 bg-white">
-                      <button
-                        onClick={() => {
-                          setHistoryViewMode('list');
-                          setHistoryCurrentPage(1);
-                        }}
-                        className={`p-2 rounded-lg transition-colors ${
-                          historyViewMode === 'list'
-                            ? 'bg-[#020670] text-white'
-                            : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                        title="List View"
-                      >
-                        <HamburgerIcon className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setHistoryViewMode('grid');
-                          setHistoryCurrentPage(1);
-                        }}
-                        className={`p-2 rounded-lg transition-colors ${
-                          historyViewMode === 'grid'
-                            ? 'bg-[#020670] text-white'
-                            : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                        title="Grid View"
-                      >
-                        <GridIcon className="w-5 h-5" />
-                      </button>
-                    </div>
-                    
-                    <div className="flex items-center gap-2 ml-auto">
+                      {/* List/Grid Toggle */}
+                      <div className="flex gap-2 border border-input rounded-xl p-1 bg-white">
+                        <button
+                          onClick={() => {
+                            setHistoryViewMode('list');
+                            setHistoryCurrentPage(1);
+                          }}
+                          className={`p-2 rounded-lg transition-colors ${
+                            historyViewMode === 'list'
+                              ? 'bg-[#020670] text-white'
+                              : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                          title="List View"
+                        >
+                          <HamburgerIcon className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setHistoryViewMode('grid');
+                            setHistoryCurrentPage(1);
+                          }}
+                          className={`p-2 rounded-lg transition-colors ${
+                            historyViewMode === 'grid'
+                              ? 'bg-[#020670] text-white'
+                              : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                          title="Grid View"
+                        >
+                          <GridIcon className="w-5 h-5" />
+                        </button>
+                      </div>
+
                       {/* Records per page */}
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 ml-auto">
                         <Label htmlFor="page-size-history" className="text-xs sm:text-sm whitespace-nowrap">
-                          Records per page:
+                          Per page:
                         </Label>
                         <select
                           id="page-size-history"

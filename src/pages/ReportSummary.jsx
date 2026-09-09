@@ -1842,7 +1842,7 @@ const Reports = () => {
                         const totalPages = Math.ceil(filteredData.length / itemsPerPage);
                         return filteredData.length > 0 && (
                           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200">
-                            <div className="text-xs sm:text-sm text-muted-foreground order-2 sm:order-1">
+                            <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
                               Showing {paginationStartIndex + 1}-{Math.min(paginationEndIndex, filteredData.length)} of {filteredData.length}
                             </div>
                             {totalPages > 1 && (
@@ -2023,7 +2023,7 @@ const Reports = () => {
                         const totalPages = Math.ceil(filteredData.length / itemsPerPage);
                         return filteredData.length > 0 && (
                           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200">
-                            <div className="text-xs sm:text-sm text-muted-foreground order-2 sm:order-1">
+                            <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
                               Showing {paginationStartIndex + 1}-{Math.min(paginationEndIndex, filteredData.length)} of {filteredData.length}
                             </div>
                             {totalPages > 1 && (
@@ -2186,7 +2186,7 @@ const Reports = () => {
                           const totalPages = Math.ceil(filteredData.length / itemsPerPage);
                           return filteredData.length > 0 && (
                             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200">
-                              <div className="text-xs sm:text-sm text-muted-foreground order-2 sm:order-1">
+                              <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
                                 Showing {paginationStartIndex + 1}-{Math.min(paginationEndIndex, filteredData.length)} of {filteredData.length}
                               </div>
                               {totalPages > 1 && (
@@ -2418,7 +2418,7 @@ const Reports = () => {
                       {(() => {
                         return pendingCheckoutData.length > 0 && (
                           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200">
-                            <div className="text-xs sm:text-sm text-muted-foreground order-2 sm:order-1">
+                            <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
                               Showing {pendingPaginationStartIndex + 1}-{Math.min(pendingPaginationEndIndex, pendingCheckoutData.length)} of {pendingCheckoutData.length}
                             </div>
                             {pendingTotalPages > 1 && (
@@ -2662,7 +2662,7 @@ const Reports = () => {
                       {(() => {
                         return filteredData.length > 0 && (
                           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200">
-                            <div className="text-xs sm:text-sm text-muted-foreground order-2 sm:order-1">
+                            <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
                               Showing {salariedPaginationStartIndex + 1}-{Math.min(salariedPaginationEndIndex, filteredData.length)} of {filteredData.length}
                             </div>
                             {salariedTotalPages > 1 && (
