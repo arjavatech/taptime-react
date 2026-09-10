@@ -52,10 +52,14 @@ const Reports = () => {
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [reportData, setReportData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
+  const [paginatedData, setPaginatedData] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [viewMode, setViewMode] = useState("table");
+  const [pendingPageSize, setPendingPageSize] = useState(10);
+  const [pendingCurrentPage, setPendingCurrentPage] = useState(1);
 
   // Bulk upload state
   const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
@@ -126,6 +130,8 @@ const Reports = () => {
   const [availableWeeks, setAvailableWeeks] = useState([]);
   const [salariedReportData, setSalariedReportData] = useState([]);
   const [employmentTypes, setEmploymentTypes] = useState([]);
+  const [salariedPageSize, setSalariedPageSize] = useState(10);
+  const [salariedCurrentPage, setSalariedCurrentPage] = useState(1);
 
   // Summary stats
   const [summaryStats, setSummaryStats] = useState({
@@ -146,6 +152,29 @@ const Reports = () => {
     const day = String(today.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
+
+  // Helper function for pagination
+  const getItemsPerPage = () => {
+    return pageSize;
+  };
+
+  // Helper function for pending checkout pagination
+  const getPendingItemsPerPage = () => {
+    return pendingPageSize;
+  };
+  const pendingPaginationStartIndex = (pendingCurrentPage - 1) * getPendingItemsPerPage();
+  const pendingPaginationEndIndex = pendingPaginationStartIndex + getPendingItemsPerPage();
+  const pendingTotalPages = Math.ceil(pendingCheckoutData.length / getPendingItemsPerPage());
+  const paginatedPendingCheckoutData = pendingCheckoutData.slice(pendingPaginationStartIndex, pendingPaginationEndIndex);
+
+  // Helper function for salaried report pagination
+  const getSalariedItemsPerPage = () => {
+    return salariedPageSize;
+  };
+  const salariedPaginationStartIndex = (salariedCurrentPage - 1) * getSalariedItemsPerPage();
+  const salariedPaginationEndIndex = salariedPaginationStartIndex + getSalariedItemsPerPage();
+  const salariedTotalPages = Math.ceil(filteredData.length / getSalariedItemsPerPage());
+  const paginatedSalariedData = filteredData.slice(salariedPaginationStartIndex, salariedPaginationEndIndex);
 
 
 
@@ -376,7 +405,7 @@ const Reports = () => {
         check_in_snap: row.CheckInSnap || null,
         check_out_snap: null,
         date: checkInDateString,
-        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "Admin"
+        last_modified_by: localStorage.getItem("userName") || "Admin"
       };
 
       await updateDailyReportEntry(row.EmpID, companyId, row.CheckInTime, updateData);
@@ -1236,6 +1265,14 @@ const Reports = () => {
     filterData();
   }, [reportData, tableData, pendingCheckoutData, searchQuery, sortConfig, activeTab]);
 
+  // Pagination effect
+  useEffect(() => {
+    const itemsPerPage = getItemsPerPage();
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    setPaginatedData(filteredData.slice(startIndex, endIndex));
+  }, [filteredData, currentPage, pageSize]);
+
   useEffect(() => {
     if (window.innerWidth < 650) {
       setViewMode("grid");
@@ -1607,12 +1644,33 @@ const Reports = () => {
                       Current day employee check-in and check-out summary
                     </CardDescription>
                   </div>
-                  <button
-                    onClick={() => setShowModal(true)}
-                    className="bg-[#02066F] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#030974] transition-colors w-full sm:w-auto text-sm sm:text-base"
-                  >
-                    Add Entry
-                  </button>
+                  <div className="flex items-center gap-2 sm:gap-4">
+                    <button
+                      onClick={() => setShowModal(true)}
+                      className="bg-[#02066F] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#030974] transition-colors w-full sm:w-auto text-sm sm:text-base"
+                    >
+                      Add Entry
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="page-size-today" className="text-xs sm:text-sm whitespace-nowrap">
+                        Records per page:
+                      </Label>
+                      <select
+                        id="page-size-today"
+                        value={pageSize.toString()}
+                        onChange={(e) => {
+                          setPageSize(parseInt(e.target.value));
+                          setCurrentPage(1);
+                        }}
+                        className="h-8 px-2 text-xs sm:text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >                     
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
               </CardHeader>
 
@@ -1716,7 +1774,7 @@ const Reports = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {filteredData.map((record, index) => {
+                            {paginatedData.map((record, index) => {
                               const rowKey = `${record.Pin}-${record.CheckInTime}`;
                               const hasCheckout = record.CheckOutTime;
                               const selectedTime = checkoutTimes[rowKey];
@@ -1776,6 +1834,49 @@ const Reports = () => {
                           </tbody>
                         </table>
                       </div>
+                      {/* Pagination */}
+                      {(() => {
+                        const itemsPerPage = getItemsPerPage();
+                        const paginationStartIndex = (currentPage - 1) * itemsPerPage;
+                        const paginationEndIndex = paginationStartIndex + itemsPerPage;
+                        const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+                        return filteredData.length > 0 && (
+                          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200">
+                            <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
+                              Showing {paginationStartIndex + 1}-{Math.min(paginationEndIndex, filteredData.length)} of {filteredData.length}
+                            </div>
+                            {totalPages > 1 && (
+                              <div className="flex items-center gap-3 order-1 sm:order-2">
+                                <button
+                                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                  disabled={currentPage === 1}
+                                  className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                                    currentPage === 1
+                                      ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                      : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                  }`}
+                                >
+                                  Prev
+                                </button>
+                                <span className="text-sm font-medium text-gray-900 px-2">
+                                  {currentPage} / {totalPages}
+                                </span>
+                                <button
+                                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                  disabled={currentPage === totalPages}
+                                  className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                                    currentPage === totalPages
+                                      ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                      : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                  }`}
+                                >
+                                  Next
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </Card>
                   )
                 )}
@@ -1788,14 +1889,37 @@ const Reports = () => {
         {activeTab === "daywise" && (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="w-5 h-5" />
-                  Day-wise Report - {selectedDate}
-                </CardTitle>
-                <CardDescription>
-                  Employee check-in and check-out times for the selected date
-                </CardDescription>
+              <CardHeader className="pb-4 sm:pb-6">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <FileText className="w-5 h-5" />
+                      Day-wise Report - {selectedDate}
+                    </CardTitle>
+                    <CardDescription className="text-xs sm:text-sm mt-1">
+                      Employee check-in and check-out times for the selected date
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="page-size-daywise" className="text-xs sm:text-sm whitespace-nowrap">
+                      Records per page:
+                    </Label>
+                    <select
+                      id="page-size-daywise"
+                      value={pageSize}
+                      onChange={(e) => {
+                        setPageSize(parseInt(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      className="h-8 px-2 text-xs sm:text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+                </div>
               </CardHeader>
 
               <CardContent>
@@ -1872,7 +1996,7 @@ const Reports = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {filteredData.map((record, index) => (
+                            {paginatedData.map((record, index) => (
                               <tr key={index} className="border-b hover:bg-muted/50">
                                 <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium">{record.Name}</td>
                                 <td className="p-2 sm:p-4 text-xs sm:text-sm text-gray-600">{record.Pin}</td>
@@ -1891,6 +2015,49 @@ const Reports = () => {
                           </tbody>
                         </table>
                       </div>
+                      {/* Pagination */}
+                      {(() => {
+                        const itemsPerPage = getItemsPerPage();
+                        const paginationStartIndex = (currentPage - 1) * itemsPerPage;
+                        const paginationEndIndex = paginationStartIndex + itemsPerPage;
+                        const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+                        return filteredData.length > 0 && (
+                          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200">
+                            <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
+                              Showing {paginationStartIndex + 1}-{Math.min(paginationEndIndex, filteredData.length)} of {filteredData.length}
+                            </div>
+                            {totalPages > 1 && (
+                              <div className="flex items-center gap-3 order-1 sm:order-2">
+                                <button
+                                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                  disabled={currentPage === 1}
+                                  className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                                    currentPage === 1
+                                      ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                      : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                  }`}
+                                >
+                                  Prev
+                                </button>
+                                <span className="text-sm font-medium text-gray-900 px-2">
+                                  {currentPage} / {totalPages}
+                                </span>
+                                <button
+                                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                  disabled={currentPage === totalPages}
+                                  className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                                    currentPage === totalPages
+                                      ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                      : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                  }`}
+                                >
+                                  Next
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </Card>
                   )
                 )}
@@ -1903,17 +2070,40 @@ const Reports = () => {
         {activeTab === "summary" && (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-                  <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span className="hidden sm:inline">Date Range Report</span>
-                  <span className="sm:hidden">Range Report</span>
-                </CardTitle>
-                {startDate && endDate && (
-                  <CardDescription className="text-sm">
-                    Showing consolidated data from {new Date(startDate).toLocaleDateString()} to {new Date(endDate).toLocaleDateString()}
-                  </CardDescription>
-                )}
+              <CardHeader className="pb-4 sm:pb-6">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                      <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
+                      <span className="hidden sm:inline">Date Range Report</span>
+                      <span className="sm:hidden">Range Report</span>
+                    </CardTitle>
+                    {startDate && endDate && (
+                      <CardDescription className="text-sm mt-1">
+                        Showing consolidated data from {new Date(startDate).toLocaleDateString()} to {new Date(endDate).toLocaleDateString()}
+                      </CardDescription>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="page-size-summary" className="text-xs sm:text-sm whitespace-nowrap">
+                      Records per page:
+                    </Label>
+                    <select
+                      id="page-size-summary"
+                      value={pageSize}
+                      onChange={(e) => {
+                        setPageSize(parseInt(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      className="h-8 px-2 text-xs sm:text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 {!dateRangeReportLoaded ? (
@@ -1927,58 +2117,113 @@ const Reports = () => {
                     <p className="text-gray-500 text-sm">No records found for the selected date range.</p>
                   </div>
                 ) : (
-                  viewMode === "grid" ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                      {filteredData.map((employee, index) => (
-                        <Card key={index} className="hover:shadow-lg transition-shadow">
-                          <CardHeader className="pb-3">
-                            <div className="flex items-center gap-2 sm:gap-3">
-                              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                                <Users className="w-4 h-4 text-primary" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <CardTitle className="text-base sm:text-lg truncate">{employee.Name}</CardTitle>
-                                <CardDescription className="text-xs sm:text-sm">PIN: {employee.Pin}</CardDescription>
-                              </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="pt-0">
-                            <div className="flex items-center justify-between pt-2 border-t">
-                              <span className="text-xs sm:text-sm text-muted-foreground">Total Hours</span>
-                              <span className="font-semibold text-blue-600 text-sm sm:text-base">
-                                {employee.TimeWorked || employee.hoursWorked || "0:00"}
-                              </span>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  ) : (
-                    <Card>
-                      <div className="overflow-x-auto">
-                        <table className="w-full min-w-[600px]">
-                          <thead style={{ backgroundColor: '#01005a' }}>
-                            <tr className="border-b">
-                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Employee</th>
-                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">PIN</th>
-                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Total Time Worked</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {filteredData.map((employee, index) => (
-                              <tr key={index} className="border-b hover:bg-muted/50">
-                                <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium text-gray-900">{employee.Name}</td>
-                                <td className="p-2 sm:p-4 text-xs sm:text-sm text-gray-600">{employee.Pin}</td>
-                                <td className="p-2 sm:p-4 text-xs sm:text-sm font-semibold text-blue-600">
-                                  {employee.TimeWorked || employee.hoursWorked || "0:00"}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                  <>
+                    {viewMode === "grid" ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                        {(() => {
+                          const itemsPerPage = getItemsPerPage();
+                          const paginationStartIndex = (currentPage - 1) * itemsPerPage;
+                          const paginationEndIndex = paginationStartIndex + itemsPerPage;
+                          return filteredData.slice(paginationStartIndex, paginationEndIndex).map((employee, index) => (
+                            <Card key={index} className="hover:shadow-lg transition-shadow">
+                              <CardHeader className="pb-3">
+                                <div className="flex items-center gap-2 sm:gap-3">
+                                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                                    <Users className="w-4 h-4 text-primary" />
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <CardTitle className="text-base sm:text-lg truncate">{employee.Name}</CardTitle>
+                                    <CardDescription className="text-xs sm:text-sm">PIN: {employee.Pin}</CardDescription>
+                                  </div>
+                                </div>
+                              </CardHeader>
+                              <CardContent className="pt-0">
+                                <div className="flex items-center justify-between pt-2 border-t">
+                                  <span className="text-xs sm:text-sm text-muted-foreground">Total Hours</span>
+                                  <span className="font-semibold text-blue-600 text-sm sm:text-base">
+                                    {employee.TimeWorked || employee.hoursWorked || "0:00"}
+                                  </span>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ));
+                        })()}
                       </div>
-                    </Card>
-                  )
+                    ) : (
+                      <Card>
+                        <div className="overflow-x-auto">
+                          <table className="w-full min-w-[600px]">
+                            <thead style={{ backgroundColor: '#01005a' }}>
+                              <tr className="border-b">
+                                <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Employee</th>
+                                <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">PIN</th>
+                                <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Total Time Worked</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(() => {
+                                const itemsPerPage = getItemsPerPage();
+                                const paginationStartIndex = (currentPage - 1) * itemsPerPage;
+                                const paginationEndIndex = paginationStartIndex + itemsPerPage;
+                                return filteredData.slice(paginationStartIndex, paginationEndIndex).map((employee, index) => (
+                                  <tr key={index} className="border-b hover:bg-muted/50">
+                                    <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium text-gray-900">{employee.Name}</td>
+                                    <td className="p-2 sm:p-4 text-xs sm:text-sm text-gray-600">{employee.Pin}</td>
+                                    <td className="p-2 sm:p-4 text-xs sm:text-sm font-semibold text-blue-600">
+                                      {employee.TimeWorked || employee.hoursWorked || "0:00"}
+                                    </td>
+                                  </tr>
+                                ));
+                              })()}
+                            </tbody>
+                          </table>
+                        </div>
+                        {/* Pagination */}
+                        {(() => {
+                          const itemsPerPage = getItemsPerPage();
+                          const paginationStartIndex = (currentPage - 1) * itemsPerPage;
+                          const paginationEndIndex = paginationStartIndex + itemsPerPage;
+                          const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+                          return filteredData.length > 0 && (
+                            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200">
+                              <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
+                                Showing {paginationStartIndex + 1}-{Math.min(paginationEndIndex, filteredData.length)} of {filteredData.length}
+                              </div>
+                              {totalPages > 1 && (
+                                <div className="flex items-center gap-3 order-1 sm:order-2">
+                                  <button
+                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={currentPage === 1}
+                                    className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                                      currentPage === 1
+                                        ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                        : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                    }`}
+                                  >
+                                    Prev
+                                  </button>
+                                  <span className="text-sm font-medium text-gray-900 px-2">
+                                    {currentPage} / {totalPages}
+                                  </span>
+                                  <button
+                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                    disabled={currentPage === totalPages}
+                                    className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                                      currentPage === totalPages
+                                        ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                        : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                    }`}
+                                  >
+                                    Next
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </Card>
+                    )}
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -1989,14 +2234,37 @@ const Reports = () => {
         {activeTab === "pending" && (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="w-5 h-5" />
-                  Pending Checkout
-                </CardTitle>
-                <CardDescription>
-                  Employees who have checked in but not checked out
-                </CardDescription>
+              <CardHeader className="pb-4 sm:pb-6">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Clock className="w-5 h-5" />
+                      Pending Checkout
+                    </CardTitle>
+                    <CardDescription>
+                      Employees who have checked in but not checked out
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="page-size-pending" className="text-xs sm:text-sm whitespace-nowrap">
+                      Records per page:
+                    </Label>
+                    <select
+                      id="page-size-pending"
+                      value={pendingPageSize}
+                      onChange={(e) => {
+                        setPendingPageSize(parseInt(e.target.value));
+                        setPendingCurrentPage(1);
+                      }}
+                      className="h-8 px-2 text-xs sm:text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+                </div>
               </CardHeader>
 
               <CardContent>
@@ -2011,7 +2279,7 @@ const Reports = () => {
                 ) : (
                   viewMode === "grid" ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                      {pendingCheckoutData.map((record, index) => {
+                      {paginatedPendingCheckoutData.map((record, index) => {
                         const rowKey = `${record.Pin}-${record.CheckInTime}`;
                         const selectedTime = checkoutTimes[rowKey];
                         const checkoutError = checkoutErrors[rowKey];
@@ -2092,7 +2360,7 @@ const Reports = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {pendingCheckoutData.map((record, index) => {
+                            {paginatedPendingCheckoutData.map((record, index) => {
                               const rowKey = `${record.Pin}-${record.CheckInTime}`;
                               const selectedTime = checkoutTimes[rowKey];
                               const checkoutError = checkoutErrors[rowKey];
@@ -2146,6 +2414,45 @@ const Reports = () => {
                           </tbody>
                         </table>
                       </div>
+                      {/* Pagination */}
+                      {(() => {
+                        return pendingCheckoutData.length > 0 && (
+                          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200">
+                            <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
+                              Showing {pendingPaginationStartIndex + 1}-{Math.min(pendingPaginationEndIndex, pendingCheckoutData.length)} of {pendingCheckoutData.length}
+                            </div>
+                            {pendingTotalPages > 1 && (
+                              <div className="flex items-center gap-3 order-1 sm:order-2">
+                                <button
+                                  onClick={() => setPendingCurrentPage(prev => Math.max(prev - 1, 1))}
+                                  disabled={pendingCurrentPage === 1}
+                                  className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                                    pendingCurrentPage === 1
+                                      ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                      : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                  }`}
+                                >
+                                  Prev
+                                </button>
+                                <span className="text-sm font-medium text-gray-900 px-2">
+                                  {pendingCurrentPage} / {pendingTotalPages}
+                                </span>
+                                <button
+                                  onClick={() => setPendingCurrentPage(prev => Math.min(prev + 1, pendingTotalPages))}
+                                  disabled={pendingCurrentPage === pendingTotalPages}
+                                  className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                                    pendingCurrentPage === pendingTotalPages
+                                      ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                      : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                  }`}
+                                >
+                                  Next
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </Card>
                   )
                 )}
@@ -2158,14 +2465,37 @@ const Reports = () => {
         {activeTab === "salaried" && (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
-                  {selectedReportType} Report
-                </CardTitle>
-                <CardDescription className="text-sm">
-                  Select report type and view consolidated employee hours
-                </CardDescription>
+              <CardHeader className="pb-4 sm:pb-6">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                      <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
+                      {selectedReportType} Report
+                    </CardTitle>
+                    <CardDescription className="text-sm">
+                      Select report type and view consolidated employee hours
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="page-size-salaried" className="text-xs sm:text-sm whitespace-nowrap">
+                      Records per page:
+                    </Label>
+                    <select
+                      id="page-size-salaried"
+                      value={salariedPageSize}
+                      onChange={(e) => {
+                        setSalariedPageSize(parseInt(e.target.value));
+                        setSalariedCurrentPage(1);
+                      }}
+                      className="h-8 px-2 text-xs sm:text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+                </div>
               </CardHeader>
 
               <CardContent className="space-y-6">
@@ -2280,7 +2610,7 @@ const Reports = () => {
                 ) : (
                   viewMode === "grid" ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                      {filteredData.map((employee, index) => (
+                      {paginatedSalariedData.map((employee, index) => (
                         <Card key={index} className="hover:shadow-lg transition-shadow">
                           <CardHeader className="pb-3">
                             <div className="flex items-center gap-2 sm:gap-3">
@@ -2316,7 +2646,7 @@ const Reports = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {filteredData.map((employee, index) => (
+                            {paginatedSalariedData.map((employee, index) => (
                               <tr key={index} className="border-b hover:bg-muted/50">
                                 <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium text-gray-900">{employee.Name}</td>
                                 <td className="p-2 sm:p-4 text-xs sm:text-sm text-gray-600">{employee.Pin}</td>
@@ -2328,6 +2658,45 @@ const Reports = () => {
                           </tbody>
                         </table>
                       </div>
+                      {/* Pagination */}
+                      {(() => {
+                        return filteredData.length > 0 && (
+                          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200">
+                            <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
+                              Showing {salariedPaginationStartIndex + 1}-{Math.min(salariedPaginationEndIndex, filteredData.length)} of {filteredData.length}
+                            </div>
+                            {salariedTotalPages > 1 && (
+                              <div className="flex items-center gap-3 order-1 sm:order-2">
+                                <button
+                                  onClick={() => setSalariedCurrentPage(prev => Math.max(prev - 1, 1))}
+                                  disabled={salariedCurrentPage === 1}
+                                  className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                                    salariedCurrentPage === 1
+                                      ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                      : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                  }`}
+                                >
+                                  Prev
+                                </button>
+                                <span className="text-sm font-medium text-gray-900 px-2">
+                                  {salariedCurrentPage} / {salariedTotalPages}
+                                </span>
+                                <button
+                                  onClick={() => setSalariedCurrentPage(prev => Math.min(prev + 1, salariedTotalPages))}
+                                  disabled={salariedCurrentPage === salariedTotalPages}
+                                  className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                                    salariedCurrentPage === salariedTotalPages
+                                      ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                      : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                  }`}
+                                >
+                                  Next
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </Card>
                   )
                 )}

@@ -428,7 +428,7 @@ const ReportSetting = ({ accessDenied = false }) => {
       report_type: frequency,
       salary_report_start_date: frequency === "Biweekly" ? salaryReportStartDate : null,
       last_modified_date_time: new Date().toISOString(),
-      last_modified_by: localStorage.getItem("UserEmail") || localStorage.getItem("userName") || "unknown",
+      last_modified_by: localStorage.getItem("userName") || "Admin",
     };
 
     setIsViewSubmitting(true);

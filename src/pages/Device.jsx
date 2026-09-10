@@ -135,7 +135,7 @@ const Device = ({ accessDenied = false }) => {
       device_name: null,
       access_key: createAccessKey(),
       access_key_generated_time: new Date().toISOString(),
-      last_modified_by: "Admin"
+      last_modified_by: localStorage.getItem("userName") || "Admin"
     };
 
     try {

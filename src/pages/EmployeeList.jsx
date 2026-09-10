@@ -101,7 +101,7 @@ const EmployeeList = () => {
     email: "",
     is_admin: 0,
     is_active: true,
-    last_modified_by: "Admin",
+    last_modified_by: localStorage.getItem("userName") || "Admin",
     c_id: "",
   });
 
@@ -124,16 +124,10 @@ const EmployeeList = () => {
 
   const [currentPage, setCurrentPage] = useState(1);
   const [paginatedEmployees, setPaginatedEmployees] = useState([]);
+  const [pageSize, setPageSize] = useState(10); // Page size state with default of 5
 
   const getItemsPerPage = () => {
-    const width = window.innerWidth;
-    if (viewMode === "grid") {
-      if (width < 475) return 4;  // xs screens
-      if (width < 640) return 6;  // sm screens
-      if (width < 1024) return 8; // md screens
-      return 12; // lg+ screens
-    }
-    return width < 1024 ? 6 : 10; // table view
+    return pageSize;
   };
 
   // Get values from localStorage
@@ -237,7 +231,7 @@ const EmployeeList = () => {
 
   useEffect(() => {
     filterEmployees();
-  }, [employees, searchQuery, activeTab, sortConfig, currentPage, viewMode]);
+  }, [employees, searchQuery, activeTab, sortConfig, currentPage, viewMode, pageSize]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -377,7 +371,7 @@ const EmployeeList = () => {
     if (matchedEmployee) {
       localStorage.setItem("loggedAdmin", JSON.stringify(matchedEmployee));
     }
-  }, [employees, searchQuery, activeTab, sortConfig, currentPage, viewMode, getEmail, adminType]);
+  }, [employees, searchQuery, activeTab, sortConfig, currentPage, viewMode, getEmail, adminType, pageSize]);
 
   // Center loading helper
   const showCenterLoading = (message) => {
@@ -451,7 +445,7 @@ const EmployeeList = () => {
       email: "",
       is_admin: adminLevel,
       is_active: true,
-      last_modified_by: "Admin",
+      last_modified_by: localStorage.getItem("userName") || "Admin",
       c_id: companyId || "",
     });
     setShowAddModal(true);
@@ -476,7 +470,7 @@ const EmployeeList = () => {
       email: employee.email || "",
       is_admin: employee.is_admin,
       is_active: employee.is_active,
-      last_modified_by: "Admin",
+      last_modified_by: localStorage.getItem("userName") || "Admin",
       c_id: employee.c_id,
     });
     setShowAddModal(true);
@@ -893,7 +887,7 @@ const EmployeeList = () => {
           pin: pin,
           is_admin: formData.is_admin,
           is_active: true,
-          last_modified_by: 'Admin',
+          last_modified_by: localStorage.getItem("userName") || "Admin",
           c_id: companyId || ''
         });
       }
@@ -1317,7 +1311,28 @@ const EmployeeList = () => {
             </Card>
           ) : (
             viewMode === "grid" ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              <>
+                {/* Records Per Page Selector - Grid View */}
+                <div className="flex items-center justify-end gap-2 mb-4 px-4 sm:px-6">
+                  <Label htmlFor="page-size-grid" className="text-xs sm:text-sm whitespace-nowrap">
+                    Records per page:
+                  </Label>
+                  <select
+                    id="page-size-grid"
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(parseInt(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    className="h-8 px-2 text-xs sm:text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {paginatedEmployees.map((employee) => (
                   <Card key={employee.emp_id} className="hover:shadow-lg transition-shadow">
                     <CardHeader className="pb-3">
@@ -1393,8 +1408,40 @@ const EmployeeList = () => {
                   </Card>
                 ))}
               </div>
+              </>
             ) : (
-              <Card>
+              <>
+                <Card>
+                <CardHeader>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Users className="w-5 h-5 text-[#01005a]" />
+                        {activeTab === "employees" ? "Employees" : activeTab === "admins" ? "Admins" : "Super Admins"}
+                      </CardTitle>
+                    </div>
+                    {/* Page Size Selector */}
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="page-size" className="text-xs sm:text-sm whitespace-nowrap">
+                        Records per page:
+                      </Label>
+                      <select
+                        id="page-size"
+                        value={pageSize}
+                        onChange={(e) => {
+                          setPageSize(parseInt(e.target.value));
+                          setCurrentPage(1);
+                        }}
+                        className="h-8 px-2 text-xs sm:text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value={10}>10</option>
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                      </select>
+                    </div>
+                  </div>
+                </CardHeader>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[720px]">
                     <thead style={{ backgroundColor: '#01005a' }}>
@@ -1472,44 +1519,55 @@ const EmployeeList = () => {
                   </table>
                 </div>
               </Card>
+            </>
             )
           )}
-
-          {/* Pagination */}
-          {(() => {
-            const itemsPerPage = getItemsPerPage();
-            return filteredEmployees.length > itemsPerPage && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
-                <div className="text-xs sm:text-sm text-muted-foreground order-2 sm:order-1 text-center sm:text-left">
-                  <span className="hidden sm:inline">Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredEmployees.length)} of {filteredEmployees.length} employees</span>
-                  <span className="sm:hidden">{((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, filteredEmployees.length)} of {filteredEmployees.length}</span>
-                </div>
-                <div className="flex items-center gap-2 order-1 sm:order-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                    disabled={currentPage === 1}
-                    className="h-8 w-8 sm:h-9 sm:w-9 p-0"
-                  >
-                    <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
-                  </Button>
-                  <span className="text-xs sm:text-sm font-medium px-2 sm:px-3">
-                    {currentPage} of {Math.ceil(filteredEmployees.length / itemsPerPage)}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredEmployees.length / itemsPerPage)))}
-                    disabled={currentPage === Math.ceil(filteredEmployees.length / itemsPerPage)}
-                    className="h-8 w-8 sm:h-9 sm:w-9 p-0"
-                  >
-                    <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
-                  </Button>
-                </div>
+          {/* Pagination - Shows for both Grid and Table Views */}
+          {filteredEmployees.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200">
+              <div className="text-xs sm:text-sm text-muted-foreground order-2 sm:order-1">
+                {(() => {
+                  const itemsPerPage = getItemsPerPage();
+                  const paginationStartIndex = (currentPage - 1) * itemsPerPage;
+                  const paginationEndIndex = paginationStartIndex + itemsPerPage;
+                  return `Showing ${paginationStartIndex + 1}-${Math.min(paginationEndIndex, filteredEmployees.length)} of ${filteredEmployees.length}`;
+                })()}
               </div>
-            );
-          })()}
+              {(() => {
+                const itemsPerPage = getItemsPerPage();
+                const totalPages = Math.ceil(filteredEmployees.length / itemsPerPage);
+                return totalPages > 1 && (
+                  <div className="flex items-center gap-3 order-1 sm:order-2">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                        currentPage === 1
+                          ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                          : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                      }`}
+                    >
+                      Prev
+                    </button>
+                    <span className="text-sm font-medium text-gray-900 px-2">
+                      {currentPage} / {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                        currentPage === totalPages
+                          ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                          : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                      }`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
         </div>
       </div>
 

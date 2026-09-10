@@ -620,7 +620,7 @@ export const bulkUploadReportData = async (companyId, file) => {
   try {
     const formData = new FormData();
     formData.append('company_id', companyId);
-    formData.append('last_modified_by', localStorage.getItem("adminMail") || "Admin");
+    formData.append('last_modified_by', localStorage.getItem(STORAGE_KEYS.USER_NAME) || "Admin");
     formData.append('file', file);
 
     const authToken = localStorage.getItem("access_token");
@@ -723,7 +723,7 @@ export const createReportObject = (email, companyId, deviceId, selectedValues) =
     is_monthly_report_active: selectedValues.includes('Monthly'),
     is_bi_monthly_report_active: selectedValues.includes('Bimonthly')
   };
-  const lastModifiedBy = localStorage.getItem(STORAGE_KEYS.ADMIN_MAIL) || localStorage.getItem(STORAGE_KEYS.USER_NAME) || "unknown";
+  const lastModifiedBy = localStorage.getItem(STORAGE_KEYS.USER_NAME) || "Admin";
   return {
     company_reporter_email: email,
     c_id: companyId,

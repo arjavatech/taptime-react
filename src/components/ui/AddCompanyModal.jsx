@@ -296,7 +296,7 @@ const AddCompanyModal = ({ isOpen, onClose, onSuccess }) => {
         device_count: parseInt(formData.noOfDevices, 10),
         employee_count: parseInt(formData.noOfEmployees, 10),
         employment_type: employmentTypes.join(','),
-        last_modified_by: customerInfo.email
+        last_modified_by: localStorage.getItem("userName") || "Admin"
       };
 
       if (wantsTrial || !wantsTrial) {
