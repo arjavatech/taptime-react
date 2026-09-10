@@ -625,7 +625,7 @@ const Profile = () => {
         pin: adminData.pin || "",
         is_admin: loggedAdmin.is_admin || 1,
         is_active: true,
-        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system",
+        last_modified_by: localStorage.getItem("userName") || "Admin",
         c_id: companyId
       };
 
@@ -695,7 +695,7 @@ const Profile = () => {
         is_verified: true,
         device_count: parseInt(localStorage.getItem("NoOfDevices")),
         employee_count: parseInt(localStorage.getItem("NoOfEmployees")),
-        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "system",
+        last_modified_by: localStorage.getItem("userName") || "Admin",
         employment_type: employmentTypes.join(',')
       };
 

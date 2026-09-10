@@ -101,7 +101,7 @@ const EmployeeList = () => {
     email: "",
     is_admin: 0,
     is_active: true,
-    last_modified_by: "Admin",
+    last_modified_by: localStorage.getItem("userName") || "Admin",
     c_id: "",
   });
 
@@ -445,7 +445,7 @@ const EmployeeList = () => {
       email: "",
       is_admin: adminLevel,
       is_active: true,
-      last_modified_by: "Admin",
+      last_modified_by: localStorage.getItem("userName") || "Admin",
       c_id: companyId || "",
     });
     setShowAddModal(true);
@@ -470,7 +470,7 @@ const EmployeeList = () => {
       email: employee.email || "",
       is_admin: employee.is_admin,
       is_active: employee.is_active,
-      last_modified_by: "Admin",
+      last_modified_by: localStorage.getItem("userName") || "Admin",
       c_id: employee.c_id,
     });
     setShowAddModal(true);
@@ -887,7 +887,7 @@ const EmployeeList = () => {
           pin: pin,
           is_admin: formData.is_admin,
           is_active: true,
-          last_modified_by: 'Admin',
+          last_modified_by: localStorage.getItem("userName") || "Admin",
           c_id: companyId || ''
         });
       }

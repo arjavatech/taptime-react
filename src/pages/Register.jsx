@@ -414,7 +414,7 @@ const Register = () => {
         customer_city: formData.customerCity,
         customer_state: formData.customerState,
         customer_zip_code: formData.customerZip,
-        last_modified_by: 'Admin'
+        last_modified_by: localStorage.getItem("userName") || "Admin"
       };
 
       // NEW WEBHOOK-BASED REGISTRATION FLOW

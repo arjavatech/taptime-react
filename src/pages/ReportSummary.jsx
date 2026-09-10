@@ -405,7 +405,7 @@ const Reports = () => {
         check_in_snap: row.CheckInSnap || null,
         check_out_snap: null,
         date: checkInDateString,
-        last_modified_by: localStorage.getItem("adminMail") || localStorage.getItem("userName") || "Admin"
+        last_modified_by: localStorage.getItem("userName") || "Admin"
       };
 
       await updateDailyReportEntry(row.EmpID, companyId, row.CheckInTime, updateData);
