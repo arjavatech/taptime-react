@@ -56,7 +56,7 @@ const Reports = () => {
   const [paginatedData, setPaginatedData] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(5);
+  const [pageSize, setPageSize] = useState(10);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [viewMode, setViewMode] = useState("table");
   const [pendingPageSize, setPendingPageSize] = useState(10);
