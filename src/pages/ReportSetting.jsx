@@ -16,6 +16,9 @@ import {
   getReminderRecipients,
   addReminderRecipient,
   removeReminderRecipient,
+  getRecoveryTrackerRecipients,
+  addRecoveryTrackerRecipient,
+  removeRecoveryTrackerRecipient,
   getCompanyNotificationCC,
   addCompanyNotificationCC,
   removeCompanyNotificationCC,
@@ -103,6 +106,23 @@ const ReportSetting = ({ accessDenied = false }) => {
   const [notificationError, setNotificationError] = useState("");
   const [notificationSuccess, setNotificationSuccess] = useState("");
   const [activeTab, setActiveTab] = useState("email");
+  const [showEnableRecoveryModal, setShowEnableRecoveryModal] = useState(false);
+  const [showDisableRecoveryModal, setShowDisableRecoveryModal] = useState(false);
+  const [isEnablingRecovery, setIsEnablingRecovery] = useState(false);
+  const [isDisablingRecovery, setIsDisablingRecovery] = useState(false);
+
+  // Recovery Tracker recipients state
+  const [recoveryRecipients, setRecoveryRecipients] = useState({ to: [], cc: [] });
+  const [showAddRecoveryRecipientModal, setShowAddRecoveryRecipientModal] = useState(false);
+  const [showDeleteRecoveryModal, setShowDeleteRecoveryModal] = useState(false);
+  const [deletingRecoveryId, setDeletingRecoveryId] = useState(null);
+  const [deletingRecoveryEmail, setDeletingRecoveryEmail] = useState("");
+  const [recoveryRecipientType, setRecoveryRecipientType] = useState("to");
+  const [newRecoveryEmail, setNewRecoveryEmail] = useState("");
+  const [recoveryEmailChips, setRecoveryEmailChips] = useState([]);
+  const [recoveryEmailError, setRecoveryEmailError] = useState("");
+  const [isAddingRecoveryRecipient, setIsAddingRecoveryRecipient] = useState(false);
+  const [isDeletingRecoveryRecipient, setIsDeletingRecoveryRecipient] = useState(false);
 
   // Reminder recipients state
   const [reminderRecipients, setReminderRecipients] = useState({ to: [], cc: [] });
@@ -516,6 +536,9 @@ const ReportSetting = ({ accessDenied = false }) => {
         setCompanyData(companySettings);
         setIsWeeklyNotificationsEnabled(companySettings?.is_weekly_report_enabled ?? false);
         setAutoCheckoutTime(companySettings?.auto_checkout_time ? companySettings.auto_checkout_time.substring(0, 5) : "");
+        setRecoveryPrimaryEmail(companySettings?.recovery_tracker_primary_email || "");
+        setRecoveryCcEmail1(companySettings?.recovery_tracker_cc_email_1 || "");
+        setRecoveryCcEmail2(companySettings?.recovery_tracker_cc_email_2 || "");
       } else {
         // Set defaults on error
         setCompanyData({
@@ -523,10 +546,17 @@ const ReportSetting = ({ accessDenied = false }) => {
           is_check_in_reminder_enabled: false,
           is_weekly_report_enabled: false,
           is_auto_checkout_enabled: false,
-          auto_checkout_time: null
+          auto_checkout_time: null,
+          is_recovery_tracker_enabled: false,
+          recovery_tracker_primary_email: null,
+          recovery_tracker_cc_email_1: null,
+          recovery_tracker_cc_email_2: null
         });
         setIsWeeklyNotificationsEnabled(false);
         setAutoCheckoutTime("");
+        setRecoveryPrimaryEmail("");
+        setRecoveryCcEmail1("");
+        setRecoveryCcEmail2("");
       }
     } catch (error) {
       console.error("Failed to load company settings:", error);
@@ -536,10 +566,17 @@ const ReportSetting = ({ accessDenied = false }) => {
         is_check_in_reminder_enabled: false,
         is_weekly_report_enabled: false,
         is_auto_checkout_enabled: false,
-        auto_checkout_time: null
+        auto_checkout_time: null,
+        is_recovery_tracker_enabled: false,
+        recovery_tracker_primary_email: null,
+        recovery_tracker_cc_email_1: null,
+        recovery_tracker_cc_email_2: null
       });
       setIsWeeklyNotificationsEnabled(false);
       setAutoCheckoutTime("");
+      setRecoveryPrimaryEmail("");
+      setRecoveryCcEmail1("");
+      setRecoveryCcEmail2("");
     }
   };
 
@@ -810,6 +847,13 @@ const ReportSetting = ({ accessDenied = false }) => {
       // Set weekly report CC recipients (replaces loadGlobalCCRecipients)
       setGlobalCCRecipients(Array.isArray(data.weekly_cc_recipients) ? data.weekly_cc_recipients : []);
 
+      // Load recovery tracker recipients if enabled
+      if (company.is_recovery_tracker_enabled) {
+        await loadRecoveryRecipients();
+      } else {
+        setRecoveryRecipients({ to: [], cc: [] });
+      }
+
       setIsViewSettingsLoading(false);
     } catch (error) {
       console.error("Failed to load page settings:", error);
@@ -821,6 +865,7 @@ const ReportSetting = ({ accessDenied = false }) => {
       setSalaryReportStartDate("");
       setReminderRecipients({ to: [], cc: [] });
       setGlobalCCRecipients([]);
+      setRecoveryRecipients({ to: [], cc: [] });
       setIsViewSettingsLoading(false);
     }
   };
@@ -912,6 +957,116 @@ const ReportSetting = ({ accessDenied = false }) => {
     } catch (error) {
       console.error("Failed to remove reminder recipient:", error);
       setNotificationError("Failed to remove reminder recipient");
+    }
+  };
+
+  // Load recovery tracker recipients
+  const loadRecoveryRecipients = async () => {
+    if (typeof window === "undefined") return;
+    const company_id = localStorage.getItem("companyID") || "";
+
+    try {
+      const data = await getRecoveryTrackerRecipients(company_id);
+      setRecoveryRecipients(data || { to: [], cc: [] });
+    } catch (error) {
+      console.error("Failed to load recovery tracker recipients:", error);
+      setRecoveryRecipients({ to: [], cc: [] });
+    }
+  };
+
+  // Add email to recovery recipient chips
+  const addRecoveryEmailChip = () => {
+    const email = newRecoveryEmail.trim();
+
+    if (!email) {
+      setRecoveryEmailError("Email address cannot be empty");
+      return;
+    }
+
+    // Validate email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setRecoveryEmailError("Please enter a valid email address");
+      return;
+    }
+
+    // Check for duplicates
+    if (recoveryEmailChips.includes(email)) {
+      setRecoveryEmailError("This email is already added");
+      return;
+    }
+
+    // Add to chips
+    setRecoveryEmailChips([...recoveryEmailChips, email]);
+    setNewRecoveryEmail("");
+    setRecoveryEmailError("");
+  };
+
+  // Remove email from recovery recipient chips
+  const removeRecoveryEmailChip = (email) => {
+    setRecoveryEmailChips(recoveryEmailChips.filter(e => e !== email));
+  };
+
+  // Add recovery tracker recipients from chips
+  const handleAddRecoveryRecipient = async () => {
+    if (recoveryEmailChips.length === 0) {
+      setRecoveryEmailError("Please add at least one email");
+      return;
+    }
+
+    const company_id = localStorage.getItem("companyID") || "";
+    setIsAddingRecoveryRecipient(true);
+    setRecoveryEmailError("");
+
+    try {
+      // Add all emails from chips
+      for (const email of recoveryEmailChips) {
+        await addRecoveryTrackerRecipient(company_id, email, recoveryRecipientType);
+      }
+
+      setNotificationSuccess(
+        recoveryEmailChips.length === 1
+          ? `Recipient added successfully`
+          : `${recoveryEmailChips.length} recipients added successfully`
+      );
+      setShowAddRecoveryRecipientModal(false);
+      setNewRecoveryEmail("");
+      setRecoveryEmailChips([]);
+      await loadRecoveryRecipients();
+      setTimeout(() => setNotificationSuccess(""), 3000);
+    } catch (error) {
+      console.error("Failed to add recovery tracker recipient:", error);
+      setNotificationError("Failed to add recovery tracker recipient");
+    } finally {
+      setIsAddingRecoveryRecipient(false);
+    }
+  };
+
+  // Open delete confirmation modal for recovery tracker recipient
+  const openDeleteRecoveryModal = (recipientId, email) => {
+    setDeletingRecoveryId(recipientId);
+    setDeletingRecoveryEmail(email);
+    setShowDeleteRecoveryModal(true);
+  };
+
+  // Confirm delete recovery tracker recipient
+  const confirmDeleteRecoveryRecipient = async () => {
+    const company_id = localStorage.getItem("companyID") || "";
+
+    setIsDeletingRecoveryRecipient(true);
+    try {
+      await removeRecoveryTrackerRecipient(company_id, deletingRecoveryId);
+      setNotificationSuccess("Recipient removed successfully");
+      setShowDeleteRecoveryModal(false);
+      setDeletingRecoveryId(null);
+      setDeletingRecoveryEmail("");
+      await loadRecoveryRecipients();
+      setTimeout(() => setNotificationSuccess(""), 3000);
+    } catch (error) {
+      console.error("Failed to remove recovery tracker recipient:", error);
+      setNotificationError("Failed to remove recovery tracker recipient");
+    } finally {
+      setIsDeletingRecoveryRecipient(false);
     }
   };
 
@@ -1430,8 +1585,10 @@ const ReportSetting = ({ accessDenied = false }) => {
                 Configure check-in reminders and email settings
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="divide-y divide-gray-100">
+            <CardContent className="space-y-6">
+              {/* Check-In Reminders Section */}
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <div className="divide-y divide-gray-100">
                 {/* Check-In Reminders toggle */}
                 <div className="flex items-center justify-between py-4 first:pt-0 last:pb-0">
                   <div>
@@ -1566,6 +1723,134 @@ const ReportSetting = ({ accessDenied = false }) => {
                     </div>
                   </div>
                 )}
+                </div>
+              </div>
+
+              {/* Recovery Tracker Section */}
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <div className="divide-y divide-gray-100">
+                {/* Recovery Tracker (Second-Level Reminder) toggle */}
+                <div className="flex items-center justify-between py-4 first:pt-0 last:pb-0">
+                  <div>
+                    <p className="font-medium text-gray-900">Recovery Tracker</p>
+                    <p className="text-sm text-gray-500 mt-0.5">
+                      {companyData?.is_recovery_tracker_enabled
+                        ? "Enabled — escalation emails for unresolved auto-checkouts"
+                        : "Disabled — no recovery tracker escalations"}
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => {
+                      if (companyData?.is_recovery_tracker_enabled) {
+                        setShowDisableRecoveryModal(true);
+                      } else {
+                        setShowEnableRecoveryModal(true);
+                      }
+                    }}
+                    disabled={isEnablingRecovery || isDisablingRecovery}
+                    className={isEnablingRecovery || isDisablingRecovery
+                      ? "bg-gray-400 cursor-not-allowed text-white"
+                      : companyData?.is_recovery_tracker_enabled
+                      ? "bg-red-600 hover:bg-red-700 text-white"
+                      : "bg-primary hover:bg-primary/90 text-white"}
+                  >
+                    {isEnablingRecovery || isDisablingRecovery ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      companyData?.is_recovery_tracker_enabled ? "Disable" : "Enable"
+                    )}
+                  </Button>
+                </div>
+
+                {/* Recovery Tracker Recipients — only shown when enabled */}
+                {companyData?.is_recovery_tracker_enabled && (
+                  <div className="py-4 space-y-4">
+                    <p className="font-medium text-gray-900">Recovery Tracker Recipients</p>
+
+                    {/* To Recipients */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium">To Recipients</Label>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setRecoveryRecipientType("to");
+                            setShowAddRecoveryRecipientModal(true);
+                          }}
+                          className="h-8 px-2"
+                        >
+                          <Plus className="w-4 h-4 mr-1" />
+                          Add
+                        </Button>
+                      </div>
+                      {recoveryRecipients.to.length > 0 ? (
+                        <div className="space-y-2">
+                          {recoveryRecipients.to.map((recipient) => (
+                            <div
+                              key={recipient.id}
+                              className="flex items-center justify-between p-2 bg-white rounded border border-blue-200"
+                            >
+                              <span className="text-sm font-medium text-gray-900">{recipient.email}</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openDeleteRecoveryModal(recipient.id, recipient.email)}
+                                className="text-red-600 hover:text-red-700 h-6 w-6 p-0"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-500 italic">No To recipients added</p>
+                      )}
+                    </div>
+
+                    {/* CC Recipients */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium">CC Recipients (Optional)</Label>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setRecoveryRecipientType("cc");
+                            setShowAddRecoveryRecipientModal(true);
+                          }}
+                          className="h-8 px-2"
+                        >
+                          <Plus className="w-4 h-4 mr-1" />
+                          Add
+                        </Button>
+                      </div>
+                      {recoveryRecipients.cc.length > 0 ? (
+                        <div className="space-y-2">
+                          {recoveryRecipients.cc.map((recipient) => (
+                            <div
+                              key={recipient.id}
+                              className="flex items-center justify-between p-2 bg-white rounded border border-blue-200"
+                            >
+                              <span className="text-sm font-medium text-gray-900">{recipient.email}</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openDeleteRecoveryModal(recipient.id, recipient.email)}
+                                className="text-red-600 hover:text-red-700 h-6 w-6 p-0"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-500 italic">No CC recipients added</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+                </div>
               </div>
             </CardContent>
           </Card>}
@@ -1658,6 +1943,321 @@ const ReportSetting = ({ accessDenied = false }) => {
           </Card>}
         </div>
       </div>
+
+      {/* Enable Recovery Tracker Modal */}
+      {showEnableRecoveryModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Settings className="w-5 h-5" />
+                Enable Recovery Tracker
+              </CardTitle>
+              <CardDescription className="text-sm">
+                Configure escalation emails for unresolved auto-checkouts
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Add recipients after enabling the recovery tracker.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowEnableRecoveryModal(false)}
+                  className="flex-1 order-2 sm:order-1"
+                  disabled={isEnablingRecovery}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={async () => {
+                    setIsEnablingRecovery(true);
+                    try {
+                      const companyId = localStorage.getItem("companyID");
+                      const merged = {
+                        ...companyData,
+                        is_recovery_tracker_enabled: true
+                      };
+                      const formData = new FormData();
+                      formData.append("company_data", JSON.stringify(merged));
+                      await updateProfile(companyId, formData);
+                      setCompanyData(merged);
+                      setShowEnableRecoveryModal(false);
+                      setNotificationSuccess("Recovery Tracker enabled");
+                      await loadRecoveryRecipients();
+                    } catch (error) {
+                      console.error("Failed to enable recovery tracker:", error);
+                      setNotificationError("Failed to enable recovery tracker");
+                    } finally {
+                      setIsEnablingRecovery(false);
+                    }
+                  }}
+                  disabled={isEnablingRecovery}
+                  className="flex-1 order-1 sm:order-2 bg-primary hover:bg-primary/90 text-white"
+                >
+                  {isEnablingRecovery ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Enabling...
+                    </>
+                  ) : (
+                    "Enable"
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Disable Recovery Tracker Modal */}
+      {showDisableRecoveryModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+                Disable Recovery Tracker
+              </CardTitle>
+              <CardDescription className="text-sm">
+                Are you sure you want to disable recovery tracker?
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-gray-600">
+                No escalation emails will be sent for unresolved auto-checkouts from 2 days ago.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDisableRecoveryModal(false)}
+                  className="flex-1 order-2 sm:order-1"
+                  disabled={isDisablingRecovery}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={async () => {
+                    setIsDisablingRecovery(true);
+                    try {
+                      const companyId = localStorage.getItem("companyID");
+                      const merged = { ...companyData, is_recovery_tracker_enabled: false };
+                      const formData = new FormData();
+                      formData.append("company_data", JSON.stringify(merged));
+                      await updateProfile(companyId, formData);
+                      setCompanyData(merged);
+                      setShowDisableRecoveryModal(false);
+                      setNotificationSuccess("Recovery Tracker disabled");
+                    } catch (error) {
+                      console.error("Failed to disable recovery tracker:", error);
+                      setNotificationError("Failed to disable recovery tracker");
+                    } finally {
+                      setIsDisablingRecovery(false);
+                    }
+                  }}
+                  disabled={isDisablingRecovery}
+                  className="flex-1 order-1 sm:order-2 bg-red-600 hover:bg-red-700"
+                >
+                  {isDisablingRecovery ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Disabling...
+                    </>
+                  ) : (
+                    "Disable"
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Add Recovery Tracker Recipient Modal */}
+      {showAddRecoveryRecipientModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Plus className="w-5 h-5" />
+                Add Recovery Tracker Recipient
+              </CardTitle>
+              <CardDescription className="text-sm">
+                Add a {recoveryRecipientType === 'to' ? 'To' : 'CC'} recipient for recovery tracker escalations
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Recipient Type</Label>
+                <div className="flex gap-2">
+                  <Button
+                    variant={recoveryRecipientType === 'to' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setRecoveryRecipientType('to')}
+                  >
+                    To
+                  </Button>
+                  <Button
+                    variant={recoveryRecipientType === 'cc' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setRecoveryRecipientType('cc')}
+                  >
+                    CC
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Email Address(es) *</Label>
+
+                {/* Display email chips */}
+                {recoveryEmailChips.length > 0 && (
+                  <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-md min-h-12">
+                    {recoveryEmailChips.map((email, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-2 px-3 py-1 bg-primary text-white rounded-full text-sm"
+                      >
+                        <span>{email}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeRecoveryEmailChip(email)}
+                          className="hover:bg-primary/80 rounded-full w-5 h-5 flex items-center justify-center"
+                          title="Remove email"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Input with + button */}
+                <div className="flex gap-2">
+                  <Input
+                    id="recoveryEmail"
+                    type="email"
+                    value={newRecoveryEmail}
+                    onChange={(e) => {
+                      setNewRecoveryEmail(e.target.value);
+                      setRecoveryEmailError("");
+                    }}
+                    onKeyPress={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addRecoveryEmailChip();
+                      }
+                    }}
+                    placeholder="Enter email address"
+                    className="flex-1 text-sm"
+                  />
+                  <Button
+                    type="button"
+                    onClick={addRecoveryEmailChip}
+                    className="px-3 bg-primary hover:bg-primary/90 text-white"
+                    title="Add email"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                {recoveryEmailError && <p className="text-sm text-red-600">{recoveryEmailError}</p>}
+              </div>
+
+              {notificationError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-600">{notificationError}</p>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowAddRecoveryRecipientModal(false);
+                    setNewRecoveryEmail("");
+                    setRecoveryEmailChips([]);
+                    setRecoveryEmailError("");
+                  }}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleAddRecoveryRecipient}
+                  disabled={isAddingRecoveryRecipient}
+                  className={`flex-1 ${isAddingRecoveryRecipient ? "opacity-75 cursor-not-allowed" : ""}`}
+                >
+                  {isAddingRecoveryRecipient ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
+                      Adding...
+                    </>
+                  ) : (
+                    "Add Recipient"
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Delete Recovery Tracker Recipient Confirmation Modal */}
+      {showDeleteRecoveryModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+                Remove Recipient
+              </CardTitle>
+              <CardDescription className="text-sm">
+                Are you sure you want to remove this recipient?
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-gray-600">
+                This will remove <strong>{deletingRecoveryEmail}</strong> from the recovery tracker recipients list.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowDeleteRecoveryModal(false);
+                    setDeletingRecoveryId(null);
+                    setDeletingRecoveryEmail("");
+                  }}
+                  className="flex-1 order-2 sm:order-1"
+                  disabled={isDeletingRecoveryRecipient}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={confirmDeleteRecoveryRecipient}
+                  disabled={isDeletingRecoveryRecipient}
+                  className="flex-1 order-1 sm:order-2 bg-red-600 hover:bg-red-700 text-white"
+                >
+                  {isDeletingRecoveryRecipient ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Removing...
+                    </>
+                  ) : (
+                    "Remove"
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Disable Check-In Reminders Modal */}
       {showDisableCheckInModal && (

@@ -1484,6 +1484,40 @@ export const removeReminderRecipient = async (cId, recipientId) => {
   }).then(r => r.json());
 };
 
+export const getRecoveryTrackerRecipients = async (cId) => {
+  const accessToken = localStorage.getItem("access_token");
+  return fetch(`${API_BASE}/recovery-tracker/${cId}/recipients`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    }
+  }).then(r => r.json());
+};
+
+export const addRecoveryTrackerRecipient = async (cId, email, recipientType) => {
+  const accessToken = localStorage.getItem("access_token");
+  return fetch(`${API_BASE}/recovery-tracker/${cId}/recipients`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ email, recipient_type: recipientType })
+  }).then(r => r.json());
+};
+
+export const removeRecoveryTrackerRecipient = async (cId, recipientId) => {
+  const accessToken = localStorage.getItem("access_token");
+  return fetch(`${API_BASE}/recovery-tracker/${cId}/recipients/${recipientId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    }
+  }).then(r => r.json());
+};
+
 export const getCompanyNotificationCC = async (cId) => {
   const accessToken = localStorage.getItem("access_token");
   return fetch(`${API_BASE}/notification-settings/company/${cId}/cc`, {
