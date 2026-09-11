@@ -16,6 +16,9 @@ import {
   getReminderRecipients,
   addReminderRecipient,
   removeReminderRecipient,
+  getRecoveryTrackerRecipients,
+  addRecoveryTrackerRecipient,
+  removeRecoveryTrackerRecipient,
   getCompanyNotificationCC,
   addCompanyNotificationCC,
   removeCompanyNotificationCC,
@@ -79,6 +82,21 @@ const ReportSetting = ({ accessDenied = false }) => {
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
   const [isTogglingWeekly, setIsTogglingWeekly] = useState(false);
   const [isTogglingCheckIn, setIsTogglingCheckIn] = useState(false);
+  const [isTogglingAutoCheckout, setIsTogglingAutoCheckout] = useState(false);
+  const [autoCheckoutTime, setAutoCheckoutTime] = useState("");
+  const [isSavingAutoCheckoutTime, setIsSavingAutoCheckoutTime] = useState(false);
+  const [autoCheckoutError, setAutoCheckoutError] = useState("");
+  const [autoCheckoutSuccess, setAutoCheckoutSuccess] = useState("");
+  const [showEnableAutoCheckoutModal, setShowEnableAutoCheckoutModal] = useState(false);
+  const [showDisableAutoCheckoutModal, setShowDisableAutoCheckoutModal] = useState(false);
+  const [modalAutoCheckoutTime, setModalAutoCheckoutTime] = useState("");
+  const [modalAutoCheckoutTimeError, setModalAutoCheckoutTimeError] = useState("");
+  const [isEnablingAutoCheckout, setIsEnablingAutoCheckout] = useState(false);
+  const [isDisablingAutoCheckout, setIsDisablingAutoCheckout] = useState(false);
+  const [showDisableCheckInModal, setShowDisableCheckInModal] = useState(false);
+  const [showDisableWeeklyModal, setShowDisableWeeklyModal] = useState(false);
+  const [isDisablingCheckIn, setIsDisablingCheckIn] = useState(false);
+  const [isDisablingWeekly, setIsDisablingWeekly] = useState(false);
   const [isAddingCC, setIsAddingCC] = useState(false);
   const [removingCCId, setRemovingCCId] = useState(null);
   const [showAddCCModal, setShowAddCCModal] = useState(false);
@@ -87,6 +105,24 @@ const ReportSetting = ({ accessDenied = false }) => {
   const [ccEmailError, setCCEmailError] = useState("");
   const [notificationError, setNotificationError] = useState("");
   const [notificationSuccess, setNotificationSuccess] = useState("");
+  const [activeTab, setActiveTab] = useState("email");
+  const [showEnableRecoveryModal, setShowEnableRecoveryModal] = useState(false);
+  const [showDisableRecoveryModal, setShowDisableRecoveryModal] = useState(false);
+  const [isEnablingRecovery, setIsEnablingRecovery] = useState(false);
+  const [isDisablingRecovery, setIsDisablingRecovery] = useState(false);
+
+  // Recovery Tracker recipients state
+  const [recoveryRecipients, setRecoveryRecipients] = useState({ to: [], cc: [] });
+  const [showAddRecoveryRecipientModal, setShowAddRecoveryRecipientModal] = useState(false);
+  const [showDeleteRecoveryModal, setShowDeleteRecoveryModal] = useState(false);
+  const [deletingRecoveryId, setDeletingRecoveryId] = useState(null);
+  const [deletingRecoveryEmail, setDeletingRecoveryEmail] = useState("");
+  const [recoveryRecipientType, setRecoveryRecipientType] = useState("to");
+  const [newRecoveryEmail, setNewRecoveryEmail] = useState("");
+  const [recoveryEmailChips, setRecoveryEmailChips] = useState([]);
+  const [recoveryEmailError, setRecoveryEmailError] = useState("");
+  const [isAddingRecoveryRecipient, setIsAddingRecoveryRecipient] = useState(false);
+  const [isDeletingRecoveryRecipient, setIsDeletingRecoveryRecipient] = useState(false);
 
   // Reminder recipients state
   const [reminderRecipients, setReminderRecipients] = useState({ to: [], cc: [] });
@@ -496,16 +532,31 @@ const ReportSetting = ({ accessDenied = false }) => {
 
       if (response.ok) {
         const data = await response.json();
-        setCompanyData(data.data || data);
-        setIsWeeklyNotificationsEnabled(data.data?.is_weekly_report_enabled ?? data?.is_weekly_report_enabled ?? false);
+        const companySettings = data.data || data;
+        setCompanyData(companySettings);
+        setIsWeeklyNotificationsEnabled(companySettings?.is_weekly_report_enabled ?? false);
+        setAutoCheckoutTime(companySettings?.auto_checkout_time ? companySettings.auto_checkout_time.substring(0, 5) : "");
+        setRecoveryPrimaryEmail(companySettings?.recovery_tracker_primary_email || "");
+        setRecoveryCcEmail1(companySettings?.recovery_tracker_cc_email_1 || "");
+        setRecoveryCcEmail2(companySettings?.recovery_tracker_cc_email_2 || "");
       } else {
         // Set defaults on error
         setCompanyData({
           cid: company_id,
           is_check_in_reminder_enabled: false,
-          is_weekly_report_enabled: false
+          is_weekly_report_enabled: false,
+          is_auto_checkout_enabled: false,
+          auto_checkout_time: null,
+          is_recovery_tracker_enabled: false,
+          recovery_tracker_primary_email: null,
+          recovery_tracker_cc_email_1: null,
+          recovery_tracker_cc_email_2: null
         });
         setIsWeeklyNotificationsEnabled(false);
+        setAutoCheckoutTime("");
+        setRecoveryPrimaryEmail("");
+        setRecoveryCcEmail1("");
+        setRecoveryCcEmail2("");
       }
     } catch (error) {
       console.error("Failed to load company settings:", error);
@@ -513,9 +564,19 @@ const ReportSetting = ({ accessDenied = false }) => {
       setCompanyData({
         cid: company_id,
         is_check_in_reminder_enabled: false,
-        is_weekly_report_enabled: false
+        is_weekly_report_enabled: false,
+        is_auto_checkout_enabled: false,
+        auto_checkout_time: null,
+        is_recovery_tracker_enabled: false,
+        recovery_tracker_primary_email: null,
+        recovery_tracker_cc_email_1: null,
+        recovery_tracker_cc_email_2: null
       });
       setIsWeeklyNotificationsEnabled(false);
+      setAutoCheckoutTime("");
+      setRecoveryPrimaryEmail("");
+      setRecoveryCcEmail1("");
+      setRecoveryCcEmail2("");
     }
   };
 
@@ -550,6 +611,97 @@ const ReportSetting = ({ accessDenied = false }) => {
       setNotificationError("Failed to update weekly notifications");
     } finally {
       setIsTogglingWeekly(false);
+    }
+  };
+
+  // Toggle auto checkout
+  const toggleAutoCheckout = () => {
+    if (!companyData?.is_auto_checkout_enabled) {
+      // Enable → open modal to set time first
+      setModalAutoCheckoutTime(autoCheckoutTime || "");
+      setModalAutoCheckoutTimeError("");
+      setShowEnableAutoCheckoutModal(true);
+      return;
+    }
+    // Disable → open confirmation modal
+    setShowDisableAutoCheckoutModal(true);
+  };
+
+  // Confirm enable auto checkout from modal
+  const confirmEnableAutoCheckout = async () => {
+    if (!modalAutoCheckoutTime) {
+      setModalAutoCheckoutTimeError("Please set an auto checkout time");
+      return;
+    }
+    setIsEnablingAutoCheckout(true);
+    setModalAutoCheckoutTimeError("");
+    try {
+      const companyId = localStorage.getItem("companyID");
+      const merged = {
+        ...companyData,
+        is_auto_checkout_enabled: true,
+        auto_checkout_time: `${modalAutoCheckoutTime}:00`,
+      };
+      const formData = new FormData();
+      formData.append("company_data", JSON.stringify(merged));
+      await updateProfile(companyId, formData);
+      setCompanyData({ ...companyData, is_auto_checkout_enabled: true, auto_checkout_time: `${modalAutoCheckoutTime}:00` });
+      setAutoCheckoutTime(modalAutoCheckoutTime);
+      setAutoCheckoutSuccess("Auto checkout enabled");
+      setShowEnableAutoCheckoutModal(false);
+    } catch (error) {
+      console.error("Failed to enable auto checkout:", error);
+      setModalAutoCheckoutTimeError("Failed to enable auto checkout. Please try again.");
+    } finally {
+      setIsEnablingAutoCheckout(false);
+    }
+  };
+
+  // Confirm disable auto checkout from modal
+  const confirmDisableAutoCheckout = async () => {
+    setIsDisablingAutoCheckout(true);
+    setAutoCheckoutError("");
+    try {
+      const companyId = localStorage.getItem("companyID");
+      const merged = { ...companyData, is_auto_checkout_enabled: false };
+      const formData = new FormData();
+      formData.append("company_data", JSON.stringify(merged));
+      await updateProfile(companyId, formData);
+      setCompanyData({ ...companyData, is_auto_checkout_enabled: false });
+      setAutoCheckoutSuccess("Auto checkout disabled");
+      setShowDisableAutoCheckoutModal(false);
+    } catch (error) {
+      console.error("Failed to disable auto checkout:", error);
+      setAutoCheckoutError("Failed to disable auto checkout");
+    } finally {
+      setIsDisablingAutoCheckout(false);
+    }
+  };
+
+  // Save auto checkout time
+  const saveAutoCheckoutTime = async () => {
+    if (!autoCheckoutTime) {
+      setAutoCheckoutError("Please enter a valid time");
+      return;
+    }
+    setIsSavingAutoCheckoutTime(true);
+    setAutoCheckoutError("");
+    try {
+      const companyId = localStorage.getItem("companyID");
+      const merged = {
+        ...companyData,
+        auto_checkout_time: `${autoCheckoutTime}:00`,
+      };
+      const formData = new FormData();
+      formData.append("company_data", JSON.stringify(merged));
+      await updateProfile(companyId, formData);
+      setCompanyData({ ...companyData, auto_checkout_time: `${autoCheckoutTime}:00` });
+      setAutoCheckoutSuccess("Auto checkout time saved");
+    } catch (error) {
+      console.error("Failed to save auto checkout time:", error);
+      setAutoCheckoutError("Failed to save auto checkout time");
+    } finally {
+      setIsSavingAutoCheckoutTime(false);
     }
   };
 
@@ -681,6 +833,7 @@ const ReportSetting = ({ accessDenied = false }) => {
       const company = data.company || data;
       setCompanyData(company);
       setIsWeeklyNotificationsEnabled(company.is_weekly_report_enabled ?? false);
+      setAutoCheckoutTime(company.auto_checkout_time ? company.auto_checkout_time.substring(0, 5) : "");
 
       // Set report frequency and salary report start date (replaces loadViewSetting)
       const freq = company.report_type || "";
@@ -694,6 +847,13 @@ const ReportSetting = ({ accessDenied = false }) => {
       // Set weekly report CC recipients (replaces loadGlobalCCRecipients)
       setGlobalCCRecipients(Array.isArray(data.weekly_cc_recipients) ? data.weekly_cc_recipients : []);
 
+      // Load recovery tracker recipients if enabled
+      if (company.is_recovery_tracker_enabled) {
+        await loadRecoveryRecipients();
+      } else {
+        setRecoveryRecipients({ to: [], cc: [] });
+      }
+
       setIsViewSettingsLoading(false);
     } catch (error) {
       console.error("Failed to load page settings:", error);
@@ -705,6 +865,7 @@ const ReportSetting = ({ accessDenied = false }) => {
       setSalaryReportStartDate("");
       setReminderRecipients({ to: [], cc: [] });
       setGlobalCCRecipients([]);
+      setRecoveryRecipients({ to: [], cc: [] });
       setIsViewSettingsLoading(false);
     }
   };
@@ -796,6 +957,116 @@ const ReportSetting = ({ accessDenied = false }) => {
     } catch (error) {
       console.error("Failed to remove reminder recipient:", error);
       setNotificationError("Failed to remove reminder recipient");
+    }
+  };
+
+  // Load recovery tracker recipients
+  const loadRecoveryRecipients = async () => {
+    if (typeof window === "undefined") return;
+    const company_id = localStorage.getItem("companyID") || "";
+
+    try {
+      const data = await getRecoveryTrackerRecipients(company_id);
+      setRecoveryRecipients(data || { to: [], cc: [] });
+    } catch (error) {
+      console.error("Failed to load recovery tracker recipients:", error);
+      setRecoveryRecipients({ to: [], cc: [] });
+    }
+  };
+
+  // Add email to recovery recipient chips
+  const addRecoveryEmailChip = () => {
+    const email = newRecoveryEmail.trim();
+
+    if (!email) {
+      setRecoveryEmailError("Email address cannot be empty");
+      return;
+    }
+
+    // Validate email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setRecoveryEmailError("Please enter a valid email address");
+      return;
+    }
+
+    // Check for duplicates
+    if (recoveryEmailChips.includes(email)) {
+      setRecoveryEmailError("This email is already added");
+      return;
+    }
+
+    // Add to chips
+    setRecoveryEmailChips([...recoveryEmailChips, email]);
+    setNewRecoveryEmail("");
+    setRecoveryEmailError("");
+  };
+
+  // Remove email from recovery recipient chips
+  const removeRecoveryEmailChip = (email) => {
+    setRecoveryEmailChips(recoveryEmailChips.filter(e => e !== email));
+  };
+
+  // Add recovery tracker recipients from chips
+  const handleAddRecoveryRecipient = async () => {
+    if (recoveryEmailChips.length === 0) {
+      setRecoveryEmailError("Please add at least one email");
+      return;
+    }
+
+    const company_id = localStorage.getItem("companyID") || "";
+    setIsAddingRecoveryRecipient(true);
+    setRecoveryEmailError("");
+
+    try {
+      // Add all emails from chips
+      for (const email of recoveryEmailChips) {
+        await addRecoveryTrackerRecipient(company_id, email, recoveryRecipientType);
+      }
+
+      setNotificationSuccess(
+        recoveryEmailChips.length === 1
+          ? `Recipient added successfully`
+          : `${recoveryEmailChips.length} recipients added successfully`
+      );
+      setShowAddRecoveryRecipientModal(false);
+      setNewRecoveryEmail("");
+      setRecoveryEmailChips([]);
+      await loadRecoveryRecipients();
+      setTimeout(() => setNotificationSuccess(""), 3000);
+    } catch (error) {
+      console.error("Failed to add recovery tracker recipient:", error);
+      setNotificationError("Failed to add recovery tracker recipient");
+    } finally {
+      setIsAddingRecoveryRecipient(false);
+    }
+  };
+
+  // Open delete confirmation modal for recovery tracker recipient
+  const openDeleteRecoveryModal = (recipientId, email) => {
+    setDeletingRecoveryId(recipientId);
+    setDeletingRecoveryEmail(email);
+    setShowDeleteRecoveryModal(true);
+  };
+
+  // Confirm delete recovery tracker recipient
+  const confirmDeleteRecoveryRecipient = async () => {
+    const company_id = localStorage.getItem("companyID") || "";
+
+    setIsDeletingRecoveryRecipient(true);
+    try {
+      await removeRecoveryTrackerRecipient(company_id, deletingRecoveryId);
+      setNotificationSuccess("Recipient removed successfully");
+      setShowDeleteRecoveryModal(false);
+      setDeletingRecoveryId(null);
+      setDeletingRecoveryEmail("");
+      await loadRecoveryRecipients();
+      setTimeout(() => setNotificationSuccess(""), 3000);
+    } catch (error) {
+      console.error("Failed to remove recovery tracker recipient:", error);
+      setNotificationError("Failed to remove recovery tracker recipient");
+    } finally {
+      setIsDeletingRecoveryRecipient(false);
     }
   };
 
@@ -895,11 +1166,13 @@ const ReportSetting = ({ accessDenied = false }) => {
                   Configure email notifications and report frequencies
                 </p>
               </div>
-              <Button onClick={openAddModal} className="flex items-center justify-center gap-2 w-full sm:w-auto">
-                <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">Add Setting</span>
-                <span className="sm:hidden">Add</span>
-              </Button>
+              {activeTab === "email" && (
+                <Button onClick={openAddModal} className="flex items-center justify-center gap-2 w-full sm:w-auto">
+                  <Plus className="w-4 h-4" />
+                  <span className="hidden sm:inline">Add Setting</span>
+                  <span className="sm:hidden">Add</span>
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -999,8 +1272,35 @@ const ReportSetting = ({ accessDenied = false }) => {
             </div>
           </div>
 
+          {/* Sub-navbar */}
+          <div className="border-b mb-6 bg-white rounded-t-lg shadow-sm">
+            <nav className="flex space-x-1 sm:space-x-2 overflow-x-auto px-4">
+              {[
+                { key: "email",        label: "Email Reports",    short: "Reports",  icon: Mail     },
+                { key: "consolidated", label: "Report Schedule",  short: "Schedule", icon: Calendar },
+                { key: "notifications",label: "Notifications",    short: "Notifs",   icon: Users    },
+                { key: "company",      label: "Company Settings", short: "Company",  icon: Settings },
+                { key: "checkout",     label: "Auto Checkout",    short: "Checkout", icon: Check    },
+              ].map(({ key, label, short, icon: Icon }) => (
+                <button
+                  key={key}
+                  onClick={() => setActiveTab(key)}
+                  className={`py-3 sm:py-4 px-2 sm:px-3 border-b-2 font-medium text-xs sm:text-sm flex items-center gap-1 sm:gap-2 whitespace-nowrap transition-colors ${
+                    activeTab === key
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
+                  }`}
+                >
+                  <Icon className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">{label}</span>
+                  <span className="sm:hidden">{short}</span>
+                </button>
+              ))}
+            </nav>
+          </div>
+
           {/* Email Settings */}
-          <Card className="mb-8">
+          {activeTab === "email" && <Card className="mb-8">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Mail className="w-5 h-5" />
@@ -1018,14 +1318,6 @@ const ReportSetting = ({ accessDenied = false }) => {
                   <p className="text-xs sm:text-sm text-muted-foreground mb-6 px-4">
                     {searchQuery ? "Try adjusting your search criteria." : "Get started by adding your first email setting."}
                   </p>
-                  {!searchQuery && (
-                    <div className="flex justify-center">
-                      <Button onClick={openAddModal} className="flex items-center justify-center gap-2 w-full sm:w-auto">
-                        <Plus className="w-4 h-4" />
-                        Add Email Setting
-                      </Button>
-                    </div>
-                  )}
                 </div>
               ) : (
                 viewMode === "grid" ? (
@@ -1129,10 +1421,10 @@ const ReportSetting = ({ accessDenied = false }) => {
                 )
               )}
             </CardContent>
-          </Card>
+          </Card>}
 
           {/* Salary-report schedule */}
-          <Card className="mb-8">
+          {activeTab === "consolidated" && <Card className="mb-8">
             <CardHeader className="flex flex-row items-start justify-between gap-4">
               <div>
                 <CardTitle className="flex items-center gap-2">
@@ -1171,10 +1463,10 @@ const ReportSetting = ({ accessDenied = false }) => {
                 <p className="text-sm text-muted-foreground italic">No salary report frequency configured.</p>
               )}
             </CardContent>
-          </Card>
+          </Card>}
 
           {/* Employee Notifications Section */}
-          <Card className="mb-8">
+          {activeTab === "notifications" && <Card className="mb-8">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5" />
@@ -1213,7 +1505,13 @@ const ReportSetting = ({ accessDenied = false }) => {
                       </p>
                     </div>
                     <Button
-                      onClick={toggleWeeklyNotifications}
+                      onClick={() => {
+                        if (isWeeklyNotificationsEnabled) {
+                          setShowDisableWeeklyModal(true);
+                        } else {
+                          toggleWeeklyNotifications();
+                        }
+                      }}
                       disabled={isTogglingWeekly}
                       className={isTogglingWeekly
                         ? "bg-gray-400 cursor-not-allowed text-white"
@@ -1274,10 +1572,10 @@ const ReportSetting = ({ accessDenied = false }) => {
                 </div>
               )}
             </CardContent>
-          </Card>
+          </Card>}
 
           {/* Company Settings Section */}
-          <Card>
+          {activeTab === "company" && <Card className="mb-8">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Settings className="w-5 h-5" />
@@ -1287,8 +1585,10 @@ const ReportSetting = ({ accessDenied = false }) => {
                 Configure check-in reminders and email settings
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="divide-y divide-gray-100">
+            <CardContent className="space-y-6">
+              {/* Check-In Reminders Section */}
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <div className="divide-y divide-gray-100">
                 {/* Check-In Reminders toggle */}
                 <div className="flex items-center justify-between py-4 first:pt-0 last:pb-0">
                   <div>
@@ -1300,26 +1600,24 @@ const ReportSetting = ({ accessDenied = false }) => {
                     </p>
                   </div>
                   <Button
-                    onClick={async () => {
-                      setIsTogglingCheckIn(true);
-                      try {
+                    onClick={() => {
+                      if (companyData?.is_check_in_reminder_enabled) {
+                        setShowDisableCheckInModal(true);
+                      } else {
+                        // Enable directly (no modal needed)
+                        setIsTogglingCheckIn(true);
                         const companyId = localStorage.getItem("companyID");
-                        const newValue = !companyData?.is_check_in_reminder_enabled;
-
-                        const merged = { ...companyData, is_check_in_reminder_enabled: newValue };
+                        const merged = { ...companyData, is_check_in_reminder_enabled: true };
                         const formData = new FormData();
                         formData.append("company_data", JSON.stringify(merged));
-
-                        await updateProfile(companyId, formData);
-                        setCompanyData({
-                          ...companyData,
-                          is_check_in_reminder_enabled: newValue
+                        updateProfile(companyId, formData).then(() => {
+                          setCompanyData({ ...companyData, is_check_in_reminder_enabled: true });
+                          setIsTogglingCheckIn(false);
+                        }).catch((error) => {
+                          console.error("Failed to enable check-in reminders:", error);
+                          alert("Failed to enable check-in reminders");
+                          setIsTogglingCheckIn(false);
                         });
-                      } catch (error) {
-                        console.error("Failed to update check-in reminder setting:", error);
-                        alert("Failed to update check-in reminder setting");
-                      } finally {
-                        setIsTogglingCheckIn(false);
                       }
                     }}
                     disabled={isTogglingCheckIn}
@@ -1425,31 +1723,781 @@ const ReportSetting = ({ accessDenied = false }) => {
                     </div>
                   </div>
                 )}
+                </div>
+              </div>
 
-                {/* Mail Configuration */}
-                <div className="flex items-center justify-between py-4">
+              {/* Recovery Tracker Section */}
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <div className="divide-y divide-gray-100">
+                {/* Recovery Tracker (Second-Level Reminder) toggle */}
+                <div className="flex items-center justify-between py-4 first:pt-0 last:pb-0">
                   <div>
-                    <p className="font-medium text-gray-900">Mail Configuration</p>
+                    <p className="font-medium text-gray-900">Recovery Tracker</p>
                     <p className="text-sm text-gray-500 mt-0.5">
-                      SMTP server and sender configuration
+                      {companyData?.is_recovery_tracker_enabled
+                        ? "Enabled — escalation emails for unresolved auto-checkouts"
+                        : "Disabled — no recovery tracker escalations"}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded text-sm font-medium">Configured</span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                  </div>
+                  <Button
+                    onClick={() => {
+                      if (companyData?.is_recovery_tracker_enabled) {
+                        setShowDisableRecoveryModal(true);
+                      } else {
+                        setShowEnableRecoveryModal(true);
+                      }
+                    }}
+                    disabled={isEnablingRecovery || isDisablingRecovery}
+                    className={isEnablingRecovery || isDisablingRecovery
+                      ? "bg-gray-400 cursor-not-allowed text-white"
+                      : companyData?.is_recovery_tracker_enabled
+                      ? "bg-red-600 hover:bg-red-700 text-white"
+                      : "bg-primary hover:bg-primary/90 text-white"}
+                  >
+                    {isEnablingRecovery || isDisablingRecovery ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      companyData?.is_recovery_tracker_enabled ? "Disable" : "Enable"
+                    )}
+                  </Button>
                 </div>
+
+                {/* Recovery Tracker Recipients — only shown when enabled */}
+                {companyData?.is_recovery_tracker_enabled && (
+                  <div className="py-4 space-y-4">
+                    <p className="font-medium text-gray-900">Recovery Tracker Recipients</p>
+
+                    {/* To Recipients */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium">To Recipients</Label>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setRecoveryRecipientType("to");
+                            setShowAddRecoveryRecipientModal(true);
+                          }}
+                          className="h-8 px-2"
+                        >
+                          <Plus className="w-4 h-4 mr-1" />
+                          Add
+                        </Button>
+                      </div>
+                      {recoveryRecipients.to.length > 0 ? (
+                        <div className="space-y-2">
+                          {recoveryRecipients.to.map((recipient) => (
+                            <div
+                              key={recipient.id}
+                              className="flex items-center justify-between p-2 bg-white rounded border border-blue-200"
+                            >
+                              <span className="text-sm font-medium text-gray-900">{recipient.email}</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openDeleteRecoveryModal(recipient.id, recipient.email)}
+                                className="text-red-600 hover:text-red-700 h-6 w-6 p-0"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-500 italic">No To recipients added</p>
+                      )}
+                    </div>
+
+                    {/* CC Recipients */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm font-medium">CC Recipients (Optional)</Label>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setRecoveryRecipientType("cc");
+                            setShowAddRecoveryRecipientModal(true);
+                          }}
+                          className="h-8 px-2"
+                        >
+                          <Plus className="w-4 h-4 mr-1" />
+                          Add
+                        </Button>
+                      </div>
+                      {recoveryRecipients.cc.length > 0 ? (
+                        <div className="space-y-2">
+                          {recoveryRecipients.cc.map((recipient) => (
+                            <div
+                              key={recipient.id}
+                              className="flex items-center justify-between p-2 bg-white rounded border border-blue-200"
+                            >
+                              <span className="text-sm font-medium text-gray-900">{recipient.email}</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openDeleteRecoveryModal(recipient.id, recipient.email)}
+                                className="text-red-600 hover:text-red-700 h-6 w-6 p-0"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-500 italic">No CC recipients added</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>}
+
+          {/* Auto Checkout Card */}
+          {activeTab === "checkout" && <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="w-5 h-5" />
+                Auto Checkout
+              </CardTitle>
+              <CardDescription>
+                Automatically check out employees who forget to check out at end of day
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="divide-y divide-gray-100">
+
+                {/* Toggle row */}
+                <div className="flex items-center justify-between py-4 first:pt-0">
+                  <div>
+                    <p className="font-medium text-gray-900">Auto Checkout</p>
+                    <p className="text-sm text-gray-500 mt-0.5">
+                      {companyData?.is_auto_checkout_enabled
+                        ? "Enabled — employees are auto checked out at the configured time"
+                        : "Disabled — no automatic checkout"}
+                    </p>
+                  </div>
+                  <Button
+                    onClick={toggleAutoCheckout}
+                    disabled={isTogglingAutoCheckout}
+                    className={isTogglingAutoCheckout
+                      ? "bg-gray-400 cursor-not-allowed text-white"
+                      : companyData?.is_auto_checkout_enabled
+                      ? "bg-red-600 hover:bg-red-700 text-white"
+                      : "bg-primary hover:bg-primary/90 text-white"}
+                  >
+                    {isTogglingAutoCheckout
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : companyData?.is_auto_checkout_enabled ? "Disable" : "Enable"}
+                  </Button>
+                </div>
+
+                {/* Error / success feedback */}
+                {(autoCheckoutError || autoCheckoutSuccess) && (
+                  <div className={`p-3 my-2 rounded-md flex items-start gap-2 ${autoCheckoutError ? "bg-red-50 border border-red-200" : "bg-green-50 border border-green-200"}`}>
+                    {autoCheckoutError
+                      ? <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                      : <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />}
+                    <p className={`text-sm ${autoCheckoutError ? "text-red-600" : "text-green-600"}`}>
+                      {autoCheckoutError || autoCheckoutSuccess}
+                    </p>
+                  </div>
+                )}
+
+                {/* Time picker — only when enabled */}
+                {companyData?.is_auto_checkout_enabled && (
+                  <div className="py-4 space-y-3 last:pb-0">
+                    <p className="font-medium text-gray-900">Auto Checkout Time</p>
+                    <p className="text-sm text-gray-500">
+                      Employees who have not checked out by this time will be automatically checked out.
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        type="time"
+                        value={autoCheckoutTime}
+                        onChange={(e) => {
+                          setAutoCheckoutTime(e.target.value);
+                          setAutoCheckoutError("");
+                          setAutoCheckoutSuccess("");
+                        }}
+                        className="w-40 text-sm"
+                      />
+                      <Button
+                        onClick={saveAutoCheckoutTime}
+                        disabled={isSavingAutoCheckoutTime}
+                        size="sm"
+                        className="bg-primary hover:bg-primary/90 text-white"
+                      >
+                        {isSavingAutoCheckoutTime
+                          ? <Loader2 className="w-4 h-4 animate-spin" />
+                          : "Save Time"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            </CardContent>
+          </Card>}
+        </div>
+      </div>
+
+      {/* Enable Recovery Tracker Modal */}
+      {showEnableRecoveryModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Settings className="w-5 h-5" />
+                Enable Recovery Tracker
+              </CardTitle>
+              <CardDescription className="text-sm">
+                Configure escalation emails for unresolved auto-checkouts
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Add recipients after enabling the recovery tracker.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowEnableRecoveryModal(false)}
+                  className="flex-1 order-2 sm:order-1"
+                  disabled={isEnablingRecovery}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={async () => {
+                    setIsEnablingRecovery(true);
+                    try {
+                      const companyId = localStorage.getItem("companyID");
+                      const merged = {
+                        ...companyData,
+                        is_recovery_tracker_enabled: true
+                      };
+                      const formData = new FormData();
+                      formData.append("company_data", JSON.stringify(merged));
+                      await updateProfile(companyId, formData);
+                      setCompanyData(merged);
+                      setShowEnableRecoveryModal(false);
+                      setNotificationSuccess("Recovery Tracker enabled");
+                      await loadRecoveryRecipients();
+                    } catch (error) {
+                      console.error("Failed to enable recovery tracker:", error);
+                      setNotificationError("Failed to enable recovery tracker");
+                    } finally {
+                      setIsEnablingRecovery(false);
+                    }
+                  }}
+                  disabled={isEnablingRecovery}
+                  className="flex-1 order-1 sm:order-2 bg-primary hover:bg-primary/90 text-white"
+                >
+                  {isEnablingRecovery ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Enabling...
+                    </>
+                  ) : (
+                    "Enable"
+                  )}
+                </Button>
               </div>
             </CardContent>
           </Card>
         </div>
-      </div>
+      )}
+
+      {/* Disable Recovery Tracker Modal */}
+      {showDisableRecoveryModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+                Disable Recovery Tracker
+              </CardTitle>
+              <CardDescription className="text-sm">
+                Are you sure you want to disable recovery tracker?
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-gray-600">
+                No escalation emails will be sent for unresolved auto-checkouts from 2 days ago.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDisableRecoveryModal(false)}
+                  className="flex-1 order-2 sm:order-1"
+                  disabled={isDisablingRecovery}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={async () => {
+                    setIsDisablingRecovery(true);
+                    try {
+                      const companyId = localStorage.getItem("companyID");
+                      const merged = { ...companyData, is_recovery_tracker_enabled: false };
+                      const formData = new FormData();
+                      formData.append("company_data", JSON.stringify(merged));
+                      await updateProfile(companyId, formData);
+                      setCompanyData(merged);
+                      setShowDisableRecoveryModal(false);
+                      setNotificationSuccess("Recovery Tracker disabled");
+                    } catch (error) {
+                      console.error("Failed to disable recovery tracker:", error);
+                      setNotificationError("Failed to disable recovery tracker");
+                    } finally {
+                      setIsDisablingRecovery(false);
+                    }
+                  }}
+                  disabled={isDisablingRecovery}
+                  className="flex-1 order-1 sm:order-2 bg-red-600 hover:bg-red-700"
+                >
+                  {isDisablingRecovery ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Disabling...
+                    </>
+                  ) : (
+                    "Disable"
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Add Recovery Tracker Recipient Modal */}
+      {showAddRecoveryRecipientModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Plus className="w-5 h-5" />
+                Add Recovery Tracker Recipient
+              </CardTitle>
+              <CardDescription className="text-sm">
+                Add a {recoveryRecipientType === 'to' ? 'To' : 'CC'} recipient for recovery tracker escalations
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Recipient Type</Label>
+                <div className="flex gap-2">
+                  <Button
+                    variant={recoveryRecipientType === 'to' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setRecoveryRecipientType('to')}
+                  >
+                    To
+                  </Button>
+                  <Button
+                    variant={recoveryRecipientType === 'cc' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setRecoveryRecipientType('cc')}
+                  >
+                    CC
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Email Address(es) *</Label>
+
+                {/* Display email chips */}
+                {recoveryEmailChips.length > 0 && (
+                  <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-md min-h-12">
+                    {recoveryEmailChips.map((email, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-2 px-3 py-1 bg-primary text-white rounded-full text-sm"
+                      >
+                        <span>{email}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeRecoveryEmailChip(email)}
+                          className="hover:bg-primary/80 rounded-full w-5 h-5 flex items-center justify-center"
+                          title="Remove email"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Input with + button */}
+                <div className="flex gap-2">
+                  <Input
+                    id="recoveryEmail"
+                    type="email"
+                    value={newRecoveryEmail}
+                    onChange={(e) => {
+                      setNewRecoveryEmail(e.target.value);
+                      setRecoveryEmailError("");
+                    }}
+                    onKeyPress={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addRecoveryEmailChip();
+                      }
+                    }}
+                    placeholder="Enter email address"
+                    className="flex-1 text-sm"
+                  />
+                  <Button
+                    type="button"
+                    onClick={addRecoveryEmailChip}
+                    className="px-3 bg-primary hover:bg-primary/90 text-white"
+                    title="Add email"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                {recoveryEmailError && <p className="text-sm text-red-600">{recoveryEmailError}</p>}
+              </div>
+
+              {notificationError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-red-600">{notificationError}</p>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowAddRecoveryRecipientModal(false);
+                    setNewRecoveryEmail("");
+                    setRecoveryEmailChips([]);
+                    setRecoveryEmailError("");
+                  }}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleAddRecoveryRecipient}
+                  disabled={isAddingRecoveryRecipient}
+                  className={`flex-1 ${isAddingRecoveryRecipient ? "opacity-75 cursor-not-allowed" : ""}`}
+                >
+                  {isAddingRecoveryRecipient ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
+                      Adding...
+                    </>
+                  ) : (
+                    "Add Recipient"
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Delete Recovery Tracker Recipient Confirmation Modal */}
+      {showDeleteRecoveryModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+                Remove Recipient
+              </CardTitle>
+              <CardDescription className="text-sm">
+                Are you sure you want to remove this recipient?
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-gray-600">
+                This will remove <strong>{deletingRecoveryEmail}</strong> from the recovery tracker recipients list.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowDeleteRecoveryModal(false);
+                    setDeletingRecoveryId(null);
+                    setDeletingRecoveryEmail("");
+                  }}
+                  className="flex-1 order-2 sm:order-1"
+                  disabled={isDeletingRecoveryRecipient}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={confirmDeleteRecoveryRecipient}
+                  disabled={isDeletingRecoveryRecipient}
+                  className="flex-1 order-1 sm:order-2 bg-red-600 hover:bg-red-700 text-white"
+                >
+                  {isDeletingRecoveryRecipient ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Removing...
+                    </>
+                  ) : (
+                    "Remove"
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Disable Check-In Reminders Modal */}
+      {showDisableCheckInModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+                Disable Check-In Reminders
+              </CardTitle>
+              <CardDescription className="text-sm">
+                Are you sure you want to disable check-in reminders?
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Employees will no longer receive daily check-in reminder emails.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDisableCheckInModal(false)}
+                  className="flex-1 order-2 sm:order-1"
+                  disabled={isDisablingCheckIn}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={async () => {
+                    setIsDisablingCheckIn(true);
+                    try {
+                      const companyId = localStorage.getItem("companyID");
+                      const merged = { ...companyData, is_check_in_reminder_enabled: false };
+                      const formData = new FormData();
+                      formData.append("company_data", JSON.stringify(merged));
+                      await updateProfile(companyId, formData);
+                      setCompanyData({ ...companyData, is_check_in_reminder_enabled: false });
+                      setNotificationSuccess("Check-in reminders disabled");
+                      setShowDisableCheckInModal(false);
+                    } catch (error) {
+                      console.error("Failed to disable check-in reminders:", error);
+                      setNotificationError("Failed to disable check-in reminders");
+                    } finally {
+                      setIsDisablingCheckIn(false);
+                    }
+                  }}
+                  disabled={isDisablingCheckIn}
+                  className="flex-1 order-1 sm:order-2 bg-red-600 hover:bg-red-700"
+                >
+                  {isDisablingCheckIn ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Disabling...
+                    </>
+                  ) : (
+                    "Disable"
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Disable Weekly Notifications Modal */}
+      {showDisableWeeklyModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+                Disable Weekly Notifications
+              </CardTitle>
+              <CardDescription className="text-sm">
+                Are you sure you want to disable weekly reports?
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Employees will no longer receive weekly report emails.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDisableWeeklyModal(false)}
+                  className="flex-1 order-2 sm:order-1"
+                  disabled={isDisablingWeekly}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={async () => {
+                    setIsDisablingWeekly(true);
+                    try {
+                      const companyId = localStorage.getItem("companyID");
+                      const merged = { ...companyData, is_weekly_report_enabled: false };
+                      const formData = new FormData();
+                      formData.append("company_data", JSON.stringify(merged));
+                      await updateProfile(companyId, formData);
+                      setIsWeeklyNotificationsEnabled(false);
+                      setNotificationSuccess("Weekly reports disabled");
+                      setShowDisableWeeklyModal(false);
+                    } catch (error) {
+                      console.error("Failed to disable weekly notifications:", error);
+                      setNotificationError("Failed to disable weekly notifications");
+                    } finally {
+                      setIsDisablingWeekly(false);
+                    }
+                  }}
+                  disabled={isDisablingWeekly}
+                  className="flex-1 order-1 sm:order-2 bg-red-600 hover:bg-red-700"
+                >
+                  {isDisablingWeekly ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Disabling...
+                    </>
+                  ) : (
+                    "Disable"
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Enable Auto Checkout Modal */}
+      {showEnableAutoCheckoutModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Settings className="w-5 h-5" />
+                Enable Auto Checkout
+              </CardTitle>
+              <CardDescription className="text-sm">
+                Set the time at which employees will be automatically checked out each day
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="auto-checkout-time" className="text-sm font-medium">
+                  Auto Checkout Time *
+                </Label>
+                <Input
+                  id="auto-checkout-time"
+                  type="time"
+                  value={modalAutoCheckoutTime}
+                  onChange={(e) => {
+                    setModalAutoCheckoutTime(e.target.value);
+                    setModalAutoCheckoutTimeError("");
+                  }}
+                  className={`text-sm ${modalAutoCheckoutTimeError ? "border-red-500" : ""}`}
+                />
+                {modalAutoCheckoutTimeError && (
+                  <p className="text-sm text-red-600">{modalAutoCheckoutTimeError}</p>
+                )}
+                <p className="text-xs text-gray-500">
+                  Employees who haven't checked out by this time will be automatically checked out the following morning.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowEnableAutoCheckoutModal(false)}
+                  className="flex-1 order-2 sm:order-1"
+                  disabled={isEnablingAutoCheckout}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={confirmEnableAutoCheckout}
+                  disabled={isEnablingAutoCheckout}
+                  className="flex-1 order-1 sm:order-2"
+                >
+                  {isEnablingAutoCheckout ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Enabling...
+                    </>
+                  ) : (
+                    "Enable"
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Disable Auto Checkout Modal */}
+      {showDisableAutoCheckoutModal && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+                Disable Auto Checkout
+              </CardTitle>
+              <CardDescription className="text-sm">
+                Are you sure you want to disable auto checkout?
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Employees will no longer be automatically checked out at the end of the day and will need to manually check out.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDisableAutoCheckoutModal(false)}
+                  className="flex-1 order-2 sm:order-1"
+                  disabled={isDisablingAutoCheckout}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={confirmDisableAutoCheckout}
+                  disabled={isDisablingAutoCheckout}
+                  className="flex-1 order-1 sm:order-2 bg-red-600 hover:bg-red-700"
+                >
+                  {isDisablingAutoCheckout ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Disabling...
+                    </>
+                  ) : (
+                    "Disable"
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Add Modal */}
       {showAddModal && (
