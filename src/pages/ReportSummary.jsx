@@ -8,7 +8,7 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { fetchEmployeeData, fetchDevices, fetchDailyReport, fetchDateRangeReport, createDailyReportEntry, updateDailyReportEntry, correctDailyReportEntry, deleteDailyReportEntry, processPendingCheckout } from "../api.js";
+import { fetchEmployeeData, fetchDevices, fetchDailyReport, fetchDateRangeReport, createDailyReportEntry, updateDailyReportEntry, correctDailyReportEntry, deleteDailyReportEntry, processPendingCheckout, fetchReportHistory } from "../api.js";
 import { getLocalDateString } from "../utils";
 import {
   Calendar,
@@ -30,7 +30,8 @@ import {
   Plus,
   X,
   Pencil,
-  Trash2
+  Trash2,
+  History
 } from "lucide-react";
 import { HamburgerIcon } from "../components/icons/HamburgerIcon";
 import { GridIcon } from "../components/icons/GridIcon";
@@ -55,7 +56,7 @@ const Reports = () => {
   const [paginatedData, setPaginatedData] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(5);
+  const [pageSize, setPageSize] = useState(10);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [viewMode, setViewMode] = useState("table");
   const [pendingPageSize, setPendingPageSize] = useState(10);
@@ -139,6 +140,13 @@ const Reports = () => {
     totalRecords: 0,
     totalHours: "0.0"
   });
+
+  // History modal state
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historyRecord, setHistoryRecord] = useState(null);
+  const [historyItems, setHistoryItems] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
 
   // Modal close events disabled - modals only close via buttons
 
@@ -1293,6 +1301,23 @@ const Reports = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const openHistory = async (record) => {
+    if (!record?.RecordID) return;
+    setHistoryRecord(record);
+    setHistoryItems([]);
+    setHistoryError("");
+    setHistoryLoading(true);
+    setShowHistoryModal(true);
+    try {
+      const data = await fetchReportHistory(record.RecordID);
+      setHistoryItems(data.items || []);
+    } catch (err) {
+      setHistoryError(err instanceof Error ? err.message : "Unable to load history");
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
@@ -1752,7 +1777,7 @@ const Reports = () => {
                                     Check Out
                                   </Button>
                                 )}
-                                {canManageReports && <div className="mt-2 flex gap-2"><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="flex-1 text-xs"><Pencil className="mr-1 h-3 w-3" />Edit</Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="flex-1 text-xs text-red-600 hover:text-red-700"><Trash2 className="mr-1 h-3 w-3" />Delete</Button></div>}
+                                {canManageReports && <div className="mt-2 flex gap-2"><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="flex-1 text-xs"><Pencil className="mr-1 h-3 w-3" />Edit</Button><Button variant="outline" size="sm" onClick={() => openHistory(record)} className="flex-1 text-xs"><History className="mr-1 h-3 w-3" />History</Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="flex-1 text-xs text-red-600 hover:text-red-700"><Trash2 className="mr-1 h-3 w-3" />Delete</Button></div>}
                               </div>
                             </CardContent>
                           </Card>
@@ -1817,7 +1842,7 @@ const Reports = () => {
                                   </td>
                                   <td className="p-2 sm:p-4">
                                     <div className="flex items-center justify-center gap-2">
-                                      {canManageReports && <><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="w-12"><Pencil className="h-3.5 w-3.5" /></Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="w-12 text-red-600 hover:text-red-700"><Trash2 className="h-3.5 w-3.5" /></Button></>}
+                                      {canManageReports && <><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="w-12"><Pencil className="h-3.5 w-3.5" /></Button><Button variant="outline" size="sm" onClick={() => openHistory(record)} className="w-12"><History className="h-3.5 w-3.5" /></Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="w-12 text-red-600 hover:text-red-700"><Trash2 className="h-3.5 w-3.5" /></Button></>}
                                       <Button
                                         onClick={() => handleCheckout(record)}
                                         disabled={hasCheckout || !selectedTime || checkoutError}
@@ -2009,7 +2034,7 @@ const Reports = () => {
                                 </td>
                                 <td className="p-2 sm:p-4">{getStatusBadge(record)}</td>
                                 <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium">{record.TimeWorked}</td>
-                                {canManageReports && <td className="p-2 sm:p-4"><div className="flex items-center justify-center gap-2"><Button variant="outline" size="sm" onClick={() => openEditReport(record)}><Pencil className="h-3.5 w-3.5" /></Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="text-red-600 hover:text-red-700"><Trash2 className="h-3.5 w-3.5" /></Button></div></td>}
+                                {canManageReports && <td className="p-2 sm:p-4"><div className="flex items-center justify-center gap-2"><Button variant="outline" size="sm" onClick={() => openEditReport(record)}><Pencil className="h-3.5 w-3.5" /></Button><Button variant="outline" size="sm" onClick={() => openHistory(record)}><History className="h-3.5 w-3.5" /></Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="text-red-600 hover:text-red-700"><Trash2 className="h-3.5 w-3.5" /></Button></div></td>}
                               </tr>
                             ))}
                           </tbody>
@@ -2337,7 +2362,7 @@ const Reports = () => {
                                 >
                                   Check Out
                                 </Button>
-                                {canManageReports && <div className="mt-2 flex gap-2"><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="flex-1 text-xs"><Pencil className="mr-1 h-3 w-3" />Edit</Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="flex-1 text-xs text-red-600 hover:text-red-700"><Trash2 className="mr-1 h-3 w-3" />Delete</Button></div>}
+                                {canManageReports && <div className="mt-2 flex gap-2"><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="flex-1 text-xs"><Pencil className="mr-1 h-3 w-3" />Edit</Button><Button variant="outline" size="sm" onClick={() => openHistory(record)} className="flex-1 text-xs"><History className="mr-1 h-3 w-3" />History</Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="flex-1 text-xs text-red-600 hover:text-red-700"><Trash2 className="mr-1 h-3 w-3" />Delete</Button></div>}
                               </div>
                             </CardContent>
                           </Card>
@@ -2397,7 +2422,7 @@ const Reports = () => {
                                   </td>
                                   <td className="p-2 sm:p-4">
                                     <div className="flex items-center justify-center gap-2">
-                                      {canManageReports && <><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="w-12"><Pencil className="h-3.5 w-3.5" /></Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="w-12 text-red-600 hover:text-red-700"><Trash2 className="h-3.5 w-3.5" /></Button></>}
+                                      {canManageReports && <><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="w-12"><Pencil className="h-3.5 w-3.5" /></Button><Button variant="outline" size="sm" onClick={() => openHistory(record)} className="w-12"><History className="h-3.5 w-3.5" /></Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="w-12 text-red-600 hover:text-red-700"><Trash2 className="h-3.5 w-3.5" /></Button></>}
                                       <Button
                                         onClick={() => handleCheckout(record)}
                                         disabled={!selectedTime || checkoutError}
@@ -3080,6 +3105,113 @@ const Reports = () => {
                 </Button>
               </div>
             </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* History Modal */}
+      {showHistoryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <Card className="w-full max-w-2xl max-h-[70vh] overflow-hidden flex flex-col">
+            <CardHeader className="border-b">
+              <CardTitle>Attendance History</CardTitle>
+              <CardDescription>
+                {historyRecord?.Name || 'Employee'} — {historyRecord?.date || ''}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-y-auto">
+              {historyLoading && (
+                <div className="flex flex-col items-center justify-center py-10">
+                  <Loader2 className="w-8 h-8 animate-spin text-slate-400 mb-3" />
+                  <p className="text-sm text-slate-500">Loading history…</p>
+                </div>
+              )}
+
+              {historyError && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-md text-sm text-red-700">
+                  {historyError}
+                </div>
+              )}
+
+              {!historyLoading && !historyError && historyItems.length === 0 && (
+                <div className="py-10 text-center text-slate-400 text-sm">
+                  No history recorded yet.
+                </div>
+              )}
+
+              {!historyLoading && historyItems.length > 0 && (
+                <ol className="space-y-4">
+                  {historyItems.map((item, idx) => {
+                    const opColor = {
+                      CREATE: 'bg-emerald-50 text-emerald-700',
+                      UPDATE: 'bg-blue-50 text-blue-700',
+                      CORRECT: 'bg-amber-50 text-amber-700',
+                      DELETE: 'bg-red-50 text-red-700',
+                    };
+                    return (
+                      <li key={item.history_id} className="relative flex gap-4">
+                        <div className="flex flex-col items-center flex-shrink-0">
+                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
+                            {item.sequence_num}
+                          </span>
+                          {idx < historyItems.length - 1 && (
+                            <div className="w-px flex-1 bg-slate-200 mt-1" style={{height: '40px'}} />
+                          )}
+                        </div>
+
+                        <div className="flex-1 pb-4">
+                          <div className="flex items-center gap-2 flex-wrap mb-2">
+                            <span className={`inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${opColor[item.operation] || 'bg-slate-100 text-slate-600'}`}>
+                              {item.operation}
+                            </span>
+                            <span className="text-xs text-slate-500">
+                              by <strong className="text-slate-700">{item.modified_by}</strong>
+                              {' '}on {new Date(item.modified_at).toLocaleString()}
+                            </span>
+                          </div>
+
+                          {Object.keys(item.changes).length > 0 ? (
+                            <table className="w-full text-xs border border-slate-200 rounded">
+                              <thead>
+                                <tr className="bg-slate-50 border-b border-slate-200">
+                                  <th className="text-left p-2 font-semibold text-slate-600">Field</th>
+                                  <th className="text-left p-2 font-semibold text-slate-600">Before</th>
+                                  <th className="text-left p-2 font-semibold text-slate-600">After</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {Object.entries(item.changes).map(([field, diff]) => (
+                                  <tr key={field} className="border-b border-slate-200 last:border-0">
+                                    <td className="p-2 font-medium text-slate-600 capitalize">
+                                      {field.replace(/_/g, ' ')}
+                                    </td>
+                                    <td className="p-2 text-red-600 line-through opacity-60">
+                                      {String(diff.before ?? '—')}
+                                    </td>
+                                    <td className="p-2 text-emerald-700 font-medium">
+                                      {String(diff.after ?? '—')}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          ) : (
+                            <p className="text-xs text-slate-400">
+                              No business fields changed.
+                            </p>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+            </CardContent>
+            <div className="border-t p-4 flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowHistoryModal(false)}>
+                Close
+              </Button>
+            </div>
           </Card>
         </div>
       )}

@@ -497,9 +497,10 @@ const transformReportRecord = (record) => {
     DeviceID: record.device_id,
     CheckInSnap: record.check_in_snap,
     CheckOutSnap: record.check_out_snap,
+    RecordID: record.record_id,
     // Keep any other fields as-is
     ...Object.keys(record).reduce((acc, key) => {
-      if (!['pin', 'name', 'type', 'emp_id', 'check_in_time', 'check_out_time', 'time_worked', 'device_id', 'check_in_snap', 'check_out_snap'].includes(key)) {
+      if (!['pin', 'name', 'type', 'emp_id', 'check_in_time', 'check_out_time', 'time_worked', 'device_id', 'check_in_snap', 'check_out_snap', 'record_id'].includes(key)) {
         acc[key] = record[key];
       }
       return acc;
@@ -1561,4 +1562,10 @@ export const getCompanyPageSettings = async (cId) => {
       'Content-Type': 'application/json'
     }
   }).then(r => r.json());
+};
+
+export const fetchReportHistory = async (recordId) => {
+  return api.get(
+    `${API_BASE}/dailyreport/history/${encodeURIComponent(recordId)}`
+  );
 };
