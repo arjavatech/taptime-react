@@ -109,6 +109,7 @@ const Reports = () => {
   const [currentDate, setCurrentDate] = useState("");
   const [checkoutTimes, setCheckoutTimes] = useState({});
   const [checkoutErrors, setCheckoutErrors] = useState({});
+  const [checkoutLoadingStates, setCheckoutLoadingStates] = useState({});
   const [pendingCheckoutData, setPendingCheckoutData] = useState([]);
 
   // Day wise report specific
@@ -380,9 +381,14 @@ const Reports = () => {
     const checkoutTime = checkoutTimes[rowKey];
 
     if (!checkoutTime) {
-
       return;
     }
+
+    // Set loading state immediately
+    setCheckoutLoadingStates(prev => ({
+      ...prev,
+      [rowKey]: true
+    }));
 
     const checkinDateObj = new Date(row.CheckInTime);
     const checkInDateString = getLocalDateString(checkinDateObj);
@@ -397,13 +403,16 @@ const Reports = () => {
     const checkoutDate = new Date(checkoutDateTime);
 
     if (checkoutDate <= checkinDate) {
-
+      setCheckoutLoadingStates(prev => {
+        const updated = { ...prev };
+        delete updated[rowKey];
+        return updated;
+      });
       return;
     }
 
     const timeWorked = calculateTimeWorked(checkinDateTime, checkoutDateTime);
 
-    setLoading(true);
     try {
       // Prepare payload in snake_case format for backend
       const updateData = {
@@ -418,20 +427,62 @@ const Reports = () => {
 
       await updateDailyReportEntry(row.EmpID, companyId, row.CheckInTime, updateData);
 
+      // Update the checked-out row in tableData
+      setTableData(prev => prev.map(record => {
+        if (record.Pin === row.Pin && record.CheckInTime === row.CheckInTime) {
+          return {
+            ...record,
+            CheckOutTime: checkoutDateTime,
+            TimeWorked: timeWorked,
+            needsCheckout: false,
+            checkInTimeFormatted: formatToAmPm(new Date(record.CheckInTime))
+          }; 
+        }
+        return record;
+      }));
+
+      // Update the checked-out row in filteredData
+      setFilteredData(prev => prev.map(record => {
+        if (record.Pin === row.Pin && record.CheckInTime === row.CheckInTime) {
+          return {
+            ...record,
+            CheckOutTime: checkoutDateTime,
+            TimeWorked: timeWorked,
+            needsCheckout: false,
+            checkInTimeFormatted: formatToAmPm(new Date(record.CheckInTime))
+          };
+        }
+        return record;
+      }));
+
+      // Recalculate summary stats with updated data
+      setTableData(prev => {
+        updateSummaryStats(prev);
+        return prev;
+      });
+
+      // Clear checkout time input
       setCheckoutTimes(prev => {
         const updated = { ...prev };
         delete updated[rowKey];
         return updated;
       });
 
-      await viewCurrentDateReport(currentDate, false);
-      window.location.reload();
+      // Clear loading state
+      setCheckoutLoadingStates(prev => {
+        const updated = { ...prev };
+        delete updated[rowKey];
+        return updated;
+      });
 
     } catch (error) {
       console.error("Error updating checkout:", error);
-
-    } finally {
-      setLoading(false);
+      // Clear loading state on error
+      setCheckoutLoadingStates(prev => {
+        const updated = { ...prev };
+        delete updated[rowKey];
+        return updated;
+      });
     }
   };
 
@@ -1073,19 +1124,40 @@ const Reports = () => {
       };
 
       // Save to backend
-      await createDailyReportEntry(entryData);
+      const response = await createDailyReportEntry(entryData);
 
-      // Refresh the current view to show the new entry
-      if (activeTab === "today" && currentDate) {
-        await viewCurrentDateReport(currentDate, false);
-      } else if (activeTab === "daywise" && selectedDate) {
-        await viewDatewiseReport(selectedDate, false);
+      // Build new entry object for state
+      const newEntryRecord = {
+        ...response,
+        Pin: selectedEmployee.pin,
+        Name: `${selectedEmployee.first_name} ${selectedEmployee.last_name}`,
+        EmpID: selectedEmployee.EmpID || selectedEmployee.emp_id,
+        Type: newEntry.Type,
+        CheckInTime: entryData.CheckInTime,
+        CheckOutTime: entryData.CheckOutTime,
+        TimeWorked: timeWorked,
+        checkInTimeFormatted: formatToAmPm(new Date(entryData.CheckInTime)),
+        needsCheckout: !entryData.CheckOutTime,
+        checkoutTime: "",
+        formattedCheckIn: convertToAmPm(entryData.CheckInTime),
+        formattedCheckOut: entryData.CheckOutTime ? convertToAmPm(entryData.CheckOutTime) : "--"
+      };
+
+      // Add to current view state
+      if (activeTab === "today" && currentDate === newEntry.Date) {
+        setTableData(prev => [newEntryRecord, ...prev]);
+        setFilteredData(prev => [newEntryRecord, ...prev]);
+        updateSummaryStats([newEntryRecord, ...tableData]);
+      } else if (activeTab === "daywise" && selectedDate === newEntry.Date) {
+        setReportData(prev => [newEntryRecord, ...prev]);
+        setFilteredData(prev => [newEntryRecord, ...prev]);
+        updateSummaryStats([newEntryRecord, ...reportData]);
       }
 
       setModalSuccess("Entry added successfully!");
       setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+        closeModal();
+      }, 1500);
     } catch (error) {
       console.error("Error saving entry:", error);
       setModalError(error.message || "Failed to save entry. Please try again.");
@@ -1709,9 +1781,10 @@ const Reports = () => {
                     </p>
                   </div>
                 ) : (
-                  viewMode === "grid" ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                      {filteredData.map((record, index) => {
+                  <>
+                    {viewMode === "grid" ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                        {paginatedData.map((record, index) => {
                         const rowKey = `${record.Pin}-${record.CheckInTime}`;
                         const hasCheckout = record.CheckOutTime;
                         const selectedTime = checkoutTimes[rowKey];
@@ -1770,36 +1843,40 @@ const Reports = () => {
                                 {!hasCheckout && (
                                   <Button
                                     onClick={() => handleCheckout(record)}
-                                    disabled={!selectedTime || checkoutError}
+                                    disabled={!selectedTime || checkoutError || checkoutLoadingStates[`${record.Pin}-${record.CheckInTime}`]}
                                     size="sm"
-                                    className="w-full bg-green-600 hover:bg-green-700 text-xs disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                    className="w-full bg-green-600 hover:bg-green-700 text-xs disabled:opacity-75 disabled:cursor-not-allowed"
                                   >
-                                    Check Out
+                                    {checkoutLoadingStates[`${record.Pin}-${record.CheckInTime}`] ? (
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      "Check Out"
+                                    )}
                                   </Button>
                                 )}
-                                {canManageReports && <div className="mt-2 flex gap-2"><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="flex-1 text-xs"><Pencil className="mr-1 h-3 w-3" />Edit</Button><Button variant="outline" size="sm" onClick={() => openHistory(record)} className="flex-1 text-xs"><History className="mr-1 h-3 w-3" />History</Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="flex-1 text-xs text-red-600 hover:text-red-700"><Trash2 className="mr-1 h-3 w-3" />Delete</Button></div>}
+                                {canManageReports && <div className="mt-2 flex gap-1.5"><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="flex-1 h-10 flex items-center justify-center"><Pencil className="h-4 w-4" /><span className="hidden sm:inline ml-1">Edit</span></Button><Button variant="outline" size="sm" onClick={() => openHistory(record)} className="flex-1 h-10 flex items-center justify-center"><History className="h-4 w-4" /><span className="hidden sm:inline ml-1">History</span></Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="flex-1 h-10 flex items-center justify-center text-red-600 hover:text-red-700"><Trash2 className="h-4 w-4" /><span className="hidden sm:inline ml-1">Delete</span></Button></div>}
                               </div>
                             </CardContent>
                           </Card>
                         );
                       })}
-                    </div>
-                  ) : (
-                    <Card>
-                      <div className="overflow-x-auto">
-                        <table className="w-full min-w-[600px]">
-                          <thead style={{ backgroundColor: '#01005a' }}>
-                            <tr className="border-b">
-                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[100px]">Employee ID</th>
-                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Name</th>
-                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Check-in Time</th>
-                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Check-out Time</th>
-                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">Type</th>
-                              <th className="text-center p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[220px]">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {paginatedData.map((record, index) => {
+                      </div>
+                    ) : (
+                      <Card>
+                        <div className="overflow-x-auto">
+                          <table className="w-full min-w-[600px]">
+                            <thead style={{ backgroundColor: '#01005a' }}>
+                              <tr className="border-b">
+                                <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[100px]">Employee ID</th>
+                                <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Name</th>
+                                <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Check-in Time</th>
+                                <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Check-out Time</th>
+                                <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">Type</th>
+                                <th className="text-center p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[220px]">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {paginatedData.map((record, index) => {
                               const rowKey = `${record.Pin}-${record.CheckInTime}`;
                               const hasCheckout = record.CheckOutTime;
                               const selectedTime = checkoutTimes[rowKey];
@@ -1842,68 +1919,126 @@ const Reports = () => {
                                   </td>
                                   <td className="p-2 sm:p-4">
                                     <div className="flex items-center justify-center gap-2">
-                                      {canManageReports && <><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="w-12"><Pencil className="h-3.5 w-3.5" /></Button><Button variant="outline" size="sm" onClick={() => openHistory(record)} className="w-12"><History className="h-3.5 w-3.5" /></Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="w-12 text-red-600 hover:text-red-700"><Trash2 className="h-3.5 w-3.5" /></Button></>}
+                                      {canManageReports && <><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="w-12 sm:w-auto"><Pencil className="h-3.5 w-3.5" /><span className="hidden sm:inline ml-1">Edit</span></Button><Button variant="outline" size="sm" onClick={() => openHistory(record)} className="w-12 sm:w-auto"><History className="h-3.5 w-3.5" /><span className="hidden sm:inline ml-1">History</span></Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="w-12 sm:w-auto text-red-600 hover:text-red-700"><Trash2 className="h-3.5 w-3.5" /><span className="hidden sm:inline ml-1">Delete</span></Button></>}
                                       <Button
                                         onClick={() => handleCheckout(record)}
-                                        disabled={hasCheckout || !selectedTime || checkoutError}
+                                        disabled={hasCheckout || !selectedTime || checkoutError || checkoutLoadingStates[`${record.Pin}-${record.CheckInTime}`]}
                                         size="sm"
-                                        className={`w-36 text-xs ${hasCheckout || !selectedTime || checkoutError ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+                                        className={`w-36 text-xs ${
+                                          hasCheckout
+                                            ? 'bg-gray-400 cursor-not-allowed'
+                                            : checkoutLoadingStates[`${record.Pin}-${record.CheckInTime}`]
+                                            ? 'bg-green-600 opacity-75 cursor-not-allowed'
+                                            : !selectedTime || checkoutError
+                                            ? 'bg-gray-400 cursor-not-allowed'
+                                            : 'bg-green-600 hover:bg-green-700'
+                                        }`}
                                       >
-                                        {hasCheckout ? 'Checked Out' : 'Check Out'}
+                                        {checkoutLoadingStates[`${record.Pin}-${record.CheckInTime}`] ? (
+                                          <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : hasCheckout ? (
+                                          'Checked Out'
+                                        ) : (
+                                          'Check Out'
+                                        )}
                                       </Button>
                                     </div>
                                   </td>
                                 </tr>
                               );
                             })}
-                          </tbody>
-                        </table>
-                      </div>
-                      {/* Pagination */}
-                      {(() => {
-                        const itemsPerPage = getItemsPerPage();
-                        const paginationStartIndex = (currentPage - 1) * itemsPerPage;
-                        const paginationEndIndex = paginationStartIndex + itemsPerPage;
-                        const totalPages = Math.ceil(filteredData.length / itemsPerPage);
-                        return filteredData.length > 0 && (
-                          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200">
-                            <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
-                              Showing {paginationStartIndex + 1}-{Math.min(paginationEndIndex, filteredData.length)} of {filteredData.length}
-                            </div>
-                            {totalPages > 1 && (
-                              <div className="flex items-center gap-3 order-1 sm:order-2">
-                                <button
-                                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                  disabled={currentPage === 1}
-                                  className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                                    currentPage === 1
-                                      ? 'text-gray-400 border-gray-200 cursor-not-allowed'
-                                      : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
-                                  }`}
-                                >
-                                  Prev
-                                </button>
-                                <span className="text-sm font-medium text-gray-900 px-2">
-                                  {currentPage} / {totalPages}
-                                </span>
-                                <button
-                                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                  disabled={currentPage === totalPages}
-                                  className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                                    currentPage === totalPages
-                                      ? 'text-gray-400 border-gray-200 cursor-not-allowed'
-                                      : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
-                                  }`}
-                                >
-                                  Next
-                                </button>
+                            </tbody>
+                          </table>
+                        </div>
+                        {/* Pagination */}
+                        {(() => {
+                          const itemsPerPage = getItemsPerPage();
+                          const paginationStartIndex = (currentPage - 1) * itemsPerPage;
+                          const paginationEndIndex = paginationStartIndex + itemsPerPage;
+                          const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+                          return filteredData.length > 0 && (
+                            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200">
+                              <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
+                                Showing {paginationStartIndex + 1}-{Math.min(paginationEndIndex, filteredData.length)} of {filteredData.length}
                               </div>
-                            )}
+                              {totalPages > 1 && (
+                                <div className="flex items-center gap-3 order-1 sm:order-2">
+                                  <button
+                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={currentPage === 1}
+                                    className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                                      currentPage === 1
+                                        ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                        : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                    }`}
+                                  >
+                                    Prev
+                                  </button>
+                                  <span className="text-sm font-medium text-gray-900 px-2">
+                                    {currentPage} / {totalPages}
+                                  </span>
+                                  <button
+                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                    disabled={currentPage === totalPages}
+                                    className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                                      currentPage === totalPages
+                                        ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                        : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                    }`}
+                                  >
+                                    Next
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </Card>
+                    )}
+                    {/* Pagination for Grid View */}
+                    {(() => {
+                      const itemsPerPage = getItemsPerPage();
+                      const paginationStartIndex = (currentPage - 1) * itemsPerPage;
+                      const paginationEndIndex = paginationStartIndex + itemsPerPage;
+                      const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+                      return viewMode === "grid" && filteredData.length > 0 && (
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200 mt-4">
+                          <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
+                            Showing {paginationStartIndex + 1}-{Math.min(paginationEndIndex, filteredData.length)} of {filteredData.length}
                           </div>
-                        );
-                      })()}
-                    </Card>
-                  )
+                          {totalPages > 1 && (
+                            <div className="flex items-center gap-3 order-1 sm:order-2">
+                              <button
+                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                disabled={currentPage === 1}
+                                className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                                  currentPage === 1
+                                    ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                    : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                }`}
+                              >
+                                Prev
+                              </button>
+                              <span className="text-sm font-medium text-gray-900 px-2">
+                                {currentPage} / {totalPages}
+                              </span>
+                              <button
+                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                disabled={currentPage === totalPages}
+                                className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                                  currentPage === totalPages
+                                    ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                    : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                }`}
+                              >
+                                Next
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -1959,7 +2094,7 @@ const Reports = () => {
                 ) : (
                   viewMode === "grid" ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                      {filteredData.map((record, index) => (
+                      {paginatedData.map((record, index) => (
                         <Card key={index} className="hover:shadow-lg transition-shadow">
                           <CardHeader className="pb-3">
                             <div className="flex items-start justify-between gap-2">
@@ -1994,9 +2129,9 @@ const Reports = () => {
                                 <span className="font-medium text-foreground">{record.TimeWorked}</span>
                               </div>
                               {canManageReports && (
-                                <div className="mt-3 flex gap-2">
-                                  <Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="flex-1 text-xs"><Pencil className="mr-1 h-3 w-3" />Edit</Button>
-                                  <Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="flex-1 text-xs text-red-600 hover:text-red-700"><Trash2 className="mr-1 h-3 w-3" />Delete</Button>
+                                <div className="mt-3 flex gap-1.5">
+                                  <Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="flex-1 h-10 flex items-center justify-center"><Pencil className="h-4 w-4" /><span className="hidden sm:inline ml-1">Edit</span></Button>
+                                  <Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="flex-1 h-10 flex items-center justify-center text-red-600 hover:text-red-700"><Trash2 className="h-4 w-4" /><span className="hidden sm:inline ml-1">Delete</span></Button>
                                 </div>
                               )}
                             </div>
@@ -2040,52 +2175,52 @@ const Reports = () => {
                           </tbody>
                         </table>
                       </div>
-                      {/* Pagination */}
-                      {(() => {
-                        const itemsPerPage = getItemsPerPage();
-                        const paginationStartIndex = (currentPage - 1) * itemsPerPage;
-                        const paginationEndIndex = paginationStartIndex + itemsPerPage;
-                        const totalPages = Math.ceil(filteredData.length / itemsPerPage);
-                        return filteredData.length > 0 && (
-                          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200">
-                            <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
-                              Showing {paginationStartIndex + 1}-{Math.min(paginationEndIndex, filteredData.length)} of {filteredData.length}
-                            </div>
-                            {totalPages > 1 && (
-                              <div className="flex items-center gap-3 order-1 sm:order-2">
-                                <button
-                                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                  disabled={currentPage === 1}
-                                  className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                                    currentPage === 1
-                                      ? 'text-gray-400 border-gray-200 cursor-not-allowed'
-                                      : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
-                                  }`}
-                                >
-                                  Prev
-                                </button>
-                                <span className="text-sm font-medium text-gray-900 px-2">
-                                  {currentPage} / {totalPages}
-                                </span>
-                                <button
-                                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                  disabled={currentPage === totalPages}
-                                  className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                                    currentPage === totalPages
-                                      ? 'text-gray-400 border-gray-200 cursor-not-allowed'
-                                      : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
-                                  }`}
-                                >
-                                  Next
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })()}
                     </Card>
                   )
                 )}
+                {/* Pagination - Shared by both Card and Table View */}
+                {(() => {
+                  const itemsPerPage = getItemsPerPage();
+                  const paginationStartIndex = (currentPage - 1) * itemsPerPage;
+                  const paginationEndIndex = paginationStartIndex + itemsPerPage;
+                  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+                  return filteredData.length > 0 && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200 mt-4">
+                      <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
+                        Showing {paginationStartIndex + 1}-{Math.min(paginationEndIndex, filteredData.length)} of {filteredData.length}
+                      </div>
+                      {totalPages > 1 && (
+                        <div className="flex items-center gap-3 order-1 sm:order-2">
+                          <button
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                            className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                              currentPage === 1
+                                ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                            }`}
+                          >
+                            Prev
+                          </button>
+                          <span className="text-sm font-medium text-gray-900 px-2">
+                            {currentPage} / {totalPages}
+                          </span>
+                          <button
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            disabled={currentPage === totalPages}
+                            className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                              currentPage === totalPages
+                                ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                            }`}
+                          >
+                            Next
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           </div>
@@ -2203,51 +2338,51 @@ const Reports = () => {
                             </tbody>
                           </table>
                         </div>
-                        {/* Pagination */}
-                        {(() => {
-                          const itemsPerPage = getItemsPerPage();
-                          const paginationStartIndex = (currentPage - 1) * itemsPerPage;
-                          const paginationEndIndex = paginationStartIndex + itemsPerPage;
-                          const totalPages = Math.ceil(filteredData.length / itemsPerPage);
-                          return filteredData.length > 0 && (
-                            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200">
-                              <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
-                                Showing {paginationStartIndex + 1}-{Math.min(paginationEndIndex, filteredData.length)} of {filteredData.length}
-                              </div>
-                              {totalPages > 1 && (
-                                <div className="flex items-center gap-3 order-1 sm:order-2">
-                                  <button
-                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                    disabled={currentPage === 1}
-                                    className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                                      currentPage === 1
-                                        ? 'text-gray-400 border-gray-200 cursor-not-allowed'
-                                        : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
-                                    }`}
-                                  >
-                                    Prev
-                                  </button>
-                                  <span className="text-sm font-medium text-gray-900 px-2">
-                                    {currentPage} / {totalPages}
-                                  </span>
-                                  <button
-                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                    disabled={currentPage === totalPages}
-                                    className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                                      currentPage === totalPages
-                                        ? 'text-gray-400 border-gray-200 cursor-not-allowed'
-                                        : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
-                                    }`}
-                                  >
-                                    Next
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()}
                       </Card>
                     )}
+                    {/* Pagination - Shared by both Card and Table View */}
+                    {(() => {
+                      const itemsPerPage = getItemsPerPage();
+                      const paginationStartIndex = (currentPage - 1) * itemsPerPage;
+                      const paginationEndIndex = paginationStartIndex + itemsPerPage;
+                      const totalPages = Math.ceil(filteredData.length / itemsPerPage);
+                      return filteredData.length > 0 && (
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200 mt-4">
+                          <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
+                            Showing {paginationStartIndex + 1}-{Math.min(paginationEndIndex, filteredData.length)} of {filteredData.length}
+                          </div>
+                          {totalPages > 1 && (
+                            <div className="flex items-center gap-3 order-1 sm:order-2">
+                              <button
+                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                disabled={currentPage === 1}
+                                className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                                  currentPage === 1
+                                    ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                    : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                }`}
+                              >
+                                Prev
+                              </button>
+                              <span className="text-sm font-medium text-gray-900 px-2">
+                                {currentPage} / {totalPages}
+                              </span>
+                              <button
+                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                disabled={currentPage === totalPages}
+                                className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                                  currentPage === totalPages
+                                    ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                    : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                }`}
+                              >
+                                Next
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </>
                 )}
               </CardContent>
@@ -2356,13 +2491,17 @@ const Reports = () => {
                               <div className="pt-2 border-t">
                                 <Button
                                   onClick={() => handleCheckout(record)}
-                                  disabled={!selectedTime || checkoutError}
+                                  disabled={!selectedTime || checkoutError || checkoutLoadingStates[`${record.Pin}-${record.CheckInTime}`]}
                                   size="sm"
-                                  className="w-full bg-green-600 hover:bg-green-700 text-xs disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                  className="w-full bg-green-600 hover:bg-green-700 text-xs disabled:opacity-75 disabled:cursor-not-allowed"
                                 >
-                                  Check Out
+                                  {checkoutLoadingStates[`${record.Pin}-${record.CheckInTime}`] ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    "Check Out"
+                                  )}
                                 </Button>
-                                {canManageReports && <div className="mt-2 flex gap-2"><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="flex-1 text-xs"><Pencil className="mr-1 h-3 w-3" />Edit</Button><Button variant="outline" size="sm" onClick={() => openHistory(record)} className="flex-1 text-xs"><History className="mr-1 h-3 w-3" />History</Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="flex-1 text-xs text-red-600 hover:text-red-700"><Trash2 className="mr-1 h-3 w-3" />Delete</Button></div>}
+                                {canManageReports && <div className="mt-2 flex gap-1.5"><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="flex-1 h-10 flex items-center justify-center"><Pencil className="h-4 w-4" /><span className="hidden sm:inline ml-1">Edit</span></Button><Button variant="outline" size="sm" onClick={() => openHistory(record)} className="flex-1 h-10 flex items-center justify-center"><History className="h-4 w-4" /><span className="hidden sm:inline ml-1">History</span></Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="flex-1 h-10 flex items-center justify-center text-red-600 hover:text-red-700"><Trash2 className="h-4 w-4" /><span className="hidden sm:inline ml-1">Delete</span></Button></div>}
                               </div>
                             </CardContent>
                           </Card>
@@ -2425,11 +2564,21 @@ const Reports = () => {
                                       {canManageReports && <><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="w-12"><Pencil className="h-3.5 w-3.5" /></Button><Button variant="outline" size="sm" onClick={() => openHistory(record)} className="w-12"><History className="h-3.5 w-3.5" /></Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="w-12 text-red-600 hover:text-red-700"><Trash2 className="h-3.5 w-3.5" /></Button></>}
                                       <Button
                                         onClick={() => handleCheckout(record)}
-                                        disabled={!selectedTime || checkoutError}
+                                        disabled={!selectedTime || checkoutError || checkoutLoadingStates[`${record.Pin}-${record.CheckInTime}`]}
                                         size="sm"
-                                        className={`w-36 text-xs ${!selectedTime || checkoutError ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+                                        className={`w-36 text-xs ${
+                                          checkoutLoadingStates[`${record.Pin}-${record.CheckInTime}`]
+                                            ? 'bg-green-600 opacity-75 cursor-not-allowed'
+                                            : !selectedTime || checkoutError
+                                            ? 'bg-gray-400 cursor-not-allowed'
+                                            : 'bg-green-600 hover:bg-green-700'
+                                        }`}
                                       >
-                                        Check Out
+                                        {checkoutLoadingStates[`${record.Pin}-${record.CheckInTime}`] ? (
+                                          <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                          "Check Out"
+                                        )}
                                       </Button>
                                     </div>
                                   </td>
@@ -2439,48 +2588,48 @@ const Reports = () => {
                           </tbody>
                         </table>
                       </div>
-                      {/* Pagination */}
-                      {(() => {
-                        return pendingCheckoutData.length > 0 && (
-                          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200">
-                            <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
-                              Showing {pendingPaginationStartIndex + 1}-{Math.min(pendingPaginationEndIndex, pendingCheckoutData.length)} of {pendingCheckoutData.length}
-                            </div>
-                            {pendingTotalPages > 1 && (
-                              <div className="flex items-center gap-3 order-1 sm:order-2">
-                                <button
-                                  onClick={() => setPendingCurrentPage(prev => Math.max(prev - 1, 1))}
-                                  disabled={pendingCurrentPage === 1}
-                                  className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                                    pendingCurrentPage === 1
-                                      ? 'text-gray-400 border-gray-200 cursor-not-allowed'
-                                      : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
-                                  }`}
-                                >
-                                  Prev
-                                </button>
-                                <span className="text-sm font-medium text-gray-900 px-2">
-                                  {pendingCurrentPage} / {pendingTotalPages}
-                                </span>
-                                <button
-                                  onClick={() => setPendingCurrentPage(prev => Math.min(prev + 1, pendingTotalPages))}
-                                  disabled={pendingCurrentPage === pendingTotalPages}
-                                  className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                                    pendingCurrentPage === pendingTotalPages
-                                      ? 'text-gray-400 border-gray-200 cursor-not-allowed'
-                                      : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
-                                  }`}
-                                >
-                                  Next
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })()}
                     </Card>
                   )
                 )}
+                {/* Pagination - Shared by both Card and Table View */}
+                {(() => {
+                  return pendingCheckoutData.length > 0 && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200 mt-4">
+                      <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
+                        Showing {pendingPaginationStartIndex + 1}-{Math.min(pendingPaginationEndIndex, pendingCheckoutData.length)} of {pendingCheckoutData.length}
+                      </div>
+                      {pendingTotalPages > 1 && (
+                        <div className="flex items-center gap-3 order-1 sm:order-2">
+                          <button
+                            onClick={() => setPendingCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={pendingCurrentPage === 1}
+                            className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                              pendingCurrentPage === 1
+                                ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                            }`}
+                          >
+                            Prev
+                          </button>
+                          <span className="text-sm font-medium text-gray-900 px-2">
+                            {pendingCurrentPage} / {pendingTotalPages}
+                          </span>
+                          <button
+                            onClick={() => setPendingCurrentPage(prev => Math.min(prev + 1, pendingTotalPages))}
+                            disabled={pendingCurrentPage === pendingTotalPages}
+                            className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                              pendingCurrentPage === pendingTotalPages
+                                ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                            }`}
+                          >
+                            Next
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           </div>
@@ -2683,48 +2832,49 @@ const Reports = () => {
                           </tbody>
                         </table>
                       </div>
-                      {/* Pagination */}
-                      {(() => {
-                        return filteredData.length > 0 && (
-                          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200">
-                            <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
-                              Showing {salariedPaginationStartIndex + 1}-{Math.min(salariedPaginationEndIndex, filteredData.length)} of {filteredData.length}
-                            </div>
-                            {salariedTotalPages > 1 && (
-                              <div className="flex items-center gap-3 order-1 sm:order-2">
-                                <button
-                                  onClick={() => setSalariedCurrentPage(prev => Math.max(prev - 1, 1))}
-                                  disabled={salariedCurrentPage === 1}
-                                  className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                                    salariedCurrentPage === 1
-                                      ? 'text-gray-400 border-gray-200 cursor-not-allowed'
-                                      : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
-                                  }`}
-                                >
-                                  Prev
-                                </button>
-                                <span className="text-sm font-medium text-gray-900 px-2">
-                                  {salariedCurrentPage} / {salariedTotalPages}
-                                </span>
-                                <button
-                                  onClick={() => setSalariedCurrentPage(prev => Math.min(prev + 1, salariedTotalPages))}
-                                  disabled={salariedCurrentPage === salariedTotalPages}
-                                  className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                                    salariedCurrentPage === salariedTotalPages
-                                      ? 'text-gray-400 border-gray-200 cursor-not-allowed'
-                                      : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
-                                  }`}
-                                >
-                                  Next
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })()}
                     </Card>
                   )
-                )}
+                )
+                }
+                {/* Pagination - Shared by both Card and Table View */}
+                {(() => {
+                  return filteredData.length > 0 && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200 mt-4">
+                      <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
+                        Showing {salariedPaginationStartIndex + 1}-{Math.min(salariedPaginationEndIndex, filteredData.length)} of {filteredData.length}
+                      </div>
+                      {salariedTotalPages > 1 && (
+                        <div className="flex items-center gap-3 order-1 sm:order-2">
+                          <button
+                            onClick={() => setSalariedCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={salariedCurrentPage === 1}
+                            className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                              salariedCurrentPage === 1
+                                ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                            }`}
+                          >
+                            Prev
+                          </button>
+                          <span className="text-sm font-medium text-gray-900 px-2">
+                            {salariedCurrentPage} / {salariedTotalPages}
+                          </span>
+                          <button
+                            onClick={() => setSalariedCurrentPage(prev => Math.min(prev + 1, salariedTotalPages))}
+                            disabled={salariedCurrentPage === salariedTotalPages}
+                            className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                              salariedCurrentPage === salariedTotalPages
+                                ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                            }`}
+                          >
+                            Next
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
           </div>
