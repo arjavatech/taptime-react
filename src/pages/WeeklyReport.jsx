@@ -197,26 +197,9 @@ export default function WeeklyReport() {
   const generatePdf = (reportData) => {
     if (!reportData) return;
 
-    // Calculate totals from items
-    const calculateTimeSum = (items, field) => {
-      return (items || []).reduce((sum, item) => {
-        const time = item[field] || "00:00";
-        const [hours, mins] = time.split(":").map(Number);
-        return sum + (hours * 60 + mins);
-      }, 0);
-    };
-
-    const totalMins = calculateTimeSum(reportData.items, "total_hours");
-    const overtimeMins = calculateTimeSum(reportData.items, "overtime");
-
-    const formatMins = (mins) => {
-      const h = Math.floor(mins / 60);
-      const m = mins % 60;
-      return `${h}:${String(m).padStart(2, "0")}`;
-    };
-
-    const totalHours = totalMins === 0 ? "0:00" : formatMins(totalMins);
-    const overtimeHours = overtimeMins === 0 ? "0:00" : formatMins(overtimeMins);
+    // Use API-calculated totals directly (already computed by backend)
+    const totalHours = reportData.totals?.total_hours || "0:00";
+    const overtimeHours = reportData.totals?.overtime_hours || "0:00";
 
     const doc = new jsPDF();
     const companyName = localStorage.getItem("companyName") || "TapTime";
@@ -295,7 +278,7 @@ export default function WeeklyReport() {
         String(formatTimeValue(item.sat)),
         String(formatTimeValue(item.sun)),
         String(formatTimeValue(item.total_hours)),
-        String(formatTimeValue(item.overtime)),
+        String(formatTimeValue(item.overtime_hours)),
       ]),
       headStyles: { fillColor: [1, 0, 90], textColor: [255, 255, 255], fontSize: 9, fontStyle: "bold" },
       bodyStyles: { fontSize: 8 },
@@ -344,17 +327,22 @@ export default function WeeklyReport() {
     doc.setTextColor(80, 80, 80);
     doc.text(`Week: ${periodLabel(reportData.period)}`, margin, yPosition);
 
-    // Calculate totals from items
+    // Calculate totals from items - skip only null/undefined values
     const calculateTimeSum = (items, field) => {
       return (items || []).reduce((sum, item) => {
-        const time = item[field] || "00:00";
-        const [hours, mins] = time.split(":").map(Number);
+        let time = item[field];
+        if (!time || time === "—") return sum;
+        if (typeof time !== "string") return sum;
+        const parts = time.split(":");
+        if (parts.length !== 2) return sum;
+        const [hours, mins] = parts.map(Number);
+        if (isNaN(hours) || isNaN(mins)) return sum;
         return sum + (hours * 60 + mins);
       }, 0);
     };
 
     const totalMins = calculateTimeSum(reportData.items, "total_hours");
-    const overtimeMins = calculateTimeSum(reportData.items, "overtime");
+    const overtimeMins = calculateTimeSum(reportData.items, "overtime_hours");
 
     const formatMins = (mins) => {
       const h = Math.floor(mins / 60);
@@ -419,7 +407,7 @@ export default function WeeklyReport() {
         String(formatTimeValue(item.sat)),
         String(formatTimeValue(item.sun)),
         String(formatTimeValue(item.total_hours)),
-        String(formatTimeValue(item.overtime)),
+        String(formatTimeValue(item.overtime_hours)),
       ]),
       headStyles: { fillColor: [1, 0, 90], textColor: [255, 255, 255], fontSize: 9, fontStyle: "bold" },
       bodyStyles: { fontSize: 8 },
@@ -480,17 +468,22 @@ export default function WeeklyReport() {
       doc.setTextColor(80, 80, 80);
       doc.text(`Week: ${periodLabel(response.data.period)}`, margin, yPosition);
 
-      // Calculate totals from items
+      // Calculate totals from items - skip empty/zero values
       const calculateTimeSum = (items, field) => {
         return (items || []).reduce((sum, item) => {
-          const time = item[field] || "00:00";
-          const [hours, mins] = time.split(":").map(Number);
+          let time = item[field];
+          if (!time || time === "00:00" || time === "—") return sum;
+          if (typeof time !== "string") return sum;
+          const parts = time.split(":");
+          if (parts.length !== 2) return sum;
+          const [hours, mins] = parts.map(Number);
+          if (isNaN(hours) || isNaN(mins)) return sum;
           return sum + (hours * 60 + mins);
         }, 0);
       };
 
       const totalMins = calculateTimeSum(response.data.items, "total_hours");
-      const overtimeMins = calculateTimeSum(response.data.items, "overtime");
+      const overtimeMins = calculateTimeSum(response.data.items, "overtime_hours");
 
       const formatMins = (mins) => {
         const h = Math.floor(mins / 60);
@@ -556,7 +549,7 @@ export default function WeeklyReport() {
           String(formatTimeValue(item.sat)),
           String(formatTimeValue(item.sun)),
           String(formatTimeValue(item.total_hours)),
-          String(formatTimeValue(item.overtime)),
+          String(formatTimeValue(item.overtime_hours)),
         ]),
         headStyles: { fillColor: [1, 0, 90], textColor: [255, 255, 255], fontSize: 9, fontStyle: "bold" },
         bodyStyles: { fontSize: 8 },
@@ -1383,7 +1376,7 @@ export default function WeeklyReport() {
                                     <td className="px-3 py-2 text-center">{formatTimeValue(item.sat)}</td>
                                     <td className="px-3 py-2 text-center">{formatTimeValue(item.sun)}</td>
                                     <td className="px-3 py-2 text-center font-semibold">{formatTimeValue(item.total_hours)}</td>
-                                    <td className={`px-3 py-2 text-center font-semibold ${item.overtime && item.overtime !== "00:00" ? "bg-yellow-200" : ""}`}>{formatTimeValue(item.overtime)}</td>
+                                    <td className={`px-3 py-2 text-center font-semibold ${item.overtime_hours && item.overtime_hours !== "00:00" ? "bg-yellow-200" : ""}`}>{formatTimeValue(item.overtime_hours)}</td>
                                   </tr>
                                 ))}
                             </tbody>
