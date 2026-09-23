@@ -497,7 +497,7 @@ export default function WeeklyReport() {
                             <p className="text-sm font-semibold text-indigo-900">Current Week</p>
                             <p className="text-xs text-indigo-700">{periodLabel(report.period)}</p>
                             <div className="pt-2 border-t border-indigo-200">
-                              <p className="text-sm text-indigo-700 font-medium">{getCompletedDaysCount(report.items)} of 5 days complete · Overtime threshold: 40:00</p>
+                              <p className="text-sm text-indigo-700 font-medium">{getCompletedDaysCount(report.items)} of 5 days complete · Expected hours: {getCompletedDaysCount(report.items) * 8}:00</p>
                             </div>
                           </div>
                         </div>
