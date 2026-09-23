@@ -1546,7 +1546,6 @@ const Reports = () => {
                 { key: "today", label: "Today Report", icon: Calendar },
                 { key: "daywise", label: "Day-wise Report", icon: Calendar },
                 { key: "summary", label: "Date Range Report", icon: BarChart3 },
-                { key: "salaried", label: "Salaried Report", icon: TrendingUp },
                 { key: "pending", label: "Pending Checkout", icon: Clock }
               ].map(({ key, label, icon: Icon }) => (
                 <button
@@ -1854,7 +1853,7 @@ const Reports = () => {
                                     )}
                                   </Button>
                                 )}
-                                {canManageReports && <div className="mt-2 flex gap-1.5"><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="flex-1 h-10 flex items-center justify-center"><Pencil className="h-4 w-4" /><span className="hidden sm:inline ml-1">Edit</span></Button><Button variant="outline" size="sm" onClick={() => openHistory(record)} className="flex-1 h-10 flex items-center justify-center"><History className="h-4 w-4" /><span className="hidden sm:inline ml-1">History</span></Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="flex-1 h-10 flex items-center justify-center text-red-600 hover:text-red-700"><Trash2 className="h-4 w-4" /><span className="hidden sm:inline ml-1">Delete</span></Button></div>}
+                                {canManageReports && <div className="mt-2 flex gap-1.5"><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="h-10 w-10 p-0 flex items-center justify-center"><Pencil className="h-4 w-4" title="Edit" /></Button><Button variant="outline" size="sm" onClick={() => openHistory(record)} className="h-10 w-10 p-0 flex items-center justify-center"><History className="h-4 w-4" title="History" /></Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="h-10 w-10 p-0 flex items-center justify-center text-red-600 hover:text-red-700"><Trash2 className="h-4 w-4" title="Delete" /></Button></div>}
                               </div>
                             </CardContent>
                           </Card>
@@ -1919,7 +1918,7 @@ const Reports = () => {
                                   </td>
                                   <td className="p-2 sm:p-4">
                                     <div className="flex items-center justify-center gap-2">
-                                      {canManageReports && <><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="w-12 sm:w-auto"><Pencil className="h-3.5 w-3.5" /><span className="hidden sm:inline ml-1">Edit</span></Button><Button variant="outline" size="sm" onClick={() => openHistory(record)} className="w-12 sm:w-auto"><History className="h-3.5 w-3.5" /><span className="hidden sm:inline ml-1">History</span></Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="w-12 sm:w-auto text-red-600 hover:text-red-700"><Trash2 className="h-3.5 w-3.5" /><span className="hidden sm:inline ml-1">Delete</span></Button></>}
+                                      {canManageReports && <><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="h-10 w-10 p-0 flex items-center justify-center"><Pencil className="h-3.5 w-3.5" title="Edit" /></Button><Button variant="outline" size="sm" onClick={() => openHistory(record)} className="h-10 w-10 p-0 flex items-center justify-center"><History className="h-3.5 w-3.5" title="History" /></Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="h-10 w-10 p-0 flex items-center justify-center text-red-600 hover:text-red-700"><Trash2 className="h-3.5 w-3.5" title="Delete" /></Button></>}
                                       <Button
                                         onClick={() => handleCheckout(record)}
                                         disabled={hasCheckout || !selectedTime || checkoutError || checkoutLoadingStates[`${record.Pin}-${record.CheckInTime}`]}
@@ -2501,7 +2500,7 @@ const Reports = () => {
                                     "Check Out"
                                   )}
                                 </Button>
-                                {canManageReports && <div className="mt-2 flex gap-1.5"><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="flex-1 h-10 flex items-center justify-center"><Pencil className="h-4 w-4" /><span className="hidden sm:inline ml-1">Edit</span></Button><Button variant="outline" size="sm" onClick={() => openHistory(record)} className="flex-1 h-10 flex items-center justify-center"><History className="h-4 w-4" /><span className="hidden sm:inline ml-1">History</span></Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="flex-1 h-10 flex items-center justify-center text-red-600 hover:text-red-700"><Trash2 className="h-4 w-4" /><span className="hidden sm:inline ml-1">Delete</span></Button></div>}
+                                {canManageReports && <div className="mt-2 flex gap-1.5"><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="h-10 w-10 p-0 flex items-center justify-center"><Pencil className="h-4 w-4" title="Edit" /></Button><Button variant="outline" size="sm" onClick={() => openHistory(record)} className="h-10 w-10 p-0 flex items-center justify-center"><History className="h-4 w-4" title="History" /></Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="h-10 w-10 p-0 flex items-center justify-center text-red-600 hover:text-red-700"><Trash2 className="h-4 w-4" title="Delete" /></Button></div>}
                               </div>
                             </CardContent>
                           </Card>
@@ -2635,250 +2634,7 @@ const Reports = () => {
           </div>
         )}
 
-        {/* Salaried Report Section (Weekly/Biweekly/Monthly/Bimonthly) */}
-        {activeTab === "salaried" && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <Card>
-              <CardHeader className="pb-4 sm:pb-6">
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
-                  <div>
-                    <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-                      <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
-                      {selectedReportType} Report
-                    </CardTitle>
-                    <CardDescription className="text-sm">
-                      Select report type and view consolidated employee hours
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="page-size-salaried" className="text-xs sm:text-sm whitespace-nowrap">
-                      Records per page:
-                    </Label>
-                    <select
-                      id="page-size-salaried"
-                      value={salariedPageSize}
-                      onChange={(e) => {
-                        setSalariedPageSize(parseInt(e.target.value));
-                        setSalariedCurrentPage(1);
-                      }}
-                      className="h-8 px-2 text-xs sm:text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value={10}>10</option>
-                      <option value={25}>25</option>
-                      <option value={50}>50</option>
-                      <option value={100}>100</option>
-                    </select>
-                  </div>
-                </div>
-              </CardHeader>
-
-              <CardContent className="space-y-6">
-                {/* Report Type Selector Buttons */}
-                <div>
-                  <Label className="text-sm font-medium mb-2 block">Report Type</Label>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {['Weekly', 'Biweekly', 'Monthly', 'Bimonthly'].map(type => (
-                      <Button
-                        key={type}
-                        onClick={() => setSelectedReportType(type)}
-                        variant={selectedReportType === type ? 'default' : 'outline'}
-                        className={`${selectedReportType === type ? 'bg-[#02066F] hover:bg-[#030974] text-white' : 'bg-white hover:bg-gray-50'} text-sm`}
-                      >
-                        {type}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Conditional Date Selectors */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Year & Month - Hide for Biweekly */}
-                  {selectedReportType !== 'Biweekly' && (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="year" className="text-sm font-medium">Year</Label>
-                        <select
-                          id="year"
-                          value={selectedYear}
-                          onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                          className="w-full h-10 border border-input bg-background text-foreground rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {[...Array(5)].map((_, i) => {
-                            const year = new Date().getFullYear() - i;
-                            return <option key={year} value={year}>{year}</option>;
-                          })}
-                        </select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="month" className="text-sm font-medium">Month</Label>
-                        <select
-                          id="month"
-                          value={selectedMonth}
-                          onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                          className="w-full h-10 border border-input bg-background text-foreground rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {['January', 'February', 'March', 'April', 'May', 'June',
-                            'July', 'August', 'September', 'October', 'November', 'December']
-                            .map((month, idx) => (
-                              <option key={idx} value={idx + 1}>{month}</option>
-                            ))}
-                        </select>
-                      </div>
-                    </>
-                  )}
-
-                  {/* Week Selector - Only for Weekly */}
-                  {selectedReportType === 'Weekly' && (
-                    <div className="space-y-2">
-                      <Label htmlFor="week" className="text-sm font-medium">Week</Label>
-                      <select
-                        id="week"
-                        value={selectedWeek !== null ? selectedWeek : ''}
-                        onChange={(e) => setSelectedWeek(parseInt(e.target.value))}
-                        className="w-full h-10 border border-input bg-background text-foreground rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        disabled={availableWeeks.length === 0}
-                      >
-                        <option value="">Select Week</option>
-                        {availableWeeks.map((week, idx) => (
-                          <option key={idx} value={idx}>{week.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {/* Half Selector - Only for Bimonthly */}
-                  {selectedReportType === 'Bimonthly' && (
-                    <div className="space-y-2">
-                      <Label htmlFor="half" className="text-sm font-medium">Period</Label>
-                      <select
-                        id="half"
-                        value={selectedHalf}
-                        onChange={(e) => setSelectedHalf(e.target.value)}
-                        className="w-full h-10 border border-input bg-background text-foreground rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <option value="first">First Half (1-15)</option>
-                        <option value="second">Second Half (16-End)</option>
-                      </select>
-                    </div>
-                  )}
-                </div>
-
-                {/* Load Report Button */}
-                <Button
-                  onClick={loadSalariedReport}
-                  disabled={loading}
-                  className="bg-[#02066F] hover:bg-[#030974] text-white"
-                >
-                  {loading && <Loader2 className="animate-spin mr-2 h-4 w-4" />}
-                  {loading ? 'Loading...' : 'Load Report'}
-                </Button>
-
-                {/* Report Table */}
-                {filteredData.length === 0 ? (
-                  <div className="text-center py-12">
-                    <TrendingUp className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                    <p className="text-gray-500 text-sm">No records found.</p>
-                    <p className="text-gray-400 text-xs mt-2">Select options above and click "Load Report" to view data.</p>
-                  </div>
-                ) : (
-                  viewMode === "grid" ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                      {paginatedSalariedData.map((employee, index) => (
-                        <Card key={index} className="hover:shadow-lg transition-shadow">
-                          <CardHeader className="pb-3">
-                            <div className="flex items-center gap-2 sm:gap-3">
-                              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                                <Users className="w-4 h-4 text-primary" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <CardTitle className="text-base sm:text-lg truncate">{employee.Name}</CardTitle>
-                                <CardDescription className="text-xs sm:text-sm">PIN: {employee.Pin}</CardDescription>
-                              </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="pt-0">
-                            <div className="flex items-center justify-between pt-2 border-t">
-                              <span className="text-xs sm:text-sm text-muted-foreground">Total Hours</span>
-                              <span className="font-semibold text-blue-600 text-sm sm:text-base">
-                                {employee.TimeWorked || employee.hoursWorked || "0:00"}
-                              </span>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  ) : (
-                    <Card>
-                      <div className="overflow-x-auto">
-                        <table className="w-full min-w-[600px]">
-                          <thead style={{ backgroundColor: '#01005a' }}>
-                            <tr className="border-b">
-                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Employee</th>
-                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">PIN</th>
-                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Total Time Worked</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {paginatedSalariedData.map((employee, index) => (
-                              <tr key={index} className="border-b hover:bg-muted/50">
-                                <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium text-gray-900">{employee.Name}</td>
-                                <td className="p-2 sm:p-4 text-xs sm:text-sm text-gray-600">{employee.Pin}</td>
-                                <td className="p-2 sm:p-4 text-xs sm:text-sm font-semibold text-blue-600">
-                                  {employee.TimeWorked || employee.hoursWorked || "0:00"}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </Card>
-                  )
-                )
-                }
-                {/* Pagination - Shared by both Card and Table View */}
-                {(() => {
-                  return filteredData.length > 0 && (
-                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200 mt-4">
-                      <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
-                        Showing {salariedPaginationStartIndex + 1}-{Math.min(salariedPaginationEndIndex, filteredData.length)} of {filteredData.length}
-                      </div>
-                      {salariedTotalPages > 1 && (
-                        <div className="flex items-center gap-3 order-1 sm:order-2">
-                          <button
-                            onClick={() => setSalariedCurrentPage(prev => Math.max(prev - 1, 1))}
-                            disabled={salariedCurrentPage === 1}
-                            className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                              salariedCurrentPage === 1
-                                ? 'text-gray-400 border-gray-200 cursor-not-allowed'
-                                : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
-                            }`}
-                          >
-                            Prev
-                          </button>
-                          <span className="text-sm font-medium text-gray-900 px-2">
-                            {salariedCurrentPage} / {salariedTotalPages}
-                          </span>
-                          <button
-                            onClick={() => setSalariedCurrentPage(prev => Math.min(prev + 1, salariedTotalPages))}
-                            disabled={salariedCurrentPage === salariedTotalPages}
-                            className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                              salariedCurrentPage === salariedTotalPages
-                                ? 'text-gray-400 border-gray-200 cursor-not-allowed'
-                                : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
-                            }`}
-                          >
-                            Next
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-              </CardContent>
-            </Card>
-          </div>
-        )}
+        {/* Salaried Report Section removed - use SalaryReport page instead */}
       </div>
 
       {editingReport && (
