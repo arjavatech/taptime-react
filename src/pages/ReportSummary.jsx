@@ -2898,7 +2898,7 @@ const Reports = () => {
 
       {reportToDelete && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
-          <Card id="report-delete-modal" className="w-full max-w-md mx-4"><CardHeader className="pb-4"><CardTitle className="flex items-center gap-2 text-lg" style={{ color: '#01005a' }}><AlertCircle className="w-5 h-5" />Delete Report</CardTitle><CardDescription className="text-sm">Are you sure you want to delete this report? This soft-deletes it and removes it from active views.</CardDescription></CardHeader><CardContent className="space-y-4">{reportActionError && <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2"><AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" /><p className="text-sm text-red-600">{reportActionError}</p></div>}<div className="flex flex-col sm:flex-row gap-3"><Button variant="outline" className="flex-1 order-2 sm:order-1" disabled={isReportActionSubmitting} onClick={() => { setReportToDelete(null); setReportActionError(""); }}>Cancel</Button><Button className="flex-1 order-1 sm:order-2 bg-[#01005a] hover:bg-[#01005a]/90 text-white" disabled={isReportActionSubmitting} onClick={handleReportDelete}>{isReportActionSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Deleting...</> : "Delete Report"}</Button></div></CardContent></Card>
+          <Card id="report-delete-modal" className="w-full max-w-md mx-4"><CardHeader className="pb-4"><CardTitle className="flex items-center gap-2 text-lg" style={{ color: '#01005a' }}><AlertCircle className="w-5 h-5" />Delete Report</CardTitle><CardDescription className="text-sm">Are you sure you want to delete this report?</CardDescription></CardHeader><CardContent className="space-y-4">{reportActionError && <div className="p-3 bg-red-50 border border-red-200 rounded-md flex items-start gap-2"><AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" /><p className="text-sm text-red-600">{reportActionError}</p></div>}<div className="flex flex-col sm:flex-row gap-3"><Button variant="outline" className="flex-1 order-2 sm:order-1" disabled={isReportActionSubmitting} onClick={() => { setReportToDelete(null); setReportActionError(""); }}>Cancel</Button><Button className="flex-1 order-1 sm:order-2 bg-[#01005a] hover:bg-[#01005a]/90 text-white" disabled={isReportActionSubmitting} onClick={handleReportDelete}>{isReportActionSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Deleting...</> : "Delete Report"}</Button></div></CardContent></Card>
         </div>
       )}
 
@@ -3290,7 +3290,7 @@ const Reports = () => {
               )}
 
               {!historyLoading && historyItems.length > 0 && (
-                <ol className="space-y-4">
+                <ol className="space-y-4 pt-4">
                   {historyItems.map((item, idx) => {
                     const opColor = {
                       CREATE: 'bg-emerald-50 text-emerald-700',
