@@ -22,6 +22,7 @@ import ReportSummary from "./pages/ReportSummary";
 import ReportSetting from "./pages/ReportSetting";
 import SalaryReport from "./pages/SalaryReport";
 import ForgotPassword from "./pages/ForgotPassword";
+import WeeklyReport from "./pages/WeeklyReport";
 import Invoices from "./pages/Invoices";
 import MyProfile from "./pages/MyProfile";
 import MyReports from "./pages/MyReports";
@@ -61,6 +62,7 @@ function App() {
               <Route path="/daywisereport" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><ReportSummary /></RoleProtectedRoute>} />
               <Route path="/salariedreport" element={<Navigate to="/salary-report" replace />} />
               <Route path="/salary-report" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><SalaryReport /></RoleProtectedRoute>} />
+              <Route path="/weekly-report" element={<RoleProtectedRoute allowedRoles={["Owner", "Admin", "SuperAdmin"]}><WeeklyReport /></RoleProtectedRoute>} />
               <Route path="/reportsetting" element={<RoleProtectedRoute allowedRoles={['Owner', 'SuperAdmin']}><ReportSetting /></RoleProtectedRoute>} />
             </Routes>
           </div>

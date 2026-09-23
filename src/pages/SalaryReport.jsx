@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { CalendarDays, Download, History, Loader2, Users, Search, ArrowUp, ArrowDown, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, Download, History, Loader2, Users, Search, ArrowUp, ArrowDown, ChevronDown, ChevronLeft, ChevronRight, Printer, X } from "lucide-react";
 import Header from "../components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Button } from "../components/ui/button";
@@ -16,6 +16,7 @@ import { HamburgerIcon } from "../components/icons/HamburgerIcon";
 
 const formatDate = (value) => new Date(`${value}T00:00:00`).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 const periodLabel = (period) => `${formatDate(period.start_date)} – ${formatDate(period.end_date)}`;
+const formatTimeValue = (value) => (value === "00:00" || !value) ? "—" : value;
 
 export default function SalaryReport() {
   const location = useLocation();
@@ -37,6 +38,11 @@ export default function SalaryReport() {
   const [historyViewMode, setHistoryViewMode] = useState("list");
   const [showHistorySortDropdown, setShowHistorySortDropdown] = useState(false);
   const companyId = localStorage.getItem("companyID");
+  const [historySelectedReport, setHistorySelectedReport] = useState(null);
+  const [historyViewPageSize, setHistoryViewPageSize] = useState(10);
+  const [historyViewCurrentPage, setHistoryViewCurrentPage] = useState(1);
+  const [historyViewSearchQuery, setHistoryViewSearchQuery] = useState("");
+  const [downloadingPrintPeriod, setDownloadingPrintPeriod] = useState(null);
 
   // Toolbar state
   const [searchQuery, setSearchQuery] = useState("");
@@ -173,14 +179,16 @@ export default function SalaryReport() {
     setError("");
     try {
       const response = await getSalaryReportPeriod(companyId, period.start_date, period.end_date);
-      setSelected(response.data);
-      setActiveTab("current"); // Switch to Current Period tab to show the report
+      setHistorySelectedReport(response.data);
+      setHistoryViewCurrentPage(1);
+      setHistoryViewSearchQuery("");
     } catch (err) {
       setError(err.message || "Unable to load this report period");
     } finally {
       setSelecting(false);
     }
   };
+
 
   const generatePdf = (reportData) => {
     if (!reportData) return;
@@ -197,11 +205,11 @@ export default function SalaryReport() {
     );
     autoTable(doc, {
       startY: 40,
-      head: [["Employee", "PIN", "Entries", "Time worked"]],
+      head: [["Employee", "PIN", "Days", "Time worked"]],
       body: reportData.items.map((item) => [
         item.name || "—",
         item.pin || "—",
-        item.entries,
+        item.days,
         item.time_worked,
       ]),
       headStyles: { fillColor: [2, 6, 111] },
@@ -223,6 +231,77 @@ export default function SalaryReport() {
     } finally {
       setDownloadingPeriod(null);
     }
+  };
+
+  const printPeriodPdf = async (period) => {
+    setDownloadingPrintPeriod(period);
+    try {
+      const response = await getSalaryReportPeriod(companyId, period.start_date, period.end_date);
+      const doc = new jsPDF();
+      const companyName = localStorage.getItem("companyName") || "TapTime";
+      doc.setFontSize(18);
+      doc.text(`${companyName} Salary Report`, 14, 18);
+      doc.setFontSize(11);
+      doc.text(`${response.data.frequency}: ${periodLabel(response.data.period)}`, 14, 27);
+      doc.text(
+        `Total time: ${response.data.totals.time_worked}   Employees: ${response.data.totals.employees}`,
+        14,
+        34
+      );
+      autoTable(doc, {
+        startY: 40,
+        head: [["Employee", "PIN", "Days", "Time worked"]],
+        body: response.data.items.map((item) => [
+          item.name || "—",
+          item.pin || "—",
+          item.days,
+          item.time_worked,
+        ]),
+        headStyles: { fillColor: [2, 6, 111] },
+      });
+      const pdfUrl = URL.createObjectURL(doc.output("blob"));
+      const win = window.open(pdfUrl);
+      win.addEventListener("load", () => {
+        win.print();
+      });
+    } catch (err) {
+      setError(err.message || "Unable to print this report");
+    } finally {
+      setDownloadingPrintPeriod(null);
+    }
+  };
+
+
+  const handlePrint = () => {
+    if (!report) return;
+    const doc = new jsPDF();
+    const companyName = localStorage.getItem("companyName") || "TapTime";
+    doc.setFontSize(18);
+    doc.text(`${companyName} Salary Report`, 14, 18);
+    doc.setFontSize(11);
+    doc.text(`${report.frequency}: ${periodLabel(report.period)}`, 14, 27);
+    doc.text(
+      `Total time: ${report.totals.time_worked}   Employees: ${report.totals.employees}`,
+      14,
+      34
+    );
+    autoTable(doc, {
+      startY: 40,
+      head: [["Employee", "PIN", "Days", "Time worked"]],
+      body: report.items.map((item) => [
+        item.name || "—",
+        item.pin || "—",
+        item.days,
+        item.time_worked,
+      ]),
+      headStyles: { fillColor: [2, 6, 111] },
+    });
+    const pdfBlob = doc.output("blob");
+    const pdfUrl = URL.createObjectURL(pdfBlob);
+    const printWindow = window.open(pdfUrl);
+    printWindow.addEventListener("load", () => {
+      printWindow.print();
+    });
   };
 
   const visibleHistory = history.slice(0, visibleCount);
@@ -250,6 +329,10 @@ export default function SalaryReport() {
             <Button onClick={downloadPdf} disabled={!report || selecting}>
               <Download className="w-4 h-4 mr-2" />
               Download PDF
+            </Button>
+            <Button onClick={handlePrint} disabled={!report || selecting} variant="outline">
+              <Printer className="w-4 h-4 mr-2" />
+              Print
             </Button>
           </div>
         </div>
@@ -312,18 +395,24 @@ export default function SalaryReport() {
                         {periodLabel(current.period)}
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Employees</p>
-                        <p className="text-xl font-semibold">{current.totals.employees}</p>
+                    <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl">
+                      <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4 sm:p-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs sm:text-sm text-blue-600 font-medium">Total Employees</p>
+                            <p className="text-2xl sm:text-3xl font-bold text-blue-900 mt-2">{current.totals.employees}</p>
+                          </div>
+                          <div className="text-blue-300 text-4xl">👥</div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Attendance entries</p>
-                        <p className="text-xl font-semibold">{current.totals.entries}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Total time</p>
-                        <p className="text-xl font-semibold">{current.totals.time_worked}</p>
+                      <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg p-4 sm:p-6">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs sm:text-sm text-green-600 font-medium">Total Hours</p>
+                            <p className="text-2xl sm:text-3xl font-bold text-green-900 mt-2">{current.totals.time_worked}</p>
+                          </div>
+                          <div className="text-green-300 text-4xl">⏱️</div>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -458,7 +547,7 @@ export default function SalaryReport() {
                                 <tr className="border-b">
                                   <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[100px]">Employee ID</th>
                                   <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Name</th>
-                                  <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">Entries</th>
+                                  <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">Days</th>
                                   <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[100px]">Time Worked</th>
                                 </tr>
                               </thead>
@@ -468,8 +557,8 @@ export default function SalaryReport() {
                                     <tr key={index} className="border-b hover:bg-muted/50">
                                       <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium">{item.pin || "—"}</td>
                                       <td className="p-2 sm:p-4 text-xs sm:text-sm">{item.name || "—"}</td>
-                                      <td className="p-2 sm:p-4 text-xs sm:text-sm">{item.entries}</td>
-                                      <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium">{item.time_worked}</td>
+                                      <td className="p-2 sm:p-4 text-xs sm:text-sm">{formatTimeValue(item.days) || item.days}</td>
+                                      <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium">{formatTimeValue(item.time_worked)}</td>
                                     </tr>
                                   ))
                                 ) : (
@@ -546,13 +635,13 @@ export default function SalaryReport() {
                                   </CardHeader>
                                   <CardContent className="space-y-3 sm:space-y-4 pt-0">
                                     <div className="flex items-center justify-between text-xs sm:text-sm">
-                                      <span className="text-muted-foreground">Entries</span>
-                                      <span className="font-medium text-foreground">{item.entries}</span>
+                                      <span className="text-muted-foreground">Days</span>
+                                      <span className="font-medium text-foreground">{formatTimeValue(item.days) || item.days}</span>
                                     </div>
                                   <div className="pt-2 border-t">
                                     <div className="flex items-center justify-between text-xs sm:text-sm text-muted-foreground">
                                       <span>Time Worked</span>
-                                      <span className="font-medium text-foreground">{item.time_worked}</span>
+                                      <span className="font-medium text-foreground">{formatTimeValue(item.time_worked)}</span>
                                     </div>
                                   </div>
                                 </CardContent>
@@ -784,15 +873,32 @@ export default function SalaryReport() {
                                   </Button>
                                 </td>
                                 <td className="p-2 sm:p-4 text-center flex items-center justify-center">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    disabled={downloadingPeriod?.start_date === period.start_date}
-                                    onClick={() => downloadPeriodPdf(period)}
-                                    className="h-9 w-9 p-0 border border-gray-300 rounded-lg hover:bg-gray-50 shadow-sm flex items-center justify-center"
-                                  >
-                                    <Download className="w-5 h-5 text-gray-600" />
-                                  </Button>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      size="sm"
+                                      disabled={downloadingPeriod?.start_date === period.start_date}
+                                      onClick={() => downloadPeriodPdf(period)}
+                                      className="h-9 px-3 bg-white hover:bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center gap-1"
+                                    >
+                                      {downloadingPeriod?.start_date === period.start_date ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      ) : (
+                                        <Download className="w-4 h-4" />
+                                      )}
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      disabled={downloadingPrintPeriod?.start_date === period.start_date}
+                                      onClick={() => printPeriodPdf(period)}
+                                      className="h-9 px-3 bg-[#01005a] hover:bg-[#020680] text-white flex items-center justify-center gap-1"
+                                    >
+                                      {downloadingPrintPeriod?.start_date === period.start_date ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      ) : (
+                                        <Printer className="w-4 h-4" />
+                                      )}
+                                    </Button>
+                                  </div>
                                 </td>
                               </tr>
                             ))
@@ -847,22 +953,46 @@ export default function SalaryReport() {
                                 </Button>
                                 <Button
                                   size="sm"
-                                  variant="outline"
                                   disabled={downloadingPeriod?.start_date === period.start_date}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     downloadPeriodPdf(period);
                                   }}
-                                  className="h-9 w-9 p-0 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center"
+                                  className="h-9 px-3 bg-white hover:bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center gap-1"
                                 >
-                                  <Download className="w-4 h-4 text-gray-600" />
+                                  {downloadingPeriod?.start_date === period.start_date ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                      <span className="text-xs">Generating PDF...</span>
+                                    </>
+                                  ) : (
+                                    <Download className="w-4 h-4" />
+                                  )}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  disabled={downloadingPrintPeriod?.start_date === period.start_date}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    printPeriodPdf(period);
+                                  }}
+                                  className="h-9 px-3 bg-[#01005a] hover:bg-[#020680] text-white flex items-center justify-center gap-1"
+                                >
+                                  {downloadingPrintPeriod?.start_date === period.start_date ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                      <span className="text-xs">Printing...</span>
+                                    </>
+                                  ) : (
+                                    <Printer className="w-4 h-4" />
+                                  )}
                                 </Button>
                               </div>
                             </CardContent>
                           </Card>
                         ))
                       ) : (
-                        <div className="col-span-full py-8 text-center text-muted-foreground">
+                        <div className="col-span-full text-center py-8 text-muted-foreground">
                           No report history found.
                         </div>
                       )}
@@ -907,8 +1037,155 @@ export default function SalaryReport() {
                     </div>
                   )}
                 </CardContent>
+
               </Card>
             )}
+            {/* Inline History Report View */}
+            {historySelectedReport && (
+              <Card className="mt-6">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <CardTitle>Report: {periodLabel(historySelectedReport.period)}</CardTitle>
+                    <div className="flex items-center gap-2 ml-auto">
+                      <Label htmlFor="inline-page-size" className="text-xs sm:text-sm whitespace-nowrap">
+                        Per page:
+                      </Label>
+                      <select
+                        id="inline-page-size"
+                        value={historyViewPageSize}
+                        onChange={(e) => {
+                          setHistoryViewPageSize(parseInt(e.target.value, 10));
+                          setHistoryViewCurrentPage(1);
+                        }}
+                        className="h-8 px-2 text-xs sm:text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                      </select>
+                      <div className="flex items-center gap-2">
+                        <Button onClick={() => printPeriodPdf(historySelectedReport.period)} disabled={!historySelectedReport} size="sm" className="h-8 bg-[#01005a] hover:bg-[#020680] text-white">
+                          <Printer className="w-4 h-4 mr-1" />
+                          Print
+                        </Button>
+                        <Button onClick={() => setHistorySelectedReport(null)} variant="outline" size="sm" className="h-8 w-8 p-0 text-gray-600 hover:text-red-600 hover:border-red-300">
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      </div>
+                    </div>
+
+                </CardHeader>
+                <CardContent className="space-y-6">
+
+
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-2 gap-4 max-w-3xl">
+                    <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4 sm:p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs sm:text-sm text-blue-600 font-medium">Total Employees</p>
+                          <p className="text-2xl sm:text-3xl font-bold text-blue-900 mt-2">{historySelectedReport.totals.employees}</p>
+                        </div>
+                        <div className="text-blue-300 text-4xl">👥</div>
+                      </div>
+                    </div>
+                    <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg p-4 sm:p-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs sm:text-sm text-green-600 font-medium">Total Hours</p>
+                          <p className="text-2xl sm:text-3xl font-bold text-green-900 mt-2">{historySelectedReport.totals.time_worked}</p>
+                        </div>
+                        <div className="text-green-300 text-4xl">⏱️</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                    <Input
+                      placeholder="Search by name or PIN..."
+                      value={historyViewSearchQuery}
+                      onChange={(e) => {
+                        setHistoryViewSearchQuery(e.target.value);
+                        setHistoryViewCurrentPage(1);
+                      }}
+                      className="pl-10"
+                    />
+                  </div>
+
+                  {/* Employee Table */}
+                  {(() => {
+                    const filtered = historySelectedReport.items.filter(item =>
+                      (item.name && item.name.toLowerCase().includes(historyViewSearchQuery.toLowerCase())) ||
+                      (item.pin && item.pin.toLowerCase().includes(historyViewSearchQuery.toLowerCase()))
+                    );
+                    const startIdx = (historyViewCurrentPage - 1) * historyViewPageSize;
+                    const endIdx = startIdx + historyViewPageSize;
+                    const paginated = filtered.slice(startIdx, endIdx);
+                    const totalPages = Math.ceil(filtered.length / historyViewPageSize);
+
+                    return (
+                      <>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead className="bg-gray-100 border-y border-gray-300">
+                              <tr>
+                                <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm">Name</th>
+                                <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm">PIN</th>
+                                <th className="text-center p-2 sm:p-4 font-medium text-xs sm:text-sm">Days</th>
+                                <th className="text-center p-2 sm:p-4 font-medium text-xs sm:text-sm">Time Worked</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {paginated.map((item, idx) => (
+                                <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                                  <td className="p-2 sm:p-4 text-xs sm:text-sm">{item.name || "—"}</td>
+                                  <td className="p-2 sm:p-4 text-xs sm:text-sm">{item.pin || "—"}</td>
+                                  <td className="p-2 sm:p-4 text-xs sm:text-sm text-center">{formatTimeValue(item.days) || item.days}</td>
+                                  <td className="p-2 sm:p-4 text-xs sm:text-sm text-center font-semibold">{formatTimeValue(item.time_worked)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Pagination 2 */}
+                        {filtered.length > 0 && (
+                          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-gray-200">
+                            <span className="text-xs sm:text-sm text-muted-foreground">
+                              Showing {startIdx + 1}-{Math.min(endIdx, filtered.length)} of {filtered.length}
+                            </span>
+                            <div className="flex items-center gap-3">
+
+                              <button
+                                onClick={() => setHistoryViewCurrentPage(Math.max(1, historyViewCurrentPage - 1))}
+                                disabled={historyViewCurrentPage === 1}
+                                className="px-3 py-2 text-xs sm:text-sm font-medium border border-gray-300 rounded disabled:opacity-50 hover:bg-gray-50"
+                              >
+                                ← Prev
+                              </button>
+
+                              <span className="text-xs sm:text-sm text-muted-foreground">
+                                {historyViewCurrentPage} / {totalPages}
+                              </span>
+                              <button
+                                onClick={() => setHistoryViewCurrentPage(Math.min(totalPages, historyViewCurrentPage + 1))}
+                                disabled={historyViewCurrentPage === totalPages}
+                                className="px-3 py-2 text-xs sm:text-sm font-medium border border-gray-300 rounded disabled:opacity-50 hover:bg-gray-50"
+                              >
+                                Next →
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+            )}
+
           </>
         )}
       </main>

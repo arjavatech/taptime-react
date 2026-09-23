@@ -224,6 +224,7 @@ const Header = () => {
         items: [
           { to: "/reportsummary", label: "Report Summary" },
           { to: "/salary-report", label: "Salary Report" },
+          { to: "/weekly-report", label: "Weekly Report" },
           ...(userType === "Owner" || userType === "SuperAdmin" ? [{ to: "/reportsetting", label: "Report Settings" }] : [])
         ]
       }

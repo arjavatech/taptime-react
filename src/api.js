@@ -1569,3 +1569,12 @@ export const fetchReportHistory = async (recordId) => {
     `${API_BASE}/dailyreport/history/${encodeURIComponent(recordId)}`
   );
 };
+
+export const getWeeklyReportCurrent = (companyId) =>
+  api.request(`${API_BASE}/weekly-time-report/company/${companyId}/current`);
+
+export const getWeeklyReportHistory = (companyId) =>
+  api.request(`${API_BASE}/weekly-time-report/company/${companyId}/history`);
+
+export const getWeeklyReportPeriod = (companyId, startDate, endDate) =>
+  api.request(`${API_BASE}/weekly-time-report/company/${companyId}/period?start_date=${startDate}&end_date=${endDate}`);
