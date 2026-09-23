@@ -42,6 +42,10 @@ export default function WeeklyReport() {
   const [error, setError] = useState("");
   const [downloadingPeriod, setDownloadingPeriod] = useState(null);
   const [downloadingPrintPeriod, setDownloadingPrintPeriod] = useState(null);
+  const [historySelectedReport, setHistorySelectedReport] = useState(null);
+  const [historyViewPageSize, setHistoryViewPageSize] = useState(10);
+  const [historyViewCurrentPage, setHistoryViewCurrentPage] = useState(1);
+  const [historyViewSearchQuery, setHistoryViewSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("current");
   const [historyPageSize, setHistoryPageSize] = useState(10);
   const [historyCurrentPage, setHistoryCurrentPage] = useState(1);
@@ -180,8 +184,9 @@ export default function WeeklyReport() {
     setError("");
     try {
       const response = await getWeeklyReportPeriod(companyId, period.start_date, period.end_date);
-      setSelected(response.data);
-      setActiveTab("current");
+      setHistorySelectedReport(response.data);
+      setHistoryViewCurrentPage(1);
+      setHistoryViewSearchQuery("");
     } catch (err) {
       setError(err.message || "Unable to load this report period");
     } finally {
@@ -191,42 +196,122 @@ export default function WeeklyReport() {
 
   const generatePdf = (reportData) => {
     if (!reportData) return;
+
+    // Calculate totals from items
+    const calculateTimeSum = (items, field) => {
+      return (items || []).reduce((sum, item) => {
+        const time = item[field] || "00:00";
+        const [hours, mins] = time.split(":").map(Number);
+        return sum + (hours * 60 + mins);
+      }, 0);
+    };
+
+    const totalMins = calculateTimeSum(reportData.items, "total_hours");
+    const overtimeMins = calculateTimeSum(reportData.items, "overtime");
+
+    const formatMins = (mins) => {
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      return `${h}:${String(m).padStart(2, "0")}`;
+    };
+
+    const totalHours = totalMins === 0 ? "0:00" : formatMins(totalMins);
+    const overtimeHours = overtimeMins === 0 ? "0:00" : formatMins(overtimeMins);
+
     const doc = new jsPDF();
     const companyName = localStorage.getItem("companyName") || "TapTime";
-    doc.setFontSize(18);
-    doc.text(`${companyName} Weekly Time Report`, 14, 18);
-    doc.setFontSize(11);
-    doc.text(`Week: ${periodLabel(reportData.period)}`, 14, 27);
-    doc.text(
-      `Total time: ${reportData.totals.total_hours}   Overtime: ${reportData.totals.overtime_hours}   Employees: ${reportData.totals.employees}`,
-      14,
-      34
-    );
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    let yPosition = 15;
+
+    // Header
+    doc.setFontSize(20);
+    doc.setTextColor(1, 0, 90);
+    doc.text(`${companyName}`, margin, yPosition);
+
+    yPosition += 8;
+    doc.setFontSize(14);
+    doc.setTextColor(1, 0, 90);
+    doc.text("Weekly Time Report", margin, yPosition);
+
+    yPosition += 10;
+    doc.setFontSize(10);
+    doc.setTextColor(80, 80, 80);
+    doc.text(`Week: ${periodLabel(reportData.period)}`, margin, yPosition);
+
+    // Summary Statistics - Three colored boxes matching app theme
+    yPosition += 10;
+    const boxWidth = (pageWidth - 2 * margin) / 3 - 2;
+
+    // Employees box (Blue)
+    doc.setDrawColor(59, 130, 246);
+    doc.setFillColor(219, 234, 254);
+    doc.rect(margin, yPosition, boxWidth, 12, "FD");
+    doc.setFontSize(8);
+    doc.setTextColor(30, 58, 138);
+    doc.text("Total Employees", margin + 2, yPosition + 4);
+    doc.setFontSize(10);
+    doc.setFont(undefined, "bold");
+    doc.text(String(reportData.items?.length || 0), margin + 2, yPosition + 9);
+
+    // Total Hours box (Green)
+    const boxX2 = margin + boxWidth + 2;
+    doc.setDrawColor(34, 197, 94);
+    doc.setFillColor(220, 252, 231);
+    doc.rect(boxX2, yPosition, boxWidth, 12, "FD");
+    doc.setFontSize(8);
+    doc.setTextColor(22, 101, 52);
+    doc.text("Total Hours", boxX2 + 2, yPosition + 4);
+    doc.setFontSize(10);
+    doc.setFont(undefined, "bold");
+    doc.text(totalHours, boxX2 + 2, yPosition + 9);
+
+    // Overtime box (Orange)
+    const boxX3 = boxX2 + boxWidth + 2;
+    doc.setDrawColor(251, 146, 60);
+    doc.setFillColor(254, 237, 211);
+    doc.rect(boxX3, yPosition, boxWidth, 12, "FD");
+    doc.setFontSize(8);
+    doc.setTextColor(124, 45, 18);
+    doc.text("Overtime Hours", boxX3 + 2, yPosition + 4);
+    doc.setFontSize(10);
+    doc.setFont(undefined, "bold");
+    doc.text(overtimeHours, boxX3 + 2, yPosition + 9);
+    doc.setFont(undefined, "normal");
+
+    yPosition += 18;
+
+    // Table
     autoTable(doc, {
-      startY: 40,
+      startY: yPosition,
       head: [["Employee", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "Total", "Overtime"]],
       body: reportData.items.map((item) => [
-        item.name || "—",
-        formatTimeValue(item.mon),
-        formatTimeValue(item.tue),
-        formatTimeValue(item.wed),
-        formatTimeValue(item.thu),
-        formatTimeValue(item.fri),
-        formatTimeValue(item.sat),
-        formatTimeValue(item.sun),
-        formatTimeValue(item.total_hours),
-        formatTimeValue(item.overtime_hours),
+        String(item.name || "—"),
+        String(formatTimeValue(item.mon)),
+        String(formatTimeValue(item.tue)),
+        String(formatTimeValue(item.wed)),
+        String(formatTimeValue(item.thu)),
+        String(formatTimeValue(item.fri)),
+        String(formatTimeValue(item.sat)),
+        String(formatTimeValue(item.sun)),
+        String(formatTimeValue(item.total_hours)),
+        String(formatTimeValue(item.overtime)),
       ]),
-      headStyles: { fillColor: [2, 6, 111] },
+      headStyles: { fillColor: [1, 0, 90], textColor: [255, 255, 255], fontSize: 9, fontStyle: "bold" },
+      bodyStyles: { fontSize: 8 },
+      alternateRowStyles: { fillColor: [245, 245, 250] },
       willDrawCell: (data) => {
+        // Overtime column highlighting
         if (data.column.index === 9 && data.row.section === 'body') {
           const cellValue = data.cell.text;
           if (cellValue && cellValue !== "00:00" && cellValue !== "—") {
             data.cell.styles.fillColor = [255, 229, 100];
             data.cell.styles.textColor = [0, 0, 0];
+            data.cell.styles.fontStyle = "bold";
           }
         }
       },
+      margin: { top: 10, right: margin, bottom: 10, left: margin },
     });
     doc.save(`weekly-report-${reportData.period.start_date}-to-${reportData.period.end_date}.pdf`);
   };
@@ -239,35 +324,117 @@ export default function WeeklyReport() {
     const reportData = selected || current;
     if (!reportData) return;
     const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text("Weekly Time Report", 14, 14);
-    doc.setFontSize(11);
-    doc.text(`${periodLabel(reportData.period)}`, 14, 22);
+    const companyName = localStorage.getItem("companyName") || "TapTime";
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    let yPosition = 15;
+
+    // Header
+    doc.setFontSize(20);
+    doc.setTextColor(1, 0, 90);
+    doc.text(`${companyName}`, margin, yPosition);
+
+    yPosition += 8;
+    doc.setFontSize(14);
+    doc.setTextColor(1, 0, 90);
+    doc.text("Weekly Time Report", margin, yPosition);
+
+    yPosition += 10;
+    doc.setFontSize(10);
+    doc.setTextColor(80, 80, 80);
+    doc.text(`Week: ${periodLabel(reportData.period)}`, margin, yPosition);
+
+    // Calculate totals from items
+    const calculateTimeSum = (items, field) => {
+      return (items || []).reduce((sum, item) => {
+        const time = item[field] || "00:00";
+        const [hours, mins] = time.split(":").map(Number);
+        return sum + (hours * 60 + mins);
+      }, 0);
+    };
+
+    const totalMins = calculateTimeSum(reportData.items, "total_hours");
+    const overtimeMins = calculateTimeSum(reportData.items, "overtime");
+
+    const formatMins = (mins) => {
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      return `${h}:${String(m).padStart(2, "0")}`;
+    };
+
+    const totalHours = totalMins === 0 ? "0:00" : formatMins(totalMins);
+    const overtimeHours = overtimeMins === 0 ? "0:00" : formatMins(overtimeMins);
+
+    // Summary Statistics - Three colored boxes
+    yPosition += 10;
+    const boxWidth = (pageWidth - 2 * margin) / 3 - 2;
+
+    // Employees box (Blue)
+    doc.setDrawColor(59, 130, 246);
+    doc.setFillColor(219, 234, 254);
+    doc.rect(margin, yPosition, boxWidth, 12, "FD");
+    doc.setFontSize(8);
+    doc.setTextColor(30, 58, 138);
+    doc.text("Total Employees", margin + 2, yPosition + 4);
+    doc.setFontSize(10);
+    doc.setFont(undefined, "bold");
+    doc.text(String(reportData.items?.length || 0), margin + 2, yPosition + 9);
+
+    // Total Hours box (Green)
+    const boxX2 = margin + boxWidth + 2;
+    doc.setDrawColor(34, 197, 94);
+    doc.setFillColor(220, 252, 231);
+    doc.rect(boxX2, yPosition, boxWidth, 12, "FD");
+    doc.setFontSize(8);
+    doc.setTextColor(22, 101, 52);
+    doc.text("Total Hours", boxX2 + 2, yPosition + 4);
+    doc.setFontSize(10);
+    doc.setFont(undefined, "bold");
+    doc.text(totalHours, boxX2 + 2, yPosition + 9);
+
+    // Overtime box (Orange)
+    const boxX3 = boxX2 + boxWidth + 2;
+    doc.setDrawColor(251, 146, 60);
+    doc.setFillColor(254, 237, 211);
+    doc.rect(boxX3, yPosition, boxWidth, 12, "FD");
+    doc.setFontSize(8);
+    doc.setTextColor(124, 45, 18);
+    doc.text("Overtime Hours", boxX3 + 2, yPosition + 4);
+    doc.setFontSize(10);
+    doc.setFont(undefined, "bold");
+    doc.text(overtimeHours, boxX3 + 2, yPosition + 9);
+    doc.setFont(undefined, "normal");
+
+    yPosition += 18;
     autoTable(doc, {
-      startY: 30,
+      startY: yPosition,
       head: [["Employee", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "Total", "Overtime"]],
       body: reportData.items.map((item) => [
-        item.name || "—",
-        formatTimeValue(item.mon),
-        formatTimeValue(item.tue),
-        formatTimeValue(item.wed),
-        formatTimeValue(item.thu),
-        formatTimeValue(item.fri),
-        formatTimeValue(item.sat),
-        formatTimeValue(item.sun),
-        formatTimeValue(item.total_hours),
-        formatTimeValue(item.overtime_hours),
+        String(item.name || "—"),
+        String(formatTimeValue(item.mon)),
+        String(formatTimeValue(item.tue)),
+        String(formatTimeValue(item.wed)),
+        String(formatTimeValue(item.thu)),
+        String(formatTimeValue(item.fri)),
+        String(formatTimeValue(item.sat)),
+        String(formatTimeValue(item.sun)),
+        String(formatTimeValue(item.total_hours)),
+        String(formatTimeValue(item.overtime)),
       ]),
-      headStyles: { fillColor: [2, 6, 111] },
+      headStyles: { fillColor: [1, 0, 90], textColor: [255, 255, 255], fontSize: 9, fontStyle: "bold" },
+      bodyStyles: { fontSize: 8 },
+      alternateRowStyles: { fillColor: [245, 245, 250] },
       willDrawCell: (data) => {
         if (data.column.index === 9 && data.row.section === 'body') {
           const cellValue = data.cell.text;
           if (cellValue && cellValue !== "00:00" && cellValue !== "—") {
             data.cell.styles.fillColor = [255, 229, 100];
             data.cell.styles.textColor = [0, 0, 0];
+            data.cell.styles.fontStyle = "bold";
           }
         }
       },
+      margin: { top: 10, right: margin, bottom: 10, left: margin },
     });
     const pdfUrl = URL.createObjectURL(doc.output("blob"));
     const printWindow = window.open(pdfUrl);
@@ -293,63 +460,118 @@ export default function WeeklyReport() {
     try {
       const response = await getWeeklyReportPeriod(companyId, period.start_date, period.end_date);
       const doc = new jsPDF();
+      const companyName = localStorage.getItem("companyName") || "TapTime";
       const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      const margin = 10;
-      const labelFont = 10;
-      const contentFont = 9;
-      const lineSpacing = 6;
-      let yPosition = margin;
-      doc.setFontSize(16);
-      doc.text("Weekly Time Report", margin, yPosition);
+      const margin = 14;
+      let yPosition = 15;
+
+      // Header
+      doc.setFontSize(20);
+      doc.setTextColor(1, 0, 90);
+      doc.text(`${companyName}`, margin, yPosition);
+
       yPosition += 8;
-      doc.setFontSize(labelFont);
-      doc.text(`${periodLabel(response.data.period)}`, margin, yPosition);
-      yPosition += lineSpacing + 2;
-      doc.setDrawColor(0);
-      doc.line(margin, yPosition, pageWidth - margin, yPosition);
-      yPosition += 4;
-      doc.setFontSize(contentFont);
-      const summaryData = [
-        ["Total Employees", response.data.totals?.employees || "0"],
-        ["Total Hours", response.data.totals?.hours || "0:00"],
-        ["Overtime Hours", response.data.totals?.overtime || "0:00"],
-      ];
-      summaryData.forEach((row) => {
-        doc.text(row[0] + ":", margin, yPosition);
-        doc.text(row[1], pageWidth - margin - 40, yPosition);
-        yPosition += lineSpacing;
-      });
-      yPosition += 4;
-      doc.line(margin, yPosition, pageWidth - margin, yPosition);
-      yPosition += 6;
+      doc.setFontSize(14);
+      doc.setTextColor(1, 0, 90);
+      doc.text("Weekly Time Report", margin, yPosition);
+
+      yPosition += 10;
+      doc.setFontSize(10);
+      doc.setTextColor(80, 80, 80);
+      doc.text(`Week: ${periodLabel(response.data.period)}`, margin, yPosition);
+
+      // Calculate totals from items
+      const calculateTimeSum = (items, field) => {
+        return (items || []).reduce((sum, item) => {
+          const time = item[field] || "00:00";
+          const [hours, mins] = time.split(":").map(Number);
+          return sum + (hours * 60 + mins);
+        }, 0);
+      };
+
+      const totalMins = calculateTimeSum(response.data.items, "total_hours");
+      const overtimeMins = calculateTimeSum(response.data.items, "overtime");
+
+      const formatMins = (mins) => {
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        return `${h}:${String(m).padStart(2, "0")}`;
+      };
+
+      const totalHours = totalMins === 0 ? "0:00" : formatMins(totalMins);
+      const overtimeHours = overtimeMins === 0 ? "0:00" : formatMins(overtimeMins);
+
+      // Summary Statistics - Three colored boxes
+      yPosition += 10;
+      const boxWidth = (pageWidth - 2 * margin) / 3 - 2;
+
+      // Employees box (Blue)
+      doc.setDrawColor(59, 130, 246);
+      doc.setFillColor(219, 234, 254);
+      doc.rect(margin, yPosition, boxWidth, 12, "FD");
+      doc.setFontSize(8);
+      doc.setTextColor(30, 58, 138);
+      doc.text("Total Employees", margin + 2, yPosition + 4);
+      doc.setFontSize(10);
+      doc.setFont(undefined, "bold");
+      doc.text(String(response.data.items?.length || 0), margin + 2, yPosition + 9);
+
+      // Total Hours box (Green)
+      const boxX2 = margin + boxWidth + 2;
+      doc.setDrawColor(34, 197, 94);
+      doc.setFillColor(220, 252, 231);
+      doc.rect(boxX2, yPosition, boxWidth, 12, "FD");
+      doc.setFontSize(8);
+      doc.setTextColor(22, 101, 52);
+      doc.text("Total Hours", boxX2 + 2, yPosition + 4);
+      doc.setFontSize(10);
+      doc.setFont(undefined, "bold");
+      doc.text(totalHours, boxX2 + 2, yPosition + 9);
+
+      // Overtime box (Orange)
+      const boxX3 = boxX2 + boxWidth + 2;
+      doc.setDrawColor(251, 146, 60);
+      doc.setFillColor(254, 237, 211);
+      doc.rect(boxX3, yPosition, boxWidth, 12, "FD");
+      doc.setFontSize(8);
+      doc.setTextColor(124, 45, 18);
+      doc.text("Overtime Hours", boxX3 + 2, yPosition + 4);
+      doc.setFontSize(10);
+      doc.setFont(undefined, "bold");
+      doc.text(overtimeHours, boxX3 + 2, yPosition + 9);
+      doc.setFont(undefined, "normal");
+
+      yPosition += 18;
+
       autoTable(doc, {
         startY: yPosition,
-        head: [["Employee Name", "PIN", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "Total Hours", "Overtime"]],
+        head: [["Employee", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "Total", "Overtime"]],
         body: (response.data.items || []).map((item) => [
-          item.name,
-          item.pin,
-          item.days?.monday || "—",
-          item.days?.tuesday || "—",
-          item.days?.wednesday || "—",
-          item.days?.thursday || "—",
-          item.days?.friday || "—",
-          item.days?.saturday || "—",
-          item.days?.sunday || "—",
-          item.total_hours || "—",
-          item.overtime || "—",
+          String(item.name || "—"),
+          String(formatTimeValue(item.mon)),
+          String(formatTimeValue(item.tue)),
+          String(formatTimeValue(item.wed)),
+          String(formatTimeValue(item.thu)),
+          String(formatTimeValue(item.fri)),
+          String(formatTimeValue(item.sat)),
+          String(formatTimeValue(item.sun)),
+          String(formatTimeValue(item.total_hours)),
+          String(formatTimeValue(item.overtime)),
         ]),
-        margin: margin,
-        didDrawPage: () => {},
+        headStyles: { fillColor: [1, 0, 90], textColor: [255, 255, 255], fontSize: 9, fontStyle: "bold" },
+        bodyStyles: { fontSize: 8 },
+        alternateRowStyles: { fillColor: [245, 245, 250] },
         willDrawCell: (data) => {
-          if (data.column.index === 10 && data.row.section === 'body') {
+          if (data.column.index === 9 && data.row.section === 'body') {
             const cellValue = data.cell.text;
             if (cellValue && cellValue !== "00:00" && cellValue !== "—") {
               data.cell.styles.fillColor = [255, 229, 100];
               data.cell.styles.textColor = [0, 0, 0];
+              data.cell.styles.fontStyle = "bold";
             }
           }
         },
+        margin: { top: 10, right: margin, bottom: 10, left: margin },
       });
       const pdfUrl = URL.createObjectURL(doc.output("blob"));
       const win = window.open(pdfUrl);
@@ -989,6 +1211,257 @@ export default function WeeklyReport() {
                         </Button>
                       </div>
                     </div>
+
+                  {/* Inline History Report View */}
+                  {historySelectedReport && (
+                    <div className="mt-8 pt-8 border-t">
+                      <div className="mb-6 bg-gradient-to-br from-indigo-50 to-indigo-100 border border-indigo-200 rounded-lg p-4 sm:p-6">
+                        <div className="space-y-2">
+                          <p className="text-sm font-semibold text-indigo-900">Viewing Period</p>
+                          <p className="text-xs text-indigo-700">{periodLabel(historySelectedReport.period)}</p>
+                          <div className="pt-2 border-t border-indigo-200 flex items-center justify-between">
+                            <p className="text-sm text-indigo-700 font-medium">{getCompletedDaysCount(historySelectedReport.items)} of 5 days complete · Expected hours: {getCompletedDaysCount(historySelectedReport.items) * 8}:00</p>
+                            <Button variant="outline" size="sm" onClick={() => setHistorySelectedReport(null)} className="h-9 px-3">
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="relative w-full">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                          <Input
+                            placeholder="Search employees..."
+                            value={historyViewSearchQuery}
+                            onChange={(e) => setHistoryViewSearchQuery(e.target.value)}
+                            className="pl-10 text-sm h-10 rounded-lg border border-input bg-white w-full"
+                          />
+                        </div>
+
+                        {/* Toolbar Controls */}
+                        <div className="mb-6 flex flex-wrap gap-3 items-center">
+                          {/* Sort Control */}
+                          <div className="relative">
+                            <Button
+                              variant="outline"
+                              className="px-3 py-2 h-10 text-sm flex items-center gap-2 min-w-[100px] justify-between border border-input rounded-lg"
+                              onClick={() => setShowSortDropdown(!showSortDropdown)}
+                            >
+                              <div className="flex items-center gap-2">
+                                {sortConfig.direction === 'asc' ? (
+                                  <ArrowUp className="w-4 h-4 text-green-600" />
+                                ) : sortConfig.direction === 'desc' ? (
+                                  <ArrowDown className="w-4 h-4 text-blue-600" />
+                                ) : (
+                                  <ArrowUp className="w-4 h-4 text-green-600" />
+                                )}
+                                <span className="hidden sm:inline">Sort</span>
+                              </div>
+                              <ChevronDown className="w-4 h-4" />
+                            </Button>
+
+                            {showSortDropdown && (
+                              <div className="absolute top-full left-0 mt-2 w-56 bg-white border border-input rounded-lg shadow-md z-10">
+                                {[
+                                  { key: 'name', direction: 'asc', label: 'Sort By Name', icon: ArrowUp, iconColor: 'text-green-600' },
+                                  { key: 'name', direction: 'desc', label: 'Sort By Name', icon: ArrowDown, iconColor: 'text-blue-600' },
+                                  { key: 'pin', direction: 'asc', label: 'Sort By PIN', icon: ArrowUp, iconColor: 'text-green-600' },
+                                  { key: 'pin', direction: 'desc', label: 'Sort By PIN', icon: ArrowDown, iconColor: 'text-blue-600' },
+                                  { key: 'total_hours', direction: 'asc', label: 'Sort By Total Hours', icon: ArrowUp, iconColor: 'text-green-600' },
+                                  { key: 'total_hours', direction: 'desc', label: 'Sort By Total Hours', icon: ArrowDown, iconColor: 'text-blue-600' },
+                                ].map(({ key, direction, label, icon: Icon, iconColor }) => (
+                                  <button
+                                    key={`${key}-${direction}`}
+                                    onClick={() => {
+                                      setSortConfig({ key, direction });
+                                      setShowSortDropdown(false);
+                                    }}
+                                    className="w-full px-4 py-3 text-left text-sm hover:bg-blue-50 flex items-center gap-3 transition-colors"
+                                  >
+                                    <Icon className={`w-4 h-4 ${iconColor}`} />
+                                    <span className="text-foreground font-medium">{label}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* List/Grid Toggle */}
+                          <div className="flex gap-2 border border-input rounded-xl p-1 bg-white">
+                            <button
+                              onClick={() => setViewMode('list')}
+                              className={`p-2 rounded-lg transition-colors ${
+                                viewMode === 'list'
+                                  ? 'bg-[#020670] text-white'
+                                  : 'text-muted-foreground hover:text-foreground'
+                              }`}
+                              title="List View"
+                            >
+                              <HamburgerIcon className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={() => setViewMode('grid')}
+                              className={`p-2 rounded-lg transition-colors ${
+                                viewMode === 'grid'
+                                  ? 'bg-[#020670] text-white'
+                                  : 'text-muted-foreground hover:text-foreground'
+                              }`}
+                              title="Grid View"
+                            >
+                              <GridIcon className="w-5 h-5" />
+                            </button>
+                          </div>
+
+                          {/* Records per page */}
+                          <div className="flex items-center gap-2 ml-auto">
+                            <Label htmlFor="history-inline-page-size" className="text-xs sm:text-sm whitespace-nowrap">
+                              Per page:
+                            </Label>
+                            <select
+                              id="history-inline-page-size"
+                              value={historyViewPageSize}
+                              onChange={(e) => {
+                                setHistoryViewPageSize(parseInt(e.target.value, 10));
+                                setHistoryViewCurrentPage(1);
+                              }}
+                              className="h-8 px-2 text-xs sm:text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value={10}>10</option>
+                              <option value={25}>25</option>
+                              <option value={50}>50</option>
+                              <option value={100}>100</option>
+                            </select>
+                          </div>
+                          <Button
+                            onClick={() => printPeriodPdf(historySelectedReport.period)}
+                            disabled={downloadingPrintPeriod?.start_date === historySelectedReport.period.start_date}
+                            size="sm"
+                            className="h-9 px-3 bg-[#01005a] hover:bg-[#020680] text-white flex items-center justify-center gap-1"
+                          >
+                            {downloadingPrintPeriod?.start_date === historySelectedReport.period.start_date ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Printer className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </div>
+
+                        {/* Table List View */}
+                        {viewMode === "list" && (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead className="bg-gray-100 border-y border-gray-300">
+                              <tr>
+                                <th className="px-3 py-2 text-left">Employee</th>
+                                <th className="px-3 py-2 text-center">Mon</th>
+                                <th className="px-3 py-2 text-center">Tue</th>
+                                <th className="px-3 py-2 text-center">Wed</th>
+                                <th className="px-3 py-2 text-center">Thu</th>
+                                <th className="px-3 py-2 text-center">Fri</th>
+                                <th className="px-3 py-2 text-center">Sat</th>
+                                <th className="px-3 py-2 text-center">Sun</th>
+                                <th className="px-3 py-2 text-center">Total</th>
+                                <th className="px-3 py-2 text-center">Overtime</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {historySelectedReport.items
+                                .filter((item) =>
+                                  item.name?.toLowerCase().includes(historyViewSearchQuery.toLowerCase()) ||
+                                  item.pin?.toLowerCase().includes(historyViewSearchQuery.toLowerCase())
+                                )
+                                .slice((historyViewCurrentPage - 1) * historyViewPageSize, historyViewCurrentPage * historyViewPageSize)
+                                .map((item, idx) => (
+                                  <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                                    <td className="px-3 py-2">{item.name || "—"}</td>
+                                    <td className="px-3 py-2 text-center">{formatTimeValue(item.mon)}</td>
+                                    <td className="px-3 py-2 text-center">{formatTimeValue(item.tue)}</td>
+                                    <td className="px-3 py-2 text-center">{formatTimeValue(item.wed)}</td>
+                                    <td className="px-3 py-2 text-center">{formatTimeValue(item.thu)}</td>
+                                    <td className="px-3 py-2 text-center">{formatTimeValue(item.fri)}</td>
+                                    <td className="px-3 py-2 text-center">{formatTimeValue(item.sat)}</td>
+                                    <td className="px-3 py-2 text-center">{formatTimeValue(item.sun)}</td>
+                                    <td className="px-3 py-2 text-center font-semibold">{formatTimeValue(item.total_hours)}</td>
+                                    <td className={`px-3 py-2 text-center font-semibold ${item.overtime && item.overtime !== "00:00" ? "bg-yellow-200" : ""}`}>{formatTimeValue(item.overtime)}</td>
+                                  </tr>
+                                ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        )}
+
+                        {/* Grid View */}
+                        {viewMode === "grid" && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {historySelectedReport.items
+                              .filter((item) =>
+                                item.name?.toLowerCase().includes(historyViewSearchQuery.toLowerCase()) ||
+                                item.pin?.toLowerCase().includes(historyViewSearchQuery.toLowerCase())
+                              )
+                              .slice((historyViewCurrentPage - 1) * historyViewPageSize, historyViewCurrentPage * historyViewPageSize)
+                              .map((item, idx) => (
+                                <Card key={idx} className="p-4">
+                                  <div className="space-y-3">
+                                    <div>
+                                      <p className="text-xs text-muted-foreground">Employee</p>
+                                      <p className="font-semibold">{item.name || "—"}</p>
+                                    </div>
+                                    <div className="space-y-2 text-sm">
+                                      <div className="grid grid-cols-2 gap-2">
+                                        {[
+                                          { day: 'Mon', value: item.mon },
+                                          { day: 'Tue', value: item.tue },
+                                          { day: 'Wed', value: item.wed },
+                                          { day: 'Thu', value: item.thu },
+                                          { day: 'Fri', value: item.fri },
+                                          { day: 'Sat', value: item.sat },
+                                          { day: 'Sun', value: item.sun },
+                                        ].map(({ day, value }) => (
+                                          <div key={day} className="flex justify-between">
+                                            <span className="text-muted-foreground">{day}:</span>
+                                            <span className="font-medium">{formatTimeValue(value)}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                      <div className="border-t pt-2 mt-2 flex justify-between">
+                                        <span className="text-muted-foreground font-medium">Total:</span>
+                                        <span className="font-semibold">{formatTimeValue(item.total_hours)}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </Card>
+                              ))}
+                          </div>
+                        )}
+
+                        {/* Inline Pagination */}
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            Page {historyViewCurrentPage} of {Math.ceil(historySelectedReport.items.length / historyViewPageSize)}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              onClick={() => setHistoryViewCurrentPage(Math.max(1, historyViewCurrentPage - 1))}
+                              disabled={historyViewCurrentPage === 1}
+                              variant="outline"
+                              size="sm"
+                            >
+                              <ChevronLeft className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              onClick={() => setHistoryViewCurrentPage(Math.min(Math.ceil(historySelectedReport.items.length / historyViewPageSize), historyViewCurrentPage + 1))}
+                              disabled={historyViewCurrentPage === Math.ceil(historySelectedReport.items.length / historyViewPageSize)}
+                              variant="outline"
+                              size="sm"
+                            >
+                              <ChevronRight className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   </CardContent>
                 </Card>
               </>
