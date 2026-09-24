@@ -57,7 +57,14 @@ const Reports = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+  const [sortConfig, setSortConfig] = useState(() => {
+    try {
+      const saved = localStorage.getItem('reportSortConfig');
+      return saved ? JSON.parse(saved) : { key: null, direction: "asc" };
+    } catch {
+      return { key: null, direction: "asc" };
+    }
+  });
   const [viewMode, setViewMode] = useState("table");
   const [pendingPageSize, setPendingPageSize] = useState(10);
   const [pendingCurrentPage, setPendingCurrentPage] = useState(1);
@@ -1680,8 +1687,15 @@ const Reports = () => {
                       <button
                         key={`${key}-${direction}`}
                         onClick={() => {
-                          setSortConfig({ key, direction });
+                          const newSortConfig = { key, direction };
+                          setSortConfig(newSortConfig);
+                          // Persist sort config to localStorage
+                          localStorage.setItem('reportSortConfig', JSON.stringify(newSortConfig));
                           document.getElementById('sort-dropdown').classList.add('hidden');
+                          // Refresh the page after 100ms to allow state update
+                          setTimeout(() => {
+                            window.location.reload();
+                          }, 100);
                         }}
                         className={`w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center justify-between transition-colors ${sortConfig.key === key && sortConfig.direction === direction
                             ? 'bg-primary/10 text-primary'

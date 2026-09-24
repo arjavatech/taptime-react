@@ -61,6 +61,9 @@ export default function WeeklyReport() {
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [viewMode, setViewMode] = useState("list");
   const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const [historyReportTableMode, setHistoryReportTableMode] = useState("grid"); // Default to grid for mobile, will be overridden on desktop
+  const [historyReportSortConfig, setHistoryReportSortConfig] = useState({ key: null, direction: "asc" });
+  const [showHistoryViewSortDropdown, setShowHistoryViewSortDropdown] = useState(false);
 
   const HISTORY_PAGE_SIZE = 12;
   const report = selected || current;
@@ -174,8 +177,13 @@ export default function WeeklyReport() {
 
   useEffect(() => {
     if (window.innerWidth < 768) {
+      // Mobile: Grid/Card view
       setViewMode("grid");
       setHistoryViewMode("grid");
+      setHistoryReportTableMode("grid");
+    } else {
+      // Tablet and Desktop: List/Table view
+      setHistoryReportTableMode("list");
     }
   }, []);
 
@@ -196,105 +204,33 @@ export default function WeeklyReport() {
 
   const generatePdf = (reportData) => {
     if (!reportData) return;
-
-    // Use API-calculated totals directly (already computed by backend)
-    const totalHours = reportData.totals?.total_hours || "0:00";
-    const overtimeHours = reportData.totals?.overtime_hours || "0:00";
-
     const doc = new jsPDF();
     const companyName = localStorage.getItem("companyName") || "TapTime";
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 14;
-    let yPosition = 15;
-
-    // Header
-    doc.setFontSize(20);
-    doc.setTextColor(1, 0, 90);
-    doc.text(`${companyName}`, margin, yPosition);
-
-    yPosition += 8;
-    doc.setFontSize(14);
-    doc.setTextColor(1, 0, 90);
-    doc.text("Weekly Time Report", margin, yPosition);
-
-    yPosition += 10;
-    doc.setFontSize(10);
-    doc.setTextColor(80, 80, 80);
-    doc.text(`Week: ${periodLabel(reportData.period)}`, margin, yPosition);
-
-    // Summary Statistics - Three colored boxes matching app theme
-    yPosition += 10;
-    const boxWidth = (pageWidth - 2 * margin) / 3 - 2;
-
-    // Employees box (Blue)
-    doc.setDrawColor(59, 130, 246);
-    doc.setFillColor(219, 234, 254);
-    doc.rect(margin, yPosition, boxWidth, 12, "FD");
-    doc.setFontSize(8);
-    doc.setTextColor(30, 58, 138);
-    doc.text("Total Employees", margin + 2, yPosition + 4);
-    doc.setFontSize(10);
-    doc.setFont(undefined, "bold");
-    doc.text(String(reportData.items?.length || 0), margin + 2, yPosition + 9);
-
-    // Total Hours box (Green)
-    const boxX2 = margin + boxWidth + 2;
-    doc.setDrawColor(34, 197, 94);
-    doc.setFillColor(220, 252, 231);
-    doc.rect(boxX2, yPosition, boxWidth, 12, "FD");
-    doc.setFontSize(8);
-    doc.setTextColor(22, 101, 52);
-    doc.text("Total Hours", boxX2 + 2, yPosition + 4);
-    doc.setFontSize(10);
-    doc.setFont(undefined, "bold");
-    doc.text(totalHours, boxX2 + 2, yPosition + 9);
-
-    // Overtime box (Orange)
-    const boxX3 = boxX2 + boxWidth + 2;
-    doc.setDrawColor(251, 146, 60);
-    doc.setFillColor(254, 237, 211);
-    doc.rect(boxX3, yPosition, boxWidth, 12, "FD");
-    doc.setFontSize(8);
-    doc.setTextColor(124, 45, 18);
-    doc.text("Overtime Hours", boxX3 + 2, yPosition + 4);
-    doc.setFontSize(10);
-    doc.setFont(undefined, "bold");
-    doc.text(overtimeHours, boxX3 + 2, yPosition + 9);
-    doc.setFont(undefined, "normal");
-
-    yPosition += 18;
-
-    // Table
+    doc.setFontSize(18);
+    doc.text(`${companyName} Weekly Time Report`, 14, 18);
+    doc.setFontSize(11);
+    doc.text(`Week: ${periodLabel(reportData.period)}`, 14, 27);
+    doc.text(
+      `Total Hours: ${reportData.totals?.total_hours || "0:00"}   Overtime: ${reportData.totals?.overtime_hours || "0:00"}   Employees: ${reportData.items?.length || 0}`,
+      14,
+      34
+    );
     autoTable(doc, {
-      startY: yPosition,
+      startY: 40,
       head: [["Employee", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "Total", "Overtime"]],
       body: reportData.items.map((item) => [
-        String(item.name || "—"),
-        String(formatTimeValue(item.mon)),
-        String(formatTimeValue(item.tue)),
-        String(formatTimeValue(item.wed)),
-        String(formatTimeValue(item.thu)),
-        String(formatTimeValue(item.fri)),
-        String(formatTimeValue(item.sat)),
-        String(formatTimeValue(item.sun)),
-        String(formatTimeValue(item.total_hours)),
-        String(formatTimeValue(item.overtime_hours)),
+        item.name || "—",
+        formatTimeValue(item.mon),
+        formatTimeValue(item.tue),
+        formatTimeValue(item.wed),
+        formatTimeValue(item.thu),
+        formatTimeValue(item.fri),
+        formatTimeValue(item.sat),
+        formatTimeValue(item.sun),
+        formatTimeValue(item.total_hours),
+        formatTimeValue(item.overtime_hours),
       ]),
-      headStyles: { fillColor: [1, 0, 90], textColor: [255, 255, 255], fontSize: 9, fontStyle: "bold" },
-      bodyStyles: { fontSize: 8 },
-      alternateRowStyles: { fillColor: [245, 245, 250] },
-      willDrawCell: (data) => {
-        // Overtime column highlighting
-        if (data.column.index === 9 && data.row.section === 'body') {
-          const cellValue = data.cell.text;
-          if (cellValue && cellValue !== "00:00" && cellValue !== "—") {
-            data.cell.styles.fillColor = [255, 229, 100];
-            data.cell.styles.textColor = [0, 0, 0];
-            data.cell.styles.fontStyle = "bold";
-          }
-        }
-      },
-      margin: { top: 10, right: margin, bottom: 10, left: margin },
+      headStyles: { fillColor: [2, 6, 111] },
     });
     doc.save(`weekly-report-${reportData.period.start_date}-to-${reportData.period.end_date}.pdf`);
   };
@@ -308,123 +244,34 @@ export default function WeeklyReport() {
     if (!reportData) return;
     const doc = new jsPDF();
     const companyName = localStorage.getItem("companyName") || "TapTime";
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 14;
-    let yPosition = 15;
-
-    // Header
-    doc.setFontSize(20);
-    doc.setTextColor(1, 0, 90);
-    doc.text(`${companyName}`, margin, yPosition);
-
-    yPosition += 8;
-    doc.setFontSize(14);
-    doc.setTextColor(1, 0, 90);
-    doc.text("Weekly Time Report", margin, yPosition);
-
-    yPosition += 10;
-    doc.setFontSize(10);
-    doc.setTextColor(80, 80, 80);
-    doc.text(`Week: ${periodLabel(reportData.period)}`, margin, yPosition);
-
-    // Calculate totals from items - skip only null/undefined values
-    const calculateTimeSum = (items, field) => {
-      return (items || []).reduce((sum, item) => {
-        let time = item[field];
-        if (!time || time === "—") return sum;
-        if (typeof time !== "string") return sum;
-        const parts = time.split(":");
-        if (parts.length !== 2) return sum;
-        const [hours, mins] = parts.map(Number);
-        if (isNaN(hours) || isNaN(mins)) return sum;
-        return sum + (hours * 60 + mins);
-      }, 0);
-    };
-
-    const totalMins = calculateTimeSum(reportData.items, "total_hours");
-    const overtimeMins = calculateTimeSum(reportData.items, "overtime_hours");
-
-    const formatMins = (mins) => {
-      const h = Math.floor(mins / 60);
-      const m = mins % 60;
-      return `${h}:${String(m).padStart(2, "0")}`;
-    };
-
-    const totalHours = totalMins === 0 ? "0:00" : formatMins(totalMins);
-    const overtimeHours = overtimeMins === 0 ? "0:00" : formatMins(overtimeMins);
-
-    // Summary Statistics - Three colored boxes
-    yPosition += 10;
-    const boxWidth = (pageWidth - 2 * margin) / 3 - 2;
-
-    // Employees box (Blue)
-    doc.setDrawColor(59, 130, 246);
-    doc.setFillColor(219, 234, 254);
-    doc.rect(margin, yPosition, boxWidth, 12, "FD");
-    doc.setFontSize(8);
-    doc.setTextColor(30, 58, 138);
-    doc.text("Total Employees", margin + 2, yPosition + 4);
-    doc.setFontSize(10);
-    doc.setFont(undefined, "bold");
-    doc.text(String(reportData.items?.length || 0), margin + 2, yPosition + 9);
-
-    // Total Hours box (Green)
-    const boxX2 = margin + boxWidth + 2;
-    doc.setDrawColor(34, 197, 94);
-    doc.setFillColor(220, 252, 231);
-    doc.rect(boxX2, yPosition, boxWidth, 12, "FD");
-    doc.setFontSize(8);
-    doc.setTextColor(22, 101, 52);
-    doc.text("Total Hours", boxX2 + 2, yPosition + 4);
-    doc.setFontSize(10);
-    doc.setFont(undefined, "bold");
-    doc.text(totalHours, boxX2 + 2, yPosition + 9);
-
-    // Overtime box (Orange)
-    const boxX3 = boxX2 + boxWidth + 2;
-    doc.setDrawColor(251, 146, 60);
-    doc.setFillColor(254, 237, 211);
-    doc.rect(boxX3, yPosition, boxWidth, 12, "FD");
-    doc.setFontSize(8);
-    doc.setTextColor(124, 45, 18);
-    doc.text("Overtime Hours", boxX3 + 2, yPosition + 4);
-    doc.setFontSize(10);
-    doc.setFont(undefined, "bold");
-    doc.text(overtimeHours, boxX3 + 2, yPosition + 9);
-    doc.setFont(undefined, "normal");
-
-    yPosition += 18;
+    doc.setFontSize(18);
+    doc.text(`${companyName} Weekly Time Report`, 14, 18);
+    doc.setFontSize(11);
+    doc.text(`Week: ${periodLabel(reportData.period)}`, 14, 27);
+    doc.text(
+      `Total Hours: ${reportData.totals?.total_hours || "0:00"}   Overtime: ${reportData.totals?.overtime_hours || "0:00"}   Employees: ${reportData.items?.length || 0}`,
+      14,
+      34
+    );
     autoTable(doc, {
-      startY: yPosition,
+      startY: 40,
       head: [["Employee", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "Total", "Overtime"]],
       body: reportData.items.map((item) => [
-        String(item.name || "—"),
-        String(formatTimeValue(item.mon)),
-        String(formatTimeValue(item.tue)),
-        String(formatTimeValue(item.wed)),
-        String(formatTimeValue(item.thu)),
-        String(formatTimeValue(item.fri)),
-        String(formatTimeValue(item.sat)),
-        String(formatTimeValue(item.sun)),
-        String(formatTimeValue(item.total_hours)),
-        String(formatTimeValue(item.overtime_hours)),
+        item.name || "—",
+        formatTimeValue(item.mon),
+        formatTimeValue(item.tue),
+        formatTimeValue(item.wed),
+        formatTimeValue(item.thu),
+        formatTimeValue(item.fri),
+        formatTimeValue(item.sat),
+        formatTimeValue(item.sun),
+        formatTimeValue(item.total_hours),
+        formatTimeValue(item.overtime_hours),
       ]),
-      headStyles: { fillColor: [1, 0, 90], textColor: [255, 255, 255], fontSize: 9, fontStyle: "bold" },
-      bodyStyles: { fontSize: 8 },
-      alternateRowStyles: { fillColor: [245, 245, 250] },
-      willDrawCell: (data) => {
-        if (data.column.index === 9 && data.row.section === 'body') {
-          const cellValue = data.cell.text;
-          if (cellValue && cellValue !== "00:00" && cellValue !== "—") {
-            data.cell.styles.fillColor = [255, 229, 100];
-            data.cell.styles.textColor = [0, 0, 0];
-            data.cell.styles.fontStyle = "bold";
-          }
-        }
-      },
-      margin: { top: 10, right: margin, bottom: 10, left: margin },
+      headStyles: { fillColor: [2, 6, 111] },
     });
-    const pdfUrl = URL.createObjectURL(doc.output("blob"));
+    const pdfBlob = doc.output("blob");
+    const pdfUrl = URL.createObjectURL(pdfBlob);
     const printWindow = window.open(pdfUrl);
     printWindow.addEventListener("load", () => {
       printWindow.print();
@@ -449,122 +296,31 @@ export default function WeeklyReport() {
       const response = await getWeeklyReportPeriod(companyId, period.start_date, period.end_date);
       const doc = new jsPDF();
       const companyName = localStorage.getItem("companyName") || "TapTime";
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const margin = 14;
-      let yPosition = 15;
-
-      // Header
-      doc.setFontSize(20);
-      doc.setTextColor(1, 0, 90);
-      doc.text(`${companyName}`, margin, yPosition);
-
-      yPosition += 8;
-      doc.setFontSize(14);
-      doc.setTextColor(1, 0, 90);
-      doc.text("Weekly Time Report", margin, yPosition);
-
-      yPosition += 10;
-      doc.setFontSize(10);
-      doc.setTextColor(80, 80, 80);
-      doc.text(`Week: ${periodLabel(response.data.period)}`, margin, yPosition);
-
-      // Calculate totals from items - skip empty/zero values
-      const calculateTimeSum = (items, field) => {
-        return (items || []).reduce((sum, item) => {
-          let time = item[field];
-          if (!time || time === "00:00" || time === "—") return sum;
-          if (typeof time !== "string") return sum;
-          const parts = time.split(":");
-          if (parts.length !== 2) return sum;
-          const [hours, mins] = parts.map(Number);
-          if (isNaN(hours) || isNaN(mins)) return sum;
-          return sum + (hours * 60 + mins);
-        }, 0);
-      };
-
-      const totalMins = calculateTimeSum(response.data.items, "total_hours");
-      const overtimeMins = calculateTimeSum(response.data.items, "overtime_hours");
-
-      const formatMins = (mins) => {
-        const h = Math.floor(mins / 60);
-        const m = mins % 60;
-        return `${h}:${String(m).padStart(2, "0")}`;
-      };
-
-      const totalHours = totalMins === 0 ? "0:00" : formatMins(totalMins);
-      const overtimeHours = overtimeMins === 0 ? "0:00" : formatMins(overtimeMins);
-
-      // Summary Statistics - Three colored boxes
-      yPosition += 10;
-      const boxWidth = (pageWidth - 2 * margin) / 3 - 2;
-
-      // Employees box (Blue)
-      doc.setDrawColor(59, 130, 246);
-      doc.setFillColor(219, 234, 254);
-      doc.rect(margin, yPosition, boxWidth, 12, "FD");
-      doc.setFontSize(8);
-      doc.setTextColor(30, 58, 138);
-      doc.text("Total Employees", margin + 2, yPosition + 4);
-      doc.setFontSize(10);
-      doc.setFont(undefined, "bold");
-      doc.text(String(response.data.items?.length || 0), margin + 2, yPosition + 9);
-
-      // Total Hours box (Green)
-      const boxX2 = margin + boxWidth + 2;
-      doc.setDrawColor(34, 197, 94);
-      doc.setFillColor(220, 252, 231);
-      doc.rect(boxX2, yPosition, boxWidth, 12, "FD");
-      doc.setFontSize(8);
-      doc.setTextColor(22, 101, 52);
-      doc.text("Total Hours", boxX2 + 2, yPosition + 4);
-      doc.setFontSize(10);
-      doc.setFont(undefined, "bold");
-      doc.text(totalHours, boxX2 + 2, yPosition + 9);
-
-      // Overtime box (Orange)
-      const boxX3 = boxX2 + boxWidth + 2;
-      doc.setDrawColor(251, 146, 60);
-      doc.setFillColor(254, 237, 211);
-      doc.rect(boxX3, yPosition, boxWidth, 12, "FD");
-      doc.setFontSize(8);
-      doc.setTextColor(124, 45, 18);
-      doc.text("Overtime Hours", boxX3 + 2, yPosition + 4);
-      doc.setFontSize(10);
-      doc.setFont(undefined, "bold");
-      doc.text(overtimeHours, boxX3 + 2, yPosition + 9);
-      doc.setFont(undefined, "normal");
-
-      yPosition += 18;
-
+      doc.setFontSize(18);
+      doc.text(`${companyName} Weekly Time Report`, 14, 18);
+      doc.setFontSize(11);
+      doc.text(`Week: ${periodLabel(response.data.period)}`, 14, 27);
+      doc.text(
+        `Total Hours: ${response.data.totals?.total_hours || "0:00"}   Overtime: ${response.data.totals?.overtime_hours || "0:00"}   Employees: ${response.data.items?.length || 0}`,
+        14,
+        34
+      );
       autoTable(doc, {
-        startY: yPosition,
+        startY: 40,
         head: [["Employee", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", "Total", "Overtime"]],
         body: (response.data.items || []).map((item) => [
-          String(item.name || "—"),
-          String(formatTimeValue(item.mon)),
-          String(formatTimeValue(item.tue)),
-          String(formatTimeValue(item.wed)),
-          String(formatTimeValue(item.thu)),
-          String(formatTimeValue(item.fri)),
-          String(formatTimeValue(item.sat)),
-          String(formatTimeValue(item.sun)),
-          String(formatTimeValue(item.total_hours)),
-          String(formatTimeValue(item.overtime_hours)),
+          item.name || "—",
+          formatTimeValue(item.mon),
+          formatTimeValue(item.tue),
+          formatTimeValue(item.wed),
+          formatTimeValue(item.thu),
+          formatTimeValue(item.fri),
+          formatTimeValue(item.sat),
+          formatTimeValue(item.sun),
+          formatTimeValue(item.total_hours),
+          formatTimeValue(item.overtime_hours),
         ]),
-        headStyles: { fillColor: [1, 0, 90], textColor: [255, 255, 255], fontSize: 9, fontStyle: "bold" },
-        bodyStyles: { fontSize: 8 },
-        alternateRowStyles: { fillColor: [245, 245, 250] },
-        willDrawCell: (data) => {
-          if (data.column.index === 9 && data.row.section === 'body') {
-            const cellValue = data.cell.text;
-            if (cellValue && cellValue !== "00:00" && cellValue !== "—") {
-              data.cell.styles.fillColor = [255, 229, 100];
-              data.cell.styles.textColor = [0, 0, 0];
-              data.cell.styles.fontStyle = "bold";
-            }
-          }
-        },
-        margin: { top: 10, right: margin, bottom: 10, left: margin },
+        headStyles: { fillColor: [2, 6, 111] },
       });
       const pdfUrl = URL.createObjectURL(doc.output("blob"));
       const win = window.open(pdfUrl);
@@ -719,7 +475,7 @@ export default function WeeklyReport() {
                       )}
 
                       {/* Toolbar */}
-                      <div className="mb-6 space-y-3 sm:space-y-0">
+                      <div className="mb-6 space-y-3">
                         {/* Search */}
                         <div className="relative w-full">
                           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
@@ -919,29 +675,44 @@ export default function WeeklyReport() {
                       )}
 
                       {/* Pagination */}
-                      <div className="mt-6 flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          Page {currentPeriodCurrentPage} of {currentPeriodTotalPages}
-                        </span>
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={() => setCurrentPeriodCurrentPage(Math.max(1, currentPeriodCurrentPage - 1))}
-                            disabled={currentPeriodCurrentPage === 1}
-                            variant="outline"
-                            size="sm"
-                          >
-                            <ChevronLeft className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            onClick={() => setCurrentPeriodCurrentPage(Math.min(currentPeriodTotalPages, currentPeriodCurrentPage + 1))}
-                            disabled={currentPeriodCurrentPage === currentPeriodTotalPages}
-                            variant="outline"
-                            size="sm"
-                          >
-                            <ChevronRight className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
+                      {(() => {
+                        return filteredAndSortedItems.length > 0 && (
+                          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200 mt-4">
+                            <div className="text-xs sm:text-sm text-muted-foreground order-2 sm:order-1">
+                              Showing {currentPeriodPaginationStartIndex + 1}-{Math.min(currentPeriodPaginationEndIndex, filteredAndSortedItems.length)} of {filteredAndSortedItems.length}
+                            </div>
+                            {currentPeriodTotalPages > 1 && (
+                              <div className="flex items-center gap-3 order-1 sm:order-2">
+                                <button
+                                  onClick={() => setCurrentPeriodCurrentPage(prev => Math.max(prev - 1, 1))}
+                                  disabled={currentPeriodCurrentPage === 1}
+                                  className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                                    currentPeriodCurrentPage === 1
+                                      ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                      : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                  }`}
+                                >
+                                  Prev
+                                </button>
+                                <span className="text-sm font-medium text-gray-900 px-2">
+                                  {currentPeriodCurrentPage} / {currentPeriodTotalPages}
+                                </span>
+                                <button
+                                  onClick={() => setCurrentPeriodCurrentPage(prev => Math.min(prev + 1, currentPeriodTotalPages))}
+                                  disabled={currentPeriodCurrentPage === currentPeriodTotalPages}
+                                  className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                                    currentPeriodCurrentPage === currentPeriodTotalPages
+                                      ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                      : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                  }`}
+                                >
+                                  Next
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </CardContent>
                   </Card>
                 )}
@@ -957,7 +728,7 @@ export default function WeeklyReport() {
                   </CardHeader>
                   <CardContent className="pt-6">
                     {/* Toolbar */}
-                    <div className="mb-6 space-y-3 sm:space-y-0">
+                    <div className="mb-6 space-y-3">
                       {/* Search */}
                       <div className="relative w-full">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
@@ -970,7 +741,8 @@ export default function WeeklyReport() {
                       </div>
 
                       {/* Controls */}
-                      <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+                      <div className="flex flex-wrap gap-2 sm:gap-3 items-center w-full">
+                        {/* Sort and List/Grid Toggle Group */}
                         <div className="flex gap-2 sm:gap-3">
                           {/* Sort Dropdown */}
                           <div className="relative">
@@ -981,11 +753,11 @@ export default function WeeklyReport() {
                             >
                               <div className="flex items-center gap-2">
                                 {historySortConfig.direction === 'asc' ? (
-                                  <ArrowUp className="w-4 h-4 text-green-600" />
+                                  <ArrowUp className="hidden sm:block w-4 h-4 text-green-600" />
                                 ) : historySortConfig.direction === 'desc' ? (
-                                  <ArrowDown className="w-4 h-4 text-blue-600" />
+                                  <ArrowDown className="hidden sm:block w-4 h-4 text-blue-600" />
                                 ) : (
-                                  <ArrowUp className="w-4 h-4 text-green-600" />
+                                  <ArrowUp className="hidden sm:block w-4 h-4 text-green-600" />
                                 )}
                                 <span className="hidden sm:inline">Sort</span>
                               </div>
@@ -1041,27 +813,27 @@ export default function WeeklyReport() {
                               <GridIcon className="w-5 h-5" />
                             </button>
                           </div>
+                        </div>
 
-                          {/* Records per page */}
-                          <div className="flex items-center gap-2 ml-auto">
-                            <Label htmlFor="page-size-history" className="text-xs sm:text-sm whitespace-nowrap">
-                              Per page:
-                            </Label>
-                            <select
-                              id="page-size-history"
-                              value={historyPageSize}
-                              onChange={(e) => {
-                                setHistoryPageSize(parseInt(e.target.value, 10));
-                                setHistoryCurrentPage(1);
-                              }}
-                              className="h-8 px-2 text-xs sm:text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                              <option value={10}>10</option>
-                              <option value={25}>25</option>
-                              <option value={50}>50</option>
-                              <option value={100}>100</option>
-                            </select>
-                          </div>
+                        {/* Records per page - pushed to right on mobile too */}
+                        <div className="flex items-center gap-2 ml-auto">
+                          <Label htmlFor="page-size-history" className="text-xs sm:text-sm whitespace-nowrap">
+                            Per page:
+                          </Label>
+                          <select
+                            id="page-size-history"
+                            value={historyPageSize}
+                            onChange={(e) => {
+                              setHistoryPageSize(parseInt(e.target.value, 10));
+                              setHistoryCurrentPage(1);
+                            }}
+                            className="h-8 px-2 text-xs sm:text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value={10}>10</option>
+                            <option value={25}>25</option>
+                            <option value={50}>50</option>
+                            <option value={100}>100</option>
+                          </select>
                         </div>
                       </div>
                     </div>
@@ -1100,7 +872,6 @@ export default function WeeklyReport() {
                                       onClick={() => downloadPeriodPdf(period)}
                                       disabled={downloadingPeriod?.start_date === period.start_date}
                                       size="sm"
-                                      className="h-9 px-3 bg-white hover:bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center gap-1"
                                     >
                                       {downloadingPeriod?.start_date === period.start_date ? (
                                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -1112,7 +883,7 @@ export default function WeeklyReport() {
                                       onClick={() => printPeriodPdf(period)}
                                       disabled={downloadingPrintPeriod?.start_date === period.start_date}
                                       size="sm"
-                                      className="h-9 px-3 bg-[#01005a] hover:bg-[#020680] text-white flex items-center justify-center gap-1"
+                                      variant="outline"
                                     >
                                       {downloadingPrintPeriod?.start_date === period.start_date ? (
                                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -1181,282 +952,378 @@ export default function WeeklyReport() {
                     )}
 
                     {/* Pagination */}
-                    <div className="mt-6 flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        Page {historyCurrentPage} of {totalHistoryPages}
-                      </span>
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={() => setHistoryCurrentPage(Math.max(1, historyCurrentPage - 1))}
-                          disabled={historyCurrentPage === 1}
-                          variant="outline"
-                          size="sm"
-                        >
-                          <ChevronLeft className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          onClick={() => setHistoryCurrentPage(Math.min(totalHistoryPages, historyCurrentPage + 1))}
-                          disabled={historyCurrentPage === totalHistoryPages}
-                          variant="outline"
-                          size="sm"
-                        >
-                          <ChevronRight className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
+                    {(() => {
+                      return filteredAndSortedHistoryData.length > 0 && (
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200 mt-6">
+                          <div className="text-xs sm:text-sm text-muted-foreground order-2 sm:order-1">
+                            Showing {paginatedHistoryStartIndex + 1}-{Math.min(paginatedHistoryEndIndex, filteredAndSortedHistoryData.length)} of {filteredAndSortedHistoryData.length}
+                          </div>
+                          {totalHistoryPages > 1 && (
+                            <div className="flex items-center gap-3 order-1 sm:order-2">
+                              <button
+                                onClick={() => setHistoryCurrentPage(prev => Math.max(prev - 1, 1))}
+                                disabled={historyCurrentPage === 1}
+                                className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                                  historyCurrentPage === 1
+                                    ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                    : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                }`}
+                              >
+                                Prev
+                              </button>
+                              <span className="text-sm font-medium text-gray-900 px-2">
+                                {historyCurrentPage} / {totalHistoryPages}
+                              </span>
+                              <button
+                                onClick={() => setHistoryCurrentPage(prev => Math.min(prev + 1, totalHistoryPages))}
+                                disabled={historyCurrentPage === totalHistoryPages}
+                                className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                                  historyCurrentPage === totalHistoryPages
+                                    ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                    : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                }`}
+                              >
+                                Next
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </CardContent>
+                </Card>
 
-                  {/* Inline History Report View */}
-                  {historySelectedReport && (
-                    <div className="mt-8 pt-8 border-t">
-                      <div className="mb-6 bg-gradient-to-br from-indigo-50 to-indigo-100 border border-indigo-200 rounded-lg p-4 sm:p-6">
+                {/* Inline History Report View */}
+                {historySelectedReport && (
+                  <Card className="mt-6 overflow-hidden">
+                    <CardHeader className="pb-3 sm:pb-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                        <CardTitle className="text-base sm:text-lg break-words">Report: {periodLabel(historySelectedReport.period)}</CardTitle>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <Button onClick={() => printPeriodPdf(historySelectedReport.period)} disabled={!historySelectedReport} size="sm" variant="outline" className="h-8 text-xs sm:text-sm">
+                            <Printer className="w-4 h-4 mr-1" />
+                            <span className="hidden sm:inline">Print</span>
+                          </Button>
+                          <Button onClick={() => setHistorySelectedReport(null)} variant="outline" size="sm" className="h-8 w-8 p-0 text-gray-600 hover:text-red-600 hover:border-red-300 flex-shrink-0">
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {/* Viewing Period - Inside the Card */}
+                      <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 border border-indigo-200 rounded-lg p-4 sm:p-6">
                         <div className="space-y-2">
                           <p className="text-sm font-semibold text-indigo-900">Viewing Period</p>
                           <p className="text-xs text-indigo-700">{periodLabel(historySelectedReport.period)}</p>
-                          <div className="pt-2 border-t border-indigo-200 flex items-center justify-between">
+                          <div className="pt-2 border-t border-indigo-200">
                             <p className="text-sm text-indigo-700 font-medium">{getCompletedDaysCount(historySelectedReport.items)} of 5 days complete · Expected hours: {getCompletedDaysCount(historySelectedReport.items) * 8}:00</p>
-                            <Button variant="outline" size="sm" onClick={() => setHistorySelectedReport(null)} className="h-9 px-3">
-                              <X className="w-4 h-4" />
-                            </Button>
                           </div>
                         </div>
                       </div>
 
-                      <div className="space-y-4">
-                        <div className="relative w-full">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                          <Input
-                            placeholder="Search employees..."
-                            value={historyViewSearchQuery}
-                            onChange={(e) => setHistoryViewSearchQuery(e.target.value)}
-                            className="pl-10 text-sm h-10 rounded-lg border border-input bg-white w-full"
-                          />
-                        </div>
 
-                        {/* Toolbar Controls */}
-                        <div className="mb-6 flex flex-wrap gap-3 items-center">
-                          {/* Sort Control */}
-                          <div className="relative">
-                            <Button
-                              variant="outline"
-                              className="px-3 py-2 h-10 text-sm flex items-center gap-2 min-w-[100px] justify-between border border-input rounded-lg"
-                              onClick={() => setShowSortDropdown(!showSortDropdown)}
-                            >
-                              <div className="flex items-center gap-2">
-                                {sortConfig.direction === 'asc' ? (
-                                  <ArrowUp className="w-4 h-4 text-green-600" />
-                                ) : sortConfig.direction === 'desc' ? (
-                                  <ArrowDown className="w-4 h-4 text-blue-600" />
-                                ) : (
-                                  <ArrowUp className="w-4 h-4 text-green-600" />
-                                )}
-                                <span className="hidden sm:inline">Sort</span>
+                          {/* Summary Cards */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4 sm:p-6">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-xs sm:text-sm text-blue-600 font-medium">Total Employees</p>
+                                  <p className="text-2xl sm:text-3xl font-bold text-blue-900 mt-2">{historySelectedReport.items?.length || 0}</p>
+                                </div>
+                                <div className="text-blue-300 text-4xl">👥</div>
                               </div>
-                              <ChevronDown className="w-4 h-4" />
-                            </Button>
-
-                            {showSortDropdown && (
-                              <div className="absolute top-full left-0 mt-2 w-56 bg-white border border-input rounded-lg shadow-md z-10">
-                                {[
-                                  { key: 'name', direction: 'asc', label: 'Sort By Name', icon: ArrowUp, iconColor: 'text-green-600' },
-                                  { key: 'name', direction: 'desc', label: 'Sort By Name', icon: ArrowDown, iconColor: 'text-blue-600' },
-                                  { key: 'pin', direction: 'asc', label: 'Sort By PIN', icon: ArrowUp, iconColor: 'text-green-600' },
-                                  { key: 'pin', direction: 'desc', label: 'Sort By PIN', icon: ArrowDown, iconColor: 'text-blue-600' },
-                                  { key: 'total_hours', direction: 'asc', label: 'Sort By Total Hours', icon: ArrowUp, iconColor: 'text-green-600' },
-                                  { key: 'total_hours', direction: 'desc', label: 'Sort By Total Hours', icon: ArrowDown, iconColor: 'text-blue-600' },
-                                ].map(({ key, direction, label, icon: Icon, iconColor }) => (
-                                  <button
-                                    key={`${key}-${direction}`}
-                                    onClick={() => {
-                                      setSortConfig({ key, direction });
-                                      setShowSortDropdown(false);
-                                    }}
-                                    className="w-full px-4 py-3 text-left text-sm hover:bg-blue-50 flex items-center gap-3 transition-colors"
-                                  >
-                                    <Icon className={`w-4 h-4 ${iconColor}`} />
-                                    <span className="text-foreground font-medium">{label}</span>
-                                  </button>
-                                ))}
+                            </div>
+                            <div className="bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 rounded-lg p-4 sm:p-6">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-xs sm:text-sm text-orange-600 font-medium">Total Hours</p>
+                                  <p className="text-2xl sm:text-3xl font-bold text-orange-900 mt-2">{historySelectedReport.totals?.total_hours || "0:00"}</p>
+                                </div>
+                                <div className="text-orange-300 text-4xl">⏱️</div>
                               </div>
-                            )}
+                            </div>
                           </div>
 
-                          {/* List/Grid Toggle */}
-                          <div className="flex gap-2 border border-input rounded-xl p-1 bg-white">
-                            <button
-                              onClick={() => setViewMode('list')}
-                              className={`p-2 rounded-lg transition-colors ${
-                                viewMode === 'list'
-                                  ? 'bg-[#020670] text-white'
-                                  : 'text-muted-foreground hover:text-foreground'
-                              }`}
-                              title="List View"
-                            >
-                              <HamburgerIcon className="w-5 h-5" />
-                            </button>
-                            <button
-                              onClick={() => setViewMode('grid')}
-                              className={`p-2 rounded-lg transition-colors ${
-                                viewMode === 'grid'
-                                  ? 'bg-[#020670] text-white'
-                                  : 'text-muted-foreground hover:text-foreground'
-                              }`}
-                              title="Grid View"
-                            >
-                              <GridIcon className="w-5 h-5" />
-                            </button>
-                          </div>
-
-                          {/* Records per page */}
-                          <div className="flex items-center gap-2 ml-auto">
-                            <Label htmlFor="history-inline-page-size" className="text-xs sm:text-sm whitespace-nowrap">
-                              Per page:
-                            </Label>
-                            <select
-                              id="history-inline-page-size"
-                              value={historyViewPageSize}
+                        <div className="mb-6 space-y-3">
+                          {/* First row: Search */}
+                          <div className="relative w-full">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                            <Input
+                              placeholder="Search by name or PIN..."
+                              value={historyViewSearchQuery}
                               onChange={(e) => {
-                                setHistoryViewPageSize(parseInt(e.target.value, 10));
+                                setHistoryViewSearchQuery(e.target.value);
                                 setHistoryViewCurrentPage(1);
                               }}
-                              className="h-8 px-2 text-xs sm:text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                              <option value={10}>10</option>
-                              <option value={25}>25</option>
-                              <option value={50}>50</option>
-                              <option value={100}>100</option>
-                            </select>
+                              className="pl-10 text-sm h-10 rounded-lg border border-input bg-white w-full"
+                            />
                           </div>
-                          <Button
-                            onClick={() => printPeriodPdf(historySelectedReport.period)}
-                            disabled={downloadingPrintPeriod?.start_date === historySelectedReport.period.start_date}
-                            size="sm"
-                            className="h-9 px-3 bg-[#01005a] hover:bg-[#020680] text-white flex items-center justify-center gap-1"
-                          >
-                            {downloadingPrintPeriod?.start_date === historySelectedReport.period.start_date ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Printer className="w-4 h-4" />
-                            )}
-                          </Button>
-                        </div>
 
-                        {/* Table List View */}
-                        {viewMode === "list" && (
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead className="bg-gray-100 border-y border-gray-300">
-                              <tr>
-                                <th className="px-3 py-2 text-left">Employee</th>
-                                <th className="px-3 py-2 text-center">Mon</th>
-                                <th className="px-3 py-2 text-center">Tue</th>
-                                <th className="px-3 py-2 text-center">Wed</th>
-                                <th className="px-3 py-2 text-center">Thu</th>
-                                <th className="px-3 py-2 text-center">Fri</th>
-                                <th className="px-3 py-2 text-center">Sat</th>
-                                <th className="px-3 py-2 text-center">Sun</th>
-                                <th className="px-3 py-2 text-center">Total</th>
-                                <th className="px-3 py-2 text-center">Overtime</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {historySelectedReport.items
-                                .filter((item) =>
-                                  item.name?.toLowerCase().includes(historyViewSearchQuery.toLowerCase()) ||
-                                  item.pin?.toLowerCase().includes(historyViewSearchQuery.toLowerCase())
-                                )
-                                .slice((historyViewCurrentPage - 1) * historyViewPageSize, historyViewCurrentPage * historyViewPageSize)
-                                .map((item, idx) => (
-                                  <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                                    <td className="px-3 py-2">{item.name || "—"}</td>
-                                    <td className="px-3 py-2 text-center">{formatTimeValue(item.mon)}</td>
-                                    <td className="px-3 py-2 text-center">{formatTimeValue(item.tue)}</td>
-                                    <td className="px-3 py-2 text-center">{formatTimeValue(item.wed)}</td>
-                                    <td className="px-3 py-2 text-center">{formatTimeValue(item.thu)}</td>
-                                    <td className="px-3 py-2 text-center">{formatTimeValue(item.fri)}</td>
-                                    <td className="px-3 py-2 text-center">{formatTimeValue(item.sat)}</td>
-                                    <td className="px-3 py-2 text-center">{formatTimeValue(item.sun)}</td>
-                                    <td className="px-3 py-2 text-center font-semibold">{formatTimeValue(item.total_hours)}</td>
-                                    <td className={`px-3 py-2 text-center font-semibold ${item.overtime_hours && item.overtime_hours !== "00:00" ? "bg-yellow-200" : ""}`}>{formatTimeValue(item.overtime_hours)}</td>
-                                  </tr>
-                                ))}
-                            </tbody>
-                          </table>
-                        </div>
-                        )}
-
-                        {/* Grid View */}
-                        {viewMode === "grid" && (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {historySelectedReport.items
-                              .filter((item) =>
-                                item.name?.toLowerCase().includes(historyViewSearchQuery.toLowerCase()) ||
-                                item.pin?.toLowerCase().includes(historyViewSearchQuery.toLowerCase())
-                              )
-                              .slice((historyViewCurrentPage - 1) * historyViewPageSize, historyViewCurrentPage * historyViewPageSize)
-                              .map((item, idx) => (
-                                <Card key={idx} className="p-4">
-                                  <div className="space-y-3">
-                                    <div>
-                                      <p className="text-xs text-muted-foreground">Employee</p>
-                                      <p className="font-semibold">{item.name || "—"}</p>
-                                    </div>
-                                    <div className="space-y-2 text-sm">
-                                      <div className="grid grid-cols-2 gap-2">
-                                        {[
-                                          { day: 'Mon', value: item.mon },
-                                          { day: 'Tue', value: item.tue },
-                                          { day: 'Wed', value: item.wed },
-                                          { day: 'Thu', value: item.thu },
-                                          { day: 'Fri', value: item.fri },
-                                          { day: 'Sat', value: item.sat },
-                                          { day: 'Sun', value: item.sun },
-                                        ].map(({ day, value }) => (
-                                          <div key={day} className="flex justify-between">
-                                            <span className="text-muted-foreground">{day}:</span>
-                                            <span className="font-medium">{formatTimeValue(value)}</span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                      <div className="border-t pt-2 mt-2 flex justify-between">
-                                        <span className="text-muted-foreground font-medium">Total:</span>
-                                        <span className="font-semibold">{formatTimeValue(item.total_hours)}</span>
-                                      </div>
-                                    </div>
+                          {/* Second row: Controls */}
+                          <div className="flex flex-wrap gap-2 sm:gap-3 items-center w-full">
+                            {/* Sort Control and View Switch Group */}
+                            <div className="flex gap-2 sm:gap-3">
+                              {/* Sort Control */}
+                              <div className="relative">
+                                <Button
+                                  variant="outline"
+                                  className="px-3 py-2 h-10 text-sm flex items-center gap-2 min-w-[100px] justify-between border border-input rounded-lg"
+                                  onClick={() => setShowHistoryViewSortDropdown(!showHistoryViewSortDropdown)}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <span className="hidden sm:inline">Sort</span>
                                   </div>
-                                </Card>
-                              ))}
-                          </div>
-                        )}
+                                  <ChevronDown className="w-4 h-4" />
+                                </Button>
 
-                        {/* Inline Pagination */}
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">
-                            Page {historyViewCurrentPage} of {Math.ceil(historySelectedReport.items.length / historyViewPageSize)}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              onClick={() => setHistoryViewCurrentPage(Math.max(1, historyViewCurrentPage - 1))}
-                              disabled={historyViewCurrentPage === 1}
-                              variant="outline"
-                              size="sm"
-                            >
-                              <ChevronLeft className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              onClick={() => setHistoryViewCurrentPage(Math.min(Math.ceil(historySelectedReport.items.length / historyViewPageSize), historyViewCurrentPage + 1))}
-                              disabled={historyViewCurrentPage === Math.ceil(historySelectedReport.items.length / historyViewPageSize)}
-                              variant="outline"
-                              size="sm"
-                            >
-                              <ChevronRight className="w-4 h-4" />
-                            </Button>
+                                {showHistoryViewSortDropdown && (
+                                  <div className="absolute top-full left-0 mt-2 w-56 bg-white border border-input rounded-lg shadow-md z-10">
+                                    {[
+                                      { key: 'name', direction: 'asc', label: 'Sort By Name (A-Z)', icon: ArrowUp, iconColor: 'text-green-600' },
+                                      { key: 'name', direction: 'desc', label: 'Sort By Name (Z-A)', icon: ArrowDown, iconColor: 'text-blue-600' },
+                                      { key: 'pin', direction: 'asc', label: 'Sort By PIN (Low-High)', icon: ArrowUp, iconColor: 'text-green-600' },
+                                      { key: 'pin', direction: 'desc', label: 'Sort By PIN (High-Low)', icon: ArrowDown, iconColor: 'text-blue-600' },
+                                    ].map(({ key, direction, label, icon: Icon, iconColor }) => (
+                                      <button
+                                        key={`${key}-${direction}`}
+                                        onClick={() => {
+                                          setHistoryReportSortConfig({ key, direction });
+                                          setShowHistoryViewSortDropdown(false);
+                                          setHistoryViewCurrentPage(1);
+                                        }}
+                                        className="w-full px-4 py-3 text-left text-sm hover:bg-blue-50 flex items-center gap-3 transition-colors"
+                                      >
+                                        <Icon className={`w-4 h-4 ${iconColor}`} />
+                                        <span className="text-foreground font-medium">{label}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* List/Grid Toggle */}
+                              <div className="flex gap-2 border border-input rounded-xl p-1 bg-white">
+                                <button
+                                  onClick={() => setHistoryReportTableMode('list')}
+                                  className={`p-2 rounded-lg transition-colors ${
+                                    historyReportTableMode === 'list'
+                                      ? 'bg-[#020670] text-white'
+                                      : 'text-muted-foreground hover:text-foreground'
+                                  }`}
+                                  title="List View"
+                                >
+                                  <HamburgerIcon className="w-5 h-5" />
+                                </button>
+                                <button
+                                  onClick={() => setHistoryReportTableMode('grid')}
+                                  className={`p-2 rounded-lg transition-colors ${
+                                    historyReportTableMode === 'grid'
+                                      ? 'bg-[#020670] text-white'
+                                      : 'text-muted-foreground hover:text-foreground'
+                                  }`}
+                                  title="Grid View"
+                                >
+                                  <GridIcon className="w-5 h-5" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Records per page - pushed to right */}
+                            <div className="flex items-center gap-2 ml-auto">
+                              <Label htmlFor="page-size-history-view" className="text-xs sm:text-sm whitespace-nowrap">
+                                Per page:
+                              </Label>
+                              <select
+                                id="page-size-history-view"
+                                value={historyViewPageSize}
+                                onChange={(e) => {
+                                  setHistoryViewPageSize(parseInt(e.target.value));
+                                  setHistoryViewCurrentPage(1);
+                                }}
+                                className="h-8 px-2 text-xs sm:text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value={10}>10</option>
+                                <option value={25}>25</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                              </select>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  )}
-                  </CardContent>
-                </Card>
+
+                        {/* Employee Table - Filtered and Sorted */}
+                        {(() => {
+                          let filtered = historySelectedReport.items.filter(item =>
+                            (item.name && item.name.toLowerCase().includes(historyViewSearchQuery.toLowerCase())) ||
+                            (item.pin && item.pin.toLowerCase().includes(historyViewSearchQuery.toLowerCase()))
+                          );
+
+                          // Apply sorting
+                          if (historyReportSortConfig.key) {
+                            filtered.sort((a, b) => {
+                              let aValue, bValue;
+
+                              if (historyReportSortConfig.key === "name") {
+                                aValue = (a.name || "").toLowerCase();
+                                bValue = (b.name || "").toLowerCase();
+                                return historyReportSortConfig.direction === "asc"
+                                  ? aValue.localeCompare(bValue)
+                                  : bValue.localeCompare(aValue);
+                              } else if (historyReportSortConfig.key === "pin") {
+                                aValue = a.pin || "";
+                                bValue = b.pin || "";
+                                // Convert to numbers for numeric sorting
+                                const aNum = parseInt(aValue, 10) || 0;
+                                const bNum = parseInt(bValue, 10) || 0;
+                                return historyReportSortConfig.direction === "asc" ? aNum - bNum : bNum - aNum;
+                              }
+                              return 0;
+                            });
+                          }
+
+                          const startIdx = (historyViewCurrentPage - 1) * historyViewPageSize;
+                          const endIdx = startIdx + historyViewPageSize;
+                          const paginated = filtered.slice(startIdx, endIdx);
+                          const totalPages = Math.ceil(filtered.length / historyViewPageSize);
+
+                          return (
+                            <>
+                              {historyReportTableMode === 'list' && (
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-sm">
+                                    <thead style={{ backgroundColor: '#01005a' }}>
+                                      <tr className="border-b">
+                                        <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white">Name</th>
+                                        <th className="text-center p-2 sm:p-4 font-medium text-xs sm:text-sm text-white">Mon</th>
+                                        <th className="text-center p-2 sm:p-4 font-medium text-xs sm:text-sm text-white">Tue</th>
+                                        <th className="text-center p-2 sm:p-4 font-medium text-xs sm:text-sm text-white">Wed</th>
+                                        <th className="text-center p-2 sm:p-4 font-medium text-xs sm:text-sm text-white">Thu</th>
+                                        <th className="text-center p-2 sm:p-4 font-medium text-xs sm:text-sm text-white">Fri</th>
+                                        <th className="text-center p-2 sm:p-4 font-medium text-xs sm:text-sm text-white">Sat</th>
+                                        <th className="text-center p-2 sm:p-4 font-medium text-xs sm:text-sm text-white">Sun</th>
+                                        <th className="text-center p-2 sm:p-4 font-medium text-xs sm:text-sm text-white">Total</th>
+                                        <th className="text-center p-2 sm:p-4 font-medium text-xs sm:text-sm text-white">Overtime</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {paginated.map((item, idx) => (
+                                        <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                                          <td className="p-2 sm:p-4 text-xs sm:text-sm">{item.name || "—"}</td>
+                                          <td className="p-2 sm:p-4 text-xs sm:text-sm text-center">{formatTimeValue(item.mon)}</td>
+                                          <td className="p-2 sm:p-4 text-xs sm:text-sm text-center">{formatTimeValue(item.tue)}</td>
+                                          <td className="p-2 sm:p-4 text-xs sm:text-sm text-center">{formatTimeValue(item.wed)}</td>
+                                          <td className="p-2 sm:p-4 text-xs sm:text-sm text-center">{formatTimeValue(item.thu)}</td>
+                                          <td className="p-2 sm:p-4 text-xs sm:text-sm text-center">{formatTimeValue(item.fri)}</td>
+                                          <td className="p-2 sm:p-4 text-xs sm:text-sm text-center">{formatTimeValue(item.sat)}</td>
+                                          <td className="p-2 sm:p-4 text-xs sm:text-sm text-center">{formatTimeValue(item.sun)}</td>
+                                          <td className="p-2 sm:p-4 text-xs sm:text-sm text-center font-semibold">{formatTimeValue(item.total_hours)}</td>
+                                          <td className={`p-2 sm:p-4 text-xs sm:text-sm text-center font-semibold ${item.overtime_hours && item.overtime_hours !== "00:00" ? "bg-yellow-200" : ""}`}>{formatTimeValue(item.overtime_hours)}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+
+                              {historyReportTableMode === 'grid' && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                                  {paginated.length ? (
+                                    paginated.map((item, idx) => (
+                                      <Card key={idx} className="hover:shadow-lg transition-shadow">
+                                        <CardHeader className="pb-3">
+                                          <div className="flex items-start justify-between gap-2">
+                                            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                                                <Users className="w-4 h-4 text-primary" />
+                                              </div>
+                                              <div className="min-w-0 flex-1">
+                                                <CardTitle className="text-base sm:text-lg truncate">{item.name || "—"}</CardTitle>
+                                                <CardDescription className="text-xs sm:text-sm">PIN: {item.pin || "—"}</CardDescription>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </CardHeader>
+                                        <CardContent className="space-y-3 sm:space-y-4 pt-0">
+                                          <div className="space-y-2 text-sm">
+                                            <div className="grid grid-cols-2 gap-2">
+                                              {[
+                                                { day: 'Mon', value: item.mon },
+                                                { day: 'Tue', value: item.tue },
+                                                { day: 'Wed', value: item.wed },
+                                                { day: 'Thu', value: item.thu },
+                                                { day: 'Fri', value: item.fri },
+                                                { day: 'Sat', value: item.sat },
+                                                { day: 'Sun', value: item.sun },
+                                              ].map(({ day, value }) => (
+                                                <div key={day} className="flex justify-between">
+                                                  <span className="text-muted-foreground">{day}:</span>
+                                                  <span className="font-medium">{formatTimeValue(value)}</span>
+                                                </div>
+                                              ))}
+                                            </div>
+                                            <div className="border-t pt-2 mt-2 flex justify-between">
+                                              <span className="text-muted-foreground font-medium">Total:</span>
+                                              <span className="font-semibold">{formatTimeValue(item.total_hours)}</span>
+                                            </div>
+                                            <div className="flex justify-between">
+                                              <span className="text-muted-foreground font-medium">OT:</span>
+                                              <span className="font-semibold">{formatTimeValue(item.overtime_hours)}</span>
+                                            </div>
+                                          </div>
+                                        </CardContent>
+                                      </Card>
+                                    ))
+                                  ) : (
+                                    <div className="col-span-full py-8 text-center text-muted-foreground">
+                                      No attendance records found.
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Pagination */}
+                              {filtered.length > 0 && (
+                                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-gray-200">
+                                  <span className="text-xs sm:text-sm text-muted-foreground">
+                                    Showing {startIdx + 1}-{Math.min(endIdx, filtered.length)} of {filtered.length}
+                                  </span>
+                                  <div className="flex items-center gap-3">
+                                    <button
+                                      onClick={() => setHistoryViewCurrentPage(Math.max(1, historyViewCurrentPage - 1))}
+                                      disabled={historyViewCurrentPage === 1}
+                                      className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                                        historyViewCurrentPage === 1
+                                          ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                          : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                      }`}
+                                    >
+                                      Prev
+                                    </button>
+
+                                    <span className="text-xs sm:text-sm text-muted-foreground">
+                                      {historyViewCurrentPage} / {totalPages}
+                                    </span>
+                                    <button
+                                      onClick={() => setHistoryViewCurrentPage(Math.min(totalPages, historyViewCurrentPage + 1))}
+                                      disabled={historyViewCurrentPage === totalPages}
+                                      className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                                        historyViewCurrentPage === totalPages
+                                          ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                          : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                      }`}
+                                    >
+                                      Next
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                    </CardContent>
+                  </Card>
+                )}
               </>
             )}
           </>

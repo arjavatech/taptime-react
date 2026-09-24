@@ -42,7 +42,11 @@ export default function SalaryReport() {
   const [historyViewPageSize, setHistoryViewPageSize] = useState(10);
   const [historyViewCurrentPage, setHistoryViewCurrentPage] = useState(1);
   const [historyViewSearchQuery, setHistoryViewSearchQuery] = useState("");
+  const [showHistoryViewSortDropdown, setShowHistoryViewSortDropdown] = useState(false);
+  const [historyReportTableMode, setHistoryReportTableMode] = useState("table");
+  const [historyReportSortConfig, setHistoryReportSortConfig] = useState({ key: null, direction: "asc" });
   const [downloadingPrintPeriod, setDownloadingPrintPeriod] = useState(null);
+  const [printingInlineReport, setPrintingInlineReport] = useState(false);
 
   // Toolbar state
   const [searchQuery, setSearchQuery] = useState("");
@@ -171,6 +175,7 @@ export default function SalaryReport() {
     if (window.innerWidth < 768) {
       setViewMode("grid");
       setHistoryViewMode("grid");
+      setHistoryReportTableMode("grid");
     }
   }, []);
 
@@ -431,7 +436,7 @@ export default function SalaryReport() {
                     </CardHeader>
                     <CardContent>
                       {/* Toolbar */}
-                      <div className="mb-6 space-y-3 sm:space-y-0">
+                      <div className="mb-6 space-y-3">
                         {/* First row: Search */}
                         <div className="relative w-full">
                           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
@@ -714,7 +719,7 @@ export default function SalaryReport() {
                 </CardHeader>
                 <CardContent>
                   {/* Toolbar */}
-                  <div className="mb-6 space-y-3 sm:space-y-0">
+                  <div className="mb-6 space-y-3">
                     {/* First row: Search */}
                     <div className="relative w-full">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
@@ -878,7 +883,7 @@ export default function SalaryReport() {
                                       size="sm"
                                       disabled={downloadingPeriod?.start_date === period.start_date}
                                       onClick={() => downloadPeriodPdf(period)}
-                                      className="h-9 px-3 bg-white hover:bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center gap-1"
+                                      className="h-9 px-3 bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-1"
                                     >
                                       {downloadingPeriod?.start_date === period.start_date ? (
                                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -890,7 +895,8 @@ export default function SalaryReport() {
                                       size="sm"
                                       disabled={downloadingPrintPeriod?.start_date === period.start_date}
                                       onClick={() => printPeriodPdf(period)}
-                                      className="h-9 px-3 bg-[#01005a] hover:bg-[#020680] text-white flex items-center justify-center gap-1"
+                                      variant="outline"
+                                      className="h-9 px-3 flex items-center justify-center gap-1"
                                     >
                                       {downloadingPrintPeriod?.start_date === period.start_date ? (
                                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -958,7 +964,7 @@ export default function SalaryReport() {
                                     e.stopPropagation();
                                     downloadPeriodPdf(period);
                                   }}
-                                  className="h-9 px-3 bg-white hover:bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center gap-1"
+                                  className="h-9 px-3 bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-1"
                                 >
                                   {downloadingPeriod?.start_date === period.start_date ? (
                                     <>
@@ -976,7 +982,8 @@ export default function SalaryReport() {
                                     e.stopPropagation();
                                     printPeriodPdf(period);
                                   }}
-                                  className="h-9 px-3 bg-[#01005a] hover:bg-[#020680] text-white flex items-center justify-center gap-1"
+                                  variant="outline"
+                                  className="h-9 px-3 flex items-center justify-center gap-1"
                                 >
                                   {downloadingPrintPeriod?.start_date === period.start_date ? (
                                     <>
@@ -1042,45 +1049,26 @@ export default function SalaryReport() {
             )}
             {/* Inline History Report View */}
             {historySelectedReport && (
-              <Card className="mt-6">
-                <CardHeader className="pb-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <CardTitle>Report: {periodLabel(historySelectedReport.period)}</CardTitle>
-                    <div className="flex items-center gap-2 ml-auto">
-                      <Label htmlFor="inline-page-size" className="text-xs sm:text-sm whitespace-nowrap">
-                        Per page:
-                      </Label>
-                      <select
-                        id="inline-page-size"
-                        value={historyViewPageSize}
-                        onChange={(e) => {
-                          setHistoryViewPageSize(parseInt(e.target.value, 10));
-                          setHistoryViewCurrentPage(1);
-                        }}
-                        className="h-8 px-2 text-xs sm:text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="10">10</option>
-                        <option value="25">25</option>
-                        <option value="50">50</option>
-                      </select>
-                      <div className="flex items-center gap-2">
-                        <Button onClick={() => printPeriodPdf(historySelectedReport.period)} disabled={!historySelectedReport} size="sm" className="h-8 bg-[#01005a] hover:bg-[#020680] text-white">
-                          <Printer className="w-4 h-4 mr-1" />
-                          Print
-                        </Button>
-                        <Button onClick={() => setHistorySelectedReport(null)} variant="outline" size="sm" className="h-8 w-8 p-0 text-gray-600 hover:text-red-600 hover:border-red-300">
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                      </div>
+              <Card className="mt-6 overflow-hidden">
+                <CardHeader className="pb-3 sm:pb-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                    <CardTitle className="text-base sm:text-lg break-words">Report: {periodLabel(historySelectedReport.period)}</CardTitle>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Button onClick={() => printPeriodPdf(historySelectedReport.period)} disabled={!historySelectedReport} size="sm" variant="outline" className="h-8 text-xs sm:text-sm">
+                        <Printer className="w-4 h-4 mr-1" />
+                        <span className="hidden sm:inline">Print</span>
+                      </Button>
+                      <Button onClick={() => setHistorySelectedReport(null)} variant="outline" size="sm" className="h-8 w-8 p-0 text-gray-600 hover:text-red-600 hover:border-red-300 flex-shrink-0">
+                        <X className="w-4 h-4" />
+                      </Button>
                     </div>
-
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-6">
 
 
                   {/* Summary Cards */}
-                  <div className="grid grid-cols-2 gap-4 max-w-3xl">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl">
                     <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4 sm:p-6">
                       <div className="flex items-center justify-between">
                         <div>
@@ -1101,25 +1089,140 @@ export default function SalaryReport() {
                     </div>
                   </div>
 
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                    <Input
-                      placeholder="Search by name or PIN..."
-                      value={historyViewSearchQuery}
-                      onChange={(e) => {
-                        setHistoryViewSearchQuery(e.target.value);
-                        setHistoryViewCurrentPage(1);
-                      }}
-                      className="pl-10"
-                    />
+                  <div className="mb-6 space-y-3">
+                    {/* First row: Search */}
+                    <div className="relative w-full">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                      <Input
+                        placeholder="Search by name or PIN..."
+                        value={historyViewSearchQuery}
+                        onChange={(e) => {
+                          setHistoryViewSearchQuery(e.target.value);
+                          setHistoryViewCurrentPage(1);
+                        }}
+                        className="pl-10 text-sm h-10 rounded-lg border border-input bg-white w-full"
+                      />
+                    </div>
+
+                    {/* Second row: Controls */}
+                    <div className="flex flex-wrap gap-2 items-center w-full">
+                      {/* Sort Control */}
+                      <div className="relative">
+                        <Button
+                          variant="outline"
+                          className="px-3 py-2 h-10 text-xs sm:text-sm flex items-center gap-2 min-w-max sm:min-w-[100px] justify-between border border-input rounded-lg"
+                          onClick={() => setShowHistoryViewSortDropdown(!showHistoryViewSortDropdown)}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="hidden sm:inline">Sort</span>
+                          </div>
+                          <ChevronDown className="w-4 h-4" />
+                        </Button>
+
+                        {showHistoryViewSortDropdown && (
+                          <div className="absolute top-full left-0 mt-2 w-56 bg-white border border-input rounded-lg shadow-md z-10">
+                            {[
+                              { key: 'name', direction: 'asc', label: 'Sort By Name (A-Z)', icon: ArrowUp, iconColor: 'text-green-600' },
+                              { key: 'name', direction: 'desc', label: 'Sort By Name (Z-A)', icon: ArrowDown, iconColor: 'text-blue-600' },
+                              { key: 'pin', direction: 'asc', label: 'Sort By PIN (Low-High)', icon: ArrowUp, iconColor: 'text-green-600' },
+                              { key: 'pin', direction: 'desc', label: 'Sort By PIN (High-Low)', icon: ArrowDown, iconColor: 'text-blue-600' },
+                            ].map(({ key, direction, label, icon: Icon, iconColor }) => (
+                              <button
+                                key={`${key}-${direction}`}
+                                onClick={() => {
+                                  setHistoryReportSortConfig({ key, direction });
+                                  setShowHistoryViewSortDropdown(false);
+                                  setHistoryViewCurrentPage(1);
+                                }}
+                                className="w-full px-4 py-3 text-left text-sm hover:bg-blue-50 flex items-center gap-3 transition-colors"
+                              >
+                                <Icon className={`w-4 h-4 ${iconColor}`} />
+                                <span className="text-foreground font-medium">{label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* List/Grid Toggle */}
+                      <div className="flex gap-2 border border-input rounded-xl p-1 bg-white">
+                        <button
+                          onClick={() => setHistoryReportTableMode('table')}
+                          className={`p-2 rounded-lg transition-colors ${
+                            historyReportTableMode === 'table'
+                              ? 'bg-[#020670] text-white'
+                              : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                          title="List View"
+                        >
+                          <HamburgerIcon className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => setHistoryReportTableMode('grid')}
+                          className={`p-2 rounded-lg transition-colors ${
+                            historyReportTableMode === 'grid'
+                              ? 'bg-[#020670] text-white'
+                              : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                          title="Grid View"
+                        >
+                          <GridIcon className="w-5 h-5" />
+                        </button>
+                      </div>
+
+                      {/* Records per page */}
+                      <div className="flex items-center gap-2 sm:ml-auto">
+                        <Label htmlFor="page-size-history-view" className="text-xs sm:text-sm whitespace-nowrap">
+                          Per page:
+                        </Label>
+                        <select
+                          id="page-size-history-view"
+                          value={historyViewPageSize}
+                          onChange={(e) => {
+                            setHistoryViewPageSize(parseInt(e.target.value));
+                            setHistoryViewCurrentPage(1);
+                          }}
+                          className="h-8 px-2 text-xs sm:text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value={10}>10</option>
+                          <option value={25}>25</option>
+                          <option value={50}>50</option>
+                          <option value={100}>100</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Employee Table */}
                   {(() => {
-                    const filtered = historySelectedReport.items.filter(item =>
+                    let filtered = historySelectedReport.items.filter(item =>
                       (item.name && item.name.toLowerCase().includes(historyViewSearchQuery.toLowerCase())) ||
                       (item.pin && item.pin.toLowerCase().includes(historyViewSearchQuery.toLowerCase()))
                     );
+
+                    // Apply sorting
+                    if (historyReportSortConfig.key) {
+                      filtered.sort((a, b) => {
+                        let aValue, bValue;
+
+                        if (historyReportSortConfig.key === "name") {
+                          aValue = (a.name || "").toLowerCase();
+                          bValue = (b.name || "").toLowerCase();
+                          return historyReportSortConfig.direction === "asc"
+                            ? aValue.localeCompare(bValue)
+                            : bValue.localeCompare(aValue);
+                        } else if (historyReportSortConfig.key === "pin") {
+                          aValue = a.pin || "";
+                          bValue = b.pin || "";
+                          // Convert to numbers for numeric sorting
+                          const aNum = parseInt(aValue, 10) || 0;
+                          const bNum = parseInt(bValue, 10) || 0;
+                          return historyReportSortConfig.direction === "asc" ? aNum - bNum : bNum - aNum;
+                        }
+                        return 0;
+                      });
+                    }
+
                     const startIdx = (historyViewCurrentPage - 1) * historyViewPageSize;
                     const endIdx = startIdx + historyViewPageSize;
                     const paginated = filtered.slice(startIdx, endIdx);
@@ -1127,28 +1230,70 @@ export default function SalaryReport() {
 
                     return (
                       <>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead className="bg-gray-100 border-y border-gray-300">
-                              <tr>
-                                <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm">Name</th>
-                                <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm">PIN</th>
-                                <th className="text-center p-2 sm:p-4 font-medium text-xs sm:text-sm">Days</th>
-                                <th className="text-center p-2 sm:p-4 font-medium text-xs sm:text-sm">Time Worked</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {paginated.map((item, idx) => (
-                                <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                                  <td className="p-2 sm:p-4 text-xs sm:text-sm">{item.name || "—"}</td>
-                                  <td className="p-2 sm:p-4 text-xs sm:text-sm">{item.pin || "—"}</td>
-                                  <td className="p-2 sm:p-4 text-xs sm:text-sm text-center">{formatTimeValue(item.days) || item.days}</td>
-                                  <td className="p-2 sm:p-4 text-xs sm:text-sm text-center font-semibold">{formatTimeValue(item.time_worked)}</td>
+                        {historyReportTableMode === 'table' && (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead style={{ backgroundColor: '#01005a' }}>
+                                <tr className="border-b">
+                                  <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white">Name</th>
+                                  <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white">PIN</th>
+                                  <th className="text-center p-2 sm:p-4 font-medium text-xs sm:text-sm text-white">Days</th>
+                                  <th className="text-center p-2 sm:p-4 font-medium text-xs sm:text-sm text-white">Time Worked</th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
+                              </thead>
+                              <tbody>
+                                {paginated.map((item, idx) => (
+                                  <tr key={idx} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                                    <td className="p-2 sm:p-4 text-xs sm:text-sm">{item.name || "—"}</td>
+                                    <td className="p-2 sm:p-4 text-xs sm:text-sm">{item.pin || "—"}</td>
+                                    <td className="p-2 sm:p-4 text-xs sm:text-sm text-center">{formatTimeValue(item.days) || item.days}</td>
+                                    <td className="p-2 sm:p-4 text-xs sm:text-sm text-center font-semibold">{formatTimeValue(item.time_worked)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+
+                        {historyReportTableMode === 'grid' && (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                            {paginated.length ? (
+                              paginated.map((item, idx) => (
+                                <Card key={idx} className="hover:shadow-lg transition-shadow">
+                                  <CardHeader className="pb-3">
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                                          <Users className="w-4 h-4 text-primary" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                          <CardTitle className="text-base sm:text-lg truncate">{item.name || "—"}</CardTitle>
+                                          <CardDescription className="text-xs sm:text-sm">PIN: {item.pin || "—"}</CardDescription>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </CardHeader>
+                                  <CardContent className="space-y-3 sm:space-y-4 pt-0">
+                                    <div className="flex items-center justify-between text-xs sm:text-sm">
+                                      <span className="text-muted-foreground">Days</span>
+                                      <span className="font-medium text-foreground">{formatTimeValue(item.days) || item.days}</span>
+                                    </div>
+                                    <div className="pt-2 border-t">
+                                      <div className="flex items-center justify-between text-xs sm:text-sm text-muted-foreground">
+                                        <span>Time Worked</span>
+                                        <span className="font-medium text-foreground">{formatTimeValue(item.time_worked)}</span>
+                                      </div>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ))
+                            ) : (
+                              <div className="col-span-full py-8 text-center text-muted-foreground">
+                                No attendance records found.
+                              </div>
+                            )}
+                          </div>
+                        )}
 
                         {/* Pagination 2 */}
                         {filtered.length > 0 && (
@@ -1157,13 +1302,16 @@ export default function SalaryReport() {
                               Showing {startIdx + 1}-{Math.min(endIdx, filtered.length)} of {filtered.length}
                             </span>
                             <div className="flex items-center gap-3">
-
                               <button
                                 onClick={() => setHistoryViewCurrentPage(Math.max(1, historyViewCurrentPage - 1))}
                                 disabled={historyViewCurrentPage === 1}
-                                className="px-3 py-2 text-xs sm:text-sm font-medium border border-gray-300 rounded disabled:opacity-50 hover:bg-gray-50"
+                                className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                                  historyViewCurrentPage === 1
+                                    ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                    : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                }`}
                               >
-                                ← Prev
+                                Prev
                               </button>
 
                               <span className="text-xs sm:text-sm text-muted-foreground">
@@ -1172,12 +1320,16 @@ export default function SalaryReport() {
                               <button
                                 onClick={() => setHistoryViewCurrentPage(Math.min(totalPages, historyViewCurrentPage + 1))}
                                 disabled={historyViewCurrentPage === totalPages}
-                                className="px-3 py-2 text-xs sm:text-sm font-medium border border-gray-300 rounded disabled:opacity-50 hover:bg-gray-50"
+                                className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                                  historyViewCurrentPage === totalPages
+                                    ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                                    : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                }`}
                               >
-                                Next →
+                                Next
                               </button>
+                              </div>
                             </div>
-                          </div>
                         )}
                       </>
                     );
