@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -56,6 +56,11 @@ export default function SalaryReport() {
 
   const HISTORY_PAGE_SIZE = 12;
   const report = selected || current;
+
+  // Refs for pagination scroll-to-top behavior
+  const currentPeriodTableRef = useRef(null);
+  const historyTableRef = useRef(null);
+  const historyViewTableRef = useRef(null);
 
   // Filter and sort report items based on search query and sort config
   const filteredAndSortedItems = useMemo(() => {
@@ -178,6 +183,44 @@ export default function SalaryReport() {
       setHistoryReportTableMode("grid");
     }
   }, []);
+
+  // Scroll to top of paginated table when current period page changes
+  useEffect(() => {
+    const scrollTimer = requestAnimationFrame(() => {
+      if (currentPeriodTableRef.current) {
+        currentPeriodTableRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+    return () => cancelAnimationFrame(scrollTimer);
+  }, [currentPeriodCurrentPage]);
+
+  // Scroll to top of history table when history page changes
+  useEffect(() => {
+    const scrollTimer = requestAnimationFrame(() => {
+      if (historyTableRef.current) {
+        historyTableRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+    return () => cancelAnimationFrame(scrollTimer);
+  }, [historyCurrentPage]);
+
+  // Scroll to top of history view table when history view page changes
+  useEffect(() => {
+    const scrollTimer = requestAnimationFrame(() => {
+      if (historyViewTableRef.current) {
+        const top =
+          historyViewTableRef.current.getBoundingClientRect().top +
+          window.scrollY -
+          20;
+
+        window.scrollTo({
+          top,
+          behavior: "smooth",
+        });
+      }
+    });
+    return () => cancelAnimationFrame(scrollTimer);
+  }, [historyViewCurrentPage]);
 
   const selectPeriod = async (period) => {
     setSelecting(true);
@@ -424,7 +467,7 @@ export default function SalaryReport() {
                 )}
 
                 {report && (
-                  <Card>
+                  <Card ref={currentPeriodTableRef}>
                     <CardHeader className="pb-4 sm:pb-6">
                       <div>
                         <CardTitle className="flex items-center gap-2">
@@ -838,7 +881,7 @@ export default function SalaryReport() {
 
                   {/* List View */}
                   {historyViewMode === 'list' && (
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto" ref={historyTableRef}>
                       <table className="w-full min-w-[600px]">
                         <thead style={{ backgroundColor: '#01005a' }}>
                           <tr className="border-b">
@@ -922,7 +965,7 @@ export default function SalaryReport() {
 
                   {/* Grid View */}
                   {historyViewMode === 'grid' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6" ref={historyTableRef}>
                       {paginatedHistoryData.length ? (
                         paginatedHistoryData.map((period) => (
                           <Card
@@ -1194,6 +1237,7 @@ export default function SalaryReport() {
                   </div>
 
                   {/* Employee Table */}
+                  <div ref={historyViewTableRef}>
                   {(() => {
                     let filtered = historySelectedReport.items.filter(item =>
                       (item.name && item.name.toLowerCase().includes(historyViewSearchQuery.toLowerCase())) ||
@@ -1334,6 +1378,7 @@ export default function SalaryReport() {
                       </>
                     );
                   })()}
+                  </div>
                 </CardContent>
               </Card>
             )}

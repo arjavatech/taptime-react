@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -38,6 +38,7 @@ import { GridIcon } from "../components/icons/GridIcon";
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import { bulkUploadReportData } from "../api.js";
+import AttendanceDetailsModal from "../components/ui/AttendanceDetailsModal";
 
 const Reports = () => {
   // Utility function to capitalize first letter of each word
@@ -66,6 +67,9 @@ const Reports = () => {
     }
   });
   const [viewMode, setViewMode] = useState("table");
+  
+  // Tab-specific pagination states
+  const [todayCurrentPage, setTodayCurrentPage] = useState(1);
   const [pendingPageSize, setPendingPageSize] = useState(10);
   const [pendingCurrentPage, setPendingCurrentPage] = useState(1);
 
@@ -142,6 +146,14 @@ const Reports = () => {
   const [salariedPageSize, setSalariedPageSize] = useState(10);
   const [salariedCurrentPage, setSalariedCurrentPage] = useState(1);
 
+  // Day wise report pagination
+  const [daywisePageSize, setDaywisePageSize] = useState(10);
+  const [daywiseCurrentPage, setDaywiseCurrentPage] = useState(1);
+
+  // Summary report pagination
+  const [summaryPageSize, setSummaryPageSize] = useState(10);
+  const [summaryCurrentPage, setSummaryCurrentPage] = useState(1);
+
   // Summary stats
   const [summaryStats, setSummaryStats] = useState({
     presentEmployees: 0,
@@ -156,7 +168,21 @@ const Reports = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState("");
 
+  // Attendance details modal state
+  const [showAttendanceDetailsModal, setShowAttendanceDetailsModal] = useState(false);
+  const [selectedAttendanceRecord, setSelectedAttendanceRecord] = useState(null);
+
+  // Image preview state
+  const [selectedImage, setSelectedImage] = useState(null);
+
   // Modal close events disabled - modals only close via buttons
+
+  // Refs for scroll-to-top on pagination
+  const todayReportRef = useRef(null);
+  const daywiseReportRef = useRef(null);
+  const summaryReportRef = useRef(null);
+  const pendingReportRef = useRef(null);
+  const salariedReportRef = useRef(null);
 
 
 
@@ -178,10 +204,12 @@ const Reports = () => {
   const getPendingItemsPerPage = () => {
     return pendingPageSize;
   };
+  // For pending checkout, use filteredData when activeTab is "pending", otherwise use pendingCheckoutData
+  const pendingDataForPagination = activeTab === "pending" ? filteredData : pendingCheckoutData;
   const pendingPaginationStartIndex = (pendingCurrentPage - 1) * getPendingItemsPerPage();
   const pendingPaginationEndIndex = pendingPaginationStartIndex + getPendingItemsPerPage();
-  const pendingTotalPages = Math.ceil(pendingCheckoutData.length / getPendingItemsPerPage());
-  const paginatedPendingCheckoutData = pendingCheckoutData.slice(pendingPaginationStartIndex, pendingPaginationEndIndex);
+  const pendingTotalPages = Math.ceil(pendingDataForPagination.length / getPendingItemsPerPage());
+  const paginatedPendingCheckoutData = pendingDataForPagination.slice(pendingPaginationStartIndex, pendingPaginationEndIndex);
 
   // Helper function for salaried report pagination
   const getSalariedItemsPerPage = () => {
@@ -331,7 +359,19 @@ const Reports = () => {
   };
 
   const updateSummaryStats = (data) => {
-    const presentEmployees = data.filter(r => r.CheckInTime).length;
+    // Count unique employees (not duplicate records)
+    const uniqueEmployees = new Set();
+    data.forEach(r => {
+      if (r.CheckInTime) {
+        // Use EmpID or Pin to identify unique employees
+        const employeeId = r.EmpID || r.emp_id || r.Pin || r.pin;
+        if (employeeId) {
+          uniqueEmployees.add(employeeId);
+        }
+      }
+    });
+    
+    const presentEmployees = uniqueEmployees.size;
     const totalHours = data.reduce((sum, r) => {
       if (r.TimeWorked && r.TimeWorked !== "0:00") {
         const [hours, minutes] = r.TimeWorked.split(':').map(Number);
@@ -426,7 +466,7 @@ const Reports = () => {
         type_id: row.Type || row.TypeID,
         check_out_time: checkoutDateTime,
         time_worked: timeWorked,
-        check_in_snap: row.CheckInSnap || null,
+        check_in_snap: row.check_in_snap || null,
         check_out_snap: null,
         date: checkInDateString,
         last_modified_by: localStorage.getItem("userName") || "Admin"
@@ -799,9 +839,17 @@ const Reports = () => {
   };
 
   const filterData = () => {
-    let filtered = activeTab === "today" ? tableData : activeTab === "pending" ? pendingCheckoutData : reportData;
+    // Create a new array copy to avoid mutating original state
+    let filtered = [
+      ...(activeTab === "today"
+        ? tableData
+        : activeTab === "pending"
+          ? pendingCheckoutData
+          : reportData)
+    ];
     console.log('filterData called - activeTab:', activeTab, 'source data length:', filtered.length);
 
+    // Apply search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(record =>
@@ -811,34 +859,37 @@ const Reports = () => {
       );
     }
 
-    filtered.sort((a, b) => {
-      let aValue, bValue;
-      if (sortConfig.key === "name") {
-        aValue = a.Name?.toLowerCase() || "";
-        bValue = b.Name?.toLowerCase() || "";
-        return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
-      } else if (sortConfig.key === "pin") {
-        aValue = a.Pin || "";
-        bValue = b.Pin || "";
-        return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
-      } else if (sortConfig.key === "time") {
-        // Convert time format "HH:MM" to minutes for proper numerical sorting
-        const timeToMinutes = (timeStr) => {
-          if (!timeStr || timeStr === "--" || timeStr === "0:00") return 0;
-          const [hours, minutes] = timeStr.split(':').map(Number);
-          return (hours || 0) * 60 + (minutes || 0);
-        };
-        aValue = timeToMinutes(a.TimeWorked || "0:00");
-        bValue = timeToMinutes(b.TimeWorked || "0:00");
-        return sortConfig.direction === "asc" ? aValue - bValue : bValue - aValue;
-      } else if (sortConfig.key === "checkin") {
-        // Convert check-in time to Date objects for proper chronological sorting
-        aValue = a.CheckInTime ? new Date(a.CheckInTime).getTime() : 0;
-        bValue = b.CheckInTime ? new Date(b.CheckInTime).getTime() : 0;
-        return sortConfig.direction === "asc" ? aValue - bValue : bValue - aValue;
-      }
-      return 0;
-    });
+    // Apply sorting
+    if (sortConfig.key) {
+      filtered.sort((a, b) => {
+        let aValue, bValue;
+        if (sortConfig.key === "name") {
+          aValue = a.Name?.toLowerCase() || "";
+          bValue = b.Name?.toLowerCase() || "";
+          return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+        } else if (sortConfig.key === "pin") {
+          aValue = a.Pin || "";
+          bValue = b.Pin || "";
+          return sortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+        } else if (sortConfig.key === "time") {
+          // Convert time format "HH:MM" to minutes for proper numerical sorting
+          const timeToMinutes = (timeStr) => {
+            if (!timeStr || timeStr === "--" || timeStr === "0:00") return 0;
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            return (hours || 0) * 60 + (minutes || 0);
+          };
+          aValue = timeToMinutes(a.TimeWorked || "0:00");
+          bValue = timeToMinutes(b.TimeWorked || "0:00");
+          return sortConfig.direction === "asc" ? aValue - bValue : bValue - aValue;
+        } else if (sortConfig.key === "checkin") {
+          // Convert check-in time to Date objects for proper chronological sorting
+          aValue = a.CheckInTime ? new Date(a.CheckInTime).getTime() : 0;
+          bValue = b.CheckInTime ? new Date(b.CheckInTime).getTime() : 0;
+          return sortConfig.direction === "asc" ? aValue - bValue : bValue - aValue;
+        }
+        return 0;
+      });
+    }
 
     console.log('filterData result:', filtered.length, 'records');
     setFilteredData(filtered);
@@ -990,9 +1041,9 @@ const Reports = () => {
 
   const getStatusBadge = (record) => {
     if (record.CheckOutTime) {
-      return <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Completed</span>;
+      return <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full whitespace-nowrap">Completed</span>;
     } else {
-      return <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">In Progress</span>;
+      return <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full whitespace-nowrap">In Progress</span>;
     }
   };
 
@@ -1121,9 +1172,9 @@ const Reports = () => {
         CID: companyId,
         EmpID: selectedEmployee.EmpID || selectedEmployee.emp_id,
         TypeID: newEntry.Type,
-        CheckInSnap: null,
+        check_in_snap: null,
         CheckInTime: `${newEntry.Date}T${newEntry.CheckInTime}:00`,
-        CheckOutSnap: null,
+        check_out_snap: null,
         CheckOutTime: newEntry.CheckOutTime ? `${newEntry.Date}T${newEntry.CheckOutTime}:00` : null,
         TimeWorked: timeWorked,
         Date: newEntry.Date,
@@ -1360,6 +1411,73 @@ const Reports = () => {
     setPaginatedData(filteredData.slice(startIndex, endIndex));
   }, [filteredData, currentPage, pageSize]);
 
+  // Today's Report pagination
+  const todayPaginationStartIndex = (todayCurrentPage - 1) * pageSize;
+  const todayPaginationEndIndex = todayPaginationStartIndex + pageSize;
+  const todayTotalPages = Math.ceil(filteredData.length / pageSize);
+  const todayPaginatedData = activeTab === "today" ? filteredData.slice(todayPaginationStartIndex, todayPaginationEndIndex) : [];
+
+  // Day-wise Report pagination
+  const daywisePaginationStartIndex = (daywiseCurrentPage - 1) * daywisePageSize;
+  const daywisePaginationEndIndex = daywisePaginationStartIndex + daywisePageSize;
+  const daywiseTotalPages = Math.ceil(filteredData.length / daywisePageSize);
+  const daywisePaginatedData = activeTab === "daywise" ? filteredData.slice(daywisePaginationStartIndex, daywisePaginationEndIndex) : [];
+
+  // Today's scroll effect - triggers on todayCurrentPage change
+  useEffect(() => {
+    const scrollTimer = requestAnimationFrame(() => {
+      if (todayReportRef.current) {
+        todayReportRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+    
+    return () => cancelAnimationFrame(scrollTimer);
+  }, [todayCurrentPage]);
+
+  // Day-wise scroll effect - triggers on daywiseCurrentPage change
+  useEffect(() => {
+    const scrollTimer = requestAnimationFrame(() => {
+      if (daywiseReportRef.current) {
+        daywiseReportRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+    
+    return () => cancelAnimationFrame(scrollTimer);
+  }, [daywiseCurrentPage]);
+
+  // Summary scroll effect - triggers on summaryCurrentPage change
+  useEffect(() => {
+    const scrollTimer = requestAnimationFrame(() => {
+      if (summaryReportRef.current) {
+        summaryReportRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+    
+    return () => cancelAnimationFrame(scrollTimer);
+  }, [summaryCurrentPage]);
+
+  // Pending checkout scroll effect - triggers on pendingCurrentPage change
+  useEffect(() => {
+    const scrollTimer = requestAnimationFrame(() => {
+      if (pendingReportRef.current) {
+        pendingReportRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+    
+    return () => cancelAnimationFrame(scrollTimer);
+  }, [pendingCurrentPage]);
+
+  // Salaried scroll effect - triggers on salariedCurrentPage change
+  useEffect(() => {
+    const scrollTimer = requestAnimationFrame(() => {
+      if (salariedReportRef.current) {
+        salariedReportRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+    
+    return () => cancelAnimationFrame(scrollTimer);
+  }, [salariedCurrentPage]);
+
   useEffect(() => {
     if (window.innerWidth < 650) {
       setViewMode("grid");
@@ -1395,6 +1513,51 @@ const Reports = () => {
     } finally {
       setHistoryLoading(false);
     }
+  };
+
+  const openAttendanceDetails = async (record) => {
+    console.log("Clicked attendance record:", record);
+    console.log("record_id:", record?.record_id);
+    console.log("check_out_time:", record?.check_out_time);
+    console.log("check_out_snap:", record?.check_out_snap);
+    
+    // Fetch fresh data from API to get the latest photo information
+    try {
+      const checkInDate = new Date(record.CheckInTime);
+      const dateStr = `${checkInDate.getFullYear()}-${String(checkInDate.getMonth() + 1).padStart(2, '0')}-${String(checkInDate.getDate()).padStart(2, '0')}`;
+      
+      const freshData = await fetchDailyReport(companyId, dateStr);
+      // Find the matching record with the same record_id
+      const freshRecord = freshData.find(r => r.record_id === record.record_id || r.RecordID === record.record_id || 
+        (r.pin === record.Pin && r.CheckInTime === record.CheckInTime));
+      
+      if (freshRecord) {
+        console.log("Fresh record from API:", freshRecord);
+        setSelectedAttendanceRecord(freshRecord);
+      } else {
+        // Fallback to current record if not found
+        setSelectedAttendanceRecord(record);
+      }
+    } catch (error) {
+      console.error("Error fetching fresh record data:", error);
+      // Fallback to current record on error
+      setSelectedAttendanceRecord(record);
+    }
+    
+    setShowAttendanceDetailsModal(true);
+  };
+
+  const closeAttendanceDetails = () => {
+    setShowAttendanceDetailsModal(false);
+    setSelectedAttendanceRecord(null);
+  };
+
+  const openImagePreview = (photoUrl) => {
+    setSelectedImage(photoUrl);
+  };
+
+  const closeImagePreview = () => {
+    setSelectedImage(null);
   };
 
   return (
@@ -1497,7 +1660,7 @@ const Reports = () => {
                       <Users className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
                       <div className="ml-3 sm:ml-4">
                         <p className="text-xs sm:text-sm font-medium text-muted-foreground">Total Employees</p>
-                        <p className="text-xl sm:text-2xl font-bold text-foreground">{new Set(filteredData.map(r => r.EmployeeId)).size}</p>
+                        <p className="text-xl sm:text-2xl font-bold text-foreground">{activeTab === "summary" || activeTab === "salaried" ? filteredData.length : new Set(filteredData.map(r => r.EmpID)).size}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -1535,7 +1698,7 @@ const Reports = () => {
                       <Users className="h-6 w-6 sm:h-8 sm:w-8 text-red-600" />
                       <div className="ml-3 sm:ml-4">
                         <p className="text-xs sm:text-sm font-medium text-muted-foreground">Affected Employees</p>
-                        <p className="text-xl sm:text-2xl font-bold text-foreground">{new Set(filteredData.map(r => r.EmployeeId)).size}</p>
+                        <p className="text-xl sm:text-2xl font-bold text-foreground">{new Set(filteredData.map(r => r.EmpID)).size}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -1692,10 +1855,6 @@ const Reports = () => {
                           // Persist sort config to localStorage
                           localStorage.setItem('reportSortConfig', JSON.stringify(newSortConfig));
                           document.getElementById('sort-dropdown').classList.add('hidden');
-                          // Refresh the page after 100ms to allow state update
-                          setTimeout(() => {
-                            window.location.reload();
-                          }, 100);
                         }}
                         className={`w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center justify-between transition-colors ${sortConfig.key === key && sortConfig.direction === direction
                             ? 'bg-primary/10 text-primary'
@@ -1740,7 +1899,7 @@ const Reports = () => {
 
         {/* Today's Report Section */}
         {activeTab === "today" && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" ref={todayReportRef}>
             <Card>
               <CardHeader className="pb-4 sm:pb-6">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
@@ -1770,7 +1929,7 @@ const Reports = () => {
                         value={pageSize.toString()}
                         onChange={(e) => {
                           setPageSize(parseInt(e.target.value));
-                          setCurrentPage(1);
+                          setTodayCurrentPage(1);
                         }}
                         className="h-8 px-2 text-xs sm:text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >                     
@@ -1797,7 +1956,7 @@ const Reports = () => {
                   <>
                     {viewMode === "grid" ? (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                        {paginatedData.map((record, index) => {
+                        {todayPaginatedData.map((record, index) => {
                         const rowKey = `${record.Pin}-${record.CheckInTime}`;
                         const hasCheckout = record.CheckOutTime;
                         const selectedTime = checkoutTimes[rowKey];
@@ -1806,7 +1965,7 @@ const Reports = () => {
                         const minTime = `${String(checkInTime.getHours()).padStart(2, '0')}:${String(checkInTime.getMinutes() + 1).padStart(2, '0')}`;
 
                         return (
-                          <Card key={index} className="hover:shadow-lg transition-shadow">
+                          <Card key={index} className="hover:shadow-lg transition-shadow flex flex-col h-full">
                             <CardHeader className="pb-3">
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -1814,16 +1973,22 @@ const Reports = () => {
                                     <Users className="w-4 h-4 text-primary" />
                                   </div>
                                   <div className="min-w-0 flex-1">
-                                    <CardTitle className="text-base sm:text-lg truncate">{record.Name}</CardTitle>
+                                    <button
+                                      onClick={() => openAttendanceDetails(record)}
+                                      className="cursor-pointer hover:opacity-80 transition-opacity text-left w-full"
+                                      title="Click to view attendance details"
+                                    >
+                                      <CardTitle className="text-base sm:text-lg truncate text-foreground hover:underline">{record.Name}</CardTitle>
+                                    </button>
                                     <CardDescription className="text-xs sm:text-sm">PIN: {record.Pin}</CardDescription>
                                   </div>
                                 </div>
                               </div>
                             </CardHeader>
-                            <CardContent className="space-y-3 sm:space-y-4 pt-0">
+                            <CardContent className="space-y-3 sm:space-y-4 pt-0 flex-1 flex flex-col">
                               <div className="flex items-center justify-between">
                                 <span className="text-xs sm:text-sm text-muted-foreground">Type</span>
-                                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{record.Type}</span>
+                                <span className="px-2 py-1 bg-blue-600 text-white text-xs rounded-full">{record.Type}</span>
                               </div>
                               <div className="flex items-center gap-2 text-xs sm:text-sm">
                                 <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
@@ -1832,6 +1997,35 @@ const Reports = () => {
                               <div className="flex items-center gap-2 text-xs sm:text-sm">
                                 <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
                                 <span className="truncate">Out: {formatTime(record.CheckOutTime)}</span>
+                              </div>
+                              {/* Check-in and Check-out Photos */}
+                              <div className="flex gap-2 items-center justify-start">
+                                {record.check_in_snap || record.CheckInSnap ? (
+                                  <img 
+                                    src={record.check_in_snap || record.CheckInSnap}
+                                    alt="Check-in" 
+                                    className="w-12 h-12 object-cover rounded cursor-pointer hover:opacity-80" 
+                                    onClick={() => openImagePreview(record.check_in_snap || record.CheckInSnap)}
+                                    title="Click to view full size check-in photo"
+                                  />
+                                ) : (
+                                  <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">
+                                    <span className="text-xs text-muted-foreground">-</span>
+                                  </div>
+                                )}
+                                {record.check_out_snap || record.CheckOutSnap ? (
+                                  <img 
+                                    src={record.check_out_snap || record.CheckOutSnap}
+                                    alt="Check-out" 
+                                    className="w-12 h-12 object-cover rounded cursor-pointer hover:opacity-80" 
+                                    onClick={() => openImagePreview(record.check_out_snap || record.CheckOutSnap)}
+                                    title="Click to view full size check-out photo"
+                                  />
+                                ) : (
+                                  <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">
+                                    <span className="text-xs text-muted-foreground">-</span>
+                                  </div>
+                                )}
                               </div>
                               {!hasCheckout && (
                                 <div className="space-y-2">
@@ -1867,8 +2061,42 @@ const Reports = () => {
                                     )}
                                   </Button>
                                 )}
-                                {canManageReports && <div className="mt-2 flex gap-1.5"><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="h-10 w-10 p-0 flex items-center justify-center"><Pencil className="h-4 w-4" title="Edit" /></Button><Button variant="outline" size="sm" onClick={() => openHistory(record)} className="h-10 w-10 p-0 flex items-center justify-center"><History className="h-4 w-4" title="History" /></Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="h-10 w-10 p-0 flex items-center justify-center text-red-600 hover:text-red-700"><Trash2 className="h-4 w-4" title="Delete" /></Button></div>}
                               </div>
+                              {/* Action Buttons - Positioned at bottom */}
+                              {canManageReports && (
+                                <div className="mt-auto pt-3 flex gap-0 justify-between items-center w-full">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => openEditReport(record)} 
+                                    className="h-10 flex items-center justify-center flex-shrink-0 px-3 gap-2"
+                                    title="Edit"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                    <span className="hidden sm:inline text-xs font-medium">Edit</span>
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => openHistory(record)} 
+                                    className="h-10 flex items-center justify-center flex-shrink-0 px-3 gap-2"
+                                    title="History"
+                                  >
+                                    <History className="h-4 w-4" />
+                                    <span className="hidden sm:inline text-xs font-medium">History</span>
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => setReportToDelete(record)} 
+                                    className="h-10 flex items-center justify-center flex-shrink-0 px-3 gap-2 text-red-600 hover:text-red-700"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                    <span className="hidden sm:inline text-xs font-medium">Delete</span>
+                                  </Button>
+                                </div>
+                              )}
                             </CardContent>
                           </Card>
                         );
@@ -1880,16 +2108,18 @@ const Reports = () => {
                           <table className="w-full min-w-[600px]">
                             <thead style={{ backgroundColor: '#01005a' }}>
                               <tr className="border-b">
-                                <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[100px]">Employee ID</th>
-                                <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Name</th>
-                                <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Check-in Time</th>
-                                <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Check-out Time</th>
-                                <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">Type</th>
-                                <th className="text-center p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[220px]">Actions</th>
+                                <th className="text-left align-middle p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[100px]">Employee ID</th>
+                                <th className="text-left align-middle p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[150px]">Name</th>
+                                <th className="text-left align-middle p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Check-in Time</th>
+                                <th className="text-left align-middle p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[100px]">Check-in Photo</th>
+                                <th className="text-left align-middle p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Check-out Time</th>
+                                <th className="text-left align-middle p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[100px]">Check-out Photo</th>
+                                <th className="text-left align-middle p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[100px]">Type</th>
+                                <th className="text-center align-middle p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[220px]">Actions</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {paginatedData.map((record, index) => {
+                              {todayPaginatedData.map((record, index) => {
                               const rowKey = `${record.Pin}-${record.CheckInTime}`;
                               const hasCheckout = record.CheckOutTime;
                               const selectedTime = checkoutTimes[rowKey];
@@ -1901,10 +2131,31 @@ const Reports = () => {
 
                               return (
                                 <tr key={index} className="border-b hover:bg-muted/50">
-                                  <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium">{record.Pin}</td>
-                                  <td className="p-2 sm:p-4 text-xs sm:text-sm">{record.Name}</td>
-                                  <td className="p-2 sm:p-4 text-xs sm:text-sm">{formatTime(record.CheckInTime)}</td>
-                                  <td className="p-2 sm:p-4 text-xs sm:text-sm">
+                                  <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium align-middle">{record.Pin}</td>
+                                  <td className="p-2 sm:p-4 text-xs sm:text-sm align-top min-h-[2.5rem] flex items-center">
+                                    <button
+                                      onClick={() => openAttendanceDetails(record)}
+                                      className="text-foreground hover:underline transition-colors font-medium break-words text-left w-full whitespace-normal line-clamp-2"
+                                      title="Click to view attendance details"
+                                    >
+                                      {record.Name}
+                                    </button>
+                                  </td>
+                                  <td className="p-2 sm:p-4 text-xs sm:text-sm align-middle">{formatTime(record.CheckInTime)}</td>
+                                  <td className="p-2 sm:p-4 align-middle">
+                                    {record.check_in_snap || record.CheckInSnap ? (
+                                      <img 
+                                        src={record.check_in_snap || record.CheckInSnap}
+                                        alt="Check-in" 
+                                        className="w-12 h-12 object-cover rounded cursor-pointer hover:opacity-80" 
+                                        onClick={() => openImagePreview(record.check_in_snap || record.CheckInSnap)}
+                                        title="Click to view full size"
+                                      />
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground">-</span>
+                                    )}
+                                  </td>
+                                  <td className="p-2 sm:p-4 text-xs sm:text-sm align-middle">
                                     {hasCheckout ? (
                                       formatTime(record.CheckOutTime)
                                     ) : (
@@ -1925,12 +2176,25 @@ const Reports = () => {
                                       </div>
                                     )}
                                   </td>
-                                  <td className="p-2 sm:p-4">
-                                    <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                  <td className="p-2 sm:p-4 align-middle">
+                                    {record.check_out_snap || record.CheckOutSnap ? (
+                                      <img 
+                                        src={record.check_out_snap || record.CheckOutSnap}
+                                        alt="Check-out" 
+                                        className="w-12 h-12 object-cover rounded cursor-pointer hover:opacity-80" 
+                                        onClick={() => openImagePreview(record.check_out_snap || record.CheckOutSnap)}
+                                        title="Click to view full size"
+                                      />
+                                    ) : (
+                                      <span className="text-xs text-muted-foreground">-</span>
+                                    )}
+                                  </td>
+                                  <td className="p-2 sm:p-4 align-middle">
+                                    <span className="px-1.5 sm:px-2 py-0.5 sm:py-1 bg-blue-100 text-blue-800 text-xs whitespace-nowrap inline-block rounded-full">
                                       {record.Type}
                                     </span>
                                   </td>
-                                  <td className="p-2 sm:p-4">
+                                  <td className="p-2 sm:p-4 align-middle">
                                     <div className="flex items-center justify-center gap-2">
                                       {canManageReports && <><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="h-10 w-10 p-0 flex items-center justify-center"><Pencil className="h-3.5 w-3.5" title="Edit" /></Button><Button variant="outline" size="sm" onClick={() => openHistory(record)} className="h-10 w-10 p-0 flex items-center justify-center"><History className="h-3.5 w-3.5" title="History" /></Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="h-10 w-10 p-0 flex items-center justify-center text-red-600 hover:text-red-700"><Trash2 className="h-3.5 w-3.5" title="Delete" /></Button></>}
                                       <Button
@@ -1966,7 +2230,7 @@ const Reports = () => {
                         {/* Pagination */}
                         {(() => {
                           const itemsPerPage = getItemsPerPage();
-                          const paginationStartIndex = (currentPage - 1) * itemsPerPage;
+                          const paginationStartIndex = (todayCurrentPage - 1) * itemsPerPage;
                           const paginationEndIndex = paginationStartIndex + itemsPerPage;
                           const totalPages = Math.ceil(filteredData.length / itemsPerPage);
                           return filteredData.length > 0 && (
@@ -1977,10 +2241,10 @@ const Reports = () => {
                               {totalPages > 1 && (
                                 <div className="flex items-center gap-3 order-1 sm:order-2">
                                   <button
-                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                    disabled={currentPage === 1}
+                                    onClick={() => setTodayCurrentPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={todayCurrentPage === 1}
                                     className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                                      currentPage === 1
+                                      todayCurrentPage === 1
                                         ? 'text-gray-400 border-gray-200 cursor-not-allowed'
                                         : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
                                     }`}
@@ -1988,13 +2252,13 @@ const Reports = () => {
                                     Prev
                                   </button>
                                   <span className="text-sm font-medium text-gray-900 px-2">
-                                    {currentPage} / {totalPages}
+                                    {todayCurrentPage} / {totalPages}
                                   </span>
                                   <button
-                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                    disabled={currentPage === totalPages}
+                                    onClick={() => setTodayCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                    disabled={todayCurrentPage === totalPages}
                                     className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                                      currentPage === totalPages
+                                      todayCurrentPage === totalPages
                                         ? 'text-gray-400 border-gray-200 cursor-not-allowed'
                                         : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
                                     }`}
@@ -2011,7 +2275,7 @@ const Reports = () => {
                     {/* Pagination for Grid View */}
                     {(() => {
                       const itemsPerPage = getItemsPerPage();
-                      const paginationStartIndex = (currentPage - 1) * itemsPerPage;
+                      const paginationStartIndex = (todayCurrentPage - 1) * itemsPerPage;
                       const paginationEndIndex = paginationStartIndex + itemsPerPage;
                       const totalPages = Math.ceil(filteredData.length / itemsPerPage);
                       return viewMode === "grid" && filteredData.length > 0 && (
@@ -2022,10 +2286,10 @@ const Reports = () => {
                           {totalPages > 1 && (
                             <div className="flex items-center gap-3 order-1 sm:order-2">
                               <button
-                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                disabled={currentPage === 1}
+                                onClick={() => setTodayCurrentPage(prev => Math.max(prev - 1, 1))}
+                                disabled={todayCurrentPage === 1}
                                 className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                                  currentPage === 1
+                                  todayCurrentPage === 1
                                     ? 'text-gray-400 border-gray-200 cursor-not-allowed'
                                     : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
                                 }`}
@@ -2033,13 +2297,13 @@ const Reports = () => {
                                 Prev
                               </button>
                               <span className="text-sm font-medium text-gray-900 px-2">
-                                {currentPage} / {totalPages}
+                                {todayCurrentPage} / {totalPages}
                               </span>
                               <button
-                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                disabled={currentPage === totalPages}
+                                onClick={() => setTodayCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                disabled={todayCurrentPage === totalPages}
                                 className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                                  currentPage === totalPages
+                                  todayCurrentPage === totalPages
                                     ? 'text-gray-400 border-gray-200 cursor-not-allowed'
                                     : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
                                 }`}
@@ -2060,7 +2324,7 @@ const Reports = () => {
 
         {/* Day-wise Report Section */}
         {activeTab === "daywise" && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" ref={daywiseReportRef}>
             <Card>
               <CardHeader className="pb-4 sm:pb-6">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
@@ -2079,10 +2343,10 @@ const Reports = () => {
                     </Label>
                     <select
                       id="page-size-daywise"
-                      value={pageSize}
+                      value={daywisePageSize}
                       onChange={(e) => {
-                        setPageSize(parseInt(e.target.value));
-                        setCurrentPage(1);
+                        setDaywisePageSize(parseInt(e.target.value));
+                        setDaywiseCurrentPage(1);
                       }}
                       className="h-8 px-2 text-xs sm:text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
@@ -2107,8 +2371,8 @@ const Reports = () => {
                 ) : (
                   viewMode === "grid" ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                      {paginatedData.map((record, index) => (
-                        <Card key={index} className="hover:shadow-lg transition-shadow">
+                      {daywisePaginatedData.map((record, index) => (
+                        <Card key={index} className="hover:shadow-lg transition-shadow flex flex-col h-full">
                           <CardHeader className="pb-3">
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
@@ -2116,17 +2380,22 @@ const Reports = () => {
                                   <Users className="w-4 h-4 text-primary" />
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                  <CardTitle className="text-base sm:text-lg truncate">{record.Name}</CardTitle>
+                                  <button
+                                    onClick={() => openAttendanceDetails(record)}
+                                    className="cursor-pointer hover:opacity-80 transition-opacity text-left w-full"
+                                    title="Click to view attendance details"
+                                  >
+                                    <div className="text-base sm:text-lg font-semibold text-foreground hover:underline truncate">{record.Name}</div>
+                                  </button>
                                   <CardDescription className="text-xs sm:text-sm">PIN: {record.Pin}</CardDescription>
                                 </div>
                               </div>
-                              {getStatusBadge(record)}
                             </div>
                           </CardHeader>
-                          <CardContent className="space-y-3 sm:space-y-4 pt-0">
+                          <CardContent className="space-y-3 sm:space-y-4 pt-0 flex-1 flex flex-col">
                             <div className="flex items-center justify-between">
                               <span className="text-xs sm:text-sm text-muted-foreground">Type</span>
-                              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{record.Type}</span>
+                              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full whitespace-nowrap">{record.Type}</span>
                             </div>
                             <div className="flex items-center gap-2 text-xs sm:text-sm">
                               <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
@@ -2136,15 +2405,72 @@ const Reports = () => {
                               <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
                               <span className="truncate">Out: {formatTime(record.CheckOutTime)}</span>
                             </div>
+                            {/* Check-in and Check-out Photos */}
+                            <div className="flex gap-2 items-center justify-start">
+                              {record.check_in_snap || record.CheckInSnap ? (
+                                <img 
+                                  src={record.check_in_snap || record.CheckInSnap}
+                                  alt="Check-in" 
+                                  className="w-12 h-12 object-cover rounded cursor-pointer hover:opacity-80" 
+                                  onClick={() => openImagePreview(record.check_in_snap || record.CheckInSnap)}
+                                  title="Click to view full size check-in photo"
+                                />
+                              ) : (
+                                <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">
+                                  <span className="text-xs text-muted-foreground">-</span>
+                                </div>
+                              )}
+                              {record.check_out_snap || record.CheckOutSnap ? (
+                                <img 
+                                  src={record.check_out_snap || record.CheckOutSnap}
+                                  alt="Check-out" 
+                                  className="w-12 h-12 object-cover rounded cursor-pointer hover:opacity-80" 
+                                  onClick={() => openImagePreview(record.check_out_snap || record.CheckOutSnap)}
+                                  title="Click to view full size check-out photo"
+                                />
+                              ) : (
+                                <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">
+                                  <span className="text-xs text-muted-foreground">-</span>
+                                </div>
+                              )}
+                            </div>
                             <div className="pt-2 border-t">
                               <div className="flex items-center justify-between text-xs text-muted-foreground">
                                 <span>Time Worked</span>
                                 <span className="font-medium text-foreground">{record.TimeWorked}</span>
                               </div>
                               {canManageReports && (
-                                <div className="mt-3 flex gap-1.5">
-                                  <Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="flex-1 h-10 flex items-center justify-center"><Pencil className="h-4 w-4" /><span className="hidden sm:inline ml-1">Edit</span></Button>
-                                  <Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="flex-1 h-10 flex items-center justify-center text-red-600 hover:text-red-700"><Trash2 className="h-4 w-4" /><span className="hidden sm:inline ml-1">Delete</span></Button>
+                                <div className="mt-auto pt-3 flex gap-0 justify-between items-center w-full">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => openEditReport(record)} 
+                                    className="h-10 flex items-center justify-center flex-shrink-0 px-3 gap-2"
+                                    title="Edit"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                    <span className="hidden sm:inline text-xs font-medium">Edit</span>
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => openHistory(record)} 
+                                    className="h-10 flex items-center justify-center flex-shrink-0 px-3 gap-2"
+                                    title="History"
+                                  >
+                                    <History className="h-4 w-4" />
+                                    <span className="hidden sm:inline text-xs font-medium">History</span>
+                                  </Button>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => setReportToDelete(record)} 
+                                    className="h-10 flex items-center justify-center flex-shrink-0 px-3 gap-2 text-red-600 hover:text-red-700"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                    <span className="hidden sm:inline text-xs font-medium">Delete</span>
+                                  </Button>
                                 </div>
                               )}
                             </div>
@@ -2161,7 +2487,9 @@ const Reports = () => {
                               <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[120px]">Employee</th>
                               <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">PIN</th>
                               <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[100px]">Check In</th>
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[100px]">Check In Photo</th>
                               <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[100px]">Check Out</th>
+                              <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[100px]">Check Out Photo</th>
                               <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">Type</th>
                               <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[80px]">Status</th>
                               <th className="text-left p-2 sm:p-4 font-medium text-xs sm:text-sm text-white min-w-[100px]">Time Worked</th>
@@ -2169,14 +2497,48 @@ const Reports = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {paginatedData.map((record, index) => (
+                            {daywisePaginatedData.map((record, index) => (
                               <tr key={index} className="border-b hover:bg-muted/50">
-                                <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium">{record.Name}</td>
+                                <td className="p-2 sm:p-4 text-xs sm:text-sm align-top min-h-[2.5rem] flex items-center">
+                                  <button
+                                    onClick={() => openAttendanceDetails(record)}
+                                    className="text-foreground hover:underline transition-colors font-medium break-words text-left w-full whitespace-normal line-clamp-2"
+                                    title="Click to view attendance details"
+                                  >
+                                    {record.Name}
+                                  </button>
+                                </td>
                                 <td className="p-2 sm:p-4 text-xs sm:text-sm text-gray-600">{record.Pin}</td>
                                 <td className="p-2 sm:p-4 text-xs sm:text-sm">{formatTime(record.CheckInTime)}</td>
+                                <td className="p-2 sm:p-4">
+                                  {record.check_in_snap || record.CheckInSnap ? (
+                                    <img 
+                                      src={record.check_in_snap || record.CheckInSnap}
+                                      alt="Check-in" 
+                                      className="w-12 h-12 object-cover rounded cursor-pointer hover:opacity-80" 
+                                      onClick={() => openImagePreview(record.check_in_snap || record.CheckInSnap)}
+                                      title="Click to view full size"
+                                    />
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">-</span>
+                                  )}
+                                </td>
                                 <td className="p-2 sm:p-4 text-xs sm:text-sm">{formatTime(record.CheckOutTime)}</td>
                                 <td className="p-2 sm:p-4">
-                                  <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                  {record.check_out_snap || record.CheckOutSnap ? (
+                                    <img 
+                                      src={record.check_out_snap || record.CheckOutSnap}
+                                      alt="Check-out" 
+                                      className="w-12 h-12 object-cover rounded cursor-pointer hover:opacity-80" 
+                                      onClick={() => openImagePreview(record.check_out_snap || record.CheckOutSnap)}
+                                      title="Click to view full size"
+                                    />
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">-</span>
+                                  )}
+                                </td>
+                                <td className="p-2 sm:p-4">
+                                  <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full whitespace-nowrap">
                                     {record.Type}
                                   </span>
                                 </td>
@@ -2193,8 +2555,8 @@ const Reports = () => {
                 )}
                 {/* Pagination - Shared by both Card and Table View */}
                 {(() => {
-                  const itemsPerPage = getItemsPerPage();
-                  const paginationStartIndex = (currentPage - 1) * itemsPerPage;
+                  const itemsPerPage = daywisePageSize;
+                  const paginationStartIndex = (daywiseCurrentPage - 1) * itemsPerPage;
                   const paginationEndIndex = paginationStartIndex + itemsPerPage;
                   const totalPages = Math.ceil(filteredData.length / itemsPerPage);
                   return filteredData.length > 0 && (
@@ -2205,10 +2567,10 @@ const Reports = () => {
                       {totalPages > 1 && (
                         <div className="flex items-center gap-3 order-1 sm:order-2">
                           <button
-                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                            disabled={currentPage === 1}
+                            onClick={() => setDaywiseCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={daywiseCurrentPage === 1}
                             className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                              currentPage === 1
+                              daywiseCurrentPage === 1
                                 ? 'text-gray-400 border-gray-200 cursor-not-allowed'
                                 : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
                             }`}
@@ -2216,13 +2578,13 @@ const Reports = () => {
                             Prev
                           </button>
                           <span className="text-sm font-medium text-gray-900 px-2">
-                            {currentPage} / {totalPages}
+                            {daywiseCurrentPage} / {totalPages}
                           </span>
                           <button
-                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                            disabled={currentPage === totalPages}
+                            onClick={() => setDaywiseCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                            disabled={daywiseCurrentPage === totalPages}
                             className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                              currentPage === totalPages
+                              daywiseCurrentPage === totalPages
                                 ? 'text-gray-400 border-gray-200 cursor-not-allowed'
                                 : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
                             }`}
@@ -2241,7 +2603,7 @@ const Reports = () => {
 
         {/* Date Range Report Section */}
         {activeTab === "summary" && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" ref={summaryReportRef}>
             <Card>
               <CardHeader className="pb-4 sm:pb-6">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
@@ -2263,10 +2625,10 @@ const Reports = () => {
                     </Label>
                     <select
                       id="page-size-summary"
-                      value={pageSize}
+                      value={summaryPageSize}
                       onChange={(e) => {
-                        setPageSize(parseInt(e.target.value));
-                        setCurrentPage(1);
+                        setSummaryPageSize(parseInt(e.target.value));
+                        setSummaryCurrentPage(1);
                       }}
                       className="h-8 px-2 text-xs sm:text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
@@ -2294,8 +2656,8 @@ const Reports = () => {
                     {viewMode === "grid" ? (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                         {(() => {
-                          const itemsPerPage = getItemsPerPage();
-                          const paginationStartIndex = (currentPage - 1) * itemsPerPage;
+                          const itemsPerPage = summaryPageSize;
+                          const paginationStartIndex = (summaryCurrentPage - 1) * itemsPerPage;
                           const paginationEndIndex = paginationStartIndex + itemsPerPage;
                           return filteredData.slice(paginationStartIndex, paginationEndIndex).map((employee, index) => (
                             <Card key={index} className="hover:shadow-lg transition-shadow">
@@ -2335,12 +2697,12 @@ const Reports = () => {
                             </thead>
                             <tbody>
                               {(() => {
-                                const itemsPerPage = getItemsPerPage();
-                                const paginationStartIndex = (currentPage - 1) * itemsPerPage;
+                                const itemsPerPage = summaryPageSize;
+                                const paginationStartIndex = (summaryCurrentPage - 1) * itemsPerPage;
                                 const paginationEndIndex = paginationStartIndex + itemsPerPage;
                                 return filteredData.slice(paginationStartIndex, paginationEndIndex).map((employee, index) => (
                                   <tr key={index} className="border-b hover:bg-muted/50">
-                                    <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium text-gray-900">{employee.Name}</td>
+                                    <td className="p-2 sm:p-4 text-xs sm:text-sm align-top min-h-[2.5rem] flex items-center font-medium text-gray-900 break-words whitespace-normal line-clamp-2">{employee.Name}</td>
                                     <td className="p-2 sm:p-4 text-xs sm:text-sm text-gray-600">{employee.Pin}</td>
                                     <td className="p-2 sm:p-4 text-xs sm:text-sm font-semibold text-blue-600">
                                       {employee.TimeWorked || employee.hoursWorked || "0:00"}
@@ -2355,8 +2717,8 @@ const Reports = () => {
                     )}
                     {/* Pagination - Shared by both Card and Table View */}
                     {(() => {
-                      const itemsPerPage = getItemsPerPage();
-                      const paginationStartIndex = (currentPage - 1) * itemsPerPage;
+                      const itemsPerPage = summaryPageSize;
+                      const paginationStartIndex = (summaryCurrentPage - 1) * itemsPerPage;
                       const paginationEndIndex = paginationStartIndex + itemsPerPage;
                       const totalPages = Math.ceil(filteredData.length / itemsPerPage);
                       return filteredData.length > 0 && (
@@ -2367,10 +2729,10 @@ const Reports = () => {
                           {totalPages > 1 && (
                             <div className="flex items-center gap-3 order-1 sm:order-2">
                               <button
-                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                disabled={currentPage === 1}
+                                onClick={() => setSummaryCurrentPage(prev => Math.max(prev - 1, 1))}
+                                disabled={summaryCurrentPage === 1}
                                 className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                                  currentPage === 1
+                                  summaryCurrentPage === 1
                                     ? 'text-gray-400 border-gray-200 cursor-not-allowed'
                                     : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
                                 }`}
@@ -2378,13 +2740,13 @@ const Reports = () => {
                                 Prev
                               </button>
                               <span className="text-sm font-medium text-gray-900 px-2">
-                                {currentPage} / {totalPages}
+                                {summaryCurrentPage} / {totalPages}
                               </span>
                               <button
-                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                disabled={currentPage === totalPages}
+                                onClick={() => setSummaryCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                disabled={summaryCurrentPage === totalPages}
                                 className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                                  currentPage === totalPages
+                                  summaryCurrentPage === totalPages
                                     ? 'text-gray-400 border-gray-200 cursor-not-allowed'
                                     : 'text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
                                 }`}
@@ -2405,7 +2767,7 @@ const Reports = () => {
 
         {/* Pending Checkout Section */}
         {activeTab === "pending" && (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" ref={pendingReportRef}>
             <Card>
               <CardHeader className="pb-4 sm:pb-6">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
@@ -2478,7 +2840,7 @@ const Reports = () => {
                             <CardContent className="space-y-3 sm:space-y-4 pt-0">
                               <div className="flex items-center justify-between">
                                 <span className="text-xs sm:text-sm text-muted-foreground">Type</span>
-                                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">{record.Type}</span>
+                                <span className="px-2 py-1 bg-blue-600 text-white text-xs rounded-full">{record.Type}</span>
                               </div>
                               <div className="flex items-center justify-between">
                                 <span className="text-xs sm:text-sm text-muted-foreground">Date Filed</span>
@@ -2547,7 +2909,7 @@ const Reports = () => {
                               return (
                                 <tr key={index} className="border-b hover:bg-muted/50">
                                   <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium">{record.Pin}</td>
-                                  <td className="p-2 sm:p-4 text-xs sm:text-sm">{record.Name}</td>
+                                  <td className="p-2 sm:p-4 text-xs sm:text-sm align-top min-h-[2.5rem] flex items-center break-words whitespace-normal line-clamp-2">{record.Name}</td>
                                   <td className="p-2 sm:p-4 text-xs sm:text-sm">{record.CheckInTime ? new Date(record.CheckInTime).toLocaleDateString() : '--'}</td>
                                   <td className="p-2 sm:p-4 text-xs sm:text-sm">{formatTime(record.CheckInTime)}</td>
                                   <td className="p-2 sm:p-4 text-xs sm:text-sm">
@@ -2606,10 +2968,10 @@ const Reports = () => {
                 )}
                 {/* Pagination - Shared by both Card and Table View */}
                 {(() => {
-                  return pendingCheckoutData.length > 0 && (
+                  return pendingDataForPagination.length > 0 && (
                     <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200 mt-4">
                       <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
-                        Showing {pendingPaginationStartIndex + 1}-{Math.min(pendingPaginationEndIndex, pendingCheckoutData.length)} of {pendingCheckoutData.length}
+                        Showing {pendingPaginationStartIndex + 1}-{Math.min(pendingPaginationEndIndex, pendingDataForPagination.length)} of {pendingDataForPagination.length}
                       </div>
                       {pendingTotalPages > 1 && (
                         <div className="flex items-center gap-3 order-1 sm:order-2">
@@ -3133,6 +3495,111 @@ const Reports = () => {
               </Button>
             </div>
           </Card>
+        </div>
+      )}
+
+      {/* Attendance Details Modal */}
+      <AttendanceDetailsModal
+        isOpen={showAttendanceDetailsModal}
+        onClose={closeAttendanceDetails}
+        record={selectedAttendanceRecord}
+        formatTime={formatTime}
+      />
+
+      {/* Premium Image Lightbox */}
+      {selectedImage && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: '0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 60,
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(8px)',
+            padding: '16px'
+          }}
+          onClick={closeImagePreview}
+        >
+          {/* Premium Preview Panel */}
+          <div
+            style={{
+              position: 'relative',
+              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+              borderRadius: '16px',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3), 0 0 1px rgba(255, 255, 255, 0.3) inset',
+              padding: '24px',
+              maxWidth: '550px',
+              maxHeight: '75vh',
+              width: 'fit-content',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              border: '1px solid rgba(255, 255, 255, 0.2)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button - Top-right of panel */}
+            <button
+              onClick={closeImagePreview}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                width: '44px',
+                height: '44px',
+                borderRadius: '50%',
+                backgroundColor: '#ffffff',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 20,
+                transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.25)';
+                e.target.style.transform = 'scale(1.08)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
+                e.target.style.transform = 'scale(1)';
+              }}
+              aria-label="Close image preview"
+              title="Close image preview"
+            >
+              <X className="w-6 h-6" style={{ strokeWidth: '2.5px', color: '#1f2937' }} />
+            </button>
+
+            {/* Image Container with Padding */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'auto',
+                maxWidth: '100%',
+                maxHeight: 'calc(75vh - 48px)',
+                marginTop: '8px'
+              }}
+            >
+              <img
+                src={selectedImage}
+                alt="Full size preview"
+                style={{
+                  width: 'auto',
+                  height: 'auto',
+                  maxWidth: '500px',
+                  maxHeight: '60vh',
+                  objectFit: 'contain',
+                  display: 'block'
+                }}
+              />
+            </div>
+          </div>
         </div>
       )}
 

@@ -1165,9 +1165,11 @@ const Profile = () => {
                   </div>
                   <div>
                     <h3 className="font-medium">Company Logo</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Upload a logo for your company. Recommended size: 200x200px
-                    </p>
+                    {isEditing.company && (
+                      <p className="text-sm text-muted-foreground">
+                        Upload a logo for your company. Recommended size: 200x200px
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -1352,7 +1354,6 @@ const Profile = () => {
                         checked={companyData.isEmployeeTypeSelectionEnabled !== false}
                         onChange={(e) => setCompanyData(prev => ({ ...prev, isEmployeeTypeSelectionEnabled: e.target.checked }))}
                         disabled={!isEditing.company}
-                        className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                       <span className="text-sm font-medium">Enable Employee Type Selection in Mobile App</span>
                     </Label>

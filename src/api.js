@@ -504,9 +504,24 @@ const transformReportRecord = (record) => {
     CheckInSnap: record.check_in_snap,
     CheckOutSnap: record.check_out_snap,
     RecordID: record.record_id,
+    // Keep snake_case versions for modal compatibility
+    check_in_time: record.check_in_time,
+    check_out_time: record.check_out_time,
+    check_in_snap: record.check_in_snap,
+    check_out_snap: record.check_out_snap,
+    record_id: record.record_id,
+    email: record.email,
+    date: record.date,
+    c_id: record.c_id,
+    last_modified_by: record.last_modified_by,
+    pin: record.pin,
+    name: record.name,
+    type: record.type,
+    emp_id: record.emp_id,
+    device_id: record.device_id,
     // Keep any other fields as-is
     ...Object.keys(record).reduce((acc, key) => {
-      if (!['pin', 'name', 'type', 'emp_id', 'check_in_time', 'check_out_time', 'time_worked', 'device_id', 'check_in_snap', 'check_out_snap', 'record_id'].includes(key)) {
+      if (!['pin', 'name', 'type', 'emp_id', 'check_in_time', 'check_out_time', 'time_worked', 'device_id', 'check_in_snap', 'check_out_snap', 'record_id', 'email', 'date', 'c_id', 'last_modified_by'].includes(key)) {
         acc[key] = record[key];
       }
       return acc;

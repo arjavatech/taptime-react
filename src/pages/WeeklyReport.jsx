@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -67,6 +67,11 @@ export default function WeeklyReport() {
 
   const HISTORY_PAGE_SIZE = 12;
   const report = selected || current;
+
+  // Refs for scroll-to-top on pagination
+  const currentPeriodReportRef = useRef(null);
+  const historyReportRef = useRef(null);
+  const historyViewReportRef = useRef(null);
 
   const filteredAndSortedItems = useMemo(() => {
     if (!report) return [];
@@ -186,6 +191,36 @@ export default function WeeklyReport() {
       setHistoryReportTableMode("list");
     }
   }, []);
+
+  // Scroll to top when current period page changes
+  useEffect(() => {
+    const scrollTimer = requestAnimationFrame(() => {
+      if (currentPeriodReportRef.current) {
+        currentPeriodReportRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+    return () => cancelAnimationFrame(scrollTimer);
+  }, [currentPeriodCurrentPage]);
+
+  // Scroll to top when history page changes
+  useEffect(() => {
+    const scrollTimer = requestAnimationFrame(() => {
+      if (historyReportRef.current) {
+        historyReportRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+    return () => cancelAnimationFrame(scrollTimer);
+  }, [historyCurrentPage]);
+
+  // Scroll to top when history view page changes (when viewing a specific period)
+  useEffect(() => {
+    const scrollTimer = requestAnimationFrame(() => {
+      if (historyViewReportRef.current) {
+        historyViewReportRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+    return () => cancelAnimationFrame(scrollTimer);
+  }, [historyViewCurrentPage]);
 
   const selectPeriod = async (period) => {
     setSelecting(true);
@@ -412,7 +447,7 @@ export default function WeeklyReport() {
 
             {/* Current Period Tab */}
             {activeTab === "current" && (
-              <>
+              <div ref={currentPeriodReportRef}>
                 {current && (
                   <Card className="mb-6">
                     <CardContent className="pt-6">
@@ -716,12 +751,12 @@ export default function WeeklyReport() {
                     </CardContent>
                   </Card>
                 )}
-              </>
+              </div>
             )}
 
             {/* History Tab */}
             {activeTab === "history" && (
-              <>
+              <div ref={historyReportRef}>
                 <Card>
                   <CardHeader className="pb-4 sm:pb-6">
                     <CardTitle>History</CardTitle>
@@ -995,7 +1030,8 @@ export default function WeeklyReport() {
 
                 {/* Inline History Report View */}
                 {historySelectedReport && (
-                  <Card className="mt-6 overflow-hidden">
+                  <div ref={historyViewReportRef}>
+                    <Card className="mt-6 overflow-hidden">
                     <CardHeader className="pb-3 sm:pb-4">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                         <CardTitle className="text-base sm:text-lg break-words">Report: {periodLabel(historySelectedReport.period)}</CardTitle>
@@ -1323,8 +1359,9 @@ export default function WeeklyReport() {
                         })()}
                     </CardContent>
                   </Card>
+                  </div>
                 )}
-              </>
+              </div>
             )}
           </>
         )}

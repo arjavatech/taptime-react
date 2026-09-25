@@ -133,6 +133,57 @@
   button {
     cursor: pointer;
   }
+  
+  /* Custom checkbox styling for employee type selection */
+  input[type="checkbox"]#isEmployeeTypeSelectionEnabled {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    width: 1rem;
+    height: 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.25rem;
+    background-color: white;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s ease-in-out;
+  }
+  
+  /* Checked state - blue border and background */
+  input[type="checkbox"]#isEmployeeTypeSelectionEnabled:checked {
+    background-color: #01005a;
+    border-color: #01005a;
+  }
+  
+  /* Blue checkmark on checked state */
+  input[type="checkbox"]#isEmployeeTypeSelectionEnabled:checked::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: bold;
+    line-height: 1;
+  }
+  
+  /* Focus ring styling */
+  input[type="checkbox"]#isEmployeeTypeSelectionEnabled:focus {
+    outline: 2px solid #01005a;
+    outline-offset: 2px;
+  }
+  
+  /* Disabled state - prevent opacity change on checked */
+  input[type="checkbox"]#isEmployeeTypeSelectionEnabled:disabled {
+    cursor: not-allowed;
+  }
+  
+  /* Keep checked state visible even when disabled */
+  input[type="checkbox"]#isEmployeeTypeSelectionEnabled:checked:disabled {
+    background-color: #01005a;
+    border-color: #01005a;
+  }
 }
 
 /* Custom font size for Number of Devices and Number of Employees labels between 1024px and 1042px */
