@@ -1008,6 +1008,9 @@ export const setActiveCompany = (company) => {
     localStorage.setItem(STORAGE_KEYS.CUSTOMER_STATE, company.customer_state || '');
     localStorage.setItem(STORAGE_KEYS.CUSTOMER_ZIP_CODE, company.customer_zip_code || '');
     localStorage.setItem('lastSelectedCompany', company.cid);
+    localStorage.setItem('primaryColor', company.primary_color || '');
+    localStorage.setItem('secondaryColor', company.secondary_color || '');
+    localStorage.setItem('isEmployeeTypeSelectionEnabled', company.is_employee_type_selection_enabled != null ? String(company.is_employee_type_selection_enabled) : '');
   } catch (error) {
     console.error('Error setting active company:', error);
   }
