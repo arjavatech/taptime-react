@@ -74,7 +74,10 @@ const Profile = () => {
     state: "",
     companyZip: "",
     logo: "",
-    employmentType: ""
+    employmentType: "",
+    primaryColor: "#01005a",
+    secondaryColor: "#020680",
+    isEmployeeTypeSelectionEnabled: true
   });
 
   const [logoFile, setLogoFile] = useState(null);
@@ -314,6 +317,9 @@ const Profile = () => {
         companyZip: formData.companyZip,
         logo: formData.logo,
         employmentType: storedEmploymentType.split(',').filter(t => t.trim()).join(','),
+        primaryColor: formData.primaryColor || "#01005a",
+        secondaryColor: formData.secondaryColor || "#020680",
+        isEmployeeTypeSelectionEnabled: formData.isEmployeeTypeSelectionEnabled === "false" ? false : formData.isEmployeeTypeSelectionEnabled === "true" ? true : false,
       });
 
       // Initialize employmentTypes array from stored CSV
@@ -343,6 +349,9 @@ const Profile = () => {
         companyZip: formData.companyZip,
         logo: formData.logo,
         employmentType: storedEmploymentType.split(',').filter(t => t.trim()).join(','),
+        primaryColor: formData.primaryColor || "#01005a",
+        secondaryColor: formData.secondaryColor || "#020680",
+        isEmployeeTypeSelectionEnabled: formData.isEmployeeTypeSelectionEnabled === "false" ? false : formData.isEmployeeTypeSelectionEnabled === "true" ? true : false,
       });
       
       setEmploymentTypes(storedEmploymentType.split(',').filter(t => t.trim()));
@@ -696,7 +705,10 @@ const Profile = () => {
         device_count: parseInt(localStorage.getItem("NoOfDevices")),
         employee_count: parseInt(localStorage.getItem("NoOfEmployees")),
         last_modified_by: localStorage.getItem("userName") || "Admin",
-        employment_type: employmentTypes.join(',')
+        employment_type: employmentTypes.join(','),
+        primary_color: companyData.primaryColor || null,
+        secondary_color: companyData.secondaryColor || null,
+        is_employee_type_selection_enabled: companyData.isEmployeeTypeSelectionEnabled
       };
 
 
@@ -781,7 +793,10 @@ const Profile = () => {
         state: formData.companyState,
         companyZip: formData.companyZip,
         logo: formData.logo,
-        employmentType: formData.employmentType || ""
+        employmentType: formData.employmentType || "",
+        primaryColor: formData.primaryColor || "#01005a",
+        secondaryColor: formData.secondaryColor || "#020680",
+        isEmployeeTypeSelectionEnabled: formData.isEmployeeTypeSelectionEnabled === "false" ? false : formData.isEmployeeTypeSelectionEnabled === "true" ? true : false,
       });
     } else if (type === "admin") {
       setAdminData({
@@ -1278,6 +1293,67 @@ const Profile = () => {
                     {isEditing.company && (
                       <p className="text-xs text-muted-foreground">Type employment type and press comma to add</p>
                     )}
+                  </div>
+
+                  {/* Company Branding Colors */}
+                  <div className="space-y-2">
+                    <Label htmlFor="primaryColor">Primary Theme Color</Label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="color"
+                        id="primaryColor"
+                        value={companyData.primaryColor || '#01005a'}
+                        onChange={(e) => setCompanyData(prev => ({ ...prev, primaryColor: e.target.value }))}
+                        disabled={!isEditing.company}
+                        className="w-14 h-10 rounded-md cursor-pointer border border-input disabled:opacity-50 disabled:cursor-not-allowed"
+                      />
+                      <Input
+                        type="text"
+                        placeholder="#01005a"
+                        value={companyData.primaryColor || ''}
+                        onChange={(e) => setCompanyData(prev => ({ ...prev, primaryColor: e.target.value }))}
+                        disabled={!isEditing.company}
+                        className="flex-1 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="secondaryColor">Secondary Theme Color</Label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="color"
+                        id="secondaryColor"
+                        value={companyData.secondaryColor || '#020680'}
+                        onChange={(e) => setCompanyData(prev => ({ ...prev, secondaryColor: e.target.value }))}
+                        disabled={!isEditing.company}
+                        className="w-14 h-10 rounded-md cursor-pointer border border-input disabled:opacity-50 disabled:cursor-not-allowed"
+                      />
+                      <Input
+                        type="text"
+                        placeholder="#020680"
+                        value={companyData.secondaryColor || ''}
+                        onChange={(e) => setCompanyData(prev => ({ ...prev, secondaryColor: e.target.value }))}
+                        disabled={!isEditing.company}
+                        className="flex-1 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Employee Type Selection Toggle */}
+                  <div className="space-y-2">
+                    <Label htmlFor="isEmployeeTypeSelectionEnabled" className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        id="isEmployeeTypeSelectionEnabled"
+                        checked={companyData.isEmployeeTypeSelectionEnabled !== false}
+                        onChange={(e) => setCompanyData(prev => ({ ...prev, isEmployeeTypeSelectionEnabled: e.target.checked }))}
+                        disabled={!isEditing.company}
+                        className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                      />
+                      <span className="text-sm font-medium">Enable Employee Type Selection in Mobile App</span>
+                    </Label>
+                    <p className="text-xs text-muted-foreground">When enabled, employees will select their type during check-in. When disabled, defaults to "General Employee".</p>
                   </div>
                 </div>
 

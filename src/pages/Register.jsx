@@ -70,7 +70,9 @@ const Register = () => {
     customerCity: '',
     customerState: '',
     customerZip: '',
-    employmentType: ''
+    employmentType: '',
+    primaryColor: '#01005a',
+    secondaryColor: '#020680'
   });
 
   // Employment type tag input states
@@ -414,7 +416,9 @@ const Register = () => {
         customer_city: formData.customerCity,
         customer_state: formData.customerState,
         customer_zip_code: formData.customerZip,
-        last_modified_by: localStorage.getItem("userName") || "Admin"
+        last_modified_by: localStorage.getItem("userName") || "Admin",
+        primary_color: formData.primaryColor || null,
+        secondary_color: formData.secondaryColor || null
       };
 
       // NEW WEBHOOK-BASED REGISTRATION FLOW
@@ -691,6 +695,47 @@ const Register = () => {
               />
             </div>
             <p className="text-xs md:text-sm text-muted-foreground">Type employment type and press comma to add. Default: General Employee</p>
+          </div>
+
+          {/* Company Branding Colors */}
+          <div className="space-y-2">
+            <Label htmlFor="primaryColor" className="text-sm md:text-base font-medium">Primary Theme Color</Label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                id="primaryColor"
+                value={formData.primaryColor}
+                onChange={(e) => setFormData(prev => ({ ...prev, primaryColor: e.target.value }))}
+                className="w-14 h-10 md:h-11 rounded-md cursor-pointer border border-input"
+              />
+              <Input
+                type="text"
+                placeholder="#01005a"
+                value={formData.primaryColor}
+                onChange={(e) => setFormData(prev => ({ ...prev, primaryColor: e.target.value }))}
+                className="flex-1 text-xs md:text-sm"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="secondaryColor" className="text-sm md:text-base font-medium">Secondary Theme Color</Label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                id="secondaryColor"
+                value={formData.secondaryColor}
+                onChange={(e) => setFormData(prev => ({ ...prev, secondaryColor: e.target.value }))}
+                className="w-14 h-10 md:h-11 rounded-md cursor-pointer border border-input"
+              />
+              <Input
+                type="text"
+                placeholder="#020680"
+                value={formData.secondaryColor}
+                onChange={(e) => setFormData(prev => ({ ...prev, secondaryColor: e.target.value }))}
+                className="flex-1 text-xs md:text-sm"
+              />
+            </div>
           </div>
 
           <Button type="submit" className="w-full h-10 md:h-11 text-sm md:text-base" size="lg">

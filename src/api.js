@@ -167,6 +167,9 @@ export const loginCheck = async (username, password) => {
     localStorage.setItem(STORAGE_KEYS.REPORT_TYPE, data.report_type);
     localStorage.setItem(STORAGE_KEYS.ADMIN_TYPE, data.admin_type);
     localStorage.setItem('passwordDecryptedValue', decryptPassword);
+    localStorage.setItem("primaryColor", data.primary_color || "");
+    localStorage.setItem("secondaryColor", data.secondary_color || "");
+    localStorage.setItem("isEmployeeTypeSelectionEnabled", data.is_employee_type_selection_enabled != null ? String(data.is_employee_type_selection_enabled) : "");
 
     return data.UserName === username && decryptPassword === password;
   } catch (error) {
@@ -274,6 +277,9 @@ export const googleSignInCheck = async (email, authMethod = 'google') => {
       [STORAGE_KEYS.COMPANY_ZIP_CODE]: data.company_zip_code,
       employmentType: data.employment_type,
       last_modified_by: data.last_modified_by,
+      primaryColor: data.primary_color || "",
+      secondaryColor: data.secondary_color || "",
+      isEmployeeTypeSelectionEnabled: data.is_employee_type_selection_enabled != null ? String(data.is_employee_type_selection_enabled) : "",
 
    };
 
