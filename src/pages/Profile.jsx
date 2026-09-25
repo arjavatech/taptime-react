@@ -738,6 +738,9 @@ const Profile = () => {
       localStorage.setItem("companyState", companyData.state);
       localStorage.setItem("companyZip", companyData.companyZip);
       localStorage.setItem("employmentType", companyData.employmentType);
+      localStorage.setItem("primaryColor", companyData.primaryColor || "");
+      localStorage.setItem("secondaryColor", companyData.secondaryColor || "");
+      localStorage.setItem("isEmployeeTypeSelectionEnabled", String(companyData.isEmployeeTypeSelectionEnabled ?? false));
       if (companyData.logo) {
         localStorage.setItem("companyLogo", companyData.logo);
       }
