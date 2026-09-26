@@ -174,6 +174,7 @@ const Reports = () => {
 
   // Image preview state
   const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreviewType, setImagePreviewType] = useState(null); // 'checkin' or 'checkout'
 
   // Modal close events disabled - modals only close via buttons
 
@@ -1552,12 +1553,14 @@ const Reports = () => {
     setSelectedAttendanceRecord(null);
   };
 
-  const openImagePreview = (photoUrl) => {
+  const openImagePreview = (photoUrl, type = 'checkin') => {
     setSelectedImage(photoUrl);
+    setImagePreviewType(type);
   };
 
   const closeImagePreview = () => {
     setSelectedImage(null);
+    setImagePreviewType(null);
   };
 
   return (
@@ -1988,7 +1991,7 @@ const Reports = () => {
                             <CardContent className="space-y-3 sm:space-y-4 pt-0 flex-1 flex flex-col">
                               <div className="flex items-center justify-between">
                                 <span className="text-xs sm:text-sm text-muted-foreground">Type</span>
-                                <span className="px-2 py-1 bg-blue-600 text-white text-xs rounded-full">{record.Type}</span>
+                                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full whitespace-nowrap">{record.Type}</span>
                               </div>
                               <div className="flex items-center gap-2 text-xs sm:text-sm">
                                 <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground flex-shrink-0" />
@@ -2005,7 +2008,7 @@ const Reports = () => {
                                     src={record.check_in_snap || record.CheckInSnap}
                                     alt="Check-in" 
                                     className="w-12 h-12 object-cover rounded cursor-pointer hover:opacity-80" 
-                                    onClick={() => openImagePreview(record.check_in_snap || record.CheckInSnap)}
+                                    onClick={() => openImagePreview(record.check_in_snap || record.CheckInSnap, 'checkin')}
                                     title="Click to view full size check-in photo"
                                   />
                                 ) : (
@@ -2018,7 +2021,7 @@ const Reports = () => {
                                     src={record.check_out_snap || record.CheckOutSnap}
                                     alt="Check-out" 
                                     className="w-12 h-12 object-cover rounded cursor-pointer hover:opacity-80" 
-                                    onClick={() => openImagePreview(record.check_out_snap || record.CheckOutSnap)}
+                                    onClick={() => openImagePreview(record.check_out_snap || record.CheckOutSnap, 'checkout')}
                                     title="Click to view full size check-out photo"
                                   />
                                 ) : (
@@ -2132,7 +2135,7 @@ const Reports = () => {
                               return (
                                 <tr key={index} className="border-b hover:bg-muted/50">
                                   <td className="p-2 sm:p-4 text-xs sm:text-sm font-medium align-middle">{record.Pin}</td>
-                                  <td className="p-2 sm:p-4 text-xs sm:text-sm align-top min-h-[2.5rem] flex items-center">
+                                  <td className="p-2 sm:p-4 text-xs sm:text-sm align-middle">
                                     <button
                                       onClick={() => openAttendanceDetails(record)}
                                       className="text-foreground hover:underline transition-colors font-medium break-words text-left w-full whitespace-normal line-clamp-2"
@@ -2148,7 +2151,7 @@ const Reports = () => {
                                         src={record.check_in_snap || record.CheckInSnap}
                                         alt="Check-in" 
                                         className="w-12 h-12 object-cover rounded cursor-pointer hover:opacity-80" 
-                                        onClick={() => openImagePreview(record.check_in_snap || record.CheckInSnap)}
+                                        onClick={() => openImagePreview(record.check_in_snap || record.CheckInSnap, 'checkin')}
                                         title="Click to view full size"
                                       />
                                     ) : (
@@ -2182,7 +2185,7 @@ const Reports = () => {
                                         src={record.check_out_snap || record.CheckOutSnap}
                                         alt="Check-out" 
                                         className="w-12 h-12 object-cover rounded cursor-pointer hover:opacity-80" 
-                                        onClick={() => openImagePreview(record.check_out_snap || record.CheckOutSnap)}
+                                        onClick={() => openImagePreview(record.check_out_snap || record.CheckOutSnap, 'checkout')}
                                         title="Click to view full size"
                                       />
                                     ) : (
@@ -2412,7 +2415,7 @@ const Reports = () => {
                                   src={record.check_in_snap || record.CheckInSnap}
                                   alt="Check-in" 
                                   className="w-12 h-12 object-cover rounded cursor-pointer hover:opacity-80" 
-                                  onClick={() => openImagePreview(record.check_in_snap || record.CheckInSnap)}
+                                  onClick={() => openImagePreview(record.check_in_snap || record.CheckInSnap, 'checkin')}
                                   title="Click to view full size check-in photo"
                                 />
                               ) : (
@@ -2425,7 +2428,7 @@ const Reports = () => {
                                   src={record.check_out_snap || record.CheckOutSnap}
                                   alt="Check-out" 
                                   className="w-12 h-12 object-cover rounded cursor-pointer hover:opacity-80" 
-                                  onClick={() => openImagePreview(record.check_out_snap || record.CheckOutSnap)}
+                                  onClick={() => openImagePreview(record.check_out_snap || record.CheckOutSnap, 'checkout')}
                                   title="Click to view full size check-out photo"
                                 />
                               ) : (
@@ -2499,7 +2502,7 @@ const Reports = () => {
                           <tbody>
                             {daywisePaginatedData.map((record, index) => (
                               <tr key={index} className="border-b hover:bg-muted/50">
-                                <td className="p-2 sm:p-4 text-xs sm:text-sm align-top min-h-[2.5rem] flex items-center">
+                                <td className="p-2 sm:p-4 text-xs sm:text-sm align-middle">
                                   <button
                                     onClick={() => openAttendanceDetails(record)}
                                     className="text-foreground hover:underline transition-colors font-medium break-words text-left w-full whitespace-normal line-clamp-2"
@@ -2516,7 +2519,7 @@ const Reports = () => {
                                       src={record.check_in_snap || record.CheckInSnap}
                                       alt="Check-in" 
                                       className="w-12 h-12 object-cover rounded cursor-pointer hover:opacity-80" 
-                                      onClick={() => openImagePreview(record.check_in_snap || record.CheckInSnap)}
+                                      onClick={() => openImagePreview(record.check_in_snap || record.CheckInSnap, 'checkin')}
                                       title="Click to view full size"
                                     />
                                   ) : (
@@ -2530,7 +2533,7 @@ const Reports = () => {
                                       src={record.check_out_snap || record.CheckOutSnap}
                                       alt="Check-out" 
                                       className="w-12 h-12 object-cover rounded cursor-pointer hover:opacity-80" 
-                                      onClick={() => openImagePreview(record.check_out_snap || record.CheckOutSnap)}
+                                      onClick={() => openImagePreview(record.check_out_snap || record.CheckOutSnap, 'checkout')}
                                       title="Click to view full size"
                                     />
                                   ) : (
@@ -2840,7 +2843,7 @@ const Reports = () => {
                             <CardContent className="space-y-3 sm:space-y-4 pt-0">
                               <div className="flex items-center justify-between">
                                 <span className="text-xs sm:text-sm text-muted-foreground">Type</span>
-                                <span className="px-2 py-1 bg-blue-600 text-white text-xs rounded-full">{record.Type}</span>
+                                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full whitespace-nowrap">{record.Type}</span>
                               </div>
                               <div className="flex items-center justify-between">
                                 <span className="text-xs sm:text-sm text-muted-foreground">Date Filed</span>
@@ -2876,7 +2879,40 @@ const Reports = () => {
                                     "Check Out"
                                   )}
                                 </Button>
-                                {canManageReports && <div className="mt-2 flex gap-1.5"><Button variant="outline" size="sm" onClick={() => openEditReport(record)} className="h-10 w-10 p-0 flex items-center justify-center"><Pencil className="h-4 w-4" title="Edit" /></Button><Button variant="outline" size="sm" onClick={() => openHistory(record)} className="h-10 w-10 p-0 flex items-center justify-center"><History className="h-4 w-4" title="History" /></Button><Button variant="outline" size="sm" onClick={() => setReportToDelete(record)} className="h-10 w-10 p-0 flex items-center justify-center text-red-600 hover:text-red-700"><Trash2 className="h-4 w-4" title="Delete" /></Button></div>}
+                                {canManageReports && (
+                                  <div className="mt-3 flex items-center justify-between gap-2 sm:gap-3">
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      onClick={() => openEditReport(record)} 
+                                      className="flex-1 h-10 flex items-center justify-center gap-2"
+                                      title="Edit"
+                                    >
+                                      <Pencil className="h-4 w-4 flex-shrink-0" />
+                                      <span className="hidden sm:inline text-xs font-medium">Edit</span>
+                                    </Button>
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      onClick={() => openHistory(record)} 
+                                      className="flex-1 h-10 flex items-center justify-center gap-2"
+                                      title="History"
+                                    >
+                                      <History className="h-4 w-4 flex-shrink-0" />
+                                      <span className="hidden sm:inline text-xs font-medium">History</span>
+                                    </Button>
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      onClick={() => setReportToDelete(record)} 
+                                      className="flex-1 h-10 flex items-center justify-center gap-2 text-red-600 hover:text-red-700"
+                                      title="Delete"
+                                    >
+                                      <Trash2 className="h-4 w-4 flex-shrink-0" />
+                                      <span className="hidden sm:inline text-xs font-medium">Delete</span>
+                                    </Button>
+                                  </div>
+                                )}
                               </div>
                             </CardContent>
                           </Card>
@@ -3506,7 +3542,7 @@ const Reports = () => {
         formatTime={formatTime}
       />
 
-      {/* Premium Image Lightbox */}
+      {/* Image Preview Modal - Matches Reference Design */}
       {selectedImage && (
         <div
           style={{
@@ -3516,89 +3552,121 @@ const Reports = () => {
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 60,
-            backgroundColor: 'rgba(0, 0, 0, 0.85)',
-            backdropFilter: 'blur(8px)',
+            backgroundColor: 'rgba(100, 100, 100, 0.5)',
             padding: '16px'
           }}
           onClick={closeImagePreview}
         >
-          {/* Premium Preview Panel */}
+          {/* Modal Card */}
           <div
             style={{
               position: 'relative',
-              backgroundColor: 'rgba(255, 255, 255, 0.95)',
-              borderRadius: '16px',
-              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3), 0 0 1px rgba(255, 255, 255, 0.3) inset',
-              padding: '24px',
-              maxWidth: '550px',
-              maxHeight: '75vh',
-              width: 'fit-content',
+              backgroundColor: '#ffffff',
+              borderRadius: '12px',
+              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
+              padding: '32px 24px 24px',
+              maxWidth: '500px',
+              width: '100%',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              border: '1px solid rgba(255, 255, 255, 0.2)'
+              gap: '20px'
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Close Button - Top-right of panel */}
+            {/* Title */}
+            <div style={{
+              fontSize: '18px',
+              fontWeight: '600',
+              color: '#000000',
+              textAlign: 'center',
+              width: '100%'
+            }}>
+              {imagePreviewType === 'checkout' ? 'Check-out photo' : 'Check-in photo'}
+            </div>
+
+            {/* Close Button - Top-right */}
             <button
               onClick={closeImagePreview}
               style={{
                 position: 'absolute',
-                top: '16px',
-                right: '16px',
-                width: '44px',
-                height: '44px',
+                top: '12px',
+                right: '12px',
+                width: '28px',
+                height: '28px',
                 borderRadius: '50%',
-                backgroundColor: '#ffffff',
+                backgroundColor: '#e5e7eb',
                 border: 'none',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 zIndex: 20,
-                transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+                transition: 'background-color 0.2s ease',
+                padding: '0'
               }}
               onMouseEnter={(e) => {
-                e.target.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.25)';
-                e.target.style.transform = 'scale(1.08)';
+                e.target.style.backgroundColor = '#d1d5db';
               }}
               onMouseLeave={(e) => {
-                e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-                e.target.style.transform = 'scale(1)';
+                e.target.style.backgroundColor = '#e5e7eb';
               }}
               aria-label="Close image preview"
-              title="Close image preview"
+              title="Close"
             >
-              <X className="w-6 h-6" style={{ strokeWidth: '2.5px', color: '#1f2937' }} />
+              <X className="w-5 h-5" style={{ strokeWidth: '2px', color: '#374151' }} />
             </button>
 
-            {/* Image Container with Padding */}
+            {/* Image Container */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                overflow: 'auto',
-                maxWidth: '100%',
-                maxHeight: 'calc(75vh - 48px)',
-                marginTop: '8px'
+                width: '100%',
+                maxHeight: '400px',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                backgroundColor: '#f3f4f6'
               }}
             >
               <img
                 src={selectedImage}
-                alt="Full size preview"
+                alt={imagePreviewType === 'checkout' ? 'Check-out photo' : 'Check-in photo'}
                 style={{
-                  width: 'auto',
+                  width: '100%',
                   height: 'auto',
-                  maxWidth: '500px',
-                  maxHeight: '60vh',
+                  maxHeight: '400px',
                   objectFit: 'contain',
-                  display: 'block'
+                  display: 'block',
+                  borderRadius: '8px'
                 }}
               />
             </div>
+
+            {/* Close Button */}
+            <button
+              onClick={closeImagePreview}
+              style={{
+                backgroundColor: '#001f3f',
+                color: '#ffffff',
+                border: 'none',
+                padding: '10px 32px',
+                borderRadius: '20px',
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#003d5c';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = '#001f3f';
+              }}
+            >
+              Close
+            </button>
           </div>
         </div>
       )}

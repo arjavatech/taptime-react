@@ -959,7 +959,6 @@ export default function WeeklyReport() {
                                   onClick={() => downloadPeriodPdf(period)}
                                   disabled={downloadingPeriod?.start_date === period.start_date}
                                   size="sm"
-                                  className="h-9 px-3 bg-white hover:bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center gap-1"
                                 >
                                   {downloadingPeriod?.start_date === period.start_date ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -971,7 +970,7 @@ export default function WeeklyReport() {
                                   onClick={() => printPeriodPdf(period)}
                                   disabled={downloadingPrintPeriod?.start_date === period.start_date}
                                   size="sm"
-                                  className="h-9 px-3 bg-[#01005a] hover:bg-[#020680] text-white flex items-center justify-center gap-1"
+                                  variant="outline"
                                 >
                                   {downloadingPrintPeriod?.start_date === period.start_date ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -1036,9 +1035,18 @@ export default function WeeklyReport() {
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                         <CardTitle className="text-base sm:text-lg break-words">Report: {periodLabel(historySelectedReport.period)}</CardTitle>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <Button onClick={() => printPeriodPdf(historySelectedReport.period)} disabled={!historySelectedReport} size="sm" variant="outline" className="h-8 text-xs sm:text-sm">
-                            <Printer className="w-4 h-4 mr-1" />
-                            <span className="hidden sm:inline">Print</span>
+                          <Button onClick={() => printPeriodPdf(historySelectedReport.period)} disabled={!historySelectedReport || downloadingPrintPeriod?.start_date === historySelectedReport.period.start_date} size="sm" variant="outline" className="h-8 text-xs sm:text-sm">
+                            {downloadingPrintPeriod?.start_date === historySelectedReport.period.start_date ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                                <span className="hidden sm:inline">Printing...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Printer className="w-4 h-4 mr-1" />
+                                <span className="hidden sm:inline">Print</span>
+                              </>
+                            )}
                           </Button>
                           <Button onClick={() => setHistorySelectedReport(null)} variant="outline" size="sm" className="h-8 w-8 p-0 text-gray-600 hover:text-red-600 hover:border-red-300 flex-shrink-0">
                             <X className="w-4 h-4" />

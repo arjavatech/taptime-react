@@ -5,6 +5,7 @@ import { Button } from './button';
 
 const AttendanceDetailsModal = ({ isOpen, onClose, record, formatTime }) => {
   const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreviewType, setImagePreviewType] = useState(null); // 'checkin' or 'checkout'
   const [imageLoadErrors, setImageLoadErrors] = useState({});
   const [imageUrls, setImageUrls] = useState({
     checkIn: null,
@@ -78,12 +79,14 @@ const AttendanceDetailsModal = ({ isOpen, onClose, record, formatTime }) => {
     console.log(`Image loaded successfully - ${photoId}:`, imageUrls[photoId === 'checkin' ? 'checkIn' : 'checkOut']);
   };
 
-  const openImagePreview = (photoUrl) => {
+  const openImagePreview = (photoUrl, type = 'checkin') => {
     setSelectedImage(photoUrl);
+    setImagePreviewType(type);
   };
 
   const closeImagePreview = () => {
     setSelectedImage(null);
+    setImagePreviewType(null);
   };
 
   return (
@@ -179,7 +182,7 @@ const AttendanceDetailsModal = ({ isOpen, onClose, record, formatTime }) => {
                 {/* Check-in Photo */}
                 <div className="space-y-2">
                   <p className="text-xs text-muted-foreground font-medium">Check-in Photo</p>
-                  <div className="w-full h-32 bg-gray-50 border border-gray-200 rounded-lg overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => imageUrls.checkIn && openImagePreview(imageUrls.checkIn)}>
+                  <div className="w-full h-32 bg-gray-50 border border-gray-200 rounded-lg overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => imageUrls.checkIn && openImagePreview(imageUrls.checkIn, 'checkin')}>
                     {imageUrls.checkIn && !imageLoadErrors['checkin'] ? (
                       <img
                         src={imageUrls.checkIn}
@@ -202,7 +205,7 @@ const AttendanceDetailsModal = ({ isOpen, onClose, record, formatTime }) => {
                 {/* Check-out Photo */}
                 <div className="space-y-2">
                   <p className="text-xs text-muted-foreground font-medium">Check-out Photo</p>
-                  <div className="w-full h-32 bg-gray-50 border border-gray-200 rounded-lg overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => imageUrls.checkOut && openImagePreview(imageUrls.checkOut)}>
+                  <div className="w-full h-32 bg-gray-50 border border-gray-200 rounded-lg overflow-hidden flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity" onClick={() => imageUrls.checkOut && openImagePreview(imageUrls.checkOut, 'checkout')}>
                     {imageUrls.checkOut && !imageLoadErrors['checkout'] ? (
                       <img
                         src={imageUrls.checkOut}
@@ -239,7 +242,7 @@ const AttendanceDetailsModal = ({ isOpen, onClose, record, formatTime }) => {
         </Card>
       </div>
 
-      {/* Image Preview Modal / Lightbox */}
+      {/* Image Preview Modal - Matches Reference Design */}
       {selectedImage && (
         <div
           style={{
@@ -249,89 +252,121 @@ const AttendanceDetailsModal = ({ isOpen, onClose, record, formatTime }) => {
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 60,
-            backgroundColor: 'rgba(0, 0, 0, 0.85)',
-            backdropFilter: 'blur(8px)',
+            backgroundColor: 'rgba(100, 100, 100, 0.5)',
             padding: '16px'
           }}
           onClick={closeImagePreview}
         >
-          {/* Premium Preview Panel */}
+          {/* Modal Card */}
           <div
             style={{
               position: 'relative',
-              backgroundColor: 'rgba(255, 255, 255, 0.95)',
-              borderRadius: '16px',
-              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3), 0 0 1px rgba(255, 255, 255, 0.3) inset',
-              padding: '24px',
-              maxWidth: '550px',
-              maxHeight: '75vh',
-              width: 'fit-content',
+              backgroundColor: '#ffffff',
+              borderRadius: '12px',
+              boxShadow: '0 10px 40px rgba(0, 0, 0, 0.2)',
+              padding: '32px 24px 24px',
+              maxWidth: '500px',
+              width: '100%',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              border: '1px solid rgba(255, 255, 255, 0.2)'
+              gap: '20px'
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Close Button - Top-right of panel */}
+            {/* Title */}
+            <div style={{
+              fontSize: '18px',
+              fontWeight: '600',
+              color: '#000000',
+              textAlign: 'center',
+              width: '100%'
+            }}>
+              {imagePreviewType === 'checkout' ? 'Check-out photo' : 'Check-in photo'}
+            </div>
+
+            {/* Close Button - Top-right */}
             <button
               onClick={closeImagePreview}
               style={{
                 position: 'absolute',
-                top: '16px',
-                right: '16px',
-                width: '44px',
-                height: '44px',
+                top: '12px',
+                right: '12px',
+                width: '28px',
+                height: '28px',
                 borderRadius: '50%',
-                backgroundColor: '#ffffff',
+                backgroundColor: '#e5e7eb',
                 border: 'none',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 zIndex: 20,
-                transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+                transition: 'background-color 0.2s ease',
+                padding: '0'
               }}
               onMouseEnter={(e) => {
-                e.target.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.25)';
-                e.target.style.transform = 'scale(1.08)';
+                e.target.style.backgroundColor = '#d1d5db';
               }}
               onMouseLeave={(e) => {
-                e.target.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.15)';
-                e.target.style.transform = 'scale(1)';
+                e.target.style.backgroundColor = '#e5e7eb';
               }}
               aria-label="Close image preview"
-              title="Close image preview"
+              title="Close"
             >
-              <X className="w-6 h-6" style={{ strokeWidth: '2.5px', color: '#1f2937' }} />
+              <X className="w-5 h-5" style={{ strokeWidth: '2px', color: '#374151' }} />
             </button>
 
-            {/* Image Container with Padding */}
+            {/* Image Container */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                overflow: 'auto',
-                maxWidth: '100%',
-                maxHeight: 'calc(75vh - 48px)',
-                marginTop: '8px'
+                width: '100%',
+                maxHeight: '400px',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                backgroundColor: '#f3f4f6'
               }}
             >
               <img
                 src={selectedImage}
-                alt="Full size preview"
+                alt={imagePreviewType === 'checkout' ? 'Check-out photo' : 'Check-in photo'}
                 style={{
-                  width: 'auto',
+                  width: '100%',
                   height: 'auto',
-                  maxWidth: '500px',
-                  maxHeight: '60vh',
+                  maxHeight: '400px',
                   objectFit: 'contain',
-                  display: 'block'
+                  display: 'block',
+                  borderRadius: '8px'
                 }}
               />
             </div>
+
+            {/* Close Button */}
+            <button
+              onClick={closeImagePreview}
+              style={{
+                backgroundColor: '#001f3f',
+                color: '#ffffff',
+                border: 'none',
+                padding: '10px 32px',
+                borderRadius: '20px',
+                fontSize: '14px',
+                fontWeight: '500',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = '#003d5c';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = '#001f3f';
+              }}
+            >
+              Close
+            </button>
           </div>
         </div>
       )}
