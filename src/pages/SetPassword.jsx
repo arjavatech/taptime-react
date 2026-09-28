@@ -35,13 +35,18 @@ const SetPassword = () => {
     const queryParams = new URLSearchParams(window.location.search);
     const code = queryParams.get('code');
 
+    console.log('SetPassword - URL params:', { hasCode: !!code, hasAccessToken: !!accessToken, hasRefreshToken: !!refreshToken });
+
     if (accessToken) {
       // Hash-based (implicit) flow — Supabase Dashboard "Send Recovery" uses this format
+      console.log('SetPassword - Using hash-based (implicit) flow');
       supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken || '' })
         .then(({ error: sessionError }) => {
           if (sessionError) {
+            console.error('SetPassword - Session error:', sessionError);
             setError('Failed to authenticate. Please try clicking the link in your email again.');
           } else {
+            console.log('SetPassword - Session set successfully');
             settled = true;
             setSessionReady(true);
           }
@@ -50,31 +55,57 @@ const SetPassword = () => {
     }
 
     if (!code) {
+      console.error('SetPassword - No code or access token found in URL');
       setError('Invalid or missing authentication token. Please check your email and click the invitation link again.');
       return;
     }
 
+    console.log('SetPassword - Using PKCE code flow, waiting for session...');
+
     // PKCE code flow — resetPasswordForEmail() with flowType: 'pkce' produces ?code=...
-    // detectSessionInUrl: true auto-exchanges the code; it fires SIGNED_IN (not PASSWORD_RECOVERY)
+    // detectSessionInUrl: true should auto-exchange the code, but we'll also handle it explicitly
+    let codeExchanged = false;
+
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('SetPassword - Auth state change:', { event, hasSession: !!session });
       if (settled) return;
       if (event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY' || (event === 'INITIAL_SESSION' && session)) {
+        console.log('SetPassword - Session ready via event:', event);
         settled = true;
         setSessionReady(true);
       }
     });
 
-    // Fallback: exchange may have completed before listener registered
-    supabase.auth.getSession().then(({ data }) => {
+    // Immediately check if session already exists (code may have been exchanged before listener registered)
+    supabase.auth.getSession().then(({ data, error }) => {
+      console.log('SetPassword - getSession result:', { hasSession: !!data?.session, error: error?.message });
       if (!settled && data?.session) {
+        console.log('SetPassword - Session found on initial check');
         settled = true;
         setSessionReady(true);
+      } else if (!settled && !codeExchanged && code) {
+        // Explicit code exchange as fallback
+        console.log('SetPassword - Attempting explicit code exchange');
+        codeExchanged = true;
+        supabase.auth.exchangeCodeForSession(code)
+          .then(({ data: sessionData, error: exchangeError }) => {
+            console.log('SetPassword - Code exchange result:', { hasSession: !!sessionData?.session, error: exchangeError?.message });
+            if (exchangeError) {
+              console.error('SetPassword - Code exchange failed:', exchangeError);
+              setError('Failed to authenticate. The link may have expired. Please request a new password reset.');
+            } else if (sessionData?.session) {
+              console.log('SetPassword - Session established via code exchange');
+              settled = true;
+              setSessionReady(true);
+            }
+          });
       }
     });
 
     // Timeout: genuinely invalid or already-used link
     const timer = setTimeout(() => {
       if (!settled) {
+        console.error('SetPassword - Timeout: session not authenticated after 8 seconds');
         setError('This link is invalid or has expired. Please request a new password reset.');
       }
     }, 8000);
