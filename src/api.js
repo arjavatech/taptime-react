@@ -1612,3 +1612,24 @@ export const getWeeklyReportHistory = (companyId) =>
 
 export const getWeeklyReportPeriod = (companyId, startDate, endDate) =>
   api.request(`${API_BASE}/weekly-time-report/company/${companyId}/period?start_date=${startDate}&end_date=${endDate}`);
+
+// Setup Token Exchange (Centralized link handling)
+export const exchangeSetupToken = async (setupToken) => {
+  const response = await fetch(`${API_BASE}/auth/exchange-setup-token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ setup_token: setupToken })
+  });
+  if (!response.ok) {
+    throw new Error('Invalid or expired setup token');
+  }
+  return response.json();
+};
+
+export const completeSetup = async (setupToken) => {
+  await fetch(`${API_BASE}/auth/complete-setup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ setup_token: setupToken })
+  }).catch(() => {});  // Best-effort, don't block UX on failure
+};

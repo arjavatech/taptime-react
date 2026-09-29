@@ -4,6 +4,7 @@ import { Shield, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/card';
 import { supabase } from '../config/supabase';
+import { exchangeSetupToken, completeSetup } from '../api';
 import tabTimeLogo from '../assets/images/tap-time-logo.png';
 
 const SetPassword = () => {
@@ -17,6 +18,10 @@ const SetPassword = () => {
   const [sessionReady, setSessionReady] = useState(false);
 
   const navigate = useNavigate();
+
+  // Extract setup_token from URL (component-level so handleSubmit can also access it)
+  const urlParams = new URLSearchParams(window.location.search);
+  const setupToken = urlParams.get('setup_token');
 
   const [requirements, setRequirements] = useState([
     { label: 'At least 8 characters long', test: (pwd) => pwd.length >= 8, valid: false },
@@ -51,6 +56,20 @@ const SetPassword = () => {
             setSessionReady(true);
           }
         });
+      return;
+    }
+
+    // If we have a setup_token but no Supabase access_token, exchange via backend
+    if (setupToken) {
+      exchangeSetupToken(setupToken)
+        .then(({ status, action_link }) => {
+          if (status === 'completed') {
+            navigate('/login', { replace: true });
+          } else {
+            window.location.href = action_link; // Supabase processes → redirects back with #access_token
+          }
+        })
+        .catch(() => setError('Something went wrong. Please contact support.'));
       return;
     }
 
@@ -140,6 +159,11 @@ const SetPassword = () => {
     try {
       const { error: updateError } = await supabase.auth.updateUser({ password });
       if (updateError) throw updateError;
+
+      // Mark setup as complete (centralized, best-effort — never blocks UX)
+      if (setupToken) {
+        await completeSetup(setupToken).catch(() => {});
+      }
 
       setSuccess(true);
 
