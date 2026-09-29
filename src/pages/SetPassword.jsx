@@ -59,17 +59,27 @@ const SetPassword = () => {
       return;
     }
 
-    // If we have a setup_token but no Supabase access_token, exchange via backend
+    // If we have a setup_token but no Supabase access_token in hash
     if (setupToken) {
-      exchangeSetupToken(setupToken)
-        .then(({ status, action_link }) => {
-          if (status === 'completed') {
-            navigate('/login', { replace: true });
-          } else {
-            window.location.href = action_link; // Supabase processes → redirects back with #access_token
-          }
-        })
-        .catch(() => setError('Something went wrong. Please contact support.'));
+      // Check for existing session first (persistSession: true keeps it in localStorage across refreshes)
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          // Session already exists from previous click — reuse it, show form directly
+          settled = true;
+          setSessionReady(true);
+        } else {
+          // No session — exchange token to get a fresh Supabase recovery link
+          exchangeSetupToken(setupToken)
+            .then(({ status, action_link }) => {
+              if (status === 'completed') {
+                navigate('/login', { replace: true });
+              } else {
+                window.location.href = action_link; // Supabase processes → redirects back with #access_token
+              }
+            })
+            .catch(() => setError('Something went wrong. Please contact support.'));
+        }
+      });
       return;
     }
 
