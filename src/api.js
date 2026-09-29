@@ -397,7 +397,12 @@ export const bulkUploadEmployees = async (companyId, adminType, file) => {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `HTTP ${response.status}`);
+      const err = new Error(
+        (typeof errorData.detail === 'string' ? errorData.detail : errorData.detail?.message) ||
+        `HTTP ${response.status}`
+      );
+      err.detail = errorData.detail;
+      throw err;
     }
 
     const result = await response.json();
@@ -659,11 +664,16 @@ export const bulkUploadReportData = async (companyId, file) => {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `HTTP ${response.status}`);
+      const err = new Error(
+        (typeof errorData.detail === 'string' ? errorData.detail : errorData.detail?.message) ||
+        `HTTP ${response.status}`
+      );
+      err.detail = errorData.detail;
+      throw err;
     }
 
     const result = await response.json();
-    
+
     // Handle different response formats
     if (result.message || result.successful || result.failed) {
       return result;

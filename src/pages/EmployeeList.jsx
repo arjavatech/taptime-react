@@ -973,7 +973,18 @@ const EmployeeList = () => {
       await loadEmployeeData();
     } catch (error) {
       console.error('Bulk upload error:', error);
-      
+
+      // Handle structured validation errors from backend
+      if (error.detail?.validation_errors?.length > 0) {
+        const mappedErrors = error.detail.validation_errors.map(e => ({
+          row: e.row,
+          errors: [`${e.field}: ${e.error}`]
+        }));
+        setBulkUploadResults({ errors: mappedErrors });
+        setBulkUploadError(error.detail.message || 'Validation failed. Please fix errors and try again.');
+        return;
+      }
+
       // Handle specific error types
       if (error.message?.includes('file format')) {
         setBulkUploadError('Invalid file format. Please upload a valid CSV or Excel file.');

@@ -1303,7 +1303,17 @@ const Reports = () => {
         setBulkUploadError('Upload failed. All records had errors. Please review the results below.');
       }
     } catch (error) {
-      setBulkUploadError(`Upload failed: ${error.message || 'An unexpected error occurred. Please try again.'}`);
+      if (error.detail?.validation_errors?.length > 0) {
+        const mappedFailed = error.detail.validation_errors.map(e => ({
+          name: `Row ${e.row} - ${e.field}`,
+          error: e.error
+        }));
+        setBulkUploadResults({ successful: [], failed: mappedFailed });
+        setBulkUploadError(error.detail.message || 'Validation failed. Please fix errors and try again.');
+      } else {
+        const msg = error.detail?.message || error.message || 'An unexpected error occurred. Please try again.';
+        setBulkUploadError(`Upload failed: ${msg}`);
+      }
     } finally {
       setIsBulkUploading(false);
     }
