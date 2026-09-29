@@ -49,7 +49,7 @@ const SetPassword = () => {
         .then(({ error: sessionError }) => {
           if (sessionError) {
             console.error('SetPassword - Session error:', sessionError);
-            setError('Failed to authenticate. Please try clicking the link in your email again.');
+            setError('This setup link has expired or is no longer valid. Please contact your administrator.');
           } else {
             console.log('SetPassword - Session set successfully');
             settled = true;
@@ -75,7 +75,7 @@ const SetPassword = () => {
 
     if (!code) {
       console.error('SetPassword - No code or access token found in URL');
-      setError('Invalid or missing authentication token. Please check your email and click the invitation link again.');
+      setError('This setup link is invalid. Please contact your administrator for a new invitation.');
       return;
     }
 
@@ -111,7 +111,7 @@ const SetPassword = () => {
             console.log('SetPassword - Code exchange result:', { hasSession: !!sessionData?.session, error: exchangeError?.message });
             if (exchangeError) {
               console.error('SetPassword - Code exchange failed:', exchangeError);
-              setError('Failed to authenticate. The link may have expired. Please request a new password reset.');
+              setError('This setup link has expired or is no longer valid. Please contact your administrator.');
             } else if (sessionData?.session) {
               console.log('SetPassword - Session established via code exchange');
               settled = true;
@@ -125,7 +125,7 @@ const SetPassword = () => {
     const timer = setTimeout(() => {
       if (!settled) {
         console.error('SetPassword - Timeout: session not authenticated after 8 seconds');
-        setError('This link is invalid or has expired. Please request a new password reset.');
+        setError('This setup link has expired or is no longer valid. Please contact your administrator.');
       }
     }, 8000);
 
@@ -335,7 +335,7 @@ const SetPassword = () => {
                       <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
                       Setting Password...
                     </div>
-                  ) : !sessionReady ? (
+                  ) : !sessionReady && !error ? (
                     <div className="flex items-center justify-center gap-2">
                       <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
                       Authenticating...
