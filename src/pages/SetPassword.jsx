@@ -61,25 +61,27 @@ const SetPassword = () => {
 
     // If we have a setup_token but no Supabase access_token in hash
     if (setupToken) {
-      // Check for existing session first (persistSession: true keeps it in localStorage across refreshes)
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          // Session already exists from previous click — reuse it, show form directly
-          settled = true;
-          setSessionReady(true);
-        } else {
-          // No session — exchange token to get a fresh Supabase recovery link
-          exchangeSetupToken(setupToken)
-            .then(({ status, action_link }) => {
-              if (status === 'completed') {
-                navigate('/login', { replace: true });
+      // Always check if setup is already completed (via completed_at)
+      exchangeSetupToken(setupToken)
+        .then(({ status, action_link }) => {
+          if (status === 'completed') {
+            // Password already set on this link — redirect to login
+            navigate('/login', { replace: true });
+          } else {
+            // Setup still pending — now check for existing session (from refresh or same-device click)
+            supabase.auth.getSession().then(({ data: { session } }) => {
+              if (session) {
+                // Session exists from previous click — reuse it, show form directly
+                settled = true;
+                setSessionReady(true);
               } else {
-                window.location.href = action_link; // Supabase processes → redirects back with #access_token
+                // No session — redirect to Supabase recovery link
+                window.location.href = action_link;
               }
-            })
-            .catch(() => setError('Something went wrong. Please contact support.'));
-        }
-      });
+            });
+          }
+        })
+        .catch(() => setError('Something went wrong. Please contact support.'));
       return;
     }
 
