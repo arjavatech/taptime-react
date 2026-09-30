@@ -65,8 +65,8 @@ const SetPassword = () => {
       exchangeSetupToken(setupToken)
         .then(({ status, action_link }) => {
           if (status === 'completed') {
-            // Password already set on this link — redirect to login
-            navigate('/login', { replace: true });
+            // Password already set — show error, keep button disabled
+            setError('This setup link has already been used. Your password has been set. Please log in to your account.');
           } else {
             // Setup still pending — now check for existing session (from refresh or same-device click)
             supabase.auth.getSession().then(({ data: { session } }) => {
