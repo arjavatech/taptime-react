@@ -467,19 +467,8 @@ const Register = () => {
         // Step 4: Redirect to Stripe Checkout
         // After payment completes, webhook will automatically create account
         console.log('✅ Redirecting to Stripe checkout...');
-        setGeneralError('Redirecting to payment...');
-        let redirectSucceeded = false;
-
-        // Attempt redirect
+        // Button stays in loading state during redirect — sufficient UX feedback
         window.location.href = checkoutResponse.data.checkout_url;
-        redirectSucceeded = true;
-
-        // If redirect somehow fails (rare), show fallback link after 3 seconds
-        setTimeout(() => {
-          if (!redirectSucceeded) {
-            setGeneralError(`Redirecting... <a href="${checkoutResponse.data.checkout_url}" style="color: #007bff; text-decoration: underline;">Click here if not redirected</a>`);
-          }
-        }, 3000);
       } else {
         setGeneralError('Failed to create checkout session. Please try again.');
         setIsLoading(false);
