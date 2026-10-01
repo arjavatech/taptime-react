@@ -67,6 +67,11 @@ export const loadProfileData = (adminDetails) => {
 
     // Admin fields
     adminPin: "",
+
+    // Company branding
+    primaryColor: localStorage.getItem("primaryColor") || null,
+    secondaryColor: localStorage.getItem("secondaryColor") || null,
+    isEmployeeTypeSelectionEnabled: localStorage.getItem("isEmployeeTypeSelectionEnabled"),
   };
 
   if (adminDetails) {

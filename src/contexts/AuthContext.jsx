@@ -297,9 +297,13 @@ export const AuthProvider = ({ children }) => {
         return { data: null, error: "You are not a user" };
       }
 
-      const { data, error } =  await supabase.auth.resetPasswordForEmail(email, {
-  redirectTo: 'https://tap-time.com/set-password'
-})
+      // Use dynamic redirect URL that works across all environments
+      // This ensures the reset link redirects to the correct domain
+      const resetPasswordUrl = `${window.location.origin}/set-password`;
+      
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: resetPasswordUrl
+      });
 
       if (error) throw error;
       return { data, error: null };

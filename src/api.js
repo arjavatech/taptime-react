@@ -167,6 +167,9 @@ export const loginCheck = async (username, password) => {
     localStorage.setItem(STORAGE_KEYS.REPORT_TYPE, data.report_type);
     localStorage.setItem(STORAGE_KEYS.ADMIN_TYPE, data.admin_type);
     localStorage.setItem('passwordDecryptedValue', decryptPassword);
+    localStorage.setItem("primaryColor", data.primary_color || "");
+    localStorage.setItem("secondaryColor", data.secondary_color || "");
+    localStorage.setItem("isEmployeeTypeSelectionEnabled", data.is_employee_type_selection_enabled != null ? String(data.is_employee_type_selection_enabled) : "");
 
     return data.UserName === username && decryptPassword === password;
   } catch (error) {
@@ -274,6 +277,9 @@ export const googleSignInCheck = async (email, authMethod = 'google') => {
       [STORAGE_KEYS.COMPANY_ZIP_CODE]: data.company_zip_code,
       employmentType: data.employment_type,
       last_modified_by: data.last_modified_by,
+      primaryColor: data.primary_color || "",
+      secondaryColor: data.secondary_color || "",
+      isEmployeeTypeSelectionEnabled: data.is_employee_type_selection_enabled != null ? String(data.is_employee_type_selection_enabled) : "",
 
    };
 
@@ -391,7 +397,12 @@ export const bulkUploadEmployees = async (companyId, adminType, file) => {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `HTTP ${response.status}`);
+      const err = new Error(
+        (typeof errorData.detail === 'string' ? errorData.detail : errorData.detail?.message) ||
+        `HTTP ${response.status}`
+      );
+      err.detail = errorData.detail;
+      throw err;
     }
 
     const result = await response.json();
@@ -498,9 +509,24 @@ const transformReportRecord = (record) => {
     CheckInSnap: record.check_in_snap,
     CheckOutSnap: record.check_out_snap,
     RecordID: record.record_id,
+    // Keep snake_case versions for modal compatibility
+    check_in_time: record.check_in_time,
+    check_out_time: record.check_out_time,
+    check_in_snap: record.check_in_snap,
+    check_out_snap: record.check_out_snap,
+    record_id: record.record_id,
+    email: record.email,
+    date: record.date,
+    c_id: record.c_id,
+    last_modified_by: record.last_modified_by,
+    pin: record.pin,
+    name: record.name,
+    type: record.type,
+    emp_id: record.emp_id,
+    device_id: record.device_id,
     // Keep any other fields as-is
     ...Object.keys(record).reduce((acc, key) => {
-      if (!['pin', 'name', 'type', 'emp_id', 'check_in_time', 'check_out_time', 'time_worked', 'device_id', 'check_in_snap', 'check_out_snap', 'record_id'].includes(key)) {
+      if (!['pin', 'name', 'type', 'emp_id', 'check_in_time', 'check_out_time', 'time_worked', 'device_id', 'check_in_snap', 'check_out_snap', 'record_id', 'email', 'date', 'c_id', 'last_modified_by'].includes(key)) {
         acc[key] = record[key];
       }
       return acc;
@@ -638,11 +664,16 @@ export const bulkUploadReportData = async (companyId, file) => {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.detail || `HTTP ${response.status}`);
+      const err = new Error(
+        (typeof errorData.detail === 'string' ? errorData.detail : errorData.detail?.message) ||
+        `HTTP ${response.status}`
+      );
+      err.detail = errorData.detail;
+      throw err;
     }
 
     const result = await response.json();
-    
+
     // Handle different response formats
     if (result.message || result.successful || result.failed) {
       return result;
@@ -1002,6 +1033,9 @@ export const setActiveCompany = (company) => {
     localStorage.setItem(STORAGE_KEYS.CUSTOMER_STATE, company.customer_state || '');
     localStorage.setItem(STORAGE_KEYS.CUSTOMER_ZIP_CODE, company.customer_zip_code || '');
     localStorage.setItem('lastSelectedCompany', company.cid);
+    localStorage.setItem('primaryColor', company.primary_color || '');
+    localStorage.setItem('secondaryColor', company.secondary_color || '');
+    localStorage.setItem('isEmployeeTypeSelectionEnabled', company.is_employee_type_selection_enabled != null ? String(company.is_employee_type_selection_enabled) : '');
   } catch (error) {
     console.error('Error setting active company:', error);
   }
@@ -1578,3 +1612,24 @@ export const getWeeklyReportHistory = (companyId) =>
 
 export const getWeeklyReportPeriod = (companyId, startDate, endDate) =>
   api.request(`${API_BASE}/weekly-time-report/company/${companyId}/period?start_date=${startDate}&end_date=${endDate}`);
+
+// Setup Token Exchange (Centralized link handling)
+export const exchangeSetupToken = async (setupToken) => {
+  const response = await fetch(`${API_BASE}/auth/exchange-setup-token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ setup_token: setupToken })
+  });
+  if (!response.ok) {
+    throw new Error('Invalid or expired setup token');
+  }
+  return response.json();
+};
+
+export const completeSetup = async (setupToken) => {
+  await fetch(`${API_BASE}/auth/complete-setup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ setup_token: setupToken })
+  }).catch(() => {});  // Best-effort, don't block UX on failure
+};

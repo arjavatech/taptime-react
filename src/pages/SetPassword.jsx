@@ -4,6 +4,7 @@ import { Shield, Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/card';
 import { supabase } from '../config/supabase';
+import { exchangeSetupToken, completeSetup } from '../api';
 import tabTimeLogo from '../assets/images/tap-time-logo.png';
 
 const SetPassword = () => {
@@ -17,6 +18,10 @@ const SetPassword = () => {
   const [sessionReady, setSessionReady] = useState(false);
 
   const navigate = useNavigate();
+
+  // Extract setup_token from URL (component-level so handleSubmit can also access it)
+  const urlParams = new URLSearchParams(window.location.search);
+  const setupToken = urlParams.get('setup_token');
 
   const [requirements, setRequirements] = useState([
     { label: 'At least 8 characters long', test: (pwd) => pwd.length >= 8, valid: false },
@@ -35,13 +40,18 @@ const SetPassword = () => {
     const queryParams = new URLSearchParams(window.location.search);
     const code = queryParams.get('code');
 
+    console.log('SetPassword - URL params:', { hasCode: !!code, hasAccessToken: !!accessToken, hasRefreshToken: !!refreshToken });
+
     if (accessToken) {
       // Hash-based (implicit) flow — Supabase Dashboard "Send Recovery" uses this format
+      console.log('SetPassword - Using hash-based (implicit) flow');
       supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken || '' })
         .then(({ error: sessionError }) => {
           if (sessionError) {
-            setError('Failed to authenticate. Please try clicking the link in your email again.');
+            console.error('SetPassword - Session error:', sessionError);
+            setError('This setup link has expired or is no longer valid. Please contact your administrator.');
           } else {
+            console.log('SetPassword - Session set successfully');
             settled = true;
             setSessionReady(true);
           }
@@ -49,33 +59,85 @@ const SetPassword = () => {
       return;
     }
 
-    if (!code) {
-      setError('Invalid or missing authentication token. Please check your email and click the invitation link again.');
+    // If we have a setup_token but no Supabase access_token in hash
+    if (setupToken) {
+      // Always check if setup is already completed (via completed_at)
+      exchangeSetupToken(setupToken)
+        .then(({ status, action_link }) => {
+          if (status === 'completed') {
+            // Password already set — show error, keep button disabled
+            setError('This setup link has already been used. Your password has been set. Please log in to your account.');
+          } else {
+            // Setup still pending — now check for existing session (from refresh or same-device click)
+            supabase.auth.getSession().then(({ data: { session } }) => {
+              if (session) {
+                // Session exists from previous click — reuse it, show form directly
+                settled = true;
+                setSessionReady(true);
+              } else {
+                // No session — redirect to Supabase recovery link
+                window.location.href = action_link;
+              }
+            });
+          }
+        })
+        .catch(() => setError('Something went wrong. Please contact support.'));
       return;
     }
 
+    if (!code) {
+      console.error('SetPassword - No code or access token found in URL');
+      setError('This setup link is invalid. Please contact your administrator for a new invitation.');
+      return;
+    }
+
+    console.log('SetPassword - Using PKCE code flow, waiting for session...');
+
     // PKCE code flow — resetPasswordForEmail() with flowType: 'pkce' produces ?code=...
-    // detectSessionInUrl: true auto-exchanges the code; it fires SIGNED_IN (not PASSWORD_RECOVERY)
+    // detectSessionInUrl: true should auto-exchange the code, but we'll also handle it explicitly
+    let codeExchanged = false;
+
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('SetPassword - Auth state change:', { event, hasSession: !!session });
       if (settled) return;
       if (event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY' || (event === 'INITIAL_SESSION' && session)) {
+        console.log('SetPassword - Session ready via event:', event);
         settled = true;
         setSessionReady(true);
       }
     });
 
-    // Fallback: exchange may have completed before listener registered
-    supabase.auth.getSession().then(({ data }) => {
+    // Immediately check if session already exists (code may have been exchanged before listener registered)
+    supabase.auth.getSession().then(({ data, error }) => {
+      console.log('SetPassword - getSession result:', { hasSession: !!data?.session, error: error?.message });
       if (!settled && data?.session) {
+        console.log('SetPassword - Session found on initial check');
         settled = true;
         setSessionReady(true);
+      } else if (!settled && !codeExchanged && code) {
+        // Explicit code exchange as fallback
+        console.log('SetPassword - Attempting explicit code exchange');
+        codeExchanged = true;
+        supabase.auth.exchangeCodeForSession(code)
+          .then(({ data: sessionData, error: exchangeError }) => {
+            console.log('SetPassword - Code exchange result:', { hasSession: !!sessionData?.session, error: exchangeError?.message });
+            if (exchangeError) {
+              console.error('SetPassword - Code exchange failed:', exchangeError);
+              setError('This setup link has expired or is no longer valid. Please contact your administrator.');
+            } else if (sessionData?.session) {
+              console.log('SetPassword - Session established via code exchange');
+              settled = true;
+              setSessionReady(true);
+            }
+          });
       }
     });
 
     // Timeout: genuinely invalid or already-used link
     const timer = setTimeout(() => {
       if (!settled) {
-        setError('This link is invalid or has expired. Please request a new password reset.');
+        console.error('SetPassword - Timeout: session not authenticated after 8 seconds');
+        setError('This setup link has expired or is no longer valid. Please contact your administrator.');
       }
     }, 8000);
 
@@ -109,6 +171,11 @@ const SetPassword = () => {
     try {
       const { error: updateError } = await supabase.auth.updateUser({ password });
       if (updateError) throw updateError;
+
+      // Mark setup as complete (centralized, best-effort — never blocks UX)
+      if (setupToken) {
+        await completeSetup(setupToken).catch(() => {});
+      }
 
       setSuccess(true);
 
@@ -280,7 +347,7 @@ const SetPassword = () => {
                       <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
                       Setting Password...
                     </div>
-                  ) : !sessionReady ? (
+                  ) : !sessionReady && !error ? (
                     <div className="flex items-center justify-center gap-2">
                       <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div>
                       Authenticating...
