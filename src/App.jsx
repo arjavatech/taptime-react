@@ -27,6 +27,8 @@ import Invoices from "./pages/Invoices";
 import MyProfile from "./pages/MyProfile";
 import MyReports from "./pages/MyReports";
 import IntegrationConnections from "./pages/IntegrationConnections";
+import PartnerList from "./pages/PartnerList";
+import PartnerDetail from "./pages/PartnerDetail";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CompanyProvider } from "./contexts/CompanyContext";
 import RoleProtectedRoute from "./components/RoleProtectedRoute";
@@ -64,6 +66,8 @@ function App() {
               <Route path="/salary-report" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><SalaryReport /></RoleProtectedRoute>} />
               <Route path="/weekly-report" element={<RoleProtectedRoute allowedRoles={["Owner", "Admin", "SuperAdmin"]}><WeeklyReport /></RoleProtectedRoute>} />
               <Route path="/reportsetting" element={<RoleProtectedRoute allowedRoles={['Owner', 'SuperAdmin']}><ReportSetting /></RoleProtectedRoute>} />
+              <Route path="/partners" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><PartnerList /></RoleProtectedRoute>} />
+              <Route path="/partners/:id" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><PartnerDetail /></RoleProtectedRoute>} />
             </Routes>
           </div>
         </AuthProvider>

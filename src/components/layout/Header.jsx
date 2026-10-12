@@ -214,6 +214,7 @@ const Header = () => {
       { to: "/device", label: "Device" }
     ] : []),
     { to: "/employee-management", label: "Employee Management" },
+    { to: "/partners", label: "Partners" },
     ...(userType === "Admin" ? [
       { to: "/reportsummary", label: "Report Summary" },
       { to: "/salary-report", label: "Salary Report" }

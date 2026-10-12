@@ -1245,6 +1245,132 @@ export const deleteDevice = async (accessKey, companyId) => {
 
 
 // ============================================
+// Partner Functions
+// ============================================
+
+export const getPartnersByCompany = async (companyId) => {
+  try {
+    const data = await api.get(`${API_BASE}/partner/company/${companyId}`);
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error fetching partners:', error);
+    return [];
+  }
+};
+
+export const getPartnerById = async (partnerId) => {
+  return api.get(`${API_BASE}/partner/${partnerId}`);
+};
+
+export const createPartner = async (partnerData) => {
+  try {
+    const result = await api.post(`${API_BASE}/partner/create`, partnerData);
+    clearApiCache();
+    return result;
+  } catch (error) {
+    console.error('Error creating partner:', error);
+    throw error;
+  }
+};
+
+export const updatePartner = async (partnerId, partnerData) => {
+  try {
+    const result = await api.put(`${API_BASE}/partner/update/${partnerId}`, partnerData);
+    clearApiCache();
+    return result;
+  } catch (error) {
+    console.error('Error updating partner:', error);
+    throw error;
+  }
+};
+
+export const deletePartner = async (partnerId) => {
+  try {
+    const result = await api.put(`${API_BASE}/partner/delete/${partnerId}`);
+    clearApiCache();
+    return result;
+  } catch (error) {
+    console.error('Error deleting partner:', error);
+    throw error;
+  }
+};
+
+export const geocodeAddress = async (address) => {
+  return api.get(`${API_BASE}/partner/geocode?address=${encodeURIComponent(address)}`);
+};
+
+// ============================================
+// Assignment Functions
+// ============================================
+
+export const getAssignmentsByCompany = async (companyId) => {
+  try {
+    const data = await api.get(`${API_BASE}/assignment/company/${companyId}`);
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error fetching assignments:', error);
+    return [];
+  }
+};
+
+export const getAssignmentsByEmployee = async (empId) => {
+  try {
+    const data = await api.get(`${API_BASE}/assignment/employee/${empId}`);
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error fetching employee assignments:', error);
+    return [];
+  }
+};
+
+export const getAssignmentsByPartner = async (partnerId) => {
+  try {
+    const data = await api.get(`${API_BASE}/assignment/partner/${partnerId}`);
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error fetching partner assignments:', error);
+    return [];
+  }
+};
+
+export const getAssignmentById = async (assignmentId) => {
+  return api.get(`${API_BASE}/assignment/${assignmentId}`);
+};
+
+export const createAssignment = async (assignmentData) => {
+  try {
+    const result = await api.post(`${API_BASE}/assignment/create`, assignmentData);
+    clearApiCache();
+    return result;
+  } catch (error) {
+    console.error('Error creating assignment:', error);
+    throw error;
+  }
+};
+
+export const updateAssignment = async (assignmentId, assignmentData) => {
+  try {
+    const result = await api.put(`${API_BASE}/assignment/update/${assignmentId}`, assignmentData);
+    clearApiCache();
+    return result;
+  } catch (error) {
+    console.error('Error updating assignment:', error);
+    throw error;
+  }
+};
+
+export const deleteAssignment = async (assignmentId) => {
+  try {
+    const result = await api.put(`${API_BASE}/assignment/delete/${assignmentId}`);
+    clearApiCache();
+    return result;
+  } catch (error) {
+    console.error('Error deleting assignment:', error);
+    throw error;
+  }
+};
+
+// ============================================
 // Subscription/Stripe Functions
 // ============================================
 
