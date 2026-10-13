@@ -112,20 +112,31 @@ const AssignmentFormModal = ({ assignment, partners, employees = [], onClose, on
           <CardContent className="space-y-4 pt-5">
             {/* Employee */}
             <div className="space-y-1.5">
-              <Label htmlFor="af_emp">Employee *</Label>
-              <select
-                id="af_emp"
-                value={form.emp_id}
-                onChange={(e) => setForm((p) => ({ ...p, emp_id: e.target.value }))}
-                className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="">Select employee...</option>
-                {employees.map((emp) => (
-                  <option key={emp.emp_id} value={emp.emp_id}>
-                    {[emp.first_name, emp.last_name].filter(Boolean).join(" ") || emp.email || emp.emp_id}
-                  </option>
-                ))}
-              </select>
+              <Label htmlFor="af_emp">{isEdit ? "Employee" : "Employee *"}</Label>
+              {isEdit ? (
+                <div className="w-full px-3 py-2 border border-input bg-muted rounded-md text-sm text-muted-foreground">
+                  {(() => {
+                    const emp = employees.find((e) => e.emp_id === form.emp_id);
+                    return emp
+                      ? [emp.first_name, emp.last_name].filter(Boolean).join(" ") || emp.email || emp.emp_id
+                      : form.emp_id || "—";
+                  })()}
+                </div>
+              ) : (
+                <select
+                  id="af_emp"
+                  value={form.emp_id}
+                  onChange={(e) => setForm((p) => ({ ...p, emp_id: e.target.value }))}
+                  className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">Select employee...</option>
+                  {employees.map((emp) => (
+                    <option key={emp.emp_id} value={emp.emp_id}>
+                      {[emp.first_name, emp.last_name].filter(Boolean).join(" ") || emp.email || emp.emp_id}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             {/* Partner */}
