@@ -1303,9 +1303,9 @@ export const geocodeAddress = async (address) => {
 // Assignment Functions
 // ============================================
 
-export const getAssignmentsByCompany = async (companyId) => {
+export const getAssignmentsByCompany = async (companyId, includeInactive = false) => {
   try {
-    const data = await api.get(`${API_BASE}/assignment/company/${companyId}`);
+    const data = await api.get(`${API_BASE}/assignment/company/${companyId}?include_inactive=${includeInactive}`);
     return Array.isArray(data) ? data : [];
   } catch (error) {
     console.error('Error fetching assignments:', error);

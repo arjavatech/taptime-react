@@ -207,6 +207,7 @@ const Header = () => {
   const employeeNavItems = [
     { to: "/my-profile", label: "My Profile" },
     { to: "/my-reports", label: "My Reports" },
+    { to: "/my-assignments", label: "My Assignments" },
   ];
 
   const authenticatedNavItems = userType === 'Employee' ? employeeNavItems : [
@@ -215,6 +216,7 @@ const Header = () => {
     ] : []),
     { to: "/employee-management", label: "Employee Management" },
     { to: "/partners", label: "Partners" },
+    ...(userType !== "Owner" ? [{ to: "/my-assignments", label: "My Assignments" }] : []),
     ...(userType === "Admin" ? [
       { to: "/reportsummary", label: "Report Summary" },
       { to: "/salary-report", label: "Salary Report" }

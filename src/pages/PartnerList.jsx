@@ -97,6 +97,7 @@ const PartnerList = () => {
   const [deleteAssignmentError, setDeleteAssignmentError] = useState("");
   const [showAssignmentViewModal, setShowAssignmentViewModal] = useState(false);
   const [viewingAssignment, setViewingAssignment] = useState(null);
+  const [assignmentTab, setAssignmentTab] = useState("active-upcoming");
   const [showAssignmentFilterPanel, setShowAssignmentFilterPanel] = useState(false);
   const [assignmentStatusFilter, setAssignmentStatusFilter] = useState("");
   const [assignmentCompanyFilter, setAssignmentCompanyFilter] = useState("");
@@ -158,6 +159,10 @@ const PartnerList = () => {
 
   useEffect(() => {
     setAssignmentPage(1);
+  }, [assignmentTab]);
+
+  useEffect(() => {
+    setAssignmentPage(1);
   }, [assignmentStatusFilter]);
 
   useEffect(() => {
@@ -201,7 +206,7 @@ const PartnerList = () => {
     const companyId = localStorage.getItem("companyID");
     if (!companyId) { setAssignmentsLoading(false); return; }
     try {
-      const data = await getAssignmentsByCompany(companyId);
+      const data = await getAssignmentsByCompany(companyId, true);
       setAssignments(data);
     } catch {
       setAssignments([]);
@@ -279,12 +284,22 @@ const PartnerList = () => {
     return { label: "Expired", color: "text-gray-400", icon: XCircle };
   };
 
+  const activeUpcomingCount = assignments.filter(a => a.is_active !== false && a.end_date >= today).length;
+  const pastCount = assignments.filter(a => a.end_date < today || a.is_active === false).length;
+
   // Get distinct company names from assignments
   const companyOptions = Array.from(
     new Set(assignments.map((a) => a.partner_name).filter(Boolean))
   ).sort();
 
   const filteredAssignments = assignments.filter((a) => {
+    // Apply subtab filter
+    if (assignmentTab === "active-upcoming") {
+      if (a.is_active === false || a.end_date < today) return false;
+    } else {
+      if (a.end_date >= today && a.is_active !== false) return false;
+    }
+
     // Apply search filter
     if (assignmentSearch) {
       const empName = `${a.first_name || ""} ${a.last_name || ""}`.toLowerCase();
@@ -294,12 +309,6 @@ const PartnerList = () => {
         a.partner_name?.toLowerCase().includes(assignmentSearch.toLowerCase())
       );
       if (!searchMatch) return false;
-    }
-
-    // Apply status filter
-    if (assignmentStatusFilter !== "" && assignmentStatusFilter !== "All Statuses") {
-      const status = getAssignmentStatus(a);
-      if (status.label !== assignmentStatusFilter) return false;
     }
 
     // Apply company filter
@@ -1104,33 +1113,34 @@ const PartnerList = () => {
                 </div>
               </div>
 
+              {/* Subtabs: Active & Upcoming / Past */}
+              <div className="flex gap-1 mb-4 border-b border-border">
+                <button
+                  onClick={() => { setAssignmentTab("active-upcoming"); setAssignmentPage(1); }}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                    assignmentTab === "active-upcoming"
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Active & Upcoming ({activeUpcomingCount})
+                </button>
+                <button
+                  onClick={() => { setAssignmentTab("past"); setAssignmentPage(1); }}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                    assignmentTab === "past"
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Past ({pastCount})
+                </button>
+              </div>
+
               {/* Filter Panel */}
               {showAssignmentFilterPanel && (
                 <div className="mb-6 p-6 bg-background border border-input rounded-lg">
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* Status Filter */}
-                    <div>
-                      <label htmlFor="assignment-status-filter" className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                        Status
-                      </label>
-                      <div className="relative">
-                        <select
-                          id="assignment-status-filter"
-                          value={assignmentStatusFilter}
-                          onChange={(e) => setAssignmentStatusFilter(e.target.value)}
-                          className="w-full h-10 px-4 text-sm border border-input rounded-lg bg-background cursor-pointer appearance-none hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
-                        >
-                          <option value="">Select status</option>
-                          <option value="All Statuses">All Statuses</option>
-                          <option value="Active today">Active today</option>
-                          <option value="Upcoming">Upcoming</option>
-                          <option value="Expired">Expired</option>
-                          <option value="Inactive">Inactive</option>
-                        </select>
-                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-                      </div>
-                    </div>
-
+                  <div className="grid grid-cols-1 gap-4">
                     {/* Company Filter */}
                     <div>
                       <label htmlFor="assignment-company-filter" className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
