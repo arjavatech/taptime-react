@@ -31,6 +31,9 @@ import {
   X,
   Download,
   FileDown,
+  LogIn,
+  Clock,
+  Minus,
 } from "lucide-react";
 import { HamburgerIcon } from "../components/icons/HamburgerIcon";
 import { GridIcon } from "../components/icons/GridIcon";
@@ -282,6 +285,12 @@ const PartnerList = () => {
     if (a.start_date <= today && a.end_date >= today) return { label: "Active today", color: "text-green-600", icon: CheckCircle };
     if (a.start_date > today) return { label: "Upcoming", color: "text-blue-600", icon: Calendar };
     return { label: "Expired", color: "text-gray-400", icon: XCircle };
+  };
+
+  const getActivityStatus = (a) => {
+    if (a.has_pending_checkout) return { label: "Checked In", color: "text-emerald-700", bg: "bg-emerald-50", icon: LogIn };
+    if (a.has_completed_sessions) return { label: "Worked", color: "text-blue-700", bg: "bg-blue-50", icon: Clock };
+    return { label: "Not Started", color: "text-gray-400", bg: "bg-gray-50", icon: Minus };
   };
 
   const activeUpcomingCount = assignments.filter(a => a.is_active !== false && a.end_date >= today).length;
@@ -728,13 +737,13 @@ const PartnerList = () => {
                         <div className="overflow-x-auto">
                           <table className="w-full">
                             <thead>
-                              <tr className="border-b bg-muted/30">
-                                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Partner</th>
-                                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Address</th>
-                                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Contact</th>
-                                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Radius</th>
-                                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
-                                <th className="text-center py-3 px-4 font-medium text-muted-foreground">Actions</th>
+                              <tr className="bg-primary">
+                                <th className="text-left py-3 px-4 text-sm font-semibold text-white">Partner</th>
+                                <th className="text-left py-3 px-4 text-sm font-semibold text-white">Address</th>
+                                <th className="text-left py-3 px-4 text-sm font-semibold text-white">Contact</th>
+                                <th className="text-left py-3 px-4 text-sm font-semibold text-white">Radius</th>
+                                <th className="text-left py-3 px-4 text-sm font-semibold text-white">Status</th>
+                                <th className="text-center py-3 px-4 text-sm font-semibold text-white">Actions</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1220,12 +1229,13 @@ const PartnerList = () => {
                         <div className="overflow-x-auto">
                           <table className="w-full">
                             <thead>
-                              <tr className="border-b bg-muted/30">
-                                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Employee</th>
-                                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Partner</th>
-                                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Period</th>
-                                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
-                                <th className="text-center py-3 px-4 font-medium text-muted-foreground">Manage</th>
+                              <tr className="bg-primary">
+                                <th className="text-left py-3 px-4 text-sm font-semibold text-white">Employee</th>
+                                <th className="text-left py-3 px-4 text-sm font-semibold text-white">Partner</th>
+                                <th className="text-left py-3 px-4 text-sm font-semibold text-white">Period</th>
+                                <th className="text-left py-3 px-4 text-sm font-semibold text-white">Status</th>
+                                <th className="text-left py-3 px-4 text-sm font-semibold text-white">Activity</th>
+                                <th className="text-center py-3 px-4 text-sm font-semibold text-white">Manage</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1233,6 +1243,8 @@ const PartnerList = () => {
                                 const empName = [a.first_name, a.last_name].filter(Boolean).join(" ") || a.email || "—";
                                 const status = getAssignmentStatus(a);
                                 const StatusIcon = status.icon;
+                                const activity = getActivityStatus(a);
+                                const ActivityIcon = activity.icon;
                                 return (
                                   <tr key={a.assignment_id} className="border-b hover:bg-muted/30">
                                     <td className="py-3 px-4">
@@ -1261,6 +1273,12 @@ const PartnerList = () => {
                                       <span className={`inline-flex items-center gap-1 text-xs font-medium ${status.color}`}>
                                         <StatusIcon className="w-3 h-3" />
                                         {status.label}
+                                      </span>
+                                    </td>
+                                    <td className="py-3 px-4">
+                                      <span className={`inline-flex items-center gap-1 text-xs font-medium ${activity.color}`}>
+                                        <ActivityIcon className="w-3 h-3" />
+                                        {activity.label}
                                       </span>
                                     </td>
                                     <td className="py-3 px-4">
@@ -1305,6 +1323,8 @@ const PartnerList = () => {
                                 const empName = [a.first_name, a.last_name].filter(Boolean).join(" ") || a.email || "—";
                                 const status = getAssignmentStatus(a);
                                 const StatusIcon = status.icon;
+                                const activity = getActivityStatus(a);
+                                const ActivityIcon = activity.icon;
                                 return (
                                   <Card key={a.assignment_id} className="hover:shadow-lg transition-shadow">
                                     <CardHeader className="pb-3">
@@ -1337,12 +1357,18 @@ const PartnerList = () => {
                                       </div>
 
                                       <div className="pt-2 border-t">
-                                        <div className="flex items-center justify-between">
-                                          <span className={`inline-flex items-center gap-1 text-xs font-medium ${status.color}`}>
-                                            <StatusIcon className="w-3 h-3" />
-                                            {status.label}
-                                          </span>
-                                          <div className="flex items-center gap-1">
+                                        <div className="flex items-center justify-between gap-2">
+                                          <div className="flex items-center gap-1.5 flex-wrap">
+                                            <span className={`inline-flex items-center gap-1 text-xs font-medium ${status.color}`}>
+                                              <StatusIcon className="w-3 h-3" />
+                                              {status.label}
+                                            </span>
+                                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-medium ${activity.color} ${activity.bg}`}>
+                                              <ActivityIcon className="w-3 h-3" />
+                                              {activity.label}
+                                            </span>
+                                          </div>
+                                          <div className="flex items-center gap-1 flex-shrink-0">
                                             <Button
                                               variant="ghost"
                                               size="sm"

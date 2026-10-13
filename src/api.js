@@ -1759,3 +1759,12 @@ export const completeSetup = async (setupToken) => {
     body: JSON.stringify({ setup_token: setupToken })
   }).catch(() => {});  // Best-effort, don't block UX on failure
 };
+
+export const getAssignmentReport = async (assignmentId) => {
+  try {
+    const data = await api.get(`${API_BASE}/dailyreport/assignment/${assignmentId}`);
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+};
