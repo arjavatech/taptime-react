@@ -215,7 +215,7 @@ const Header = () => {
       { to: "/device", label: "Device" }
     ] : []),
     { to: "/employee-management", label: "Employee Management" },
-    { to: "/partners", label: "Partners" },
+    ...(userType !== "Admin" ? [{ to: "/partners", label: "Partners" }] : []),
     ...(userType !== "Owner" ? [{ to: "/my-assignments", label: "My Assignments" }] : []),
     ...(userType === "Admin" ? [
       { to: "/reportsummary", label: "Report Summary" },
