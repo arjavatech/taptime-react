@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Header from "../components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Button } from "../components/ui/button";
-import { Card, CardContent, CardHeader } from "../components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import {
@@ -14,8 +14,8 @@ import {
   Phone,
   Mail,
   Trash2,
-  Eye,
   Edit,
+  Eye,
   Loader2,
   AlertCircle,
   CheckCircle,
@@ -23,7 +23,19 @@ import {
   Calendar,
   Users,
   User,
+  ArrowUp,
+  ArrowDown,
+  ChevronDown,
+  Check,
+  Filter,
+  X,
+  Download,
+  FileDown,
 } from "lucide-react";
+import { HamburgerIcon } from "../components/icons/HamburgerIcon";
+import { GridIcon } from "../components/icons/GridIcon";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import {
   getPartnersByCompany,
   deletePartner,
@@ -35,6 +47,7 @@ import {
 import PartnerFormModal from "./PartnerFormModal";
 import PartnerViewModal from "./PartnerViewModal";
 import AssignmentFormModal from "./AssignmentFormModal";
+import AssignmentViewModal from "./AssignmentViewModal";
 
 const formatDate = (d) => {
   if (!d) return "—";
@@ -52,6 +65,9 @@ const PartnerList = () => {
 
   // ── Tab ──
   const [activeTab, setActiveTab] = useState("partners");
+
+  // ── View Mode ──
+  const [viewMode, setViewMode] = useState("table");
 
   // ── Partners tab state ──
   const [partners, setPartners] = useState([]);
@@ -72,12 +88,18 @@ const PartnerList = () => {
   const [assignmentsLoading, setAssignmentsLoading] = useState(false);
   const [assignmentsLoaded, setAssignmentsLoaded] = useState(false);
   const [assignmentSearch, setAssignmentSearch] = useState("");
+  const [assignmentViewMode, setAssignmentViewMode] = useState("table");
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState(null);
   const [assignmentToDelete, setAssignmentToDelete] = useState(null);
   const [isDeletingAssignment, setIsDeletingAssignment] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [deleteAssignmentError, setDeleteAssignmentError] = useState("");
+  const [showAssignmentViewModal, setShowAssignmentViewModal] = useState(false);
+  const [viewingAssignment, setViewingAssignment] = useState(null);
+  const [showAssignmentFilterPanel, setShowAssignmentFilterPanel] = useState(false);
+  const [assignmentStatusFilter, setAssignmentStatusFilter] = useState("");
+  const [assignmentCompanyFilter, setAssignmentCompanyFilter] = useState("");
 
   // ── Pagination ──
   const [partnerPage, setPartnerPage] = useState(1);
@@ -85,7 +107,62 @@ const PartnerList = () => {
   const [assignmentPage, setAssignmentPage] = useState(1);
   const [assignmentPageSize, setAssignmentPageSize] = useState(10);
 
+  // ── Sorting ──
+  const [partnerSortConfig, setPartnerSortConfig] = useState({
+    key: null,
+    direction: "asc",
+  });
+  const [assignmentSortConfig, setAssignmentSortConfig] = useState({
+    key: null,
+    direction: "asc",
+  });
+
   useEffect(() => { loadPartners(); loadEmployees(); }, []);
+
+  // ── Auto-switch view mode based on screen size ──
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width < 768) {
+        setViewMode("grid");
+      } else if (width >= 768 && viewMode === "grid") {
+        setViewMode("table");
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    handleResize();
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // ── Close dropdown when clicking outside ──
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      const partnerDropdown = document.getElementById('partner-sort-dropdown');
+      const assignmentDropdown = document.getElementById('assignment-sort-dropdown');
+      const button = event.target.closest('button');
+      if (partnerDropdown && !partnerDropdown.contains(event.target) && !button?.closest('[data-sort-button]')) {
+        partnerDropdown.classList.add('hidden');
+      }
+      if (assignmentDropdown && !assignmentDropdown.contains(event.target) && !button?.closest('[data-sort-button]')) {
+        assignmentDropdown.classList.add('hidden');
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // ── Reset to page 1 when view mode changes ──
+  useEffect(() => {
+    setPartnerPage(1);
+  }, [viewMode]);
+
+  useEffect(() => {
+    setAssignmentPage(1);
+  }, [assignmentStatusFilter]);
+
+  useEffect(() => {
+    setAssignmentPage(1);
+  }, [assignmentCompanyFilter]);
 
   useEffect(() => {
     const handleCompanyChange = () => {
@@ -184,17 +261,60 @@ const PartnerList = () => {
     p.partner_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     p.contact_name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  ).sort((a, b) => {
+    if (partnerSortConfig.key === "name") {
+      const aValue = a.partner_name?.toLowerCase() || "";
+      const bValue = b.partner_name?.toLowerCase() || "";
+      return partnerSortConfig.direction === "asc" ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+    }
+    return 0;
+  });
 
   const today = new Date().toISOString().split("T")[0];
+  
+  const getAssignmentStatus = (a) => {
+    if (a.is_active === false) return { label: "Inactive", color: "text-gray-500", icon: XCircle };
+    if (a.start_date <= today && a.end_date >= today) return { label: "Active today", color: "text-green-600", icon: CheckCircle };
+    if (a.start_date > today) return { label: "Upcoming", color: "text-blue-600", icon: Calendar };
+    return { label: "Expired", color: "text-gray-400", icon: XCircle };
+  };
+
+  // Get distinct company names from assignments
+  const companyOptions = Array.from(
+    new Set(assignments.map((a) => a.partner_name).filter(Boolean))
+  ).sort();
+
   const filteredAssignments = assignments.filter((a) => {
-    if (!assignmentSearch) return true;
-    const empName = `${a.first_name || ""} ${a.last_name || ""}`.toLowerCase();
-    return (
-      empName.includes(assignmentSearch.toLowerCase()) ||
-      a.email?.toLowerCase().includes(assignmentSearch.toLowerCase()) ||
-      a.partner_name?.toLowerCase().includes(assignmentSearch.toLowerCase())
-    );
+    // Apply search filter
+    if (assignmentSearch) {
+      const empName = `${a.first_name || ""} ${a.last_name || ""}`.toLowerCase();
+      const searchMatch = (
+        empName.includes(assignmentSearch.toLowerCase()) ||
+        a.email?.toLowerCase().includes(assignmentSearch.toLowerCase()) ||
+        a.partner_name?.toLowerCase().includes(assignmentSearch.toLowerCase())
+      );
+      if (!searchMatch) return false;
+    }
+
+    // Apply status filter
+    if (assignmentStatusFilter !== "" && assignmentStatusFilter !== "All Statuses") {
+      const status = getAssignmentStatus(a);
+      if (status.label !== assignmentStatusFilter) return false;
+    }
+
+    // Apply company filter
+    if (assignmentCompanyFilter !== "" && assignmentCompanyFilter !== "All Companies") {
+      if (a.partner_name !== assignmentCompanyFilter) return false;
+    }
+
+    return true;
+  }).sort((a, b) => {
+    if (assignmentSortConfig.key === "name") {
+      const aName = `${a.first_name || ""} ${a.last_name || ""}`.toLowerCase() || (a.email || "").toLowerCase();
+      const bName = `${b.first_name || ""} ${b.last_name || ""}`.toLowerCase() || (b.email || "").toLowerCase();
+      return assignmentSortConfig.direction === "asc" ? aName.localeCompare(bName) : bName.localeCompare(aName);
+    }
+    return 0;
   });
 
   // ── Paginated slices ──
@@ -206,15 +326,156 @@ const PartnerList = () => {
   const assignmentStart = (assignmentPage - 1) * assignmentPageSize;
   const paginatedAssignments = filteredAssignments.slice(assignmentStart, assignmentStart + assignmentPageSize);
 
-  // Reset to page 1 when search or page size changes
-  useEffect(() => { setPartnerPage(1); }, [searchTerm, partnerPageSize]);
-  useEffect(() => { setAssignmentPage(1); }, [assignmentSearch, assignmentPageSize]);
+  // ── Download Partner CSV ──
+  const downloadPartnersCSV = () => {
+    const csvData = [
+      ['Partner Name', 'Address', 'Contact Name', 'Contact Email', 'Contact Phone', 'Geofence Radius', 'Status']
+    ];
+    
+    filteredPartners.forEach(partner => {
+      csvData.push([
+        partner.partner_name || '',
+        partner.address || '',
+        partner.contact_name || '',
+        partner.contact_email || '',
+        partner.contact_phone || '',
+        partner.geofence_radius_meters >= 1000 
+          ? `${partner.geofence_radius_meters / 1000} km`
+          : `${partner.geofence_radius_meters} m`,
+        partner.is_active !== false ? 'Active' : 'Inactive'
+      ]);
+    });
+    
+    const csvContent = csvData.map(row => row.map(field => `"${field}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Partner data.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
 
-  const getAssignmentStatus = (a) => {
-    if (a.is_active === false) return { label: "Inactive", color: "text-gray-500", icon: XCircle };
-    if (a.start_date <= today && a.end_date >= today) return { label: "Active today", color: "text-green-600", icon: CheckCircle };
-    if (a.start_date > today) return { label: "Upcoming", color: "text-blue-600", icon: Calendar };
-    return { label: "Expired", color: "text-gray-400", icon: XCircle };
+  // ── Download Partner PDF ──
+  const downloadPartnersPDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    
+    // Add header with blue background
+    doc.setFillColor(1, 0, 90);
+    doc.rect(0, 0, pageWidth, 25, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.text('Partner List', pageWidth / 2, 15, { align: 'center' });
+    
+    // Prepare table data
+    const tableData = [];
+    filteredPartners.forEach(partner => {
+      tableData.push([
+        partner.partner_name || '',
+        partner.address || 'N/A',
+        partner.contact_name || 'N/A',
+        partner.contact_email || 'N/A',
+        partner.contact_phone || 'N/A',
+        partner.geofence_radius_meters >= 1000 
+          ? `${partner.geofence_radius_meters / 1000} km`
+          : `${partner.geofence_radius_meters} m`,
+        partner.is_active !== false ? 'Active' : 'Inactive'
+      ]);
+    });
+    
+    // Create table using autoTable
+    autoTable(doc, {
+      head: [['Partner Name', 'Address', 'Contact Name', 'Contact Email', 'Contact Phone', 'Radius', 'Status']],
+      body: tableData,
+      startY: 35,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [1, 0, 90] }
+    });
+    
+    // Add footer with blue background
+    doc.setFillColor(1, 0, 90);
+    doc.rect(0, pageHeight - 20, pageWidth, 20, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    doc.text('© 2026 TapTime by Arjava Technologies. All rights reserved.', pageWidth / 2, pageHeight - 10, { align: 'center' });
+    
+    doc.save('Partner data.pdf');
+  };
+
+  // ── Download Assignment CSV ──
+  const downloadAssignmentsCSV = () => {
+    const csvData = [
+      ['Employee Name', 'Email', 'Company', 'Start Date', 'End Date', 'Status']
+    ];
+    
+    filteredAssignments.forEach(assignment => {
+      const status = getAssignmentStatus(assignment);
+      csvData.push([
+        `${assignment.first_name || ''} ${assignment.last_name || ''}`.trim(),
+        assignment.email || '',
+        assignment.partner_name || '',
+        formatDate(assignment.start_date),
+        formatDate(assignment.end_date),
+        status.label
+      ]);
+    });
+    
+    const csvContent = csvData.map(row => row.map(field => `"${field}"`).join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Assignment data.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  // ── Download Assignment PDF ──
+  const downloadAssignmentsPDF = () => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    
+    // Add header with blue background
+    doc.setFillColor(1, 0, 90);
+    doc.rect(0, 0, pageWidth, 25, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
+    doc.text('Assignment List', pageWidth / 2, 15, { align: 'center' });
+    
+    // Prepare table data
+    const tableData = [];
+    filteredAssignments.forEach(assignment => {
+      const status = getAssignmentStatus(assignment);
+      tableData.push([
+        `${assignment.first_name || ''} ${assignment.last_name || ''}`.trim(),
+        assignment.email || 'N/A',
+        assignment.partner_name || 'N/A',
+        formatDate(assignment.start_date),
+        formatDate(assignment.end_date),
+        status.label
+      ]);
+    });
+    
+    // Create table using autoTable
+    autoTable(doc, {
+      head: [['Employee Name', 'Email', 'Company', 'Start Date', 'End Date', 'Status']],
+      body: tableData,
+      startY: 35,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [1, 0, 90] }
+    });
+    
+    // Add footer with blue background
+    doc.setFillColor(1, 0, 90);
+    doc.rect(0, pageHeight - 20, pageWidth, 20, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    doc.text('© 2026 TapTime by Arjava Technologies. All rights reserved.', pageWidth / 2, pageHeight - 10, { align: 'center' });
+    
+    doc.save('Assignment data.pdf');
   };
 
   const TABS = [
@@ -290,20 +551,127 @@ const PartnerList = () => {
           {/* ═══════ PARTNER MANAGEMENT TAB ═══════ */}
           {activeTab === "partners" && (
             <>
-              {/* Search */}
-              <div className="mb-6">
-                <div className="relative max-w-sm">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              {/* Search, Sort, and View Toggle Toolbar */}
+              <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="relative flex-1 max-w-full sm:max-w-md">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                   <Input
                     placeholder="Search by name, address, or contact..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-9"
+                    className="pl-10 text-sm"
                   />
+                </div>
+                <div className="flex items-center gap-2 justify-between sm:justify-start">
+                  {/* Sort Dropdown */}
+                  <div className="relative">
+                    <Button
+                      variant="outline"
+                      className="px-3 py-2 h-auto text-sm flex items-center gap-2 min-w-[140px] justify-between"
+                      onClick={() => document.getElementById('partner-sort-dropdown').classList.toggle('hidden')}
+                      data-sort-button
+                    >
+                      <div className="flex items-center gap-2">
+                        {partnerSortConfig.direction === 'asc' ? (
+                          <ArrowUp className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <ArrowDown className="w-4 h-4 text-blue-600" />
+                        )}
+                        <span>
+                          {partnerSortConfig.key ? (
+                            partnerSortConfig.key === 'name' ? 'Sort By Name' : 'Sort'
+                          ) : 'Sort'}
+                        </span>
+                      </div>
+                      <ChevronDown className="w-4 h-4" />
+                    </Button>
+                    <div
+                      id="partner-sort-dropdown"
+                      className="absolute top-full left-0 mt-1 w-48 bg-background border border-input rounded-md shadow-lg z-10 hidden"
+                    >
+                      {[
+                        { key: 'name', direction: 'asc', label: 'Sort By Name', icon: ArrowUp },
+                        { key: 'name', direction: 'desc', label: 'Sort By Name', icon: ArrowDown }
+                      ].map(({ key, direction, label, icon: Icon }) => (
+                        <button
+                          key={`${key}-${direction}`}
+                          onClick={() => {
+                            setPartnerSortConfig({ key, direction });
+                            document.getElementById('partner-sort-dropdown').classList.add('hidden');
+                          }}
+                          className={`w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center justify-between transition-colors ${partnerSortConfig.key === key && partnerSortConfig.direction === direction
+                            ? 'bg-primary/10 text-primary'
+                            : 'text-foreground'
+                            }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Icon className={`w-4 h-4 ${direction === 'asc' ? 'text-green-600' : 'text-blue-600'
+                              }`} />
+                            {label}
+                          </div>
+                          {partnerSortConfig.key === key && partnerSortConfig.direction === direction && (
+                            <Check className="w-4 h-4" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* View Toggle */}
+                  <div className="flex items-center gap-1 border rounded-lg p-1">
+                    <Button
+                      variant={viewMode === "table" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setViewMode("table")}
+                      className="h-8 w-8 p-0"
+                      title="Table View"
+                    >
+                      <HamburgerIcon className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant={viewMode === "grid" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setViewMode("grid")}
+                      className="h-8 w-8 p-0"
+                      title="Grid View"
+                    >
+                      <GridIcon className="w-4 h-4" />
+                    </Button>
+                  </div>
+
+                  {/* Download Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={downloadPartnersCSV}
+                      disabled={filteredPartners.length === 0}
+                      className="flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
+                    >
+                      <Download className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Download CSV</span>
+                      <span className="sm:hidden">CSV</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={downloadPartnersPDF}
+                      disabled={filteredPartners.length === 0}
+                      className="flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
+                    >
+                      <FileDown className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Download PDF</span>
+                      <span className="sm:hidden">PDF</span>
+                    </Button>
+                  </div>
                 </div>
               </div>
 
-              {filteredPartners.length === 0 && !globalLoading ? (
+              {globalLoading ? (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                </div>
+              ) : filteredPartners.length === 0 ? (
                 <Card className="text-center py-12">
                   <CardContent>
                     <Building2 className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
@@ -328,24 +696,26 @@ const PartnerList = () => {
                 </Card>
               ) : (
                 <>
-                  {/* Desktop Table */}
-                  <div className="hidden md:block">
-                    <Card>
-                      <CardHeader className="py-3 px-4 border-b flex-row items-center justify-end gap-2">
-                        <Label htmlFor="partner-page-size" className="text-sm whitespace-nowrap">Records per page:</Label>
-                        <select
-                          id="partner-page-size"
-                          value={partnerPageSize}
-                          onChange={(e) => setPartnerPageSize(parseInt(e.target.value))}
-                          className="h-8 px-2 text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="10">10</option>
-                          <option value="25">25</option>
-                          <option value="50">50</option>
-                          <option value="100">100</option>
-                        </select>
-                      </CardHeader>
-                      <CardContent className="p-0">
+                  {/* Shared Container for Table and Grid Views */}
+                  <Card>
+                    <CardHeader className={`py-3 px-4 flex-row items-center justify-end gap-2 ${viewMode === "table" ? "border-b" : ""}`}>
+                      <Label htmlFor="partner-page-size" className="text-sm whitespace-nowrap">Records per page:</Label>
+                      <select
+                        id="partner-page-size"
+                        value={partnerPageSize}
+                        onChange={(e) => setPartnerPageSize(parseInt(e.target.value))}
+                        className="h-8 px-2 text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                      </select>
+                    </CardHeader>
+
+                  <CardContent className="p-0">
+                      {/* Table View */}
+                      {viewMode === "table" ? (
                         <div className="overflow-x-auto">
                           <table className="w-full">
                             <thead>
@@ -360,40 +730,39 @@ const PartnerList = () => {
                             </thead>
                             <tbody>
                               {paginatedPartners.map((partner) => (
-                                <tr
-                                  key={partner.partner_id}
-                                  className="border-b hover:bg-muted/30 cursor-pointer"
-                                  onClick={() => { setViewingPartner(partner); setShowViewModal(true); }}
-                                >
+                                <tr key={partner.partner_id} className="border-b hover:bg-muted/30">
                                   <td className="py-3 px-4">
-                                    <div className="flex items-center gap-3">
-                                      <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                                        <Building2 className="w-4 h-4 text-primary" />
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-7 h-7 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                        <Building2 className="w-3.5 h-3.5 text-primary" />
                                       </div>
-                                      <span className="font-medium">{partner.partner_name}</span>
+                                      <div>
+                                        <div className="text-sm font-medium">{partner.partner_name}</div>
+                                        {partner.address && (
+                                          <div className="text-xs text-muted-foreground">{partner.address}</div>
+                                        )}
+                                      </div>
                                     </div>
                                   </td>
                                   <td className="py-3 px-4">
                                     <div className="flex items-center gap-1 text-sm text-muted-foreground max-w-xs">
-                                      <MapPin className="w-3 h-3 flex-shrink-0" />
+                                      <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
                                       <span className="truncate">{partner.address || "—"}</span>
                                     </div>
                                   </td>
-                                  <td className="py-3 px-4">
-                                    <div className="text-sm">
-                                      {partner.contact_name && <div className="font-medium">{partner.contact_name}</div>}
-                                      {partner.contact_email && (
-                                        <div className="flex items-center gap-1 text-muted-foreground">
-                                          <Mail className="w-3 h-3" />{partner.contact_email}
-                                        </div>
-                                      )}
-                                      {partner.contact_phone && (
-                                        <div className="flex items-center gap-1 text-muted-foreground">
-                                          <Phone className="w-3 h-3" />{partner.contact_phone}
-                                        </div>
-                                      )}
-                                      {!partner.contact_name && !partner.contact_email && !partner.contact_phone && "—"}
-                                    </div>
+                                  <td className="py-3 px-4 text-sm">
+                                    {partner.contact_name && <div className="font-medium">{partner.contact_name}</div>}
+                                    {partner.contact_email && (
+                                      <div className="flex items-center gap-1 text-muted-foreground">
+                                        <Mail className="w-3 h-3" />{partner.contact_email}
+                                      </div>
+                                    )}
+                                    {partner.contact_phone && (
+                                      <div className="flex items-center gap-1 text-muted-foreground">
+                                        <Phone className="w-3 h-3" />{partner.contact_phone}
+                                      </div>
+                                    )}
+                                    {!partner.contact_name && !partner.contact_email && !partner.contact_phone && "—"}
                                   </td>
                                   <td className="py-3 px-4 text-sm">
                                     {partner.geofence_radius_meters >= 1000
@@ -401,19 +770,16 @@ const PartnerList = () => {
                                       : `${partner.geofence_radius_meters} m`}
                                   </td>
                                   <td className="py-3 px-4">
-                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                    <span className={`inline-flex items-center gap-1 text-xs font-medium ${
                                       partner.is_active !== false
-                                        ? "bg-green-100 text-green-700"
-                                        : "bg-gray-100 text-gray-600"
+                                        ? "text-green-600"
+                                        : "text-gray-400"
                                     }`}>
                                       {partner.is_active !== false ? "Active" : "Inactive"}
                                     </span>
                                   </td>
                                   <td className="py-3 px-4">
-                                    <div
-                                      className="flex items-center justify-center gap-1"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
+                                    <div className="flex items-center justify-center gap-1">
                                       <Button
                                         variant="ghost" size="sm"
                                         onClick={() => { setViewingPartner(partner); setShowViewModal(true); }}
@@ -444,138 +810,147 @@ const PartnerList = () => {
                             </tbody>
                           </table>
                         </div>
-                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200">
-                          <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
-                            Showing {partnerStart + 1}-{Math.min(partnerStart + partnerPageSize, filteredPartners.length)} of {filteredPartners.length}
-                          </div>
-                          {partnerTotalPages > 1 && (
-                            <div className="flex items-center gap-3 order-1 sm:order-2">
-                              <button
-                                onClick={() => setPartnerPage((p) => Math.max(p - 1, 1))}
-                                disabled={partnerPage === 1}
-                                className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                                  partnerPage === 1
-                                    ? "text-gray-400 border-gray-200 cursor-not-allowed"
-                                    : "text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
-                                }`}
-                              >
-                                Prev
-                              </button>
-                              <span className="text-sm font-medium text-gray-900 px-2">
-                                {partnerPage} / {partnerTotalPages}
-                              </span>
-                              <button
-                                onClick={() => setPartnerPage((p) => Math.min(p + 1, partnerTotalPages))}
-                                disabled={partnerPage === partnerTotalPages}
-                                className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                                  partnerPage === partnerTotalPages
-                                    ? "text-gray-400 border-gray-200 cursor-not-allowed"
-                                    : "text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
-                                }`}
-                              >
-                                Next
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
+                      ) : (
+                        <>
+                          {/* Grid View */}
+                          <div className="p-4 sm:p-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                              {paginatedPartners.map((partner) => (
+                                <Card key={partner.partner_id} className="hover:shadow-lg transition-shadow">
+                                  <CardHeader className="pb-3">
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                                          <Building2 className="w-4 h-4 text-primary" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                          <CardTitle className="text-base sm:text-lg truncate">
+                                            {partner.partner_name}
+                                          </CardTitle>
+                                          <CardDescription className="text-xs sm:text-sm truncate">
+                                            {partner.address || "—"}
+                                          </CardDescription>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </CardHeader>
 
-                  {/* Mobile Cards */}
-                  <div className="md:hidden space-y-4">
-                    {paginatedPartners.map((partner) => (
-                      <Card
-                        key={partner.partner_id}
-                        className="hover:shadow-lg transition-shadow cursor-pointer"
-                        onClick={() => { setViewingPartner(partner); setShowViewModal(true); }}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-2 min-w-0 flex-1">
-                              <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <Building2 className="w-4 h-4 text-primary" />
-                              </div>
-                              <div className="min-w-0">
-                                <div className="font-medium truncate">{partner.partner_name}</div>
-                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                                  partner.is_active !== false
-                                    ? "bg-green-100 text-green-700"
-                                    : "bg-gray-100 text-gray-600"
-                                }`}>
-                                  {partner.is_active !== false ? "Active" : "Inactive"}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                              <Button
-                                variant="ghost" size="sm"
-                                onClick={() => { setEditingPartner(partner); setShowFormModal(true); }}
-                                className="h-7 w-7 p-0"
-                              >
-                                <Edit className="w-3 h-3" />
-                              </Button>
-                              {canDelete && (
-                                <Button
-                                  variant="ghost" size="sm"
-                                  onClick={() => setPartnerToDelete(partner)}
-                                  className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                          {partner.address && (
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground mt-2">
-                              <MapPin className="w-3 h-3 flex-shrink-0" />
-                              <span className="truncate">{partner.address}</span>
-                            </div>
-                          )}
-                          <div className="text-xs text-muted-foreground mt-1">
-                            Geofence: {partner.geofence_radius_meters >= 1000
-                              ? `${partner.geofence_radius_meters / 1000} km`
-                              : `${partner.geofence_radius_meters} m`}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+                                  <CardContent className="space-y-3 sm:space-y-4 pt-0">
+                                    {partner.contact_name && (
+                                      <div className="flex items-center gap-2 text-xs sm:text-sm">
+                                        <User className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                                        <span className="font-medium truncate">{partner.contact_name}</span>
+                                      </div>
+                                    )}
 
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 md:hidden">
-                    <p className="text-sm text-muted-foreground">
-                      Showing {partnerStart + 1}-{Math.min(partnerStart + partnerPageSize, filteredPartners.length)} of {filteredPartners.length}
-                    </p>
-                    {partnerTotalPages > 1 && (
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => setPartnerPage((p) => Math.max(p - 1, 1))}
-                          disabled={partnerPage === 1}
-                          className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                            partnerPage === 1
-                              ? "text-gray-400 border-gray-200 cursor-not-allowed"
-                              : "text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
-                          }`}
-                        >
-                          Prev
-                        </button>
-                        <span className="text-sm font-medium text-gray-900 px-2">
-                          {partnerPage} / {partnerTotalPages}
-                        </span>
-                        <button
-                          onClick={() => setPartnerPage((p) => Math.min(p + 1, partnerTotalPages))}
-                          disabled={partnerPage === partnerTotalPages}
-                          className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                            partnerPage === partnerTotalPages
-                              ? "text-gray-400 border-gray-200 cursor-not-allowed"
-                              : "text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
-                          }`}
-                        >
-                          Next
-                        </button>
+                                    {partner.contact_email && (
+                                      <div className="flex items-center gap-2 text-xs sm:text-sm">
+                                        <Mail className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                                        <span className="truncate text-muted-foreground">{partner.contact_email}</span>
+                                      </div>
+                                    )}
+
+                                    {partner.contact_phone && (
+                                      <div className="flex items-center gap-2 text-xs sm:text-sm">
+                                        <Phone className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                                        <span className="font-mono text-muted-foreground">{partner.contact_phone}</span>
+                                      </div>
+                                    )}
+
+                                    <div className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground">
+                                      <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
+                                      <span>{partner.geofence_radius_meters >= 1000
+                                        ? `${partner.geofence_radius_meters / 1000} km radius`
+                                        : `${partner.geofence_radius_meters} m radius`}</span>
+                                    </div>
+
+                                    <div className="pt-2 border-t">
+                                      <div className="flex items-center justify-between">
+                                        <span className={`inline-flex items-center gap-1 text-xs font-medium ${
+                                          partner.is_active !== false
+                                            ? "text-green-600"
+                                            : "text-gray-400"
+                                        }`}>
+                                          {partner.is_active !== false ? "Active" : "Inactive"}
+                                        </span>
+                                        <div className="flex items-center gap-1">
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => { setViewingPartner(partner); setShowViewModal(true); }}
+                                            className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                                            title="View"
+                                          >
+                                            <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => { setEditingPartner(partner); setShowFormModal(true); }}
+                                            className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                                            title="Edit"
+                                          >
+                                            <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                                          </Button>
+                                          {canDelete && (
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => setPartnerToDelete(partner)}
+                                              className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-destructive hover:text-destructive"
+                                              title="Delete"
+                                            >
+                                              <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                                            </Button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </CardContent>
+
+                    {/* Shared Pagination */}
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200">
+                      <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
+                        Showing {partnerStart + 1}-{Math.min(partnerStart + partnerPageSize, filteredPartners.length)} of {filteredPartners.length}
                       </div>
-                    )}
-                  </div>
+                      {partnerTotalPages > 1 && (
+                        <div className="flex items-center gap-3 order-1 sm:order-2">
+                          <button
+                            onClick={() => setPartnerPage((p) => Math.max(p - 1, 1))}
+                            disabled={partnerPage === 1}
+                            className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                              partnerPage === 1
+                                ? "text-gray-400 border-gray-200 cursor-not-allowed"
+                                : "text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
+                            }`}
+                          >
+                            Prev
+                          </button>
+                          <span className="text-sm font-medium text-gray-900 px-2">
+                            {partnerPage} / {partnerTotalPages}
+                          </span>
+                          <button
+                            onClick={() => setPartnerPage((p) => Math.min(p + 1, partnerTotalPages))}
+                            disabled={partnerPage === partnerTotalPages}
+                            className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                              partnerPage === partnerTotalPages
+                                ? "text-gray-400 border-gray-200 cursor-not-allowed"
+                                : "text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
+                            }`}
+                          >
+                            Next
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
                 </>
               )}
             </>
@@ -584,18 +959,204 @@ const PartnerList = () => {
           {/* ═══════ EMPLOYEE ASSIGNMENTS TAB ═══════ */}
           {activeTab === "assignments" && (
             <>
-              {/* Search */}
-              <div className="mb-6">
-                <div className="relative max-w-sm">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              {/* Search, Sort, and View Toggle Toolbar */}
+              <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="relative flex-1 max-w-full sm:max-w-md">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                   <Input
                     placeholder="Search by employee or partner..."
                     value={assignmentSearch}
                     onChange={(e) => setAssignmentSearch(e.target.value)}
-                    className="pl-9"
+                    className="pl-10 text-sm"
                   />
                 </div>
+                <div className="flex items-center gap-2 justify-between sm:justify-start">
+                  {/* Filters Button */}
+                  {!showAssignmentFilterPanel && (
+                    <Button
+                      variant="outline"
+                      className="px-3 py-2 h-auto text-sm flex items-center gap-2"
+                      onClick={() => setShowAssignmentFilterPanel(true)}
+                    >
+                      <Filter className="w-4 h-4" />
+                      Filters
+                    </Button>
+                  )}
+                  
+                  {/* Hide Filters Button */}
+                  {showAssignmentFilterPanel && (
+                    <Button
+                      variant="outline"
+                      className="px-3 py-2 h-auto text-sm flex items-center gap-2"
+                      onClick={() => {
+                        setShowAssignmentFilterPanel(false);
+                        setAssignmentStatusFilter("");
+                        setAssignmentCompanyFilter("");
+                        setAssignmentPage(1);
+                      }}
+                    >
+                      <X className="w-4 h-4" />
+                      Hide Filters
+                    </Button>
+                  )}
+
+                  {/* Sort Dropdown */}
+                  <div className="relative">
+                    <Button
+                      variant="outline"
+                      className="px-3 py-2 h-auto text-sm flex items-center gap-2 min-w-[140px] justify-between"
+                      onClick={() => document.getElementById('assignment-sort-dropdown').classList.toggle('hidden')}
+                      data-sort-button
+                    >
+                      <div className="flex items-center gap-2">
+                        {assignmentSortConfig.direction === 'asc' ? (
+                          <ArrowUp className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <ArrowDown className="w-4 h-4 text-blue-600" />
+                        )}
+                        <span>
+                          {assignmentSortConfig.key ? (
+                            assignmentSortConfig.key === 'name' ? 'Sort By Name' : 'Sort'
+                          ) : 'Sort'}
+                        </span>
+                      </div>
+                      <ChevronDown className="w-4 h-4" />
+                    </Button>
+                    <div
+                      id="assignment-sort-dropdown"
+                      className="absolute top-full left-0 mt-1 w-48 bg-background border border-input rounded-md shadow-lg z-10 hidden"
+                    >
+                      {[
+                        { key: 'name', direction: 'asc', label: 'Sort By Name', icon: ArrowUp },
+                        { key: 'name', direction: 'desc', label: 'Sort By Name', icon: ArrowDown }
+                      ].map(({ key, direction, label, icon: Icon }) => (
+                        <button
+                          key={`${key}-${direction}`}
+                          onClick={() => {
+                            setAssignmentSortConfig({ key, direction });
+                            document.getElementById('assignment-sort-dropdown').classList.add('hidden');
+                          }}
+                          className={`w-full px-3 py-2 text-left text-sm hover:bg-muted flex items-center justify-between transition-colors ${assignmentSortConfig.key === key && assignmentSortConfig.direction === direction
+                            ? 'bg-primary/10 text-primary'
+                            : 'text-foreground'
+                            }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Icon className={`w-4 h-4 ${direction === 'asc' ? 'text-green-600' : 'text-blue-600'
+                              }`} />
+                            {label}
+                          </div>
+                          {assignmentSortConfig.key === key && assignmentSortConfig.direction === direction && (
+                            <Check className="w-4 h-4" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* View Toggle */}
+                  <div className="flex items-center gap-1 border rounded-lg p-1">
+                    <Button
+                      variant={assignmentViewMode === "table" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setAssignmentViewMode("table")}
+                      className="h-8 w-8 p-0"
+                      title="Table View"
+                    >
+                      <HamburgerIcon className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant={assignmentViewMode === "grid" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setAssignmentViewMode("grid")}
+                      className="h-8 w-8 p-0"
+                      title="Grid View"
+                    >
+                      <GridIcon className="w-4 h-4" />
+                    </Button>
+                  </div>
+
+                  {/* Download Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={downloadAssignmentsCSV}
+                      disabled={filteredAssignments.length === 0}
+                      className="flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
+                    >
+                      <Download className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Download CSV</span>
+                      <span className="sm:hidden">CSV</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={downloadAssignmentsPDF}
+                      disabled={filteredAssignments.length === 0}
+                      className="flex items-center justify-center gap-2 text-xs sm:text-sm w-full sm:w-auto"
+                    >
+                      <FileDown className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Download PDF</span>
+                      <span className="sm:hidden">PDF</span>
+                    </Button>
+                  </div>
+                </div>
               </div>
+
+              {/* Filter Panel */}
+              {showAssignmentFilterPanel && (
+                <div className="mb-6 p-6 bg-background border border-input rounded-lg">
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Status Filter */}
+                    <div>
+                      <label htmlFor="assignment-status-filter" className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                        Status
+                      </label>
+                      <div className="relative">
+                        <select
+                          id="assignment-status-filter"
+                          value={assignmentStatusFilter}
+                          onChange={(e) => setAssignmentStatusFilter(e.target.value)}
+                          className="w-full h-10 px-4 text-sm border border-input rounded-lg bg-background cursor-pointer appearance-none hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                        >
+                          <option value="">Select status</option>
+                          <option value="All Statuses">All Statuses</option>
+                          <option value="Active today">Active today</option>
+                          <option value="Upcoming">Upcoming</option>
+                          <option value="Expired">Expired</option>
+                          <option value="Inactive">Inactive</option>
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                      </div>
+                    </div>
+
+                    {/* Company Filter */}
+                    <div>
+                      <label htmlFor="assignment-company-filter" className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                        Company
+                      </label>
+                      <div className="relative">
+                        <select
+                          id="assignment-company-filter"
+                          value={assignmentCompanyFilter}
+                          onChange={(e) => setAssignmentCompanyFilter(e.target.value)}
+                          className="w-full h-10 px-4 text-sm border border-input rounded-lg bg-background cursor-pointer appearance-none hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                        >
+                          <option value="">Select company</option>
+                          <option value="All Companies">All Companies</option>
+                          {companyOptions.map((company) => (
+                            <option key={company} value={company}>
+                              {company}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {assignmentsLoading ? (
                 <div className="flex items-center justify-center py-16">
@@ -626,24 +1187,26 @@ const PartnerList = () => {
                 </Card>
               ) : (
                 <>
-                  {/* Desktop Table */}
-                  <div className="hidden md:block">
-                    <Card>
-                      <CardHeader className="py-3 px-4 border-b flex-row items-center justify-end gap-2">
-                        <Label htmlFor="assignment-page-size" className="text-sm whitespace-nowrap">Records per page:</Label>
-                        <select
-                          id="assignment-page-size"
-                          value={assignmentPageSize}
-                          onChange={(e) => setAssignmentPageSize(parseInt(e.target.value))}
-                          className="h-8 px-2 text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="10">10</option>
-                          <option value="25">25</option>
-                          <option value="50">50</option>
-                          <option value="100">100</option>
-                        </select>
-                      </CardHeader>
-                      <CardContent className="p-0">
+                  {/* Shared Container for Table and Grid Views */}
+                  <Card>
+                    <CardHeader className={`py-3 px-4 flex-row items-center justify-end gap-2 ${assignmentViewMode === "table" ? "border-b" : ""}`}>
+                      <Label htmlFor="assignment-page-size" className="text-sm whitespace-nowrap">Records per page:</Label>
+                      <select
+                        id="assignment-page-size"
+                        value={assignmentPageSize}
+                        onChange={(e) => setAssignmentPageSize(parseInt(e.target.value))}
+                        className="h-8 px-2 text-sm border border-gray-300 rounded-lg bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="10">10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                      </select>
+                    </CardHeader>
+
+                    <CardContent className="p-0">
+                      {/* Table View */}
+                      {assignmentViewMode === "table" ? (
                         <div className="overflow-x-auto">
                           <table className="w-full">
                             <thead>
@@ -694,6 +1257,13 @@ const PartnerList = () => {
                                       <div className="flex items-center justify-center gap-1">
                                         <Button
                                           variant="ghost" size="sm"
+                                          onClick={() => { setViewingAssignment(a); setShowAssignmentViewModal(true); }}
+                                          className="h-8 w-8 p-0" title="View"
+                                        >
+                                          <Eye className="w-4 h-4" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost" size="sm"
                                           onClick={() => { setEditingAssignment(a); setShowAssignmentModal(true); }}
                                           className="h-8 w-8 p-0" title="Edit"
                                         >
@@ -716,125 +1286,131 @@ const PartnerList = () => {
                             </tbody>
                           </table>
                         </div>
-                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200">
-                          <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
-                            Showing {assignmentStart + 1}-{Math.min(assignmentStart + assignmentPageSize, filteredAssignments.length)} of {filteredAssignments.length}
+                      ) : (
+                        <>
+                          {/* Grid View */}
+                          <div className="p-4 sm:p-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                              {paginatedAssignments.map((a) => {
+                                const empName = [a.first_name, a.last_name].filter(Boolean).join(" ") || a.email || "—";
+                                const status = getAssignmentStatus(a);
+                                const StatusIcon = status.icon;
+                                return (
+                                  <Card key={a.assignment_id} className="hover:shadow-lg transition-shadow">
+                                    <CardHeader className="pb-3">
+                                      <div className="flex items-start justify-between gap-2">
+                                        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                                          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                                            <User className="w-4 h-4 text-primary" />
+                                          </div>
+                                          <div className="min-w-0 flex-1">
+                                            <CardTitle className="text-base sm:text-lg truncate">
+                                              {empName}
+                                            </CardTitle>
+                                            <CardDescription className="text-xs sm:text-sm truncate">
+                                              {a.email || "—"}
+                                            </CardDescription>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </CardHeader>
+
+                                    <CardContent className="space-y-3 sm:space-y-4 pt-0">
+                                      <div className="flex items-center gap-1.5 text-xs sm:text-sm">
+                                        <Building2 className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                                        <span className="font-medium truncate">{a.partner_name || "—"}</span>
+                                      </div>
+
+                                      <div className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground">
+                                        <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
+                                        <span>{formatDate(a.start_date)} – {formatDate(a.end_date)}</span>
+                                      </div>
+
+                                      <div className="pt-2 border-t">
+                                        <div className="flex items-center justify-between">
+                                          <span className={`inline-flex items-center gap-1 text-xs font-medium ${status.color}`}>
+                                            <StatusIcon className="w-3 h-3" />
+                                            {status.label}
+                                          </span>
+                                          <div className="flex items-center gap-1">
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => { setViewingAssignment(a); setShowAssignmentViewModal(true); }}
+                                              className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                                              title="View"
+                                            >
+                                              <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
+                                            </Button>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => { setEditingAssignment(a); setShowAssignmentModal(true); }}
+                                              className="h-7 w-7 sm:h-8 sm:w-8 p-0"
+                                              title="Edit"
+                                            >
+                                              <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                                            </Button>
+                                            {canDelete && (
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => setAssignmentToDelete(a)}
+                                                className="h-7 w-7 sm:h-8 sm:w-8 p-0 text-destructive hover:text-destructive"
+                                                title="Delete"
+                                              >
+                                                <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                                              </Button>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                );
+                              })}
+                            </div>
                           </div>
-                          {assignmentTotalPages > 1 && (
-                            <div className="flex items-center gap-3 order-1 sm:order-2">
-                              <button
-                                onClick={() => setAssignmentPage((p) => Math.max(p - 1, 1))}
-                                disabled={assignmentPage === 1}
-                                className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                                  assignmentPage === 1
-                                    ? "text-gray-400 border-gray-200 cursor-not-allowed"
-                                    : "text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
-                                }`}
-                              >
-                                Prev
-                              </button>
-                              <span className="text-sm font-medium text-gray-900 px-2">
-                                {assignmentPage} / {assignmentTotalPages}
-                              </span>
-                              <button
-                                onClick={() => setAssignmentPage((p) => Math.min(p + 1, assignmentTotalPages))}
-                                disabled={assignmentPage === assignmentTotalPages}
-                                className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                                  assignmentPage === assignmentTotalPages
-                                    ? "text-gray-400 border-gray-200 cursor-not-allowed"
-                                    : "text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
-                                }`}
-                              >
-                                Next
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
+                        </>
+                      )}
+                    </CardContent>
 
-                  {/* Mobile Cards */}
-                  <div className="md:hidden space-y-3">
-                    {paginatedAssignments.map((a) => {
-                      const empName = [a.first_name, a.last_name].filter(Boolean).join(" ") || a.email || "—";
-                      const status = getAssignmentStatus(a);
-                      const StatusIcon = status.icon;
-                      return (
-                        <Card key={a.assignment_id}>
-                          <CardContent className="p-4">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                <div className="font-medium text-sm">{empName}</div>
-                                <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                  <Building2 className="w-3 h-3" />{a.partner_name || "—"}
-                                </div>
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  {formatDate(a.start_date)} – {formatDate(a.end_date)}
-                                </div>
-                                <span className={`inline-flex items-center gap-1 text-xs font-medium mt-1 ${status.color}`}>
-                                  <StatusIcon className="w-3 h-3" />{status.label}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-1 flex-shrink-0">
-                                <Button
-                                  variant="ghost" size="sm"
-                                  onClick={() => { setEditingAssignment(a); setShowAssignmentModal(true); }}
-                                  className="h-7 w-7 p-0"
-                                >
-                                  <Edit className="w-3 h-3" />
-                                </Button>
-                                {canDelete && (
-                                  <Button
-                                    variant="ghost" size="sm"
-                                    onClick={() => setAssignmentToDelete(a)}
-                                    className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 md:hidden">
-                    <p className="text-sm text-muted-foreground">
-                      Showing {assignmentStart + 1}-{Math.min(assignmentStart + assignmentPageSize, filteredAssignments.length)} of {filteredAssignments.length}
-                    </p>
-                    {assignmentTotalPages > 1 && (
-                      <div className="flex items-center gap-3">
-                        <button
-                          onClick={() => setAssignmentPage((p) => Math.max(p - 1, 1))}
-                          disabled={assignmentPage === 1}
-                          className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                            assignmentPage === 1
-                              ? "text-gray-400 border-gray-200 cursor-not-allowed"
-                              : "text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
-                          }`}
-                        >
-                          Prev
-                        </button>
-                        <span className="text-sm font-medium text-gray-900 px-2">
-                          {assignmentPage} / {assignmentTotalPages}
-                        </span>
-                        <button
-                          onClick={() => setAssignmentPage((p) => Math.min(p + 1, assignmentTotalPages))}
-                          disabled={assignmentPage === assignmentTotalPages}
-                          className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
-                            assignmentPage === assignmentTotalPages
-                              ? "text-gray-400 border-gray-200 cursor-not-allowed"
-                              : "text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
-                          }`}
-                        >
-                          Next
-                        </button>
+                    {/* Shared Pagination */}
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-6 py-4 border-t border-gray-200">
+                      <div className="text-sm sm:text-base text-muted-foreground order-2 sm:order-1">
+                        Showing {assignmentStart + 1}-{Math.min(assignmentStart + assignmentPageSize, filteredAssignments.length)} of {filteredAssignments.length}
                       </div>
-                    )}
-                  </div>
+                      {assignmentTotalPages > 1 && (
+                        <div className="flex items-center gap-3 order-1 sm:order-2">
+                          <button
+                            onClick={() => setAssignmentPage((p) => Math.max(p - 1, 1))}
+                            disabled={assignmentPage === 1}
+                            className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                              assignmentPage === 1
+                                ? "text-gray-400 border-gray-200 cursor-not-allowed"
+                                : "text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
+                            }`}
+                          >
+                            Prev
+                          </button>
+                          <span className="text-sm font-medium text-gray-900 px-2">
+                            {assignmentPage} / {assignmentTotalPages}
+                          </span>
+                          <button
+                            onClick={() => setAssignmentPage((p) => Math.min(p + 1, assignmentTotalPages))}
+                            disabled={assignmentPage === assignmentTotalPages}
+                            className={`px-3 py-1 text-sm font-medium border rounded-md transition-colors ${
+                              assignmentPage === assignmentTotalPages
+                                ? "text-gray-400 border-gray-200 cursor-not-allowed"
+                                : "text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
+                            }`}
+                          >
+                            Next
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
                 </>
               )}
             </>
@@ -848,6 +1424,14 @@ const PartnerList = () => {
           partner={viewingPartner}
           onClose={() => { setShowViewModal(false); setViewingPartner(null); }}
           onPartnerUpdated={async () => { await loadPartners(); }}
+        />
+      )}
+
+      {/* ── Assignment View Modal ── */}
+      {showAssignmentViewModal && viewingAssignment && (
+        <AssignmentViewModal
+          assignment={viewingAssignment}
+          onClose={() => { setShowAssignmentViewModal(false); setViewingAssignment(null); }}
         />
       )}
 
