@@ -75,7 +75,7 @@ const Header = () => {
         // Check subscription status after login
         if (email && isUserSetupComplete) {
           try {
-            const response = await googleSignInCheck(email, 'email');
+            const response = await googleSignInCheck(email);
             if (response.success && response.data) {
               const { is_subscription_valid, subscription_message } = response.data;
               setSubscriptionStatus({
@@ -380,15 +380,22 @@ const Header = () => {
                         </div>
 
                         {/* Company Switcher Section */}
-                        {localStorage.getItem("adminType") === "Owner" && (
-                          <div className="px-6 pb-3">
-                            <CompanySwitcher
-                              onAddCompanyClick={() => setShowProfileDropdown(false)}
-                              onCompanySwitch={() => setShowProfileDropdown(false)}
-                              subscriptionStatus={subscriptionStatus}
-                            />
-                          </div>
-                        )}
+                        {(() => {
+                          const at = localStorage.getItem("adminType");
+                          const accessRaw = localStorage.getItem("userAccessRoles");
+                          const hasEmployeeRoles = accessRaw
+                            ? (JSON.parse(accessRaw).employee_roles || []).length > 0
+                            : false;
+                          return (at === "Owner" || hasEmployeeRoles) ? (
+                            <div className="px-6 pb-3">
+                              <CompanySwitcher
+                                onAddCompanyClick={() => setShowProfileDropdown(false)}
+                                onCompanySwitch={() => setShowProfileDropdown(false)}
+                                subscriptionStatus={subscriptionStatus}
+                              />
+                            </div>
+                          ) : null;
+                        })()}
 
                         {/* Sign Out Section */}
                         <div className="px-6 pb-4">
@@ -483,14 +490,21 @@ const Header = () => {
               </nav>
               {isAuthenticated && (
                 <div className="px-4 sm:px-6 pb-4 pt-2">
-                  {localStorage.getItem("adminType") === "Owner" && (
-                    <div className="mb-6">
-                      <CompanySwitcher
-                        onAddCompanyClick={() => setShowProfileSidebar(false)}
-                        subscriptionStatus={subscriptionStatus}
-                      />
-                    </div>
-                  )}
+                  {(() => {
+                    const at = localStorage.getItem("adminType");
+                    const accessRaw = localStorage.getItem("userAccessRoles");
+                    const hasEmployeeRoles = accessRaw
+                      ? (JSON.parse(accessRaw).employee_roles || []).length > 0
+                      : false;
+                    return (at === "Owner" || hasEmployeeRoles) ? (
+                      <div className="mb-6">
+                        <CompanySwitcher
+                          onAddCompanyClick={() => setShowProfileSidebar(false)}
+                          subscriptionStatus={subscriptionStatus}
+                        />
+                      </div>
+                    ) : null;
+                  })()}
                   <button
                     onClick={() => { setShowModal(true); setShowProfileDropdown(false); }}
                     className="w-full text-center justify-center px-2 py-2 bg-[#02066F] text-white rounded-md text-sm transition-all duration-200 flex items-center space-x-3 rounded-md group"

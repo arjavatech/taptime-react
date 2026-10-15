@@ -10,6 +10,7 @@ import AddCompanyModal from './AddCompanyModal';
 const CompanySwitcher = ({ onAddCompanyClick, onCompanySwitch, subscriptionStatus }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [companies, setCompanies] = useState([]);
+  const [employeeRoles, setEmployeeRoles] = useState([]);
   const [currentCompany, setCurrentCompany] = useState(null);
   const [loading, setLoading] = useState(false);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
@@ -20,77 +21,83 @@ const CompanySwitcher = ({ onAddCompanyClick, onCompanySwitch, subscriptionStatu
   const currentCompanyId = localStorage.getItem(STORAGE_KEYS.COMPANY_ID);
 
   useEffect(() => {
-    if (adminType === 'Owner') {
-      loadCompanies();
-    }
+    loadCompanies();
   }, [adminType, currentCompanyId]);
 
   const loadCompanies = () => {
+    // Load owned companies (Owner role)
     const storedCompanies = localStorage.getItem(STORAGE_KEYS.USER_COMPANIES);
     if (storedCompanies) {
       const userCompanies = JSON.parse(storedCompanies);
       setCompanies(userCompanies);
-      
       const current = userCompanies.find(c => c.cid === currentCompanyId || c.CID === currentCompanyId);
       setCurrentCompany(current);
     }
+
+    // Load cross-company employee roles (SuperAdmin in another company)
+    const storedAccess = localStorage.getItem(STORAGE_KEYS.USER_ACCESS_ROLES);
+    if (storedAccess) {
+      const access = JSON.parse(storedAccess);
+      setEmployeeRoles(access.employee_roles || []);
+    }
   };
 
-  // Only show for owners
-  if (adminType !== 'Owner') {
+  // Show for Owners and for SuperAdmins with cross-company access
+  const hasAccessRoles = employeeRoles.length > 0;
+  if (adminType !== 'Owner' && !hasAccessRoles) {
     return null;
   }
 
-  const handleCompanySwitch = async (companyId) => {
+  const handleCompanySwitch = async (companyId, role = 'Owner') => {
     if (companyId === currentCompanyId || loading) return;
-    
+
     setLoading(true);
     try {
-      // Use switchToCompany instead of switchCompany to avoid page reload
-      const companies = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_COMPANIES) || '[]');
-      const selectedCompany = companies.find(company => company.cid === companyId);
-      
+      // Search owned companies first, then employee roles
+      const ownedCompanies = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_COMPANIES) || '[]');
+      let selectedCompany = ownedCompanies.find(c => c.cid === companyId || c.CID === companyId);
+
+      // Fall back to employee roles (cross-company SuperAdmin)
+      if (!selectedCompany) {
+        const storedAccess = localStorage.getItem(STORAGE_KEYS.USER_ACCESS_ROLES);
+        if (storedAccess) {
+          const access = JSON.parse(storedAccess);
+          selectedCompany = (access.employee_roles || []).find(r => r.cid === companyId);
+        }
+      }
+
       if (selectedCompany) {
-        // Set the new active company without page reload
-        localStorage.setItem(STORAGE_KEYS.COMPANY_ID, selectedCompany.cid);
-        localStorage.setItem(STORAGE_KEYS.COMPANY_NAME, selectedCompany.company_name);
-        localStorage.setItem(STORAGE_KEYS.REPORT_TYPE, selectedCompany.report_type);
-        localStorage.setItem(STORAGE_KEYS.ADMIN_MAIL, selectedCompany.email);
-        
-        // Update company logo if available
+        const cid = selectedCompany.cid || selectedCompany.CID;
+        const companyName = selectedCompany.company_name || selectedCompany.CName;
+
+        localStorage.setItem(STORAGE_KEYS.COMPANY_ID, cid);
+        localStorage.setItem(STORAGE_KEYS.COMPANY_NAME, companyName);
+        localStorage.setItem(STORAGE_KEYS.REPORT_TYPE, selectedCompany.report_type || '');
+        localStorage.setItem(STORAGE_KEYS.ADMIN_MAIL, selectedCompany.email || '');
+        localStorage.setItem(STORAGE_KEYS.ADMIN_TYPE, role);
+
         if (selectedCompany.company_logo) {
           localStorage.setItem(STORAGE_KEYS.COMPANY_LOGO, selectedCompany.company_logo);
         } else {
           localStorage.removeItem(STORAGE_KEYS.COMPANY_LOGO);
         }
-        
-        // Update device and employee counts
         if (selectedCompany.device_count !== undefined) {
           localStorage.setItem(STORAGE_KEYS.NO_OF_DEVICES, selectedCompany.device_count.toString());
         }
         if (selectedCompany.employee_count !== undefined) {
           localStorage.setItem(STORAGE_KEYS.NO_OF_EMPLOYEES, selectedCompany.employee_count.toString());
         }
-        
-        localStorage.setItem('lastSelectedCompany', companyId);
-        
-        // Update current company immediately
+
+        localStorage.setItem('lastSelectedCompany', cid);
         setCurrentCompany(selectedCompany);
-        
-        // Close the dropdown
         setIsOpen(false);
-        
-        // Close parent dropdown if callback provided
-        if (onCompanySwitch) {
-          onCompanySwitch();
-        }
-        
-        // Dispatch company change event for other components to listen
+
+        if (onCompanySwitch) onCompanySwitch();
+
         window.dispatchEvent(new CustomEvent('companyChanged', {
-          detail: { company: selectedCompany, companyId }
+          detail: { company: selectedCompany, companyId: cid }
         }));
-        
-        // Navigate to Employee Management page
+
         navigate('/employee-management');
       }
     } catch (error) {
@@ -154,9 +161,14 @@ const CompanySwitcher = ({ onAddCompanyClick, onCompanySwitch, subscriptionStatu
   };
 
   const otherCompanies = companies.filter(company => (company.cid || company.CID) !== currentCompanyId);
-  const hasMultipleCompanies = otherCompanies.length > 0;
+  // All switchable entries: other owned companies + cross-company roles (excluding current)
+  const allOtherEntries = [
+    ...otherCompanies.map(c => ({ ...c, _role: 'Owner' })),
+    ...employeeRoles.filter(r => r.cid !== currentCompanyId).map(r => ({ ...r, _role: 'SuperAdmin' }))
+  ];
+  const hasMultipleCompanies = allOtherEntries.length > 0;
 
-  if (!companies.length) {
+  if (!companies.length && !employeeRoles.length) {
     return null;
   }
 
@@ -172,14 +184,14 @@ const CompanySwitcher = ({ onAddCompanyClick, onCompanySwitch, subscriptionStatu
           <div className="flex items-center justify-between w-full">
             {isOpen ? 'Hide more accounts' : 'Show more accounts'}
             <div className="flex -space-x-1 items-center justify-end">
-              {otherCompanies.slice(0, 2).map((company, index) => (
-                <div key={company.cid || company.CID} className="w-6 h-6 rounded-full bg-[#02066F] flex items-center justify-center text-white text-xs font-semibold border-2 border-white">
-                  {(company.company_name || company.CName)?.charAt(0)?.toUpperCase() || 'C'}
+              {allOtherEntries.slice(0, 2).map((entry) => (
+                <div key={entry.cid || entry.CID} className="w-6 h-6 rounded-full bg-[#02066F] flex items-center justify-center text-white text-xs font-semibold border-2 border-white">
+                  {(entry.company_name || entry.CName)?.charAt(0)?.toUpperCase() || 'C'}
                 </div>
               ))}
-              {otherCompanies.length > 2 && (
+              {allOtherEntries.length > 2 && (
                 <div className="w-6 h-6 rounded-full bg-[#02066F] flex items-center justify-center text-white text-xs font-semibold border-2 border-white">
-                  +{otherCompanies.length - 2}
+                  +{allOtherEntries.length - 2}
                 </div>
               )}
             </div>
@@ -189,69 +201,68 @@ const CompanySwitcher = ({ onAddCompanyClick, onCompanySwitch, subscriptionStatu
       )}
 
       {hasMultipleCompanies && (
-        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
           <div className="h-px w-full bg-gray-200 mb-2" />
           <div className="px-2 pb-2 space-y-1">
-            {otherCompanies.map((company) => (
-              <div
-                key={company.cid || company.CID}
-                className={`group w-full flex items-center gap-3 px-3 py-2.5 transition-all duration-150 border-b border-[gray-300] ${
-                  isCompanySubscriptionExpired(company) ? 'opacity-100' : 'hover:bg-white hover:shadow-sm cursor-pointer'
-                }`}
-              >
-                <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-semibold bg-[#02066F]">
-                  {(company.company_name || company.CName)?.charAt(0)?.toUpperCase() || 'C'}
-                </div>
-                <div 
-                  className="flex-1 text-left"
-                  onClick={!isCompanySubscriptionExpired(company) ? () => handleCompanySwitch(company.cid || company.CID) : undefined}
+            {allOtherEntries.map((entry) => {
+              const entryId = entry.cid || entry.CID;
+              const entryName = entry.company_name || entry.CName || 'Unknown Company';
+              const expired = isCompanySubscriptionExpired(entry);
+              return (
+                <div
+                  key={entryId}
+                  className={`group w-full flex items-center gap-3 px-3 py-2.5 transition-all duration-150 border-b border-gray-200 ${
+                    expired ? 'opacity-100' : 'hover:bg-white hover:shadow-sm cursor-pointer'
+                  }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <div className="font-medium text-sm text-[#02066F]">
-                      {company.company_name || company.CName || 'Unknown Company'}
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-semibold bg-[#02066F]">
+                    {entryName.charAt(0).toUpperCase()}
+                  </div>
+                  <div
+                    className="flex-1 text-left"
+                    onClick={!expired ? () => handleCompanySwitch(entryId, entry._role) : undefined}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium text-sm text-[#02066F]">{entryName}</div>
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium">
+                        {entry._role}
+                      </span>
+                      {expired && (
+                        <Button
+                          onClick={(e) => { e.stopPropagation(); handleSubscriptionClick(); }}
+                          disabled={subscriptionLoading}
+                          size="sm"
+                          className="!bg-[#02066F] hover:!bg-[#02066F]/90 !text-white px-2 py-1 text-xs !opacity-100"
+                        >
+                          {subscriptionLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CreditCard className="w-3 h-3 mr-1" />}
+                          Subscribe
+                        </Button>
+                      )}
                     </div>
-                    {isCompanySubscriptionExpired(company) && (
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSubscriptionClick();
-                        }}
-                        disabled={subscriptionLoading}
-                        size="sm"
-                        className="!bg-[#02066F] hover:!bg-[#02066F]/90 !text-white px-2 py-1 text-xs !opacity-100"
-                      >
-                        {subscriptionLoading ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <CreditCard className="w-3 h-3 mr-1" />
-                        )}
-                        Subscribe
-                      </Button>
+                    {expired && (
+                      <div className="text-xs text-red-500 mt-1">{entry.subscription_message}</div>
                     )}
                   </div>
-                  {isCompanySubscriptionExpired(company) && (
-                    <div className="text-xs text-red-500 mt-1">
-                      {company.subscription_message}
-                    </div>
+                  {entryId === currentCompanyId && (
+                    <div className="w-2 h-2 rounded-full bg-[#02066F]" />
                   )}
                 </div>
-                {(company.cid || company.CID) === currentCompanyId && (
-                  <div className="w-2 h-2 rounded-full bg-[#02066F]" />
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
-          <button
-            onClick={handleAddCompany}
-            className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-white hover:shadow-sm transition-all duration-150 border-t border-[gray-300]"
-          >
-            <Plus className="w-7 h-7 text-[#02066F] p-1" />
-            <span className="flex-1 text-left font-medium text-sm text-[#02066F]">Add company</span>
-          </button>
+          {adminType === 'Owner' && (
+            <button
+              onClick={handleAddCompany}
+              className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-white hover:shadow-sm transition-all duration-150 border-t border-gray-200"
+            >
+              <Plus className="w-7 h-7 text-[#02066F] p-1" />
+              <span className="flex-1 text-left font-medium text-sm text-[#02066F]">Add company</span>
+            </button>
+          )}
         </div>
       )}
-      
-      {!hasMultipleCompanies && (
+
+      {!hasMultipleCompanies && adminType === 'Owner' && (
         <button
           onClick={handleAddCompany}
           className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-white hover:shadow-sm transition-all duration-150"
@@ -260,8 +271,7 @@ const CompanySwitcher = ({ onAddCompanyClick, onCompanySwitch, subscriptionStatu
           <span className="flex-1 text-left font-medium text-sm text-[#02066F]">Add company</span>
         </button>
       )}
-      
-      
+
       <AddCompanyModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}

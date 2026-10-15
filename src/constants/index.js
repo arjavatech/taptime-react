@@ -32,6 +32,7 @@ export const STORAGE_KEYS = {
   CUSTOMER_STATE: 'customerState',
   COMPANY_ZIP_CODE: 'companyZipCode',
   USER_COMPANIES: 'userCompanies',
+  USER_ACCESS_ROLES: 'userAccessRoles',
 };
 
 export const VALIDATION_PATTERNS = {

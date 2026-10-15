@@ -66,6 +66,10 @@ const api = {
         if (authToken) {
           headers['Authorization'] = `Bearer ${authToken}`;
         }
+        const companyContext = localStorage.getItem(STORAGE_KEYS.COMPANY_ID);
+        if (companyContext) {
+          headers['X-Company-Context'] = companyContext;
+        }
         
         const response = await fetch(url, {
           ...options,
@@ -178,15 +182,15 @@ export const loginCheck = async (username, password) => {
   }
 };
 
-export const googleSignInCheck = async (email, authMethod = 'google') => {
+export const googleSignInCheck = async (email) => {
   try {
     const data = await api.get(`${API_BASE}/employee/login_check/${email}`);
-    
+
     // Check if response contains error details (even with 200 status)
     if (data.detail || data.error) {
       const errorMsg = data.detail || data.error || '';
       // Check if error indicates account deletion/not found
-      if (typeof errorMsg === 'string' && (errorMsg.toLowerCase().includes('not found') || 
+      if (typeof errorMsg === 'string' && (errorMsg.toLowerCase().includes('not found') ||
           errorMsg.toLowerCase().includes('deleted') ||
           errorMsg.toLowerCase().includes('inactive'))) {
         return { success: false, error: errorMsg, deleted: true };
@@ -195,25 +199,10 @@ export const googleSignInCheck = async (email, authMethod = 'google') => {
     }
 
     const adminTypeValue = data.admin_type?.toString().toLowerCase();
-    
-    if (authMethod === 'google') {
-      const allowedTypes = ['admin', 'superadmin', 'owner', 'regular employee'];
-      if (!allowedTypes.includes(adminTypeValue)) {
-        return { success: false, error: `Access denied. Google login not available for admin type: "${data.admin_type}"` };
-      }
-    }
-    // For email/password login, allow all types including owner
-    else if (authMethod === 'email') {
-      const allowedTypes = ['owner', 'admin', 'superadmin'];
-      if (!allowedTypes.includes(adminTypeValue)) {
-        return { success: false, error: `Access denied. Invalid admin type: "${data.admin_type}"` };
-      }
-    }
-    // For any other auth method, validate admin type exists
-    else {
-      if (!adminTypeValue || !['owner', 'admin', 'superadmin'].includes(adminTypeValue)) {
-        return { success: false, error: `Access denied. Invalid admin type: "${data.admin_type}"` };
-      }
+
+    // Backend already validates access — only guard against a missing/unknown role
+    if (!adminTypeValue) {
+      return { success: false, error: 'Access denied.' };
     }
 
     // Handle Owner login data differently
@@ -857,6 +846,20 @@ export const switchCompany = async (companyId) => {
     console.error('Error switching company:', error);
     throw error;
   }
+};
+
+export const fetchMyAccess = async () => {
+  return api.get(`${API_URLS.company}/my-companies`);
+};
+
+export const transferCompanyOwner = async (cid, newOwnerEmail, demoteCurrentOwnerToSuperadmin = true) => {
+  return api.request(`${API_URLS.company}/${cid}/transfer-owner`, {
+    method: 'POST',
+    body: JSON.stringify({
+      new_owner_email: newOwnerEmail,
+      demote_current_owner_to_superadmin: demoteCurrentOwnerToSuperadmin
+    })
+  });
 };
 
 export const updateProfile = async (cid, data) => {

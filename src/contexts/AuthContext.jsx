@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, useContext, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../config/supabase';
-import { googleSignInCheck, getTimeZone, clearApiCache } from '../api.js';
+import { googleSignInCheck, getTimeZone, clearApiCache, fetchMyAccess } from '../api.js';
 import AccountDeletionModal from '../components/ui/AccountDeletionModal';
 import { useAutoLogout } from '../hooks/useAutoLogout';
 import { useCompany } from './CompanyContext';
@@ -41,8 +41,8 @@ export const AuthProvider = ({ children }) => {
     if (accountDeleted) return true;
     
     try {
-      const result = await googleSignInCheck(email, 'email');
-      
+      const result = await googleSignInCheck(email);
+
       if (!result.success) {
         // Check if error message indicates account deletion
         const errorMsg = (result.error || '').toLowerCase();
@@ -291,7 +291,7 @@ export const AuthProvider = ({ children }) => {
   const resetPassword = async (email) => {
     try {
       // First check if email exists in database
-      const emailCheck = await googleSignInCheck(email, 'email');
+      const emailCheck = await googleSignInCheck(email);
       
       if (!emailCheck.success) {
         return { data: null, error: "You are not a user" };
@@ -341,7 +341,7 @@ export const AuthProvider = ({ children }) => {
       // and fetches company, timezone, and customer data
       // CRITICAL: Pass the authMethod to ensure proper validation
       // Note: This single call will also detect if account is deleted
-      const result = await googleSignInCheck(email, authMethod);
+      const result = await googleSignInCheck(email);
 
       if (!result.success) {
         // Check if the error indicates account deletion
@@ -379,6 +379,13 @@ export const AuthProvider = ({ children }) => {
       if (!isEmployee) {
         await getTimeZone(companyID);
       }
+
+      try {
+        const accessData = await fetchMyAccess();
+        if (accessData?.data) {
+          localStorage.setItem(STORAGE_KEYS.USER_ACCESS_ROLES, JSON.stringify(accessData.data));
+        }
+      } catch (_) {}
 
       const companiesResult = isEmployee ? null : await loadUserCompanies(email);
       
