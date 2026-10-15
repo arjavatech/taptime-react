@@ -31,8 +31,8 @@ const getCurrentAccessToken = async () => {
   } catch (error) {
     console.warn("Unable to restore Supabase session", error);
   }
-  localStorage.removeItem("access_token");
-  return null;
+  // Fall back to stored token rather than deleting it — avoids sending no auth on temporary Supabase unavailability
+  return localStorage.getItem("access_token") || null;
 };
 
 // Clear API cache - useful after login/logout or when data changes

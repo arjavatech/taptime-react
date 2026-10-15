@@ -111,7 +111,8 @@ const Sidebar = () => {
           {companyName && (
             <p className="text-sm font-semibold text-white truncate">{companyName}</p>
           )}
-          <p className="text-xs text-white/60 truncate">{userName || userEmail}</p>
+          {userName && <p className="text-xs text-white/75 truncate">{userName}</p>}
+          {userEmail && <p className="text-xs text-white/50 truncate">{userEmail}</p>}
         </div>
       </div>
       {showCompanySwitcher && (
