@@ -17,7 +17,6 @@ const RADIUS_PRESETS = [
 ];
 
 const TIMEZONES = [
-  { label: "UTC — Coordinated Universal Time",        value: "UTC" },
   { label: "GMT — Greenwich Mean Time",               value: "Europe/London" },
   { label: "IST — India Standard Time (+5:30)",       value: "Asia/Kolkata" },
   { label: "EST / EDT — US Eastern",                  value: "America/New_York" },
@@ -60,7 +59,7 @@ const EMPTY_FORM = {
   latitude: "",
   longitude: "",
   geofence_radius_meters: 500,
-  timezone: "UTC",
+  timezone: "",
   google_place_id: "",
   notes: "",
 };
@@ -312,6 +311,7 @@ const PartnerFormModal = ({ partner, onClose, onSave }) => {
                     onChange={(e) => handleChange("timezone", e.target.value)}
                     className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   >
+                    <option value="" disabled>— Select timezone —</option>
                     {TIMEZONES.map((tz) => (
                       <option key={tz.value} value={tz.value}>{tz.label}</option>
                     ))}
