@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import Header from "../components/layout/Header";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -1104,11 +1103,9 @@ const ReportSetting = ({ accessDenied = false }) => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Header />
-
+    <div className="min-h-screen bg-background">
       {accessDenied ? (
-        <div className="pt-20 pb-8 flex-grow bg-gradient-to-br from-slate-50 to-blue-50">
+        <div className="pb-8 flex-grow bg-gradient-to-br from-slate-50 to-blue-50">
           <div className="border-b">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
               <div>
@@ -1152,7 +1149,7 @@ const ReportSetting = ({ accessDenied = false }) => {
         </div>
       )}
 
-      <div className="pt-20 pb-8 flex-grow bg-gradient-to-br from-slate-50 to-blue-50">
+      <div className="pb-8 flex-grow bg-gradient-to-br from-slate-50 to-blue-50">
         {/* Page Header */}
         <div className="border-b">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">

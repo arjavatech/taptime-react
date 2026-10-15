@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import Header from "../components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
@@ -82,8 +81,7 @@ const PartnerDetail = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Header />
+      <div className="min-h-screen bg-background">
         <div className="flex-grow flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
@@ -94,8 +92,7 @@ const PartnerDetail = () => {
 
   if (!partner) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Header />
+      <div className="min-h-screen bg-background">
         <div className="flex-grow flex items-center justify-center">
           <div className="text-center">
             <h2 className="text-lg font-semibold mb-2">Partner not found</h2>
@@ -117,10 +114,8 @@ const PartnerDetail = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Header />
-
-      <div className="pt-20 pb-8 flex-grow bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="min-h-screen bg-background">
+      <div className="pb-8 flex-grow bg-gradient-to-br from-slate-50 to-blue-50">
         {/* Page Header */}
         <div className="border-b bg-white">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">

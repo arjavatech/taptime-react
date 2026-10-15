@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import Header from '../components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -89,11 +88,10 @@ const MyReports = () => {
   const paginated = sorted.slice(start, start + pageSize);
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 to-blue-50">
-      <Header />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <CenterLoadingOverlay show={loading} />
 
-      <div className="pt-20 pb-8 flex-grow">
+      <div className="pb-8 flex-grow">
         {/* Page Header */}
         <div className="border-b bg-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 pb-4">

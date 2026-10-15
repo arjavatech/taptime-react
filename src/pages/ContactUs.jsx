@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
-import Header from "../components/layout/Header";
 import Footer from "../components/layout/Footer";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
 import { PhoneInput } from 'react-international-phone';
@@ -175,9 +174,7 @@ const ContactUs = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header isAuthenticated={true} />
-
+    <div className="min-h-screen">
       {/* Loading Overlay */}
       {globalLoading && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm modal-backdrop">
@@ -189,7 +186,7 @@ const ContactUs = () => {
         </div>
       )}
 
-      <section className="flex-grow bg-gray-50 px-4 sm:px-6 pt-25 pb-16">
+      <section className="flex-grow bg-gray-50 px-4 sm:px-6 pt-6 pb-16">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="text-center mb-8 sm:mb-12 lg:mb-16">

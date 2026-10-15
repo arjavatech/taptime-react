@@ -212,7 +212,7 @@ const CompanySwitcher = ({ onAddCompanyClick, onCompanySwitch, subscriptionStatu
                 <div
                   key={entryId}
                   className={`group w-full flex items-center gap-3 px-3 py-2.5 transition-all duration-150 border-b border-gray-200 ${
-                    expired ? 'opacity-100' : 'hover:bg-white hover:shadow-sm cursor-pointer'
+                    expired ? 'opacity-100' : 'hover:bg-blue-50 cursor-pointer'
                   }`}
                 >
                   <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-semibold bg-[#02066F]">
@@ -251,25 +251,29 @@ const CompanySwitcher = ({ onAddCompanyClick, onCompanySwitch, subscriptionStatu
             })}
           </div>
           {adminType === 'Owner' && (
-            <button
-              onClick={handleAddCompany}
-              className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-white hover:shadow-sm transition-all duration-150 border-t border-gray-200"
-            >
-              <Plus className="w-7 h-7 text-[#02066F] p-1" />
-              <span className="flex-1 text-left font-medium text-sm text-[#02066F]">Add company</span>
-            </button>
+            <div className="px-2 pb-2 pt-1">
+              <button
+                onClick={handleAddCompany}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-[#02066F] text-white rounded-lg hover:bg-[#02066F]/90 transition-all duration-150"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="font-medium text-sm">Add company</span>
+              </button>
+            </div>
           )}
         </div>
       )}
 
       {!hasMultipleCompanies && adminType === 'Owner' && (
-        <button
-          onClick={handleAddCompany}
-          className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-white hover:shadow-sm transition-all duration-150"
-        >
-          <Plus className="w-7 h-7 text-[#02066F] p-1" />
-          <span className="flex-1 text-left font-medium text-sm text-[#02066F]">Add company</span>
-        </button>
+        <div className="px-2 py-2">
+          <button
+            onClick={handleAddCompany}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-[#02066F] text-white rounded-lg hover:bg-[#02066F]/90 transition-all duration-150"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="font-medium text-sm">Add company</span>
+          </button>
+        </div>
       )}
 
       <AddCompanyModal

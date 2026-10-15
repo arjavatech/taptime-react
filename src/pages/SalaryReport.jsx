@@ -3,7 +3,6 @@ import { useLocation } from "react-router-dom";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { CalendarDays, Download, History, Loader2, Users, Search, ArrowUp, ArrowDown, ChevronDown, ChevronLeft, ChevronRight, Printer, X } from "lucide-react";
-import Header from "../components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
@@ -358,8 +357,7 @@ export default function SalaryReport() {
     <div className="min-h-screen bg-slate-50">
       <CenterLoadingOverlay show={selecting} message="Loading report…" />
       <CenterLoadingOverlay show={downloadingPeriod !== null} message="Generating PDF…" />
-      <Header />
-      <main className="pt-24 pb-12 px-4 sm:px-6 max-w-7xl mx-auto">
+      <main className="pt-6 pb-12 px-4 sm:px-6 max-w-7xl mx-auto">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-[#01005a]">Salary Report</h1>

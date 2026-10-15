@@ -34,6 +34,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { CompanyProvider } from "./contexts/CompanyContext";
 import RoleProtectedRoute from "./components/RoleProtectedRoute";
 import EmployeeRoute from "./components/EmployeeRoute";
+import AuthLayout from "./components/layout/AuthLayout";
 
 
 function App() {
@@ -51,25 +52,29 @@ function App() {
               <Route path="/set-password" element={<SetPassword />} />
               <Route path="/register" element={<Register />} />
               <Route path="/contact-us" element={<GetInTouch />} />
-              <Route path="/my-profile" element={<EmployeeRoute><MyProfile /></EmployeeRoute>} />
-              <Route path="/my-reports" element={<EmployeeRoute><MyReports /></EmployeeRoute>} />
-              <Route path="/pending-checkout" element={<EmployeeRoute><Navigate to="/my-reports?tab=pending" replace /></EmployeeRoute>} />
-              <Route path="/employee-management" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><EmployeeList /></RoleProtectedRoute>} />
-              <Route path="/device" element={<RoleProtectedRoute allowedRoles={['Owner', 'SuperAdmin']}><Device /></RoleProtectedRoute>} />
-              <Route path="/invoices" element={<RoleProtectedRoute allowedRoles={['Owner', 'SuperAdmin']}><Invoices /></RoleProtectedRoute>} />
-              <Route path="/integrations" element={<RoleProtectedRoute allowedRoles={['Owner', 'SuperAdmin']}><IntegrationConnections /></RoleProtectedRoute>} />
-              <Route path="/profile" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><Profile /></RoleProtectedRoute>} />
-              <Route path="/contact" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><ContactUs /></RoleProtectedRoute>} />
-              <Route path="/reports" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><ReportSummary /></RoleProtectedRoute>} />
-              <Route path="/reportsummary" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><ReportSummary /></RoleProtectedRoute>} />
-              <Route path="/daywisereport" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><ReportSummary /></RoleProtectedRoute>} />
-              <Route path="/salariedreport" element={<Navigate to="/salary-report" replace />} />
-              <Route path="/salary-report" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><SalaryReport /></RoleProtectedRoute>} />
-              <Route path="/weekly-report" element={<RoleProtectedRoute allowedRoles={["Owner", "Admin", "SuperAdmin"]}><WeeklyReport /></RoleProtectedRoute>} />
-              <Route path="/reportsetting" element={<RoleProtectedRoute allowedRoles={['Owner', 'SuperAdmin']}><ReportSetting /></RoleProtectedRoute>} />
-              <Route path="/partners" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><PartnerList /></RoleProtectedRoute>} />
-              <Route path="/partners/:id" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><PartnerDetail /></RoleProtectedRoute>} />
-              <Route path="/my-assignments" element={<RoleProtectedRoute allowedRoles={['Admin', 'SuperAdmin', 'Employee']}><MyAssignments /></RoleProtectedRoute>} />
+
+              {/* Authenticated routes — share the sidebar layout */}
+              <Route element={<AuthLayout />}>
+                <Route path="/my-profile" element={<EmployeeRoute><MyProfile /></EmployeeRoute>} />
+                <Route path="/my-reports" element={<EmployeeRoute><MyReports /></EmployeeRoute>} />
+                <Route path="/pending-checkout" element={<EmployeeRoute><Navigate to="/my-reports?tab=pending" replace /></EmployeeRoute>} />
+                <Route path="/employee-management" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><EmployeeList /></RoleProtectedRoute>} />
+                <Route path="/device" element={<RoleProtectedRoute allowedRoles={['Owner', 'SuperAdmin']}><Device /></RoleProtectedRoute>} />
+                <Route path="/invoices" element={<RoleProtectedRoute allowedRoles={['Owner', 'SuperAdmin']}><Invoices /></RoleProtectedRoute>} />
+                <Route path="/integrations" element={<RoleProtectedRoute allowedRoles={['Owner', 'SuperAdmin']}><IntegrationConnections /></RoleProtectedRoute>} />
+                <Route path="/profile" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><Profile /></RoleProtectedRoute>} />
+                <Route path="/contact" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><ContactUs /></RoleProtectedRoute>} />
+                <Route path="/reports" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><ReportSummary /></RoleProtectedRoute>} />
+                <Route path="/reportsummary" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><ReportSummary /></RoleProtectedRoute>} />
+                <Route path="/daywisereport" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><ReportSummary /></RoleProtectedRoute>} />
+                <Route path="/salariedreport" element={<Navigate to="/salary-report" replace />} />
+                <Route path="/salary-report" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><SalaryReport /></RoleProtectedRoute>} />
+                <Route path="/weekly-report" element={<RoleProtectedRoute allowedRoles={["Owner", "Admin", "SuperAdmin"]}><WeeklyReport /></RoleProtectedRoute>} />
+                <Route path="/reportsetting" element={<RoleProtectedRoute allowedRoles={['Owner', 'SuperAdmin']}><ReportSetting /></RoleProtectedRoute>} />
+                <Route path="/partners" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><PartnerList /></RoleProtectedRoute>} />
+                <Route path="/partners/:id" element={<RoleProtectedRoute allowedRoles={['Owner', 'Admin', 'SuperAdmin']}><PartnerDetail /></RoleProtectedRoute>} />
+                <Route path="/my-assignments" element={<RoleProtectedRoute allowedRoles={['Admin', 'SuperAdmin', 'Employee']}><MyAssignments /></RoleProtectedRoute>} />
+              </Route>
             </Routes>
           </div>
         </AuthProvider>

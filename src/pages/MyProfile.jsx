@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import Header from '../components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -40,7 +39,7 @@ const MyProfile = () => {
     }
   };
 
-  return <><Header /><CenterLoadingOverlay show={loading || saving} /><main className="max-w-3xl mx-auto px-4 pt-28 pb-10">
+  return <><CenterLoadingOverlay show={loading || saving} /><main className="max-w-3xl mx-auto px-4 pt-8 pb-10">
     <Card><CardHeader><CardTitle>My Profile</CardTitle></CardHeader><CardContent className="space-y-6">
       {profile && <div className="grid sm:grid-cols-2 gap-4 text-sm">
         <div><span className="text-muted-foreground">Name</span><p>{profile.first_name} {profile.last_name}</p></div>
