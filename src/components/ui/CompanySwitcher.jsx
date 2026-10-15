@@ -268,10 +268,10 @@ const CompanySwitcher = ({ onAddCompanyClick, onCompanySwitch, subscriptionStatu
         <div className="px-2 py-2">
           <button
             onClick={handleAddCompany}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-[#02066F] text-white rounded-lg hover:bg-[#02066F]/90 transition-all duration-150"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 border-2 border-dashed border-[#02066F]/50 text-[#02066F] rounded-xl font-semibold hover:border-[#02066F] hover:bg-[#02066F]/5 transition-all duration-150"
           >
             <Plus className="w-4 h-4" />
-            <span className="font-medium text-sm">Add company</span>
+            <span className="text-sm">Add company</span>
           </button>
         </div>
       )}

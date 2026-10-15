@@ -384,6 +384,9 @@ export const AuthProvider = ({ children }) => {
         const accessData = await fetchMyAccess();
         if (accessData?.data) {
           localStorage.setItem(STORAGE_KEYS.USER_ACCESS_ROLES, JSON.stringify(accessData.data));
+          if (accessData.data.owned_companies?.length) {
+            localStorage.setItem(STORAGE_KEYS.USER_COMPANIES, JSON.stringify(accessData.data.owned_companies));
+          }
         }
       } catch (_) {}
 
