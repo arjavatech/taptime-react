@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from "react";
-import Header from "../components/layout/Header";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Input } from "../components/ui/input";
@@ -834,8 +833,7 @@ const Profile = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Header />
+    <div className="min-h-screen bg-background">
 
       {/* Loading Overlay */}
       {isLoading && (
@@ -848,7 +846,7 @@ const Profile = () => {
         </div>
       )}
 
-      <div className="pt-20 pb-8 bg-gradient-to-br from-slate-50 to-blue-50 flex-1">
+      <div className="pb-8 bg-gradient-to-br from-slate-50 to-blue-50 flex-1">
         {/* Page Header */}
         <div className="border-b">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">

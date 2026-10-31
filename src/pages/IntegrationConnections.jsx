@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import Header from "../components/layout/Header";
 import Footer from "../components/layout/Footer";
 import IntegrationConfirmationModal from "../components/ui/IntegrationConfirmationModal";
 import {
@@ -112,7 +111,7 @@ export default function IntegrationConnections() {
     });
   };
 
-  return <><Header /><main className="min-h-screen bg-slate-50 px-4 pb-12 pt-28">
+  return <><main className="min-h-screen bg-slate-50 px-4 pb-12 pt-6">
     <div className="mx-auto max-w-6xl space-y-6">
       <section className="rounded-xl border bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-semibold text-[#08076b]">Partner Integrations</h1>

@@ -31,8 +31,8 @@ const getCurrentAccessToken = async () => {
   } catch (error) {
     console.warn("Unable to restore Supabase session", error);
   }
-  localStorage.removeItem("access_token");
-  return null;
+  // Fall back to stored token rather than deleting it — avoids sending no auth on temporary Supabase unavailability
+  return localStorage.getItem("access_token") || null;
 };
 
 // Clear API cache - useful after login/logout or when data changes
@@ -65,6 +65,10 @@ const api = {
         const headers = { 'Content-Type': 'application/json' };
         if (authToken) {
           headers['Authorization'] = `Bearer ${authToken}`;
+        }
+        const companyContext = localStorage.getItem(STORAGE_KEYS.COMPANY_ID);
+        if (companyContext) {
+          headers['X-Company-Context'] = companyContext;
         }
         
         const response = await fetch(url, {
@@ -178,15 +182,15 @@ export const loginCheck = async (username, password) => {
   }
 };
 
-export const googleSignInCheck = async (email, authMethod = 'google') => {
+export const googleSignInCheck = async (email) => {
   try {
     const data = await api.get(`${API_BASE}/employee/login_check/${email}`);
-    
+
     // Check if response contains error details (even with 200 status)
     if (data.detail || data.error) {
       const errorMsg = data.detail || data.error || '';
       // Check if error indicates account deletion/not found
-      if (typeof errorMsg === 'string' && (errorMsg.toLowerCase().includes('not found') || 
+      if (typeof errorMsg === 'string' && (errorMsg.toLowerCase().includes('not found') ||
           errorMsg.toLowerCase().includes('deleted') ||
           errorMsg.toLowerCase().includes('inactive'))) {
         return { success: false, error: errorMsg, deleted: true };
@@ -195,25 +199,10 @@ export const googleSignInCheck = async (email, authMethod = 'google') => {
     }
 
     const adminTypeValue = data.admin_type?.toString().toLowerCase();
-    
-    if (authMethod === 'google') {
-      const allowedTypes = ['admin', 'superadmin', 'owner', 'regular employee'];
-      if (!allowedTypes.includes(adminTypeValue)) {
-        return { success: false, error: `Access denied. Google login not available for admin type: "${data.admin_type}"` };
-      }
-    }
-    // For email/password login, allow all types including owner
-    else if (authMethod === 'email') {
-      const allowedTypes = ['owner', 'admin', 'superadmin'];
-      if (!allowedTypes.includes(adminTypeValue)) {
-        return { success: false, error: `Access denied. Invalid admin type: "${data.admin_type}"` };
-      }
-    }
-    // For any other auth method, validate admin type exists
-    else {
-      if (!adminTypeValue || !['owner', 'admin', 'superadmin'].includes(adminTypeValue)) {
-        return { success: false, error: `Access denied. Invalid admin type: "${data.admin_type}"` };
-      }
+
+    // Backend already validates access — only guard against a missing/unknown role
+    if (!adminTypeValue) {
+      return { success: false, error: 'Access denied.' };
     }
 
     // Handle Owner login data differently
@@ -859,6 +848,20 @@ export const switchCompany = async (companyId) => {
   }
 };
 
+export const fetchMyAccess = async () => {
+  return api.get(`${API_URLS.company}/my-companies`);
+};
+
+export const transferCompanyOwner = async (cid, newOwnerEmail, demoteCurrentOwnerToSuperadmin = true) => {
+  return api.request(`${API_URLS.company}/${cid}/transfer-owner`, {
+    method: 'POST',
+    body: JSON.stringify({
+      new_owner_email: newOwnerEmail,
+      demote_current_owner_to_superadmin: demoteCurrentOwnerToSuperadmin
+    })
+  });
+};
+
 export const updateProfile = async (cid, data) => {
   const apiUrl = `${API_URLS.company}/update/${cid}`;
 
@@ -1243,6 +1246,132 @@ export const deleteDevice = async (accessKey, companyId) => {
 
 
 
+
+// ============================================
+// Partner Functions
+// ============================================
+
+export const getPartnersByCompany = async (companyId) => {
+  try {
+    const data = await api.get(`${API_BASE}/partner/company/${companyId}`);
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error fetching partners:', error);
+    return [];
+  }
+};
+
+export const getPartnerById = async (partnerId) => {
+  return api.get(`${API_BASE}/partner/${partnerId}`);
+};
+
+export const createPartner = async (partnerData) => {
+  try {
+    const result = await api.post(`${API_BASE}/partner/create`, partnerData);
+    clearApiCache();
+    return result;
+  } catch (error) {
+    console.error('Error creating partner:', error);
+    throw error;
+  }
+};
+
+export const updatePartner = async (partnerId, partnerData) => {
+  try {
+    const result = await api.put(`${API_BASE}/partner/update/${partnerId}`, partnerData);
+    clearApiCache();
+    return result;
+  } catch (error) {
+    console.error('Error updating partner:', error);
+    throw error;
+  }
+};
+
+export const deletePartner = async (partnerId) => {
+  try {
+    const result = await api.put(`${API_BASE}/partner/delete/${partnerId}`);
+    clearApiCache();
+    return result;
+  } catch (error) {
+    console.error('Error deleting partner:', error);
+    throw error;
+  }
+};
+
+export const geocodeAddress = async (address) => {
+  return api.get(`${API_BASE}/partner/geocode?address=${encodeURIComponent(address)}`);
+};
+
+// ============================================
+// Assignment Functions
+// ============================================
+
+export const getAssignmentsByCompany = async (companyId, includeInactive = false) => {
+  try {
+    const data = await api.get(`${API_BASE}/assignment/company/${companyId}?include_inactive=${includeInactive}`);
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error fetching assignments:', error);
+    return [];
+  }
+};
+
+export const getAssignmentsByEmployee = async (empId) => {
+  try {
+    const data = await api.get(`${API_BASE}/assignment/employee/${empId}`);
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error fetching employee assignments:', error);
+    return [];
+  }
+};
+
+export const getAssignmentsByPartner = async (partnerId) => {
+  try {
+    const data = await api.get(`${API_BASE}/assignment/partner/${partnerId}`);
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error('Error fetching partner assignments:', error);
+    return [];
+  }
+};
+
+export const getAssignmentById = async (assignmentId) => {
+  return api.get(`${API_BASE}/assignment/${assignmentId}`);
+};
+
+export const createAssignment = async (assignmentData) => {
+  try {
+    const result = await api.post(`${API_BASE}/assignment/create`, assignmentData);
+    clearApiCache();
+    return result;
+  } catch (error) {
+    console.error('Error creating assignment:', error);
+    throw error;
+  }
+};
+
+export const updateAssignment = async (assignmentId, assignmentData) => {
+  try {
+    const result = await api.put(`${API_BASE}/assignment/update/${assignmentId}`, assignmentData);
+    clearApiCache();
+    return result;
+  } catch (error) {
+    console.error('Error updating assignment:', error);
+    throw error;
+  }
+};
+
+export const deleteAssignment = async (assignmentId) => {
+  try {
+    const result = await api.put(`${API_BASE}/assignment/delete/${assignmentId}`);
+    clearApiCache();
+    return result;
+  } catch (error) {
+    console.error('Error deleting assignment:', error);
+    throw error;
+  }
+};
 
 // ============================================
 // Subscription/Stripe Functions
@@ -1632,4 +1761,13 @@ export const completeSetup = async (setupToken) => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ setup_token: setupToken })
   }).catch(() => {});  // Best-effort, don't block UX on failure
+};
+
+export const getAssignmentReport = async (assignmentId) => {
+  try {
+    const data = await api.get(`${API_BASE}/dailyreport/assignment/${assignmentId}`);
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
 };
