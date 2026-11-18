@@ -8,7 +8,6 @@ import {
 
 import HomePage from "./pages/HomePage";
 import Login from "./pages/Login";
-import Pricing from "./pages/Pricing";
 import SetPassword from "./pages/SetPassword";
 import Register from "./pages/Register";
 
@@ -47,7 +46,6 @@ function App() {
               <Route path="/" element={<HomePage />} />
                <Route path="/register/success" element={<RegisterSuccess />} />
               <Route path="/login" element={<Login />} />
-              <Route path="/pricing" element={<Pricing />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/set-password" element={<SetPassword />} />
               <Route path="/register" element={<Register />} />
