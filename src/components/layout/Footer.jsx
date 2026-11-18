@@ -41,7 +41,6 @@ const Footer = () => {
 
   const publicLinks = [
     { to: "/", text: "Home" },
-    { to: "/pricing", text: "Pricing" },
     { to: "/login", text: "Login" },
     { to: "/register", text: "Register" },
     { to: "/contact-us", text: "Contact Us" }
